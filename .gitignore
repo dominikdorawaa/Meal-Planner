@@ -1,0 +1,15 @@
+# Keep screen designs local
+makiety_ekranow/
+
+# Keep SQL migration and setup files local
+*.sql
+
+# Build and IDE files
+node_modules/
+dist/
+build/
+target/
+.vscode/
+.idea/
+*.env*
+*.local

@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db.abhupzovgkreccjzxxaz.supabase.co:5432/postgres
+    username: postgres
+    password: "V5UDkp4w%U$vxU."
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: https://abhupzovgkreccjzxxaz.supabase.co/rest/v1/auth/v1/jwks
