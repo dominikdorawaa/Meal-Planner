@@ -1,7 +1,7 @@
 # Meal-Planner
 
 ## Opis / Description
-**PL:** Recipes to mobilna aplikacja webowa do zarządzania przepisami, składnikami i wartościami odżywczymi.  
+**PL:** # Meal-Planner to mobilna aplikacja webowa do zarządzania przepisami, składnikami i wartościami odżywczymi.  
 Śledź kalorie, makroskładniki i plan posiłków w intuicyjnym interfejsie, dostosowanym do urządzeń mobilnych i desktopowych.  
 
 **EN:** Recipes is a mobile-first web application for managing recipes, ingredients, and nutrition.  
