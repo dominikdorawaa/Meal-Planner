@@ -1,0 +1,3 @@
+{
+  "error": "Row was updated or deleted by another transaction (or unsaved-value mapping was incorrect): [com.example.demo.entity.UserProfile#6f71c296-9ac6-4cdc-a944-fd0589caec19]"
+}
