@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 
 export function ProductDetails() {
@@ -33,7 +33,7 @@ export function ProductDetails() {
         setProduct(existing);
         setLoading(false);
       } else {
-        const { data } = await supabase.from('products').select('*').eq('id', id).single();
+        const data = await api.products.getById(id).catch(() => null);
         if (data) setProduct(data);
         setLoading(false);
       }
@@ -42,7 +42,8 @@ export function ProductDetails() {
 
     async function loadMeal() {
       if (!mealId) return;
-      const { data } = await supabase.from('user_meals').select('*').eq('id', mealId).single();
+      const meals = await api.meals.getAll().catch(() => []);
+      const data = meals.find((m: any) => m.id === mealId);
       if (data) {
         const weight = data.portions_consumed || 0;
         setGrams(weight);
@@ -92,26 +93,25 @@ export function ProductDetails() {
     const mealInserts = [];
     for (let i = 0; i < daysToAdd; i++) {
       mealInserts.push({
-        user_id: user.id,
-        product_id: product.id,
+        product: { id: product.id },
         date_str: getNextDate(selectDate, i),
         meal_type: selectType,
         portions_consumed: currentWeight
       });
     }
 
-    let res;
-    if (mealId) {
-      res = await supabase.from('user_meals').update({ portions_consumed: currentWeight }).eq('id', mealId);
-    } else {
-      res = await supabase.from('user_meals').insert(mealInserts);
-    }
-
-    if (!res.error) {
+    try {
+      if (mealId) {
+        await api.meals.update(mealId, { portions_consumed: currentWeight });
+      } else {
+        for (const insert of mealInserts) {
+          await api.meals.add(insert);
+        }
+      }
       await refreshMeals();
       navigate('/');
-    } else {
-      alert('Błąd: ' + res.error.message);
+    } catch (error: any) {
+      alert('Błąd: ' + error.message);
       setIsAdding(false);
     }
   };

@@ -1,14 +1,21 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { BottomNav } from '../components/BottomNav';
+import { RecipeCoverImage } from '../components/RecipeCoverImage';
 
 export function ShoppingList() {
-  const { shoppingList, shoppingListRecipes, refreshShoppingList } = useAppData();
+  const { shoppingList, shoppingListRecipes, refreshShoppingList, setShoppingList } = useAppData();
   const [items, setItems] = useState<any[]>(shoppingList || []);
   const [sourceRecipes, setSourceRecipes] = useState<any[]>(shoppingListRecipes || []);
   const [activeTab, setActiveTab] = useState<'categories' | 'recipes'>('categories');
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newIngredientName, setNewIngredientName] = useState('');
+  const [newQuantity, setNewQuantity] = useState('1');
+  const [newUnit, setNewUnit] = useState('szt');
+  const [addSubmitting, setAddSubmitting] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
     setItems(shoppingList || []);
@@ -16,29 +23,76 @@ export function ShoppingList() {
   }, [shoppingList, shoppingListRecipes]);
 
   const toggleCheck = async (id: string, currentStatus: boolean) => {
-    // Optimistic update
-    setItems(prev => {
-      const updated = prev.map(item => item.id === id ? { ...item, is_checked: !currentStatus } : item);
-      return updated.sort((a,b) => {
-         if (a.is_checked === b.is_checked) return a.ingredient_name.localeCompare(b.ingredient_name);
-         return a.is_checked ? 1 : -1;
+    // Functional Optimistic update local
+    setItems(prev => prev.map(item => item.id === id ? { ...item, is_checked: !currentStatus } : item));
+    
+    // Functional Optimistic update context
+    setShoppingList(prev => prev.map(item => item.id === id ? { ...item, is_checked: !currentStatus } : item));
+
+    try {
+      await api.shoppingList.toggleItem(id, !currentStatus);
+      await refreshShoppingList();
+    } catch (err) {
+      console.error("Error toggling item:", err);
+      refreshShoppingList();
+    }
+  };
+
+  const openAddModal = () => {
+    setAddError(null);
+    setShowAddModal(true);
+  };
+
+  const handleAddProduct = async () => {
+    const name = newIngredientName.trim();
+    if (!name) {
+      setAddError('Podaj nazwę produktu.');
+      return;
+    }
+    const qty = parseFloat(String(newQuantity).replace(',', '.'));
+    if (Number.isNaN(qty) || qty <= 0) {
+      setAddError('Podaj dodatnią ilość.');
+      return;
+    }
+    const unit = newUnit.trim() || 'szt';
+    setAddError(null);
+    setAddSubmitting(true);
+    try {
+      await api.shoppingList.addItem({
+        ingredient_name: name,
+        quantity: qty,
+        unit,
+        is_checked: false,
       });
-    });
-    await supabase.from('shopping_list').update({ is_checked: !currentStatus }).eq('id', id);
-    refreshShoppingList();
+      await refreshShoppingList();
+      setShowAddModal(false);
+      setNewIngredientName('');
+      setNewQuantity('1');
+      setNewUnit('szt');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Nie udało się dodać produktu.';
+      setAddError(msg);
+    } finally {
+      setAddSubmitting(false);
+    }
   };
 
   const clearList = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from('shopping_list').delete().eq('user_id', user.id);
-    await supabase.from('shopping_list_recipes').delete().eq('user_id', user.id);
-    refreshShoppingList();
-    setShowConfirm(false);
+    // Optimistic update
+    setItems([]);
+    setShoppingList([]);
+    try {
+      await api.shoppingList.clearAll();
+      await refreshShoppingList();
+      setShowConfirm(false);
+    } catch (err) {
+      console.error("Error clearing list:", err);
+      refreshShoppingList();
+    }
   };
 
   const getCategory = (name: string) => {
-    const n = name.toLowerCase();
+    const n = (name || '').toLowerCase();
     
     if (/awokado|sałat|pomidor|owoc|warzyw|szparag|cytryn|mieszanka|fasol|ziemniak|cebul|czosn|jabłk|banan|marchew|papryk|ogórek|brokuł|kalafior|pieczark/i.test(n)) 
       return { title: 'Warzywa i Owoce', icon: 'eco' };
@@ -94,7 +148,11 @@ export function ShoppingList() {
             <p className="text-on-surface-variant font-medium text-sm mb-1 uppercase tracking-widest">Twoja Kolekcja</p>
             <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Koszyk</h2>
           </div>
-          <button className="bg-primary-gradient text-on-primary px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-ambient active:scale-95 transition-transform font-semibold text-sm">
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="bg-primary-gradient text-on-primary px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-ambient active:scale-95 transition-transform font-semibold text-sm"
+          >
             <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>add</span>
             Dodaj produkt
           </button>
@@ -130,7 +188,7 @@ export function ShoppingList() {
                                <div className="relative flex items-center">
                                  <input 
                                    checked={item.is_checked} 
-                                   onChange={() => toggleCheck(item.id, item.is_checked)} 
+                                   onChange={() => toggleCheck(item.id, !!item.is_checked)} 
                                    className="w-6 h-6 rounded-md border-outline-variant text-primary focus:ring-primary-container bg-surface-container-low cursor-pointer" 
                                    type="checkbox"
                                  />
@@ -139,7 +197,7 @@ export function ShoppingList() {
                                  <p className={`font-semibold transition-opacity duration-300 ${item.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-on-surface'}`}>{item.ingredient_name}</p>
                                </div>
                              </div>
-                             <span className={`font-bold transition-opacity duration-300 ${item.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-primary'}`}>{item.amount} {item.unit}</span>
+                             <span className={`font-bold transition-opacity duration-300 ${item.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-primary'}`}>{item.quantity} {item.unit}</span>
                            </label>
                          ))}
                        </div>
@@ -151,51 +209,59 @@ export function ShoppingList() {
 
             {activeTab === 'recipes' && (
               <>
-                 {sourceRecipes.map((r, idx) => (
-                    <section key={idx} className="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm border border-outline-variant/10 mb-6 relative">
+                 {sourceRecipes.map((r: any, idx: number) => (
+                    <div key={idx} className="flex flex-col gap-4 p-4 rounded-2xl bg-surface-container-low border border-outline-variant/10 mb-6 relative">
                        <div className="absolute top-3 right-3 bg-surface/80 backdrop-blur-md px-2 py-1 rounded-lg border border-outline-variant/20 z-10 flex items-center gap-0.5 shadow-sm">
                           <span className="material-symbols-outlined text-[12px] text-primary">local_fire_department</span>
-                          <span className="text-[10px] uppercase font-bold text-primary leading-none">{r.kcal} kcal</span>
+                          <span className="text-[10px] uppercase font-bold text-primary leading-none">{r.recipe?.kcal || r.kcal} kcal</span>
                        </div>
                        <div className="absolute top-3 left-3 bg-primary text-on-primary px-2.5 py-1 rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.15)] z-10 flex items-center gap-1.5 border border-primary-container/20">
                           <span className="material-symbols-outlined text-[14px]">restaurant</span>
                           <span className="text-[10px] uppercase font-black tracking-wide">{r.portions} {r.portions === 1 ? 'Porcja' : (r.portions > 1 && r.portions < 5 ? 'Porcje' : 'Porcji')}</span>
                        </div>
                        <div className="h-28 sm:h-32 w-full relative">
-                          <img src={r.image_url} alt={r.name} className="absolute inset-0 w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                          <RecipeCoverImage
+                            recipe={{
+                              id: r.recipe?.id ?? r.id,
+                              name: r.recipe?.name ?? r.name,
+                              image_url: r.recipe?.image_url ?? r.image_url,
+                            }}
+                            alt={r.recipe?.name || r.name}
+                            className="absolute inset-0 w-full h-full"
+                            imgClassName="absolute inset-0 w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none"></div>
                           <div className="absolute bottom-3 left-4 right-4">
-                             <h3 className="font-headline font-bold text-lg text-white leading-tight drop-shadow-md">{r.name}</h3>
+                             <h3 className="font-headline font-bold text-lg text-white leading-tight drop-shadow-md">{r.recipe?.name || r.name}</h3>
                           </div>
                        </div>
                        <div className="p-2 space-y-1 bg-surface-container-low">
-                          {r.recipe_ingredients && r.recipe_ingredients.map((ing: any, i: number) => {
-                             const shopItem = items.find(it => it.ingredient_name.toLowerCase() === ing.name.toLowerCase());
-                             return (
-                               <label key={i} className={`flex items-center justify-between p-3 sm:p-4 bg-surface-container-lowest rounded-lg transition-all ${shopItem ? 'group cursor-pointer active:scale-[0.99] hover:bg-surface-container-highest/20' : 'opacity-50'}`}>
-                                 <div className="flex items-center gap-4">
-                                   <div className="relative flex items-center">
-                                     <input 
-                                       checked={shopItem ? shopItem.is_checked : false} 
-                                       onChange={() => shopItem && toggleCheck(shopItem.id, shopItem.is_checked)} 
-                                       disabled={!shopItem}
-                                       className="w-5 h-5 sm:w-6 sm:h-6 rounded-md border-outline-variant text-primary focus:ring-primary-container bg-surface-container-low cursor-pointer disabled:opacity-50" 
-                                       type="checkbox"
-                                     />
-                                   </div>
-                                   <div>
-                                     <p className={`font-semibold text-sm sm:text-base transition-opacity duration-300 ${shopItem?.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-on-surface'}`}>{ing.name}</p>
-                                   </div>
-                                 </div>
-                                 <span className={`font-bold text-sm transition-opacity duration-300 ${shopItem?.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-primary'}`}>{Number(ing.amount) * r.portions} {ing.unit}</span>
-                               </label>
-                             );
-                          })}
-                          {(!r.recipe_ingredients || r.recipe_ingredients.length === 0) && (
-                             <p className="text-center text-xs text-on-surface-variant p-4">Brak wprowadzonych składników dla tego przepisu.</p>
-                          )}
+                           {(r.ingredients && r.ingredients.length > 0) ? r.ingredients.map((ing: any, i: number) => {
+                              const shopItem = items.find(it => (it.ingredient_name || '').toLowerCase() === (ing.name || '').toLowerCase());
+                              return (
+                                <label key={i} className={`flex items-center justify-between p-3 sm:p-4 bg-surface-container-lowest rounded-lg transition-all ${shopItem ? 'group cursor-pointer active:scale-[0.99] hover:bg-surface-container-highest/20' : 'opacity-50'}`}>
+                                  <div className="flex items-center gap-4">
+                                    <div className="relative flex items-center">
+                                      <input 
+                                        checked={shopItem ? shopItem.is_checked : false} 
+                                        onChange={() => shopItem && toggleCheck(shopItem.id, !!shopItem.is_checked)} 
+                                        disabled={!shopItem}
+                                        className="w-5 h-5 sm:w-6 sm:h-6 rounded-md border-outline-variant text-primary focus:ring-primary-container bg-surface-container-low cursor-pointer disabled:opacity-50" 
+                                        type="checkbox"
+                                      />
+                                    </div>
+                                    <div>
+                                      <p className={`font-semibold text-sm sm:text-base transition-opacity duration-300 ${shopItem?.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-on-surface'}`}>{ing.name}</p>
+                                    </div>
+                                  </div>
+                                  <span className={`font-bold text-sm transition-opacity duration-300 ${shopItem?.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-primary'}`}>{Number(ing.amount) * r.portions} {ing.unit}</span>
+                                </label>
+                              );
+                           }) : (
+                              <p className="text-center text-xs text-on-surface-variant p-4">Brak wprowadzonych składników dla tego przepisu.</p>
+                           )}
                        </div>
-                    </section>
+                    </div>
                  ))}
                  {sourceRecipes.length === 0 && (
                     <div className="text-center opacity-60 mt-10">
@@ -210,6 +276,84 @@ export function ShoppingList() {
       </main>
       
       <BottomNav />
+
+      {/* Dodaj produkt */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-6">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => !addSubmitting && setShowAddModal(false)}
+          />
+          <div className="bg-surface w-full sm:max-w-md sm:rounded-[28px] rounded-t-[28px] overflow-hidden shadow-2xl relative z-10 border border-outline-variant/15 max-h-[90vh] flex flex-col">
+            <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mt-3 sm:hidden shrink-0" />
+            <div className="p-6 pb-4 flex items-center justify-between gap-3">
+              <h3 className="font-headline font-bold text-lg text-on-surface">Dodaj produkt</h3>
+              <button
+                type="button"
+                disabled={addSubmitting}
+                onClick={() => setShowAddModal(false)}
+                className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-highest transition-colors disabled:opacity-50"
+                aria-label="Zamknij"
+              >
+                <span className="material-symbols-outlined text-[22px]">close</span>
+              </button>
+            </div>
+            <div className="px-6 pb-6 overflow-y-auto space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">Nazwa</label>
+                <input
+                  type="text"
+                  value={newIngredientName}
+                  onChange={e => setNewIngredientName(e.target.value)}
+                  placeholder="np. Mleko 2%"
+                  className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-none focus:ring-2 focus:ring-primary/25 border border-transparent"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1 min-w-0">
+                  <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">Ilość</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={newQuantity}
+                    onChange={e => setNewQuantity(e.target.value)}
+                    className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                  />
+                </div>
+                <div className="w-28 shrink-0">
+                  <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">Jedn.</label>
+                  <input
+                    type="text"
+                    value={newUnit}
+                    onChange={e => setNewUnit(e.target.value)}
+                    placeholder="szt"
+                    className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                  />
+                </div>
+              </div>
+              {addError && (
+                <p className="text-error text-sm font-medium">{addError}</p>
+              )}
+              <button
+                type="button"
+                disabled={addSubmitting}
+                onClick={handleAddProduct}
+                className="w-full h-12 bg-primary text-on-primary font-bold text-sm rounded-xl active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {addSubmitting ? (
+                  <span className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[20px]">add_shopping_cart</span>
+                    Dodaj do listy
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Modal */}
       {showConfirm && (

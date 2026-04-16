@@ -11,46 +11,54 @@ import { Profile } from './pages/Profile';
 import { ProductDetails } from './pages/ProductDetails';
 import { AppDataProvider } from './lib/AppDataContext';
 import { useEffect, useState } from 'react';
-import { supabase } from './lib/supabase';
+import { api, clearSession, type AuthUser } from './lib/apiClient';
 
 function App() {
-  const [session, setSession] = useState<any>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    // Przy starcie: sprawdź czy mamy zapisany token w localStorage
+    const storedUser = api.auth.getUser();
+    setUser(storedUser);
+    setLoading(false);
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+    // Nasłuchuj zdarzenia 'auth-change' emitowanego przez Login.tsx
+    const handleAuthChange = () => {
+      const currentUser = api.auth.getUser();
+      setUser(currentUser);
+    };
 
-    return () => subscription.unsubscribe();
+    window.addEventListener('auth-change', handleAuthChange);
+    return () => window.removeEventListener('auth-change', handleAuthChange);
   }, []);
+
+  const handleLogout = () => {
+    clearSession();
+    setUser(null);
+  };
 
   if (loading) {
     return <div className="min-h-screen bg-surface flex items-center justify-center font-headline text-on-surface">Ładowanie aplikacji...</div>;
   }
 
+  const isLoggedIn = !!user;
+
   return (
     <Router>
-      <AppDataProvider>
+      <AppDataProvider user={user} onLogout={handleLogout}>
         <Routes>
-          <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
-          <Route path="/" element={session ? <Plan /> : <Navigate to="/login" />} />
-          <Route path="/add-food" element={session ? <AddFood /> : <Navigate to="/login" />} />
-          <Route path="/add-recipe" element={session ? <AddRecipe /> : <Navigate to="/login" />} />
-          <Route path="/edit-recipe/:id" element={session ? <AddRecipe /> : <Navigate to="/login" />} />
-          <Route path="/recipe/:id" element={session ? <RecipeDetails /> : <Navigate to="/login" />} />
-          <Route path="/product/:id" element={session ? <ProductDetails /> : <Navigate to="/login" />} />
-          <Route path="/recipes" element={session ? <Recipes /> : <Navigate to="/login" />} />
-          <Route path="/cart" element={session ? <ShoppingList /> : <Navigate to="/login" />} />
-          <Route path="/onboarding" element={session ? <Onboarding /> : <Navigate to="/login" />} />
-          <Route path="/profile" element={session ? <Profile /> : <Navigate to="/login" />} />
+          <Route path="/login" element={!isLoggedIn ? <Login /> : <Navigate to="/" />} />
+          <Route path="/" element={isLoggedIn ? <Plan /> : <Navigate to="/login" />} />
+          <Route path="/add-food" element={isLoggedIn ? <AddFood /> : <Navigate to="/login" />} />
+          <Route path="/add-recipe" element={isLoggedIn ? <AddRecipe /> : <Navigate to="/login" />} />
+          <Route path="/edit-recipe/:id" element={isLoggedIn ? <AddRecipe /> : <Navigate to="/login" />} />
+          <Route path="/recipe/:id" element={isLoggedIn ? <RecipeDetails /> : <Navigate to="/login" />} />
+          <Route path="/product/:id" element={isLoggedIn ? <ProductDetails /> : <Navigate to="/login" />} />
+          <Route path="/recipes" element={isLoggedIn ? <Recipes /> : <Navigate to="/login" />} />
+          <Route path="/cart" element={isLoggedIn ? <ShoppingList /> : <Navigate to="/login" />} />
+          <Route path="/onboarding" element={isLoggedIn ? <Onboarding /> : <Navigate to="/login" />} />
+          <Route path="/profile" element={isLoggedIn ? <Profile /> : <Navigate to="/login" />} />
         </Routes>
       </AppDataProvider>
     </Router>

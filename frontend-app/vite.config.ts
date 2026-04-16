@@ -12,7 +12,7 @@ export default defineConfig({
       manifest: {
         name: 'Meal Planner',
         short_name: 'Meal Planner',
-        description: 'Aplikacja żywieniowa w stylu Botanical Archivist, gotowa na Trusted Web Activity.',
+        description: 'Aplikacja do planowania posiłków.',
         theme_color: '#f8faf7',
         background_color: '#f8faf7',
         display: 'standalone',

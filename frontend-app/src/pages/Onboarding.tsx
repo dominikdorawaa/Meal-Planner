@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/apiClient';
+import { useAppData } from '../lib/AppDataContext';
 
 export function Onboarding() {
   const navigate = useNavigate();
+  const { refreshProfile } = useAppData();
   const [step, setStep] = useState(1);
   const [data, setData] = useState({
     gender: 'female',
     age: 30,
     weight: 65,
     height: 170,
-    activity: '1.55',
-    goal: 'maintain'
+    target_weight: 60,
+    change_speed: 0.5,
+    lifestyle_activity: 0,
+    exercise_activity: 0
   });
   
   const [manualMode, setManualMode] = useState(false);
@@ -21,31 +25,33 @@ export function Onboarding() {
 
   React.useEffect(() => {
     async function fetchExistingProfile() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = api.auth.getUser();
       if (!user) return;
-      const { data: record } = await supabase.from('user_profiles').select('*').eq('id', user.id).single();
+      const record = await api.profile.get().catch(() => null);
       if (record) {
-        setData({
-          gender: record.gender,
-          age: record.age,
-          weight: record.weight,
-          height: record.height,
-          activity: record.activity,
-          goal: record.goal
-        });
+        setData(prev => ({
+          gender: record.gender || prev.gender,
+          age: record.age || prev.age,
+          weight: record.weight || prev.weight,
+          height: record.height || prev.height,
+          target_weight: record.target_weight || record.weight || prev.target_weight,
+          change_speed: record.change_speed || prev.change_speed,
+          lifestyle_activity: record.lifestyle_activity || prev.lifestyle_activity,
+          exercise_activity: record.exercise_activity || prev.exercise_activity
+        }));
       }
     }
     fetchExistingProfile();
   }, []);
 
-  const nextStep = () => setStep(prev => Math.min(prev + 1, 4));
+  const nextStep = () => setStep(prev => Math.min(prev + 1, 5));
   const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
 
   const finish = async () => {
     try {
       setLoading(true);
-      // Pobieranie aktualnie zalogowanego usera z JWT
-      const { data: { user } } = await supabase.auth.getUser();
+      // Pobieranie aktualnie zalogowanego usera z naszego API
+      const user = api.auth.getUser();
       
       if (!user) {
         alert("Wystąpił błąd: Sesja wygasła. Zaloguj się ponownie.");
@@ -53,9 +59,9 @@ export function Onboarding() {
         return;
       }
 
-      // Kalkulacja makro wyliczana dynamicznie zależnie od Trybu
       const m = manualMode 
         ? { 
+            goal: 'manual',
             kcal: manualMacros.kcal, 
             protein: manualMacros.protein, proteinMin: manualMacros.protein, proteinMax: manualMacros.protein,
             fat: manualMacros.fat, fatMin: manualMacros.fat, fatMax: manualMacros.fat,
@@ -65,16 +71,17 @@ export function Onboarding() {
 
       const { kcal, protein, fat, carbs } = m;
       // Rzut rekordu bezpośrednio pod dany ID do Supabase
-      const { error } = await supabase
-        .from('user_profiles')
-        .upsert({
-          id: user.id,
+      const result = await api.profile.update({
+          id: user.userId,
           gender: data.gender || 'male',
           age: data.age || 30,
           weight: data.weight || 70,
           height: data.height || 170,
-          activity: data.activity || '1.55',
-          goal: manualMode ? 'manual' : data.goal,
+          target_weight: data.target_weight || data.weight || 70,
+          change_speed: data.change_speed || 0.5,
+          lifestyle_activity: data.lifestyle_activity || 0,
+          exercise_activity: data.exercise_activity || 0,
+          goal: manualMode ? 'manual' : m.goal,
           target_kcal: kcal,
           target_protein: protein,
           target_protein_min: m.proteinMin,
@@ -85,13 +92,16 @@ export function Onboarding() {
           target_carbs: carbs,
           target_carbs_min: m.carbsMin,
           target_carbs_max: m.carbsMax
-        });
+        }).catch((e) => ({ error: e }));
 
-      if (error) {
-        throw error;
+      if ((result as any).error) {
+        throw (result as any).error;
       }
       
-      // Sukces zapisu - Przekierowanie do ekranu planu i wyjście z logiki kalkulatora
+      // Sukces zapisu - wymuś odświeżenie danych w kontekście, zanim przejdziesz do Planu
+      await refreshProfile();
+      
+      // Przekierowanie do ekranu planu
       navigate('/');
     } catch (error: any) {
       console.error('Supabase Error:', error.message);
@@ -106,35 +116,54 @@ export function Onboarding() {
   };
 
   const calculateMacros = () => {
-    let bmr = (10 * data.weight) + (6.25 * data.height) - (5 * data.age);
-    bmr += data.gender === 'male' ? 5 : -161;
-    
-    let tdee = bmr * parseFloat(data.activity);
-    
-    if (data.goal === 'reduce') tdee -= 400;
-    if (data.goal === 'build') tdee += 400;
-    
+    const w = parseFloat(data.weight as any) || 0;
+    const h = parseFloat(data.height as any) || 0;
+    const a = parseInt(data.age as any) || 0;
+    const gender = data.gender;
+    const lifestyle = parseFloat(data.lifestyle_activity as any) || 0;
+    const exercise = parseFloat(data.exercise_activity as any) || 0;
+    const pal = 1.2 + lifestyle + exercise;
+    const speed = parseFloat(data.change_speed as any) || 0;
+
+    let bmr = (10 * w) + (6.25 * h) - (5 * a);
+    bmr += gender === 'male' ? 5 : -161;
+
+    let tdee = bmr * pal;
+
+    const tWeight = parseFloat(data.target_weight as any) || w;
+    const inferredGoal = w > tWeight ? 'reduce' : w < tWeight ? 'build' : 'maintain';
+
+    let adjustment = (speed * 1000);
+
+    if (inferredGoal === 'reduce') tdee -= adjustment;
+    if (inferredGoal === 'build') tdee += adjustment;
+
     const kcal = Math.max(1200, Math.round(tdee));
-    
-    // Profesjonalne przeliczenie (g/kg)
-    const weight = data.weight;
-    const protein = Math.round(weight * 2.0);
-    const proteinMin = Math.round(weight * 1.8);
-    const proteinMax = Math.round(weight * 2.2);
-    
-    const fat = Math.round(weight * 0.9);
-    const fatMin = Math.round(weight * 0.8);
-    const fatMax = Math.round(weight * 1.0);
-    
-    const carbs = Math.round((kcal - (protein * 4) - (fat * 9)) / 4);
-    const carbsMin = Math.round((kcal - (proteinMax * 4) - (fatMax * 9)) / 4);
-    const carbsMax = Math.round((kcal - (proteinMin * 4) - (fatMin * 9)) / 4);
-    
+
+    let protRange = [1.6, 2.0];
+    let fatRange = [0.8, 1.2];
+    let carbRange = [3.0, 5.0];
+
+    if (inferredGoal === 'reduce') {
+      protRange = [2.0, 2.4];
+      fatRange = [0.8, 1.0];
+      carbRange = [2.0, 4.0];
+    } else if (inferredGoal === 'build') {
+      protRange = [1.6, 2.0];
+      fatRange = [1.0, 1.3];
+      carbRange = [4.0, 7.0];
+    }
+
+    const protein = Math.round(w * ((protRange[0] + protRange[1]) / 2));
+    const fat = Math.round(w * ((fatRange[0] + fatRange[1]) / 2));
+    const carbs = Math.max(0, Math.round((kcal - (protein * 4) - (fat * 9)) / 4));
+
     return { 
+      goal: inferredGoal,
       kcal, 
-      protein, proteinMin, proteinMax,
-      fat, fatMin, fatMax,
-      carbs, carbsMin, carbsMax
+      protein, proteinMin: Math.round(w * protRange[0]), proteinMax: Math.round(w * protRange[1]),
+      fat, fatMin: Math.round(w * fatRange[0]), fatMax: Math.round(w * fatRange[1]),
+      carbs, carbsMin: Math.round(w * carbRange[0]), carbsMax: Math.round(w * carbRange[1])
     };
   };
 
@@ -149,19 +178,19 @@ export function Onboarding() {
       {/* Header & pasek postępu */}
       <div className="px-6 pt-12 pb-6">
         <div className="flex items-center justify-between mb-8">
-          {step > 1 && step < 4 ? (
+          {step > 1 && step < 5 ? (
             <button onClick={prevStep} className="w-10 h-10 rounded-full bg-surface-container-highest/50 flex items-center justify-center text-primary hover:bg-surface-container-highest transition-colors">
               <span className="material-symbols-outlined">arrow_back</span>
             </button>
           ) : <div className="w-10 h-10"></div>}
           
           <div className="flex gap-2">
-            {[1, 2, 3].map(i => (
+            {[1, 2, 3, 4].map(i => (
               <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i <= step ? 'w-8 bg-primary' : 'w-4 bg-primary/20'}`}></div>
             ))}
           </div>
           
-          <button onClick={() => navigate('/')} className="text-primary/50 text-xs font-bold uppercase tracking-widest hover:text-primary transition-colors">
+          <button onClick={finish} className="text-primary/50 text-xs font-bold uppercase tracking-widest hover:text-primary transition-colors cursor-pointer active:scale-95">
             Pomiń
           </button>
         </div>
@@ -173,7 +202,7 @@ export function Onboarding() {
             <p className="text-on-surface-variant text-sm mb-6">Zaprojektujemy plan szyty idealnie na Twoją miarę.</p>
             
             <button 
-              onClick={() => { setManualMode(true); setStep(5); }}
+              onClick={() => { setManualMode(true); setStep(6); }}
               className="w-full bg-surface-container-lowest p-4 rounded-2xl border border-primary/20 flex items-center justify-between mb-8 shadow-sm group hover:border-primary/50 transition-colors"
             >
               <div className="flex flex-col text-left">
@@ -264,51 +293,103 @@ export function Onboarding() {
 
         {step === 3 && (
           <div className="animate-fade-in">
-            <h1 className="font-headline font-bold text-3xl text-primary tracking-tight mb-2">Twój główny cel</h1>
-            <p className="text-on-surface-variant text-sm mb-8">Ustaw priorytety aplikacji dla idealnego jadłospisu.</p>
+            <h1 className="font-headline font-bold text-3xl text-primary tracking-tight mb-2">Twój cel wagi</h1>
+            <p className="text-on-surface-variant text-sm mb-8">Czy dążymy do zgubienia wagi, zrobienia masy, czy po prostu utrzymania?</p>
             
-            <div className="flex flex-col gap-3 mb-8">
-              {[
-                { id: 'reduce', title: 'Redukcja wagi', icon: 'trending_down', desc: 'Chcę schudnąć, generując ujemny bilans ~400 kcal.' },
-                { id: 'maintain', title: 'Utrzymanie wagi', icon: 'balance', desc: 'Czuję się świetnie. Chcę jeść idealnie tyle, ile spalam.' },
-                { id: 'build', title: 'Budowa mięśni', icon: 'trending_up', desc: 'Chcę budować sylwetkę zachowując +400 kcal nadwyżki.' }
-              ].map(goal => (
-                <button 
-                  key={goal.id}
-                  onClick={() => handleUpdate('goal', goal.id)}
-                  className={`flex items-center gap-4 p-4 rounded-3xl border-2 transition-all text-left ${data.goal === goal.id ? 'border-primary bg-primary/5' : 'border-surface-container-highest bg-surface-container-lowest hover:border-primary/30'}`}
-                >
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${data.goal === goal.id ? 'bg-primary text-on-primary' : 'bg-surface-container-highest/50 text-on-surface-variant'}`}>
-                    <span className="material-symbols-outlined">{goal.icon}</span>
+            <div className="flex flex-col gap-6">
+              <div className="bg-surface-container-lowest rounded-3xl p-6 shadow-ambient border border-surface-container-highest/20">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="font-bold tracking-wide text-on-surface">Masa docelowa (kg)</span>
+                  <div className="flex items-baseline gap-1">
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      value={data.target_weight} 
+                      onChange={(e) => handleUpdate('target_weight', parseFloat(e.target.value) || 0)}
+                      className="text-primary font-headline font-bold text-3xl bg-transparent w-24 text-right outline-none appearance-none"
+                    />
+                    <span className="text-primary/60 text-xs font-bold uppercase tracking-widest pl-1">kg</span>
                   </div>
-                  <div>
-                    <h3 className={`font-bold text-sm ${data.goal === goal.id ? 'text-primary' : 'text-on-surface'}`}>{goal.title}</h3>
-                    <p className="text-[10px] text-on-surface-variant mt-1 leading-snug">{goal.desc}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+                </div>
+                <input 
+                  type="range" min="40" max="150" step="0.1"
+                  value={data.target_weight} 
+                  onChange={(e) => handleUpdate('target_weight', parseFloat(e.target.value))}
+                  className="w-full accent-primary h-2 bg-surface-container-highest rounded-full appearance-none outline-none" 
+                />
+              </div>
 
-            <div className="bg-surface-container-lowest rounded-3xl p-5 shadow-ambient border border-surface-container-highest/20 cursor-pointer">
-              <label className="flex flex-col gap-2">
-                <span className="font-bold tracking-wide text-sm text-on-surface">Poziom aktywności</span>
-                <select 
-                  className="w-full bg-surface-container-highest/20 text-on-surface px-4 py-3 rounded-xl outline-none border border-transparent focus:border-primary/50 text-sm font-medium transition-colors"
-                  value={data.activity}
-                  onChange={(e) => handleUpdate('activity', e.target.value)}
-                >
-                  <option value="1.2">Brak aktywności (siedzący tryb)</option>
-                  <option value="1.375">Niska aktywność (1-2 treningi/tydz)</option>
-                  <option value="1.55">Umiarkowana (3-4 treningi/tydz)</option>
-                  <option value="1.725">Wysoka (5-6 treningów/tydz)</option>
-                  <option value="1.9">Bardzo wysoka (zawodowiec)</option>
-                </select>
-              </label>
+              <div className="bg-surface-container-lowest rounded-3xl p-6 shadow-ambient border border-surface-container-highest/20 cursor-pointer">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="font-bold tracking-wide text-on-surface text-sm">Tempo zmiany (kg/tydzień)</span>
+                  <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-full text-xs">
+                    {data.change_speed} kg
+                  </div>
+                </div>
+                <input 
+                  type="range" min="0.1" max="1.5" step="0.1"
+                  value={data.change_speed} 
+                  onChange={(e) => handleUpdate('change_speed', parseFloat(e.target.value))}
+                  className="w-full accent-primary h-2 bg-surface-container-highest rounded-full appearance-none outline-none mb-2" 
+                />
+                <p className="text-[10px] text-on-surface-variant text-center opacity-80 mt-2">
+                  * Zalecane bezbieczne tempo to 0.5 kg tygodniowo.
+                </p>
+              </div>
             </div>
           </div>
         )}
 
         {step === 4 && (
+          <div className="animate-fade-in">
+            <h1 className="font-headline font-bold text-3xl text-primary tracking-tight mb-2">Twój poziom aktywności</h1>
+            <p className="text-on-surface-variant text-sm mb-6">Dokładne informacje pozwolą wyliczyć perfekcyjne dzienne spalanie (PAL).</p>
+            
+            <div className="bg-surface-container-lowest rounded-3xl p-5 shadow-ambient border border-surface-container-highest/20 mb-4">
+              <span className="block font-bold text-on-surface text-sm mb-4">Tryb życia (praca/szkoła)</span>
+              <div className="space-y-2">
+                {[
+                  { val: 0, label: "Siedzący", desc: "Praca biurowa, mało ruchu" },
+                  { val: 0.1, label: "Lekki", desc: "Dużo chodzenia, praca lekka" },
+                  { val: 0.2, label: "Umiarkowany", desc: "Praca stojąca, aktywny dzień" },
+                  { val: 0.3, label: "Aktywny", desc: "Ciężka praca fizyczna" }
+                ].map((opt) => (
+                  <button
+                    key={'life_'+opt.val}
+                    onClick={() => handleUpdate('lifestyle_activity', opt.val)}
+                    className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${data.lifestyle_activity === opt.val ? 'border-primary bg-primary/5 text-primary' : 'border-surface-container-highest bg-surface-container-lowest text-on-surface-variant hover:border-primary/30'}`}
+                  >
+                    <div className="font-bold text-sm tracking-wide">{opt.label}</div>
+                    <div className="text-[10px] mt-0.5 opacity-80">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-surface-container-lowest rounded-3xl p-5 shadow-ambient border border-surface-container-highest/20">
+              <span className="block font-bold text-on-surface text-sm mb-4">Aktywność treningowa</span>
+              <div className="space-y-2">
+                {[
+                  { val: 0, label: "Brak", desc: "0 treningów tygodniowo" },
+                  { val: 0.1, label: "Niska", desc: "1-2 treningi tygodniowo" },
+                  { val: 0.2, label: "Średnia", desc: "3-4 treningi tygodniowo" },
+                  { val: 0.3, label: "Wysoka", desc: "5+ treningów tygodniowo" }
+                ].map((opt) => (
+                  <button
+                    key={'ex_'+opt.val}
+                    onClick={() => handleUpdate('exercise_activity', opt.val)}
+                    className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${data.exercise_activity === opt.val ? 'border-primary bg-primary/5 text-primary' : 'border-surface-container-highest bg-surface-container-lowest text-on-surface-variant hover:border-primary/30'}`}
+                  >
+                    <div className="font-bold text-sm tracking-wide">{opt.label}</div>
+                    <div className="text-[10px] mt-0.5 opacity-80">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 5 && (
           <div className="flex flex-col items-center pt-2">
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4 animate-pulse">
               <span className="material-symbols-outlined text-3xl">verified</span>
@@ -350,7 +431,7 @@ export function Onboarding() {
           </div>
         )}
 
-        {step === 5 && (
+        {step === 6 && (
           <div className="flex flex-col items-center pt-2 w-full animate-fade-in">
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
               <span className="material-symbols-outlined text-3xl">tune</span>
@@ -398,7 +479,7 @@ export function Onboarding() {
 
       {/* Zawsze na dole przyklejony footer z przyciskiem akcji */}
       <div className="p-6 pb-8 bg-surface/80 backdrop-blur-md sticky bottom-0 border-t border-surface-container-highest/20 mt-auto">
-        {step < 4 ? (
+        {step < 5 ? (
           <button 
             onClick={nextStep}
             className="w-full bg-primary text-on-primary font-bold py-4 rounded-full shadow-lg hover:bg-primary/90 active:scale-95 transition-all text-sm tracking-wide"

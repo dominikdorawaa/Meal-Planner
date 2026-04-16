@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppData } from '../lib/AppDataContext';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/apiClient';
+import { recipeImageFallbackUrl, DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 
 interface IngredientDraft {
   id?: string;
@@ -53,46 +54,43 @@ export default function AddRecipe() {
 
   useEffect(() => {
     async function loadEditData() {
-      if (!isEditMode) return;
+      if (!isEditMode || !id) return;
       
-      const { data: recipe } = await supabase.from('recipes').select('*').eq('id', id).single();
-      if (!recipe) {
-         navigate(-1);
-         return;
-      }
+      try {
+        const recipe = await api.recipes.getById(id);
+        if (!recipe) {
+           navigate(-1);
+           return;
+        }
 
-      setName(recipe.name);
-      setPrepTime(recipe.prep_time ? recipe.prep_time.toString() : '');
-      setPortions(recipe.portions ? recipe.portions.toString() : '1');
-      setImageUrl(recipe.image_url || '');
-      setBaseMacros({ kcal: recipe.kcal, p: recipe.protein, f: recipe.fat, c: recipe.carbs });
+        setName(recipe.name);
+        setPrepTime(recipe.prep_time ? recipe.prep_time.toString() : '');
+        setPortions(recipe.portions ? recipe.portions.toString() : '1');
+        setImageUrl(recipe.image_url || '');
+        setBaseMacros({ kcal: recipe.kcal, p: recipe.protein, f: recipe.fat, c: recipe.carbs });
 
-      if (recipe.instructions && Array.isArray(recipe.instructions)) {
-         setInstructions(recipe.instructions.map((step: string) => ({ text: step })));
-      }
+        if (recipe.instructions && Array.isArray(recipe.instructions)) {
+           setInstructions(recipe.instructions.map((step: string) => ({ text: step })));
+        }
 
-      const { data: ingData } = await supabase.from('recipe_ingredients').select('*').eq('recipe_id', id);
-      if (ingData) {
-         setIngredients(ingData.map(i => {
-           let ikcal = 0, ip = 0, ifat = 0, ic = 0;
-           const mockMatch = MOCK_PRODUCTS.find(m => m.name.toLowerCase() === i.name.toLowerCase());
-           if (mockMatch) {
-             const ratio = i.amount / 100;
-             ikcal = mockMatch.kcal * ratio;
-             ip = mockMatch.protein * ratio;
-             ifat = mockMatch.fat * ratio;
-             ic = mockMatch.carbs * ratio;
-           }
-           return {
-             id: i.id,
-             name: i.name,
-             amount: i.amount,
-             unit: i.unit,
-             kcal: ikcal, protein: ip, fat: ifat, carbs: ic
-           };
-         }));
+        if (recipe.ingredients) {
+           setIngredients(recipe.ingredients.map((i: any) => {
+             // Mock values logic can stay or be removed if data is in DB
+             return {
+               id: i.id,
+               name: i.name,
+               amount: i.amount,
+               unit: i.unit,
+               kcal: 0, protein: 0, fat: 0, carbs: 0 // Will be recalculated or fetched
+             };
+           }));
+        }
+      } catch (err) {
+        console.error("Error loading recipe:", err);
+        navigate(-1);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
     loadEditData();
   }, [id, isEditMode, navigate]);
@@ -119,8 +117,6 @@ export default function AddRecipe() {
     setIsSaving(true);
     
     try {
-      // 1. Compute totals (Only strictly accurate if using known mocked ingredients, else fallback to base DB)
-      // W normalnych warunkach tu byłaby re-kalkulacja po API
       const calculatedKcal = Math.round(ingredients.reduce((sum, i) => sum + i.kcal, 0));
       const calculatedP = Math.round(ingredients.reduce((sum, i) => sum + i.protein, 0));
       const calculatedF = Math.round(ingredients.reduce((sum, i) => sum + i.fat, 0));
@@ -131,47 +127,31 @@ export default function AddRecipe() {
       const totalFat = calculatedF > 0 ? calculatedF : baseMacros.f;
       const totalCarbs = calculatedC > 0 ? calculatedC : baseMacros.c;
       
-      const defaultImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=400&auto=format&fit=crop';
-      
+      const defaultImage = name.trim()
+        ? recipeImageFallbackUrl({ name: name.trim() })
+        : DEFAULT_RECIPE_IMAGE_URL;
+
       const recipePayload = {
         name,
         kcal: totalKcal,
         protein: totalProtein,
         fat: totalFat,
         carbs: totalCarbs,
-        image_url: imageUrl || defaultImage,
-        created_by: user.id,
+        image_url: imageUrl.trim() || defaultImage,
         prep_time: parseInt(prepTime) || 0,
         portions: parseFloat(portions) || 1,
-        instructions: instructions.map(i => i.text)
-      };
-
-      let recipeId = null;
-
-      if (isEditMode) {
-        const { error: updateError } = await supabase.from('recipes').update(recipePayload).eq('id', id);
-        if (updateError) throw updateError;
-        recipeId = id;
-        
-        // Remove old ingredients
-        await supabase.from('recipe_ingredients').delete().eq('recipe_id', id);
-      } else {
-        const { data: recipeData, error: recipeError } = await supabase.from('recipes').insert(recipePayload).select().single();
-        if (recipeError) throw recipeError;
-        recipeId = recipeData.id;
-      }
-      
-      // 3. Insert ingredients if any
-      if (ingredients.length > 0 && recipeId) {
-        const ingredientsPayload = ingredients.map(ing => ({
-          recipe_id: recipeId,
+        instructions: instructions.map(i => i.text),
+        ingredients: ingredients.map(ing => ({
           name: ing.name,
           amount: ing.amount,
           unit: ing.unit
-        }));
-        
-        const { error: ingError } = await supabase.from('recipe_ingredients').insert(ingredientsPayload);
-        if (ingError) throw ingError;
+        }))
+      };
+
+      if (isEditMode && id) {
+        await api.recipes.update(id, recipePayload);
+      } else {
+        await api.recipes.create(recipePayload);
       }
       
       await refreshRecipes();
@@ -228,7 +208,7 @@ export default function AddRecipe() {
           </div>
         )}
         
-        {/* IMAGE PLACEHOLDER */}
+        {/* IMAGE SECTION */}
         <section className="w-full aspect-[4/3] bg-surface-container-low rounded-[32px] border border-outline-variant/20 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-surface-container-lowest transition-colors active:scale-[0.98] group overflow-hidden relative">
           {imageUrl ? (
              <img src={imageUrl} alt="Podgląd" className="absolute inset-0 w-full h-full object-cover" />
@@ -237,7 +217,7 @@ export default function AddRecipe() {
               <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
                 <span className="material-symbols-outlined text-3xl">add_photo_alternate</span>
               </div>
-              <p className="font-bold text-sm text-on-surface-variant">Dodaj zdjęcie</p>
+              <p className="font-bold text-sm text-on-surface-variant">Prześlij z urządzenia</p>
             </>
           )}
         </section>

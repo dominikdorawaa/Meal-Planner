@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { BottomNav } from '../components/BottomNav';
 
@@ -33,6 +33,7 @@ export function Profile() {
 
   const [profile, setProfile] = useState<any>(null);
   const [tempProfile, setTempProfile] = useState<any>({
+    display_name: '',
     gender: 'female',
     age: 30,
     weight: 65,
@@ -67,7 +68,10 @@ export function Profile() {
     return parseFloat(((ft * 30.48) + (inches * 2.54)).toFixed(1));
   };
 
-  const { profile: cachedProfile } = useAppData();
+  const { user, profile: cachedProfile, onLogout, refreshProfile } = useAppData();
+
+  const displayGreetingName =
+    (profile?.display_name || cachedProfile?.display_name || user?.name || '').trim() || null;
 
   // Inicjalizacja z cache'u kontekstu (natychmiastowa)
   useEffect(() => {
@@ -75,6 +79,7 @@ export function Profile() {
       const data = cachedProfile;
       setProfile(data);
       setTempProfile({
+        display_name: data.display_name ?? '',
         gender: data.gender || 'female',
         age: data.age || 30,
         weight: data.weight || 65,
@@ -96,12 +101,21 @@ export function Profile() {
         target_carbs_min: data.target_carbs_min || 180,
         target_carbs_max: data.target_carbs_max || 220
       });
-      if (data.meal_config) {
-        setMealConfig(data.meal_config);
+      let mc = data.meal_config;
+      if (typeof mc === 'string') {
+        try { mc = JSON.parse(mc); } catch (e) { console.error("Error parsing meal_config", e); mc = null; }
+      }
+      let vm = data.visible_meals;
+      if (typeof vm === 'string') {
+        try { vm = JSON.parse(vm); } catch (e) { console.error("Error parsing visible_meals", e); vm = null; }
+      }
+
+      if (mc && Array.isArray(mc)) {
+        setMealConfig(mc);
       } else {
         const defaultConfig = MEAL_TYPES.map(m => ({
           ...m,
-          visible: data.visible_meals ? data.visible_meals.includes(m.id) : true
+          visible: Array.isArray(vm) ? vm.includes(m.id) : true
         }));
         setMealConfig(defaultConfig);
       }
@@ -112,12 +126,13 @@ export function Profile() {
   useEffect(() => {
     if (profile) return; // już mamy z cache
     const loadProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = api.auth.getUser();
       if (!user) return;
-      const { data } = await supabase.from('user_profiles').select('*').eq('id', user.id).single();
+      const data = await api.profile.get().catch(() => null);
       if (data) {
         setProfile(data);
         setTempProfile({
+          display_name: data.display_name ?? '',
           gender: data.gender || 'female',
           age: data.age || 30,
           weight: data.weight || 65,
@@ -139,12 +154,21 @@ export function Profile() {
           target_carbs_min: data.target_carbs_min || 180,
           target_carbs_max: data.target_carbs_max || 220
         });
-        if (data.meal_config) {
-          setMealConfig(data.meal_config);
+        let mc = data.meal_config;
+        if (typeof mc === 'string') {
+          try { mc = JSON.parse(mc); } catch (e) { console.error("Error parsing meal_config", e); mc = null; }
+        }
+        let vm = data.visible_meals;
+        if (typeof vm === 'string') {
+          try { vm = JSON.parse(vm); } catch (e) { console.error("Error parsing visible_meals", e); vm = null; }
+        }
+
+        if (mc && Array.isArray(mc)) {
+          setMealConfig(mc);
         } else {
           const defaultConfig = MEAL_TYPES.map(m => ({
             ...m,
-            visible: data.visible_meals ? data.visible_meals.includes(m.id) : true
+            visible: Array.isArray(vm) ? vm.includes(m.id) : true
           }));
           setMealConfig(defaultConfig);
         }
@@ -203,14 +227,14 @@ export function Profile() {
       ? mealConfig.map(m => m.id === editingMealId ? { ...m, name: tempName } : m)
       : mealConfig;
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = api.auth.getUser();
     if (user) {
-      const { error } = await supabase.from('user_profiles').update({
+      const result = await api.profile.update({
         meal_config: finalConfig,
         visible_meals: finalConfig.filter(m => m.visible).map(m => m.id)
-      }).eq('id', user.id);
+      }).catch((e) => ({ error: e }));
 
-      if (!error) {
+      if (!(result as any).error) {
         setMealConfig(finalConfig);
         setEditingMealId(null);
         setIsEditingMeals(false);
@@ -287,7 +311,7 @@ export function Profile() {
   };
 
   const handleSaveProfileData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = api.auth.getUser();
     if (!user) return;
 
     let finalData = { ...tempProfile };
@@ -322,9 +346,9 @@ export function Profile() {
 
     const oldKcal = profile?.target_kcal || 0;
     const newKcal = dbData.target_kcal;
-    const { error } = await supabase.from('user_profiles').update(dbData).eq('id', user.id);
+    const result = await api.profile.update(dbData).catch((e) => ({ error: e }));
 
-    if (!error) {
+    if (!(result as any).error) {
       if (tempProfile.is_manual_macros) {
         setKcalNotification({ diff: 0, show: true });
       } else {
@@ -334,6 +358,7 @@ export function Profile() {
 
       setProfile(dbData);
       setTempProfile(dbData);
+      void refreshProfile();
       setIsEditingProfile(false);
       setIsEditingGoals(false);
       setIsEditingMacros(false);
@@ -341,7 +366,8 @@ export function Profile() {
   };
 
   const confirmLogout = async () => {
-    await supabase.auth.signOut();
+    api.auth.logout();
+    if (onLogout) onLogout();
     navigate('/login');
   };
 
@@ -376,11 +402,24 @@ export function Profile() {
   };
 
   const getEstimatedTime = () => {
-    const diff = Math.abs(tempProfile.weight - tempProfile.target_weight);
-    if (diff === 0 || tempProfile.change_speed === 0) return "Cel osiągnięty!";
-    const weeks = diff / tempProfile.change_speed;
-    const days = Math.ceil(weeks * 7);
+    const w1 = parseFloat(tempProfile.weight);
+    const w2 = parseFloat(tempProfile.target_weight);
+    const speed = parseFloat(tempProfile.change_speed);
 
+    // Brak wymaganych danych
+    if (!w1 || !w2 || isNaN(w1) || isNaN(w2)) return null;
+    
+    // Cel już osiągnięty lub brak prędkości
+    if (w1 === w2) return "Cel osiągnięty!";
+    if (!speed || isNaN(speed) || speed <= 0) return null;
+
+    const diff = Math.abs(w1 - w2);
+    const weeks = diff / speed;
+    
+    // Wynik nieprawidłowy (np. Infinity)
+    if (!isFinite(weeks)) return null;
+
+    const days = Math.ceil(weeks * 7);
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + days);
 
@@ -440,7 +479,7 @@ export function Profile() {
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32">
       <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm h-16 flex items-center justify-center px-6">
-        <h1 className="font-headline font-bold text-xl tracking-tight text-primary">Mój Profil</h1>
+        <h1 className="font-headline font-bold text-xl tracking-tight text-primary">Profil</h1>
       </header>
 
       {/* Powiadomienie o zmianie kcal */}
@@ -459,7 +498,9 @@ export function Profile() {
           <div className="w-24 h-24 bg-surface-container-highest/50 rounded-full flex items-center justify-center text-primary/50 mb-4 shadow-sm border-2 border-primary/10">
             <span className="material-symbols-outlined text-[40px]">person</span>
           </div>
-          <h2 className="font-headline font-bold text-2xl text-on-surface">Ustawienia</h2>
+          <h2 className="font-headline font-bold text-2xl text-on-surface">
+            {displayGreetingName ? `Witaj, ${displayGreetingName}!` : 'Witaj!'}
+          </h2>
           <p className="text-on-surface-variant text-sm">Zarządzaj swoimi danymi w Meal Plannerze</p>
         </div>
 
@@ -478,6 +519,9 @@ export function Profile() {
             </div>
             <div className="flex flex-col text-left">
               <span className="font-bold text-on-surface text-[15px]">Dane Profilowe</span>
+              <span className="text-xs text-on-surface-variant mt-0.5 font-medium">
+                {profile?.display_name?.trim() || user?.name || 'Ustaw wyświetlaną nazwę'}
+              </span>
               <span className="text-xs text-on-surface-variant mt-0.5">
                 {profile?.gender === 'male' ? 'Mężczyzna' : 'Kobieta'}, {profile?.age} lat, {profile?.height} cm
               </span>
@@ -585,6 +629,20 @@ export function Profile() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                        <span className="material-symbols-outlined">badge</span>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[10px] text-on-surface-variant font-bold uppercase">Wyświetlana nazwa</span>
+                        <span className="font-bold text-lg truncate">
+                          {profile?.display_name?.trim() || user?.name || '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
                         <span className="material-symbols-outlined">{profile?.gender === 'male' ? 'male' : 'female'}</span>
                       </div>
                       <div className="flex flex-col">
@@ -627,6 +685,23 @@ export function Profile() {
               </div>
             ) : (
               <div className="space-y-6">
+                <div className="bg-surface-container-lowest rounded-3xl p-5 shadow-sm border border-outline-variant/10">
+                  <label className="text-[10px] text-on-surface-variant font-bold uppercase block mb-2">
+                    Wyświetlana nazwa
+                  </label>
+                  <input
+                    type="text"
+                    value={tempProfile.display_name ?? ''}
+                    onChange={e => setTempProfile({ ...tempProfile, display_name: e.target.value })}
+                    placeholder={user?.name || 'Np. Ania'}
+                    maxLength={80}
+                    className="w-full bg-surface-container-highest/50 rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-none focus:ring-2 focus:ring-primary/20 border border-transparent"
+                  />
+                  <p className="text-[11px] text-on-surface-variant/80 mt-2 leading-relaxed">
+                    Tak witamy Cię na ekranie profilu. Puste pole — używane jest imię z konta ({user?.name || 'brak'}).
+                  </p>
+                </div>
+
                 <div className="flex gap-4">
                   <button
                     onClick={() => setTempProfile({ ...tempProfile, gender: 'female' })}
@@ -825,10 +900,12 @@ export function Profile() {
                 </div>
               </div>
               <div className="flex flex-col items-center gap-1.5 pt-2 border-t border-outline-variant/10 w-full mt-2">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary bg-primary/5 px-4 py-1.5 rounded-full">
-                  <span className="material-symbols-outlined text-[16px]">timer</span>
-                  <span>Cel osiągniesz: <span className="font-black uppercase">{getEstimatedTime()}</span></span>
-                </div>
+                {getEstimatedTime() && (
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary bg-primary/5 px-4 py-1.5 rounded-full">
+                    <span className="material-symbols-outlined text-[16px]">timer</span>
+                    <span>Cel osiągniesz: <span className="font-black uppercase">{getEstimatedTime()}</span></span>
+                  </div>
+                )}
               </div>
             </div>
 

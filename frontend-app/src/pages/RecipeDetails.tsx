@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
+import { RecipeCoverImage } from '../components/RecipeCoverImage';
 
 export function RecipeDetails() {
   const { id } = useParams();
@@ -30,6 +31,12 @@ export function RecipeDetails() {
   const [daysToAdd, setDaysToAdd] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAddToPlan, setShowAddToPlan] = useState(false);
+  const [quickDate, setQuickDate] = useState('');
+  const [quickDateInput, setQuickDateInput] = useState('');
+  const [quickMealType, setQuickMealType] = useState('');
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   const basePortions = recipe?.portions || 1;
   const safeWeight = (totalWeight && totalWeight > 0) ? totalWeight : 300;
@@ -40,43 +47,46 @@ export function RecipeDetails() {
     async function loadRecipe() {
       if (!id) return;
       
-      // Get from context if available
-      const existing = recipes.find(r => r.id === id);
-      if (existing) {
-        setRecipe(existing);
-      } else {
-        const { data } = await supabase.from('recipes').select('*').eq('id', id).single();
+      try {
+        const data = await api.recipes.getById(id);
         if (data) setRecipe(data);
-      }
 
-      // Fetch ingredients to calculate weight
-      const { data: ingData } = await supabase.from('recipe_ingredients').select('*').eq('recipe_id', id);
-      if (ingData) {
-        setIngredients(ingData);
-        let weight = 0;
-        ingData.forEach(i => {
-          if (i.unit === 'g' || i.unit === 'ml') weight += Number(i.amount);
-        });
-        setTotalWeight(weight || 300);
-      } else {
-        setTotalWeight(300);
+        // Ingredients are already included in the recipe object from our API
+        if (data.ingredients) {
+          setIngredients(data.ingredients);
+          let weight = 0;
+          data.ingredients.forEach((i: any) => {
+            if (i.unit === 'g' || i.unit === 'ml') weight += Number(i.amount);
+          });
+          setTotalWeight(weight || 300);
+        } else {
+          setTotalWeight(300);
+        }
+      } catch (err) {
+        console.error("Error loading recipe:", err);
       }
 
       // If editing existing meal, fetch its data
       if (mealId) {
-        const { data: mealData } = await supabase.from('user_meals').select('portions_consumed').eq('id', mealId).single();
-        if (mealData) {
-          const portions = mealData.portions_consumed;
-          setPortionInput(portions);
-          
-          // Ustaw gramy jako początkową wartość, aby pole nie było puste
-          const grams = Math.round(portions * (safeWeight / basePortions));
-          setGramInput(grams);
-          
-          setInputType('portions');
+        try {
+          const meals = await api.meals.getAll();
+          const mealData = meals.find((m: any) => m.id === mealId);
+          if (mealData) {
+            const portions = mealData.portions_consumed;
+            setPortionInput(portions);
+            
+            // Przy edycji - pokaż gramy zamiast przeliczonej liczby porcji (np. 0.77)
+            const gramPerPortion = safeWeight / basePortions;
+            const grams = Math.round(portions * gramPerPortion);
+            setGramInput(grams);
+            
+            setInputType('grams');  // domyślnie gramy przy edycji
+          }
+        } catch (err) {
+          console.error("Error fetching meal data:", err);
         }
-      } else if (recipe) {
-        setGramInput(Math.round(recipe.weight / recipe.portions));
+      } else {
+        setGramInput(100); // domyślnie 100g przy nowym dodaniu
       }
       setLoading(false);
     }
@@ -92,22 +102,20 @@ export function RecipeDetails() {
   // Składniki skalują się całkowicie niezależnie na życzenie użytkownika (domyślnie tak jak wpisany był przepis)
   const activeIngredientPortions = ingredientPortions !== null ? ingredientPortions : basePortions;
 
-  const handleAddMeal = async () => {
-    if (!user || !recipe || !selectDate || !selectType) return;
+  const handleAddMeal = async (overrideDate?: string, overrideMealType?: string) => {
+    const targetDate = overrideDate || selectDate;
+    const targetType = overrideMealType || selectType;
+    if (!user || !recipe || !targetDate || !targetType) return;
     
     setIsAdding(true);
 
     if (mealId) {
       // Update existing meal
-      const { error } = await supabase
-        .from('user_meals')
-        .update({ portions_consumed: consumedPortions })
-        .eq('id', mealId);
-
-      if (!error) {
+      try {
+        await api.meals.update(mealId, { portions_consumed: consumedPortions });
         await refreshMeals();
         navigate('/');
-      } else {
+      } catch (err) {
         alert("Błąd podczas aktualizacji posiłku.");
         setIsAdding(false);
       }
@@ -126,37 +134,38 @@ export function RecipeDetails() {
       return `${resD}.${resM}`;
     };
 
-    const mealInserts = [];
     for (let i = 0; i < daysToAdd; i++) {
-      mealInserts.push({
-        user_id: user.id,
-        recipe_id: recipe.id,
-        date_str: getNextDate(selectDate, i),
-        meal_type: selectType,
-        portions_consumed: consumedPortions
-      });
+      try {
+        await api.meals.add({
+          recipe: { id: recipe.id },
+          date_str: getNextDate(targetDate, i),
+          meal_type: targetType,
+          portions_consumed: consumedPortions
+        });
+      } catch (err) {
+        console.error("Error adding meal:", err);
+      }
     }
 
-    const { error } = await supabase.from('user_meals').insert(mealInserts);
-
-    if (!error) {
-      await refreshMeals();
-      navigate('/');
+    await refreshMeals();
+    if (overrideDate) {
+      setShowAddToPlan(false);
+      setSuccessToast('Dodano do planu! ✔');
+      setTimeout(() => setSuccessToast(null), 3000);
     } else {
-      alert("Wystąpił błąd przy dodawaniu.");
-      setIsAdding(false);
+      navigate('/');
     }
   };
 
   const handleArchive = async () => {
     if (!recipe) return;
-    const { error } = await supabase.from('recipes').update({ is_archived: true }).eq('id', recipe.id);
-    if (!error) {
-       refreshRecipes();
-       navigate(-1);
-    } else {
-       alert("Błąd podczas operacji archiwizacji.");
-       setShowDeleteConfirm(false);
+    try {
+      await api.recipes.archive(recipe.id);
+      refreshRecipes();
+      navigate(-1);
+    } catch (err) {
+      alert("Błąd podczas operacji archiwizacji.");
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -219,7 +228,13 @@ export function RecipeDetails() {
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
 
-      {/* Top Header */}
+      {/* Toast sukcesu */}
+      <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-[200] transition-all duration-500 ${successToast ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
+        <div className="flex items-center gap-3 bg-primary/10 backdrop-blur-md border border-primary/20 text-primary px-5 py-3 rounded-full shadow-lg whitespace-nowrap">
+          <span className="material-symbols-outlined text-[18px] font-bold">check_circle</span>
+          <span className="font-headline font-bold text-sm tracking-wide">{successToast}</span>
+        </div>
+      </div>      {/* Top Header */}
       <header className="sticky top-0 w-full z-40 bg-surface/90 backdrop-blur-xl px-4 py-3 flex items-center gap-4 border-b border-outline-variant/10">
         <button 
           onClick={() => navigate(-1)} 
@@ -247,16 +262,12 @@ export function RecipeDetails() {
       
       {/* Header Image */}
       <div className="relative w-full h-48 sm:h-64 bg-surface-container-highest shrink-0 overflow-hidden">
-        {recipe.image_url ? (
-          <img src={recipe.image_url} alt={recipe.name} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full bg-[#e2f0d9] flex flex-col items-center justify-center gap-3">
-             <div className="w-20 h-20 rounded-full bg-white/50 flex items-center justify-center shadow-inner">
-               <span className="material-symbols-outlined text-[#6B8E23] text-4xl opacity-60">photo_camera</span>
-             </div>
-             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#6B8E23] opacity-40">Brak zdjęcia</span>
-          </div>
-        )}
+        <RecipeCoverImage
+          recipe={recipe}
+          alt={recipe.name}
+          className="absolute inset-0 w-full h-full"
+          imgClassName="w-full h-full object-cover"
+        />
       </div>
 
       {/* Tytuł przepisu – mniejszy, pod zdjęciem */}
@@ -652,7 +663,7 @@ export function RecipeDetails() {
 
             {/* Przycisk Akcji */}
             <button 
-              onClick={handleAddMeal}
+              onClick={() => handleAddMeal()}
               disabled={isAdding || consumedPortions <= 0}
               className="flex-1 h-[56px] bg-[#6B8E23] hover:bg-[#5a781d] text-white font-black text-base rounded-[20px] transition-all active:scale-[0.98] disabled:opacity-50 shadow-[0_4px_12px_rgba(107,142,35,0.3)] flex items-center justify-center gap-3"
             >
@@ -665,6 +676,136 @@ export function RecipeDetails() {
               )}
             </button>
 
+          </div>
+        </div>
+      )}
+
+      {/* Przycisk Dodaj do planu (gdy brak kontekstu daty) */}
+      {!selectDate && !selectType && (
+        <div className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl border-t border-outline-variant/10 p-4 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+          <div className="max-w-xl mx-auto w-full">
+            <button
+              onClick={() => setShowAddToPlan(true)}
+              className="w-full h-[56px] bg-[#6B8E23] hover:bg-[#5a781d] text-white font-black text-base rounded-[20px] transition-all active:scale-[0.98] shadow-[0_4px_12px_rgba(107,142,35,0.3)] flex items-center justify-center gap-3"
+            >
+              <span className="material-symbols-outlined text-[22px]">add_circle</span>
+              Dodaj do planu
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Sheet – Wybierz dzień i porę */}
+      {showAddToPlan && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowAddToPlan(false)}>
+          <div className="w-full max-w-xl bg-surface rounded-t-[32px] p-6 pb-8 animate-slide-up shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
+            <h2 className="font-headline font-bold text-xl text-on-surface mb-5">Wybierz dzień i porę</h2>
+
+            {/* Szybki wybór dnia */}
+            <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">Dzień</p>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {(() => {
+                const fmt = (offset: number) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() + offset);
+                  return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
+                };
+                const fmtISO = (offset: number) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() + offset);
+                  return d.toISOString().slice(0, 10);
+                };
+                return [
+                  { label: 'Dziś', val: fmt(0), iso: fmtISO(0) },
+                  { label: 'Jutro', val: fmt(1), iso: fmtISO(1) },
+                  { label: 'Pojutrze', val: fmt(2), iso: fmtISO(2) },
+                ].map(opt => (
+                  <button
+                    key={opt.val}
+                    onClick={() => { setQuickDate(opt.val); setQuickDateInput(opt.iso); }}
+                    className={`py-3 rounded-2xl font-bold text-sm border-2 transition-all active:scale-95 ${
+                      quickDate === opt.val
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-outline-variant/20 bg-surface-container-low text-on-surface-variant'
+                    }`}
+                  >
+                    <div>{opt.label}</div>
+                    <div className="text-[10px] font-medium opacity-60">{opt.val}</div>
+                  </button>
+                ));
+              })()}
+            </div>
+            {/* Pole kalendarza - ukryte, otwierane przyciskiem */}
+            <div className="relative mb-5">
+              <button
+                type="button"
+                onClick={() => {
+                  try { (dateInputRef.current as any)?.showPicker(); } catch { dateInputRef.current?.click(); }
+                }}
+                className={`w-full flex items-center gap-3 py-3 px-4 rounded-2xl border-2 transition-all active:scale-[0.98] ${
+                  quickDateInput && !['', undefined].includes(quickDateInput)
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-outline-variant/20 bg-surface-container-low text-on-surface-variant'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[22px]">calendar_month</span>
+                <span className="font-bold text-sm flex-1 text-left">
+                  {quickDateInput ? new Date(quickDateInput + 'T00:00:00').toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Wybierz inną datę...'}
+                </span>
+                <span className="material-symbols-outlined text-[18px] opacity-40">chevron_right</span>
+              </button>
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={quickDateInput}
+                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                onChange={e => {
+                  const iso = e.target.value;
+                  setQuickDateInput(iso);
+                  if (iso) {
+                    const d = new Date(iso + 'T00:00:00');
+                    const ds = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
+                    setQuickDate(ds);
+                  }
+                }}
+              />
+            </div>
+
+            {/* Wybór pory */}
+            <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">Pora posiłku</p>
+            <div className="grid grid-cols-2 gap-2 mb-6">
+              {(profile?.meal_config || [
+                { id: 'breakfast', name: 'Śniadanie' },
+                { id: 'second_breakfast', name: '2 Śniadanie' },
+                { id: 'lunch', name: 'Lunch' },
+                { id: 'dinner', name: 'Obiad' },
+                { id: 'snack', name: 'Przekąska' },
+                { id: 'supper', name: 'Kolacja' },
+              ]).filter((m: any) => m.visible !== false).map((meal: any) => (
+                <button
+                  key={meal.id}
+                  onClick={() => setQuickMealType(meal.id)}
+                  className={`py-3 px-4 rounded-2xl font-bold text-sm border-2 text-left transition-all active:scale-95 ${
+                    quickMealType === meal.id
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-outline-variant/20 bg-surface-container-low text-on-surface-variant'
+                  }`}
+                >
+                  {meal.name}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                if (quickDate && quickMealType) handleAddMeal(quickDate, quickMealType);
+              }}
+              disabled={isAdding || !quickDate || !quickMealType}
+              className="w-full h-[56px] bg-[#6B8E23] text-white font-black text-base rounded-[20px] transition-all active:scale-[0.98] disabled:opacity-40 shadow-[0_4px_12px_rgba(107,142,35,0.3)] flex items-center justify-center gap-3"
+            >
+              {isAdding ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Dodaj do planu'}
+            </button>
           </div>
         </div>
       )}
