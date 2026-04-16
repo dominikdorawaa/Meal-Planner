@@ -1,6 +1,6 @@
 
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://meal-planner-llet.onrender.com';
 
 const TOKEN_KEY = 'mp_auth_token';
 const USER_KEY = 'mp_auth_user';
