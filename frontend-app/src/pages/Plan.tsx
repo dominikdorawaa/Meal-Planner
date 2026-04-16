@@ -1,8 +1,10 @@
 import { BottomNav } from '../components/BottomNav';
-import { useEffect, useState, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState, useRef, useMemo } from 'react';
+import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { useNavigate } from 'react-router-dom';
+import { recipeImageFallbackUrl } from '../lib/recipeImage';
+import { RecipeCoverImage } from '../components/RecipeCoverImage';
 
 const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN"; // Tylko marker do logiki poniżej
 
@@ -45,7 +47,7 @@ const getMealTypeName = (type: string, mealConfig?: any[]) => {
 
 export function Plan() {
   const navigate = useNavigate();
-  const { recipes, products, profile, userMeals, loading: contextLoading, refreshMeals, getConsumedForDay } = useAppData();
+  const { recipes, products, profile, userMeals, setUserMeals, loading: contextLoading, refreshMeals, getConsumedForDay, refreshShoppingList } = useAppData();
   const [mealToDelete, setMealToDelete] = useState<any | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeMealMenu, setActiveMealMenu] = useState<any | null>(null);
@@ -125,10 +127,16 @@ export function Plan() {
     }
   };
 
-  // Sprawdź onboarding
+  // Sprawdź onboarding (tylko gdy profil jest załadowany, a cel kaloryczny jest nadal zerowy/null)
   useEffect(() => {
-    if (!contextLoading && profile && !profile.target_kcal) navigate('/onboarding');
-    if (!contextLoading && !profile) navigate('/onboarding');
+    const checkOnboarding = async () => {
+      if (!contextLoading) {
+        if (!profile || !profile.target_kcal || profile.target_kcal === 0) {
+           navigate('/onboarding');
+        }
+      }
+    };
+    checkOnboarding();
   }, [contextLoading, profile, navigate]);
 
   // Odśwież meals po powrocie na stronę (np. po dodaniu przepisu w /recipes)
@@ -156,8 +164,15 @@ export function Plan() {
   }, []);
 
   const handleDeleteMeal = async (mealId: string) => {
-    await supabase.from('user_meals').delete().eq('id', mealId);
-    refreshMeals();
+    // Optimistic update
+    setUserMeals(prev => prev.filter(m => m.id !== mealId));
+    try {
+      await api.meals.delete(mealId);
+      await refreshMeals();
+    } catch (err) {
+      console.error("Error deleting meal:", err);
+      refreshMeals(); // Rollback if needed
+    }
   };
 
   const handleCopyToNextDay = async (meal: any) => {
@@ -176,18 +191,24 @@ export function Plan() {
       tomorrowDateStr = days[todayIdx + 1].date;
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    await supabase.from('user_meals').insert({
-      user_id: user.id,
-      recipe_id: meal.recipe_id,
-      date_str: tomorrowDateStr,
-      meal_type: meal.meal_type
-    });
-
-    setActiveMealMenu(null);
-    refreshMeals();
+    try {
+      await api.meals.add({
+        recipe: (meal.recipe?.id || meal.recipe) ? { id: (meal.recipe?.id || meal.recipe) } : null,
+        product: (meal.product?.id || meal.product) ? { id: (meal.product?.id || meal.product) } : null,
+        date_str: tomorrowDateStr,
+        meal_type: meal.meal_type,
+        portions_consumed: meal.portions_consumed,
+        manual_name: meal.manual_name,
+        manual_kcal: meal.manual_kcal,
+        manual_protein: meal.manual_protein,
+        manual_fat: meal.manual_fat,
+        manual_carbs: meal.manual_carbs
+      });
+      setActiveMealMenu(null);
+      await refreshMeals();
+    } catch (err) {
+      console.error("Error copying meal:", err);
+    }
   };
 
   const handlePreSubmitCopyMode = () => {
@@ -209,171 +230,161 @@ export function Plan() {
   };
 
   const executeCopyAction = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      if (slotsToOverwrite.length > 0) {
+        const idsToDelete = slotsToOverwrite.map(m => m.id);
+        await Promise.all(idsToDelete.map(id => api.meals.delete(id)));
+      }
 
-    if (slotsToOverwrite.length > 0) {
-      const idsToDelete = slotsToOverwrite.map(m => m.id);
-      await supabase.from('user_meals').delete().in('id', idsToDelete);
-    }
+      const promises: Promise<any>[] = [];
 
-    let inserts: any[] = [];
-
-    if (copyModeMeal) {
-      inserts = selectedCopySlots.map(slotStr => {
-        const [dateStr, mealType] = slotStr.split('_');
-        return { user_id: user.id, recipe_id: copyModeMeal.recipe_id, date_str: dateStr, meal_type: mealType };
-      });
-    } else if (copyModeDay) {
-      const mealsToCopy = userMeals.filter(m => m.date_str === copyModeDay);
-      selectedCopyDays.forEach(targetDate => {
-        mealsToCopy.forEach(meal => {
-          inserts.push({ user_id: user.id, recipe_id: meal.recipe_id, date_str: targetDate, meal_type: meal.meal_type });
+      if (copyModeMeal) {
+        selectedCopySlots.forEach(slotStr => {
+          const [dateStr, mealType] = slotStr.split('_');
+          const rid = copyModeMeal.recipe?.id || copyModeMeal.recipe;
+          const pid = copyModeMeal.product?.id || copyModeMeal.product;
+          promises.push(api.meals.add({
+            recipe: rid ? { id: rid } : null,
+            product: pid ? { id: pid } : null,
+            date_str: dateStr,
+            meal_type: mealType,
+            portions_consumed: copyModeMeal.portions_consumed,
+            manual_name: copyModeMeal.manual_name,
+            manual_kcal: copyModeMeal.manual_kcal,
+            manual_protein: copyModeMeal.manual_protein,
+            manual_fat: copyModeMeal.manual_fat,
+            manual_carbs: copyModeMeal.manual_carbs
+          }));
         });
-      });
-    }
+      } else if (copyModeDay) {
+        const mealsToCopy = userMeals.filter(m => m.date_str === copyModeDay);
+        selectedCopyDays.forEach(targetDate => {
+          mealsToCopy.forEach(meal => {
+            const rid = meal.recipe?.id || meal.recipe;
+            const pid = meal.product?.id || meal.product;
+            promises.push(api.meals.add({
+              recipe: rid ? { id: rid } : null,
+              product: pid ? { id: pid } : null,
+              date_str: targetDate,
+              meal_type: meal.meal_type,
+              portions_consumed: meal.portions_consumed,
+              manual_name: meal.manual_name,
+              manual_kcal: meal.manual_kcal,
+              manual_protein: meal.manual_protein,
+              manual_fat: meal.manual_fat,
+              manual_carbs: meal.manual_carbs
+            }));
+          });
+        });
+      }
 
-    if (inserts.length > 0) {
-      await supabase.from('user_meals').insert(inserts);
-    }
+      if (promises.length > 0) {
+        await Promise.all(promises);
+      }
 
-    setCopyModeMeal(null);
-    setSelectedCopySlots([]);
-    setCopyModeDay(null);
-    setSelectedCopyDays([]);
-    setSlotsToOverwrite([]);
-    refreshMeals();
+      setCopyModeMeal(null);
+      setSelectedCopySlots([]);
+      setCopyModeDay(null);
+      setSelectedCopyDays([]);
+      setSlotsToOverwrite([]);
+      await refreshMeals();
+    } catch (err) {
+      console.error("Error in bulk copy action:", err);
+    }
   };
 
   const handleDeleteDay = async (dateStr: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from('user_meals').delete().eq('user_id', user.id).eq('date_str', dateStr);
-    setDayToDelete(null);
-    refreshMeals();
+    // Optimistic update
+    setUserMeals(prev => prev.filter(m => m.date_str !== dateStr));
+    try {
+      const mealsToDelete = userMeals.filter(m => m.date_str === dateStr);
+      await Promise.all(mealsToDelete.map(m => api.meals.delete(m.id)));
+      setDayToDelete(null);
+      await refreshMeals();
+    } catch (err) {
+      console.error("Error deleting day meals:", err);
+      refreshMeals();
+    }
   };
 
   const generateShoppingList = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      let mealsToProcess: any[] = [];
+      const explicitMeals = userMeals.filter(m => selectedShoppingMeals.includes(m.id));
+      const dayMeals = userMeals.filter(m => selectedShoppingDays.includes(m.date_str) && !selectedShoppingMeals.includes(m.id));
+      mealsToProcess = [...explicitMeals, ...dayMeals];
 
-    let mealsToProcess: any[] = [];
+      if (mealsToProcess.length === 0) return;
 
-    // Konkretne kliknięte potrawy
-    const explicitMeals = userMeals.filter(m => selectedShoppingMeals.includes(m.id));
+      const recipeIds = Array.from(new Set(mealsToProcess.map(m => (m.recipe?.id || m.recipe)).filter(Boolean)));
+      if (recipeIds.length === 0) {
+        alert("Wybrane posiłki nie są przepisami, nie można wygenerować listy składników.");
+        return;
+      }
 
-    // Potrawy z zaznaczonych Dni (bez duplikatów)
-    const dayMeals = userMeals.filter(m => selectedShoppingDays.includes(m.date_str) && !selectedShoppingMeals.includes(m.id));
-
-    mealsToProcess = [...explicitMeals, ...dayMeals];
-
-    if (mealsToProcess.length === 0) return;
-
-    const recipeIds = mealsToProcess.map(m => m.recipe_id);
-    const { data: ingredients, error } = await supabase.from('recipe_ingredients').select('*').in('recipe_id', recipeIds);
-
-    if (error) {
-      alert("Wystąpił błąd Supabase przy pobieraniu składników: " + error.message);
-      return;
-    }
-    if (!ingredients || ingredients.length === 0) {
-      alert("Niestety wybrane potrawy nie posiadają jeszcze przypisanych składników (Dla celów testowych dodaliśmy je tylko do 'Sourdough & Avo', 'Berry Smoothie' i 'Chicken Salad'). Wybierz te potrawy, aby przetestować Koszyk!");
-      return;
-    }
-
-    // Pobierz obecny koszyk, by poprawnie do niego dodać zamiast duplikować
-    const { data: existingList } = await supabase.from('shopping_list').select('*').eq('user_id', user.id);
-    const existingMap = new Map<string, any>();
-    if (existingList) {
-      existingList.forEach(item => {
-        existingMap.set(`${item.ingredient_name.toLowerCase()}_${item.unit.toLowerCase()}`, item);
-      });
-    }
-
-    const localAccumulator = new Map<string, any>();
-
-    mealsToProcess.forEach(meal => {
-      const mealIngredients = ingredients.filter(i => i.recipe_id === meal.recipe_id);
-      mealIngredients.forEach(ing => {
-        const key = `${ing.name.toLowerCase()}_${ing.unit.toLowerCase()}`;
-        if (localAccumulator.has(key)) {
-          const existing = localAccumulator.get(key);
-          existing.amount = Number(existing.amount) + Number(ing.amount);
-        } else {
-          localAccumulator.set(key, {
-            ingredient_name: ing.name,
-            amount: Number(ing.amount),
-            unit: ing.unit
-          });
+      // Fetch ingredients for these recipes
+      const recipesWithIngs = await Promise.all(recipeIds.map(rid => api.recipes.getById(rid.toString())));
+      
+      const ingredients: any[] = [];
+      recipesWithIngs.forEach(r => {
+        if (r.ingredients) {
+          r.ingredients.forEach((ing: any) => ingredients.push({ ...ing, recipe_id: r.id }));
         }
       });
-    });
 
-    const itemsToInsert: any[] = [];
-    const itemsToUpdate: any[] = [];
-
-    Array.from(localAccumulator.entries()).forEach(([key, localItem]) => {
-      if (existingMap.has(key)) {
-        const remoteItem = existingMap.get(key);
-        itemsToUpdate.push({
-          id: remoteItem.id,
-          amount: Number(remoteItem.amount) + Number(localItem.amount)
-        });
-      } else {
-        itemsToInsert.push({
-          user_id: user.id,
-          ingredient_name: localItem.ingredient_name,
-          amount: localItem.amount,
-          unit: localItem.unit,
-          is_checked: false
-        });
+      if (ingredients.length === 0) {
+        alert("Wybrane przepisy nie posiadają składników.");
+        return;
       }
-    });
 
-    if (itemsToInsert.length > 0) {
-      await supabase.from('shopping_list').insert(itemsToInsert);
+      const localAccumulator = new Map<string, any>();
+      mealsToProcess.forEach(meal => {
+        const rid = meal.recipe?.id || meal.recipe;
+        if (!rid) return;
+        const mealIngredients = ingredients.filter(i => i.recipe_id === rid);
+        mealIngredients.forEach(ing => {
+          const key = `${ing.name.toLowerCase()}_${ing.unit.toLowerCase()}`;
+          if (localAccumulator.has(key)) {
+            const existing = localAccumulator.get(key);
+            existing.quantity = Number(existing.quantity) + Number(ing.amount);
+          } else {
+            localAccumulator.set(key, {
+              ingredient_name: ing.name,
+              quantity: Number(ing.amount),
+              unit: ing.unit
+            });
+          }
+        });
+      });
+
+      const promises: Promise<any>[] = [];
+      localAccumulator.forEach(item => {
+        promises.push(api.shoppingList.addItem(item));
+      });
+
+      const recipePortions = new Map<string, number>();
+      mealsToProcess.forEach(meal => {
+        const rid = meal.recipe?.id || meal.recipe;
+        if (rid) {
+          recipePortions.set(rid, (recipePortions.get(rid) || 0) + 1);
+        }
+      });
+
+      recipePortions.forEach((portions, rid) => {
+        promises.push(api.shoppingList.addRecipe({ recipe: { id: rid }, portions }));
+      });
+
+      await Promise.all(promises);
+      await refreshShoppingList();
+
+      setShoppingSelectionMode(false);
+      setSelectedShoppingDays([]);
+      setSelectedShoppingMeals([]);
+      setSuccessToast("Składniki dodano pomyślnie do listy zakupów");
+      setTimeout(() => setSuccessToast(null), 3500);
+    } catch (err) {
+      console.error("Error generating shopping list:", err);
     }
-
-    for (const update of itemsToUpdate) {
-      await supabase.from('shopping_list').update({ amount: update.amount }).eq('id', update.id);
-    }
-
-    // Zapisz informacje o tym jakie przepisy (i w ilu porcjach) wrzuciliśmy do koszyka
-    const recipePortions = new Map<string, number>();
-    mealsToProcess.forEach(meal => {
-      recipePortions.set(meal.recipe_id, (recipePortions.get(meal.recipe_id) || 0) + 1);
-    });
-
-    const { data: existingRecipes } = await supabase.from('shopping_list_recipes').select('*').eq('user_id', user.id);
-    const existingRecipeMap = new Map<string, any>();
-    if (existingRecipes) {
-      existingRecipes.forEach(er => existingRecipeMap.set(er.recipe_id, er));
-    }
-
-    const recipeInserts: any[] = [];
-    const recipeUpdates: any[] = [];
-
-    Array.from(recipePortions.entries()).forEach(([rid, portions]) => {
-      if (existingRecipeMap.has(rid)) {
-        const remoteRec = existingRecipeMap.get(rid);
-        recipeUpdates.push({ id: remoteRec.id, portions: remoteRec.portions + portions });
-      } else {
-        recipeInserts.push({ user_id: user.id, recipe_id: rid, portions: portions });
-      }
-    });
-
-    if (recipeInserts.length > 0) {
-      await supabase.from('shopping_list_recipes').insert(recipeInserts);
-    }
-    for (const update of recipeUpdates) {
-      await supabase.from('shopping_list_recipes').update({ portions: update.portions }).eq('id', update.id);
-    }
-
-    setShoppingSelectionMode(false);
-    setSelectedShoppingDays([]);
-    setSelectedShoppingMeals([]);
-    setSuccessToast("Składniki dodano pomyślnie do listy zakupów");
-    setTimeout(() => setSuccessToast(null), 3500);
   };
 
   const handleCopyDayNext = async (dateStr: string) => {
@@ -383,9 +394,6 @@ export function Plan() {
       return;
     }
     const tomorrow = days[todayIdx + 1];
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
 
     const mealsToCopy = userMeals.filter(m => m.date_str === dateStr);
     if (mealsToCopy.length === 0) return;
@@ -401,16 +409,24 @@ export function Plan() {
       return;
     }
 
-    const inserts = mealsToCopy.map(m => ({
-      user_id: user.id,
-      recipe_id: m.recipe_id,
-      date_str: tomorrow.date,
-      meal_type: m.meal_type
-    }));
-
-    await supabase.from('user_meals').insert(inserts);
-    setActiveDayMenu(null);
-    refreshMeals();
+    try {
+      await Promise.all(mealsToCopy.map(m => api.meals.add({
+        recipe: (m.recipe?.id || m.recipe) ? { id: (m.recipe?.id || m.recipe) } : null,
+        product: (m.product?.id || m.product) ? { id: (m.product?.id || m.product) } : null,
+        date_str: tomorrow.date,
+        meal_type: m.meal_type,
+        portions_consumed: m.portions_consumed,
+        manual_name: m.manual_name,
+        manual_kcal: m.manual_kcal,
+        manual_protein: m.manual_protein,
+        manual_fat: m.manual_fat,
+        manual_carbs: m.manual_carbs
+      })));
+      setActiveDayMenu(null);
+      await refreshMeals();
+    } catch (err) {
+      console.error("Error copying day to next:", err);
+    }
   };
 
 
@@ -425,8 +441,10 @@ export function Plan() {
 
     const assignedMeals = userMeals.filter(m => m.date_str === date && m.meal_type === mealType);
 
-    // Odfiltruj "osierocone" wpisy (np. po usuniętym przepisie), aby nie wyzwalały przycisku "Więcej" w pustym slocie
-    const validMeals = assignedMeals.filter(m => !m.recipe_id || recipes.some(r => r.id === m.recipe_id));
+    const validMeals = assignedMeals.filter(m => {
+      const rid = m.recipe?.id || m.recipe;
+      return !rid || recipes.some(r => r.id === rid);
+    });
 
     const onSlotClick = () => {
       if (shoppingSelectionMode) return;
@@ -444,9 +462,11 @@ export function Plan() {
           <div className={`flex flex-col gap-3 w-full max-w-[130px] h-full transition-all duration-300 ${isToday ? 'ring-2 ring-[#ff9800]/30 bg-[#ff9800]/[0.05] p-2 -mx-2 -my-2 rounded-3xl shadow-[0_0_15px_rgba(255,152,0,0.05)]' : ''}`}>
             {validMeals.map(assignedMeal => {
               const isSelectedShopping = selectedShoppingMeals.includes(assignedMeal.id);
+              const rid = assignedMeal.recipe?.id || assignedMeal.recipe;
+              const pid = assignedMeal.product?.id || assignedMeal.product;
 
-              if (assignedMeal.recipe_id) {
-                const recipe = recipes.find(r => r.id === assignedMeal.recipe_id);
+              if (rid) {
+                const recipe = recipes.find(r => r.id === rid);
                 if (!recipe) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
 
                 const mult = assignedMeal.portions_consumed || 1;
@@ -457,6 +477,7 @@ export function Plan() {
                     kcal={String(Math.round(recipe.kcal * mult))}
                     macros={formatMacrosShort(parseFloat((recipe.protein * mult).toFixed(1)), parseFloat((recipe.fat * mult).toFixed(1)))}
                     imgSrc={recipe.image_url || PLACEHOLDER_IMAGE}
+                    imageFallbackSrc={recipeImageFallbackUrl(recipe)}
                     noWrap
                     onClick={() => {
                       if (!shoppingSelectionMode && !copyModeDay && !copyModeMeal) {
@@ -486,8 +507,8 @@ export function Plan() {
                     isProduct={false}
                   />
                 );
-              } else if (assignedMeal.product_id) {
-                const product = products.find(p => p.id === assignedMeal.product_id);
+              } else if (pid) {
+                const product = products.find(p => p.id === pid);
                 if (!product) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
 
                 const weight = assignedMeal.portions_consumed || 100;
@@ -579,6 +600,17 @@ export function Plan() {
     return <PlanCard onClick={onSlotClick} isCopyMode={isCopyMode} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} isToday={isToday} />;
   };
 
+  if (contextLoading || !profile || profile.target_kcal === 0 || !profile.target_kcal) {
+    return (
+      <div className="min-h-screen bg-surface flex flex-col items-center justify-center">
+        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 animate-pulse">
+          <span className="material-symbols-outlined text-primary text-3xl">restaurant</span>
+        </div>
+        <p className="text-primary font-bold tracking-widest uppercase text-xs animate-pulse">Przygotowujemy Twój profil...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32">
       {/* Toast Sukcesu */}
@@ -595,7 +627,7 @@ export function Plan() {
           <button className="text-primary focus:outline-none">
             <span className="material-symbols-outlined text-[28px]">calendar_month</span>
           </button>
-          <h1 className="font-headline font-bold text-xl tracking-tight text-primary">Meal Planner</h1>
+          <h1 className="font-headline font-bold text-xl tracking-tight text-primary">Twój Plan</h1>
           <button
             onClick={() => {
               setActiveDayMenu(null);
@@ -767,7 +799,10 @@ export function Plan() {
             </section>
 
             {/* Dynamiczne rzędy posiłków na podstawie preferencji usera (kolejność i nazwy) */}
-            {(profile?.meal_config || MEAL_TYPES.map(m => ({ ...m, visible: !profile?.visible_meals || profile.visible_meals.includes(m.id) })))
+            {((Array.isArray(profile?.meal_config) ? profile.meal_config : null) || MEAL_TYPES.map(m => ({ 
+                ...m, 
+                visible: !Array.isArray(profile?.visible_meals) || profile.visible_meals.includes(m.id) 
+              })))
               .filter((mt: any) => mt.visible)
               .map((mt: any) => (
                 <div key={mt.id} className="flex flex-col">
@@ -873,12 +908,14 @@ export function Plan() {
               <button
                 onClick={() => {
                   const meal = activeMealMenu;
-                  if (meal.recipe_id) {
-                    navigate(`/recipe/${meal.recipe_id}?selectDate=${meal.date_str}&selectType=${meal.type}&mealId=${meal.id}`);
-                  } else if (meal.product_id) {
-                    navigate(`/product/${meal.product_id}?selectDate=${meal.date_str}&selectType=${meal.type}&mealId=${meal.id}`);
+                  const rid = meal.recipe?.id || meal.recipe;
+                  const pid = meal.product?.id || meal.product;
+                  if (rid) {
+                    navigate(`/recipe/${rid}?selectDate=${meal.date_str}&selectType=${meal.meal_type}&mealId=${meal.id}`);
+                  } else if (pid) {
+                    navigate(`/product/${pid}?selectDate=${meal.date_str}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   } else {
-                    navigate(`/add-food?selectDate=${meal.date_str}&selectType=${meal.type}&mealId=${meal.id}`);
+                    navigate(`/add-food?selectDate=${meal.date_str}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   }
                   setActiveMealMenu(null);
                 }}
@@ -915,20 +952,22 @@ export function Plan() {
 
       {/* Tryb masowego kopiowania - Pływający pasek akcji */}
       {copyModeMeal && (() => {
-        const copyRecipe = recipes.find(r => r.id === copyModeMeal.recipe_id);
+        const rid = copyModeMeal.recipe?.id || copyModeMeal.recipe;
+        const copyRecipe = recipes.find(r => r.id === rid);
         const copyDay = days.find(d => d.date === copyModeMeal.date_str);
         return (
           <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-[420px] bg-surface-container-lowest shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[2rem] p-3 pl-4 flex items-center justify-between z-[200] animate-slide-up border border-outline-variant/30 overflow-hidden">
 
             <div className="flex items-center w-[55%] gap-3 overflow-hidden">
               {copyRecipe && (
-                copyRecipe.image_url ? (
-                  <img src={copyRecipe.image_url} alt="Kopiowany posiłek" className="w-10 h-10 rounded-full object-cover shadow-sm flex-shrink-0" />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary shadow-sm flex-shrink-0">
-                    <span className="material-symbols-outlined text-[20px]">nutrition</span>
-                  </div>
-                )
+                <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm flex-shrink-0">
+                  <RecipeCoverImage
+                    recipe={copyRecipe}
+                    alt="Kopiowany posiłek"
+                    className="w-full h-full"
+                    imgClassName="w-full h-full object-cover"
+                  />
+                </div>
               )}
               <div className="flex flex-col truncate w-full">
                 <span className="font-bold text-xs text-on-surface truncate pr-2">{copyRecipe?.name || "Kopiowanie"}</span>
@@ -999,18 +1038,20 @@ export function Plan() {
 
             <div className="flex flex-col gap-2 overflow-y-auto w-full mb-6 scroll-smooth pr-1">
               {slotsToOverwrite.map((m, idx) => {
-                const recipe = recipes.find(r => r.id === m.recipe_id);
+                const rid = m.recipe?.id || m.recipe;
+                const recipe = recipes.find(r => r.id === rid);
                 const day = days.find(d => d.date === m.date_str);
                 if (!recipe || !day) return null;
                 return (
                   <div key={idx} className="flex items-center gap-3 p-3 bg-[#ba1a1a]/5 border border-[#ba1a1a]/10 rounded-2xl w-full">
-                    {recipe.image_url ? (
-                      <img src={recipe.image_url} alt="" className="w-10 h-10 rounded-full object-cover shadow-sm shrink-0" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary shadow-sm shrink-0">
-                        <span className="material-symbols-outlined text-[20px]">nutrition</span>
-                      </div>
-                    )}
+                    <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm shrink-0">
+                      <RecipeCoverImage
+                        recipe={recipe}
+                        alt=""
+                        className="w-full h-full"
+                        imgClassName="w-full h-full object-cover"
+                      />
+                    </div>
                     <div className="flex flex-col overflow-hidden text-left w-full">
                       <span className="text-xs font-bold text-on-surface truncate">{recipe.name}</span>
                       <span className="text-[10px] text-[#ba1a1a] font-medium truncate mt-0.5 opacity-80">{formatFullDate(day.name, day.date)} • {getMealTypeName(m.meal_type)}</span>
@@ -1040,7 +1081,8 @@ export function Plan() {
 
       {/* Ostrzeżenie przed usunięciem jednego posiłku */}
       {mealToDelete && (() => {
-        const recipe = recipes.find(r => r.id === mealToDelete.recipe_id);
+        const rid = mealToDelete.recipe?.id || mealToDelete.recipe;
+        const recipe = recipes.find(r => r.id === rid);
         const day = days.find(d => d.date === mealToDelete.date_str);
 
         return (
@@ -1050,13 +1092,12 @@ export function Plan() {
               <div className="relative mb-4">
                 <div className="w-16 h-16 rounded-full overflow-hidden shadow-sm">
                   {recipe && (
-                    recipe.image_url ? (
-                      <img src={recipe.image_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-[#e2f0d9] flex items-center justify-center text-[#6B8E23]">
-                        <span className="material-symbols-outlined text-[28px]">photo_camera</span>
-                      </div>
-                    )
+                    <RecipeCoverImage
+                      recipe={recipe}
+                      alt=""
+                      className="w-full h-full"
+                      imgClassName="w-full h-full object-cover"
+                    />
                   )}
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-surface-container-lowest rounded-full flex items-center justify-center z-10">
@@ -1134,14 +1175,40 @@ export function Plan() {
   );
 }
 
-function RecipeCard({ title, kcal, macros, imgSrc, onMenuClick, onClick, isCopyMode, isSelected, isShoppingMode, isSelectedShopping, noWrap, isProduct }: { title: string, kcal: string, macros: string, imgSrc: string, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, isShoppingMode?: boolean, isSelectedShopping?: boolean, noWrap?: boolean, isProduct?: boolean }) {
+function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick, onClick, isCopyMode, isSelected, isShoppingMode, isSelectedShopping, noWrap, isProduct }: { title: string, kcal: string, macros: string, imgSrc: string, imageFallbackSrc?: string, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, isShoppingMode?: boolean, isSelectedShopping?: boolean, noWrap?: boolean, isProduct?: boolean }) {
 
   const isSelectionMode = isCopyMode || isShoppingMode;
   const isSelectedState = isSelected || isSelectedShopping;
 
+  const imageUrls = useMemo(() => {
+    if (isProduct) {
+      const primary = imgSrc && !imgSrc.includes('PLAN_PLACEHOLDER_TOKEN') ? imgSrc : null;
+      return primary ? [primary] : [];
+    }
+    const primary = imgSrc && !imgSrc.includes('PLAN_PLACEHOLDER_TOKEN') ? imgSrc : null;
+    const fb = imageFallbackSrc;
+    if (primary && fb && primary !== fb) return [primary, fb];
+    if (primary) return [primary];
+    if (fb) return [fb];
+    return [];
+  }, [isProduct, imgSrc, imageFallbackSrc]);
+
+  const [imageUrlIdx, setImageUrlIdx] = useState(0);
+
+  useEffect(() => {
+    setImageUrlIdx(0);
+  }, [imageUrls.join('|')]);
+
   const renderImage = () => {
-    if (imgSrc && !imgSrc.includes("PLAN_PLACEHOLDER_TOKEN") && !isProduct) {
-      return <img src={imgSrc} alt={title} className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ${isSelectionMode && !isSelectedState ? 'grayscale opacity-70' : 'group-hover:scale-105'}`} />;
+    if (imageUrlIdx < imageUrls.length) {
+      return (
+        <img
+          src={imageUrls[imageUrlIdx]}
+          alt={title}
+          onError={() => setImageUrlIdx(i => i + 1)}
+          className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ${isSelectionMode && !isSelectedState ? 'grayscale opacity-70' : 'group-hover:scale-105'}`}
+        />
+      );
     }
     return (
       <div className={`absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-1.5 transition-all ${isProduct ? 'bg-primary/[0.03] group-hover:bg-primary/[0.06]' : 'bg-[#f1f6ed] group-hover:bg-[#e8f1e2]'}`}>

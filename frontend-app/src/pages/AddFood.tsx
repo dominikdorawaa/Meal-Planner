@@ -1,15 +1,16 @@
 import { useState, useMemo, useEffect } from 'react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
+import { RecipeCoverImage } from '../components/RecipeCoverImage';
 
 
 const MEAL_TYPE_LABELS: Record<string, string> = {
   breakfast: 'Śniadanie',
-  snack1: '2 Śniadanie',
+  second_breakfast: '2 Śniadanie',
   lunch: 'Lunch',
-  snack2: 'Przekąska',
+  snack: 'Przekąska',
   dinner: 'Obiad',
   supper: 'Kolacja',
 };
@@ -50,16 +51,21 @@ export function AddFood() {
   useEffect(() => {
     async function loadManualMeal() {
       if (!mealId) return;
-      const { data, error } = await supabase.from('user_meals').select('*').eq('id', mealId).single();
-      if (data && !error) {
-        const formData = {
-          name: data.manual_name || '',
-          kcal: String(data.manual_kcal || ''),
-          protein: String(data.manual_protein || ''),
-          fat: String(data.manual_fat || ''),
-          carbs: String(data.manual_carbs || '')
-        };
-        setQuickAddForm(formData);
+      try {
+        const meals = await api.meals.getAll();
+        const data = meals.find((m: any) => m.id === mealId);
+        if (data) {
+          const formData = {
+            name: data.manual_name || '',
+            kcal: String(data.manual_kcal || ''),
+            protein: String(data.manual_protein || ''),
+            fat: String(data.manual_fat || ''),
+            carbs: String(data.manual_carbs || '')
+          };
+          setQuickAddForm(formData);
+        }
+      } catch (err) {
+        console.error("Error loading meal for edit:", err);
       }
     }
     loadManualMeal();
@@ -105,13 +111,10 @@ export function AddFood() {
       alert('Podaj przynajmniej nazwę i kalorie!');
       return;
     }
-    
+
     setIsAdding(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setIsAdding(false); return; }
 
     const payload = {
-      user_id: user.id,
       date_str: selectDate,
       meal_type: selectType,
       manual_name: quickAddForm.name,
@@ -119,24 +122,20 @@ export function AddFood() {
       manual_protein: parseFloat(String(quickAddForm.protein).replace(',', '.')) || 0,
       manual_fat: parseFloat(String(quickAddForm.fat).replace(',', '.')) || 0,
       manual_carbs: parseFloat(String(quickAddForm.carbs).replace(',', '.')) || 0,
-      recipe_id: null
     };
 
-    let error;
-    if (mealId) {
-       const { error: updateError } = await supabase.from('user_meals').update(payload).eq('id', mealId);
-       error = updateError;
-    } else {
-       const { error: insertError } = await supabase.from('user_meals').insert([payload]);
-       error = insertError;
-    }
-
-    if (!error) {
+    try {
+      if (mealId) {
+        await api.meals.update(mealId, payload);
+      } else {
+        await api.meals.add(payload);
+      }
       await refreshMeals();
       navigate('/');
-    } else {
-      console.error("Meal save error:", error);
-      alert(`Wystąpił błąd przy zapisywaniu: ${error.message}`);
+    } catch (err: any) {
+      console.error("Meal save error:", err);
+      alert(`Wystąpił błąd przy zapisywaniu: ${err.message}`);
+    } finally {
       setIsAdding(false);
     }
   };
@@ -158,7 +157,7 @@ export function AddFood() {
       {/* Sticky Header & Search */}
       <header className="sticky top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/10">
         <div className="max-w-xl mx-auto px-4 py-4 space-y-4">
-          
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button onClick={() => navigate('/')} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform">
@@ -240,7 +239,7 @@ export function AddFood() {
           {/* Szybkie akcje dodawania (Przeniesione na górę) */}
           {!mealId && (
             <div className="flex items-center justify-between gap-2 pt-1">
-              <button 
+              <button
                 onClick={() => alert("Formularz tworzenia produktu")}
                 className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-none bg-surface-container-low rounded-xl border border-outline-variant/10"
               >
@@ -253,7 +252,7 @@ export function AddFood() {
                 <span className="text-[10px] font-bold uppercase tracking-wider">Produkt</span>
               </button>
 
-              <button 
+              <button
                 onClick={() => navigate('/add-recipe')}
                 className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-none bg-surface-container-low rounded-xl border border-outline-variant/10"
               >
@@ -266,7 +265,7 @@ export function AddFood() {
                 <span className="text-[10px] font-bold uppercase tracking-wider">Przepis</span>
               </button>
 
-              <button 
+              <button
                 onClick={() => setShowQuickAdd(true)}
                 className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-none bg-surface-container-low rounded-xl border border-outline-variant/10"
               >
@@ -287,7 +286,7 @@ export function AddFood() {
       {/* Main Content Area */}
       {!mealId && (
         <main className="flex-1 w-full max-w-xl mx-auto px-4 py-6">
-          
+
           {contextLoading && (
             <div className="flex flex-col items-center justify-center py-20 gap-3 opacity-50">
               <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
@@ -308,40 +307,39 @@ export function AddFood() {
                       onClick={() => handleSelectRecipe(recipe)}
                       className="flex bg-surface-container-lowest p-2.5 rounded-[20px] shadow-sm border border-outline-variant/10 active:scale-[0.98] transition-all cursor-pointer group hover:bg-primary/5"
                     >
-                      <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0">
-                        {recipe.image_url ? (
-                          <img src={recipe.image_url} alt={recipe.name} className="w-full h-full object-cover shadow-sm bg-surface-container-highest" />
-                        ) : (
-                          <div className="w-full h-full bg-[#f1f6ed] flex items-center justify-center">
-                            <span className="material-symbols-outlined text-[#6B8E23] text-2xl opacity-50">photo_camera</span>
-                          </div>
-                        )}
+                      <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0 relative bg-surface-container-highest">
+                        <RecipeCoverImage
+                          recipe={recipe}
+                          alt={recipe.name}
+                          className="absolute inset-0 w-full h-full"
+                          imgClassName="w-full h-full object-cover shadow-sm"
+                        />
                       </div>
-                      
+
                       <div className="flex flex-col justify-center px-4 flex-1 overflow-hidden">
                         <h3 className="font-headline font-bold text-sm text-on-surface truncate group-hover:text-primary transition-colors">{recipe.name}</h3>
                         <div className="flex items-center gap-2 mt-1.5 opacity-80 overflow-hidden">
-                           <div className="flex items-center gap-0.5 bg-primary/10 px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap">
-                             <span className="material-symbols-outlined text-[10px] text-primary">local_fire_department</span>
-                             <span className="text-[10px] sm:text-[11px] font-black text-primary tracking-wide leading-none">{recipe.kcal} kcal</span>
-                           </div>
-                           <span className="text-[9px] sm:text-[10px] font-bold text-on-surface-variant uppercase tracking-wider shrink-0">{recipe.protein}g B</span>
-                           <span className="text-[9px] sm:text-[10px] font-bold text-on-surface-variant uppercase tracking-wider shrink-0">{recipe.fat}g T</span>
+                          <div className="flex items-center gap-0.5 bg-primary/10 px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap">
+                            <span className="material-symbols-outlined text-[10px] text-primary">local_fire_department</span>
+                            <span className="text-[10px] sm:text-[11px] font-black text-primary tracking-wide leading-none">{recipe.kcal} kcal</span>
+                          </div>
+                          <span className="text-[9px] sm:text-[10px] font-bold text-on-surface-variant uppercase tracking-wider shrink-0">{recipe.protein}g B</span>
+                          <span className="text-[9px] sm:text-[10px] font-bold text-on-surface-variant uppercase tracking-wider shrink-0">{recipe.fat}g T</span>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-center pr-2">
-                         <button className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant group-hover:bg-primary group-hover:text-on-primary transition-colors shadow-sm">
-                           <span className="material-symbols-outlined text-[20px]">add</span>
-                         </button>
+                        <button className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant group-hover:bg-primary group-hover:text-on-primary transition-colors shadow-sm">
+                          <span className="material-symbols-outlined text-[20px]">add</span>
+                        </button>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="py-8 text-center bg-surface-container-lowest rounded-[24px] border border-outline-variant/10 border-dashed">
-                   <span className="material-symbols-outlined text-3xl text-on-surface-variant/30 mb-2">search_off</span>
-                   <p className="text-sm font-medium text-on-surface-variant/60">Brak dopasowanych przepisów</p>
+                  <span className="material-symbols-outlined text-3xl text-on-surface-variant/30 mb-2">search_off</span>
+                  <p className="text-sm font-medium text-on-surface-variant/60">Brak dopasowanych przepisów</p>
                 </div>
               )}
             </section>
@@ -360,9 +358,9 @@ export function AddFood() {
                       onClick={() => handleSelectProduct(prod)}
                       className="flex bg-surface-container-lowest p-3 rounded-[20px] shadow-sm border border-outline-variant/10 active:scale-[0.98] transition-all cursor-pointer group hover:bg-on-surface hover:text-surface"
                     >
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0 transition-colors group-hover:bg-primary/20">
-                      <span className="material-symbols-outlined text-[24px]">nutrition</span>
-                    </div>
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0 transition-colors group-hover:bg-primary/20">
+                        <span className="material-symbols-outlined text-[24px]">nutrition</span>
+                      </div>
 
                       <div className="flex flex-col justify-center px-4 flex-1 overflow-hidden">
                         <h3 className="font-bold text-sm leading-tight group-hover:text-surface transition-colors truncate">{prod.name}</h3>
@@ -375,17 +373,17 @@ export function AddFood() {
                       </div>
 
                       <div className="flex items-center justify-center pl-2 border-l border-outline-variant/10 group-hover:border-surface/10 ml-2">
-                         <button className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant group-hover:text-surface transition-colors">
-                           <span className="material-symbols-outlined text-[20px]">add</span>
-                         </button>
+                        <button className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant group-hover:text-surface transition-colors">
+                          <span className="material-symbols-outlined text-[20px]">add</span>
+                        </button>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="py-8 text-center bg-surface-container-lowest rounded-[24px] border border-outline-variant/10 border-dashed">
-                   <span className="material-symbols-outlined text-3xl text-on-surface-variant/30 mb-2">search_off</span>
-                   <p className="text-sm font-medium text-on-surface-variant/60">Brak dopasowanych produktów</p>
+                  <span className="material-symbols-outlined text-3xl text-on-surface-variant/30 mb-2">search_off</span>
+                  <p className="text-sm font-medium text-on-surface-variant/60">Brak dopasowanych produktów</p>
                 </div>
               )}
             </section>
@@ -399,7 +397,7 @@ export function AddFood() {
         <div className={mealId ? "flex-1 w-full max-w-xl mx-auto px-4 py-6" : "fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-fade-in"} onClick={!mealId ? () => setShowQuickAdd(false) : undefined}>
           <div className={mealId ? "bg-transparent" : "bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[90vh] overflow-y-auto animate-slide-up w-full max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative"} onClick={e => e.stopPropagation()}>
             {!mealId && <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6"></div>}
-            
+
             {!mealId && (
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -515,8 +513,8 @@ export function AddFood() {
 
 
             </div>
-            
-            <button 
+
+            <button
               onClick={handleQuickAddSubmit}
               disabled={isAdding || !quickAddForm.name || !quickAddForm.kcal}
               className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"

@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase } from './supabase';
+import { type AuthUser, api } from './apiClient';
 
 interface AppData {
-  user: any;
+  user: AuthUser | null;
   profile: any;
   recipes: any[];
   products: any[];
@@ -10,12 +10,15 @@ interface AppData {
   shoppingList: any[];
   shoppingListRecipes: any[];
   loading: boolean;
+  onLogout: () => void;
   refreshProfile: () => Promise<void>;
   refreshRecipes: () => Promise<void>;
   refreshProducts: () => Promise<void>;
   refreshMeals: () => Promise<void>;
   refreshShoppingList: () => Promise<void>;
   getConsumedForDay: (date: string) => { kcal: number, protein: number, fat: number, carbs: number };
+  setUserMeals: React.Dispatch<React.SetStateAction<any[]>>;
+  setShoppingList: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
 const AppDataContext = createContext<AppData>({
@@ -27,16 +30,24 @@ const AppDataContext = createContext<AppData>({
   shoppingList: [],
   shoppingListRecipes: [],
   loading: true,
+  onLogout: () => {},
   refreshProfile: async () => {},
   refreshRecipes: async () => {},
   refreshProducts: async () => {},
   refreshMeals: async () => {},
   refreshShoppingList: async () => {},
   getConsumedForDay: () => ({ kcal: 0, protein: 0, fat: 0, carbs: 0 }),
+  setUserMeals: () => {},
+  setShoppingList: () => {},
 });
 
-export function AppDataProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null);
+interface AppDataProviderProps {
+  children: React.ReactNode;
+  user: AuthUser | null;
+  onLogout: () => void;
+}
+
+export function AppDataProvider({ children, user, onLogout }: AppDataProviderProps) {
   const [profile, setProfile] = useState<any>(null);
   const [recipes, setRecipes] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -44,72 +55,105 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [shoppingList, setShoppingList] = useState<any[]>([]);
   const [shoppingListRecipes, setShoppingListRecipes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const parseProfileJSON = (data: any) => {
+    if (!data) return data;
+    const newData = { ...data };
+    if (typeof newData.meal_config === 'string') {
+      try { newData.meal_config = JSON.parse(newData.meal_config); } catch (e) { console.error("Error parsing meal_config", e); }
+    }
+    if (typeof newData.visible_meals === 'string') {
+      try { newData.visible_meals = JSON.parse(newData.visible_meals); } catch (e) { console.error("Error parsing visible_meals", e); }
+    }
+    return newData;
+  };
 
   const loadAll = useCallback(async () => {
-    const { data: { user: u } } = await supabase.auth.getUser();
-    if (!u) { setLoading(false); return; }
-    setUser(u);
-
-    const [profileRes, recipesRes, productsRes, mealsRes, slRes, slrRes] = await Promise.all([
-      supabase.from('user_profiles').select('*').eq('id', u.id).single(),
-      supabase.from('recipes').select('*').eq('is_archived', false),
-      supabase.from('products').select('*'),
-      supabase.from('user_meals').select('*').eq('user_id', u.id),
-      supabase.from('shopping_list').select('*').eq('user_id', u.id).order('is_checked', { ascending: true }).order('ingredient_name', { ascending: true }),
-      supabase.from('shopping_list_recipes').select('portions, recipes(*, recipe_ingredients(*))').eq('user_id', u.id),
-    ]);
-
-    if (profileRes.data) setProfile(profileRes.data);
-    if (recipesRes.data) setRecipes(recipesRes.data);
-    if (productsRes.data) setProducts(productsRes.data);
-    if (mealsRes.data) setUserMeals(mealsRes.data);
-    if (slRes.data) setShoppingList(slRes.data);
-    
-    if (slrRes.data && slrRes.data.length > 0) {
-       const mappedRecipes = slrRes.data.map((r: any) => ({ ...r.recipes, portions: r.portions })).filter(Boolean);
-       const uniqueSrc = Array.from(new Map(mappedRecipes.map((r: any) => [r.id, r])).values());
-       setShoppingListRecipes(uniqueSrc);
-    } else {
-       setShoppingListRecipes([]);
+    if (!user) { 
+      setLoading(false); 
+      setProfile(null);
+      setRecipes([]);
+      setProducts([]);
+      setUserMeals([]);
+      setShoppingList([]);
+      return; 
     }
-    
-    setLoading(false);
-  }, []);
+
+    setLoading(true);
+    try {
+      const [
+        profileResData,
+        recipesRes,
+        productsRes,
+        mealsRes,
+        slRes,
+        slrRes
+      ] = await Promise.all([
+        api.profile.get().catch(() => null),
+        api.recipes.getAll().catch(() => []),
+        api.products.getAll().catch(() => []),
+        api.meals.getAll().catch(() => []),
+        api.shoppingList.getItems().catch(() => []),
+        api.shoppingList.getRecipes().catch(() => []),
+      ]);
+
+      if (profileResData) {
+        setProfile(parseProfileJSON(profileResData));
+      } else {
+        setProfile(null);
+      }
+      setRecipes(recipesRes);
+      setProducts(productsRes);
+      setUserMeals(mealsRes);
+      setShoppingList(slRes);
+
+      if (slrRes && slrRes.length > 0) {
+        const mappedRecipes = slrRes.map((r: any) => ({ ...r.recipe, portions: r.portions })).filter(Boolean);
+        const uniqueSrc = Array.from(new Map(mappedRecipes.map((r: any) => [r.id, r])).values());
+        setShoppingListRecipes(uniqueSrc);
+      } else {
+        setShoppingListRecipes([]);
+      }
+    } catch (err) {
+      console.error("Error loading application data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
   const refreshProfile = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from('user_profiles').select('*').eq('id', user.id).single();
-    if (data) setProfile(data);
+    const data = await api.profile.get().catch(() => null);
+    if (data) setProfile(parseProfileJSON(data));
   }, [user]);
 
   const refreshRecipes = useCallback(async () => {
-    const { data } = await supabase.from('recipes').select('*').eq('is_archived', false);
-    if (data) setRecipes(data);
+    const data = await api.recipes.getAll().catch(() => []);
+    setRecipes(data);
   }, []);
 
   const refreshProducts = useCallback(async () => {
-    const { data } = await supabase.from('products').select('*');
-    if (data) setProducts(data);
+    const data = await api.products.getAll().catch(() => []);
+    setProducts(data);
   }, []);
 
   const refreshMeals = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from('user_meals').select('*').eq('user_id', user.id);
-    if (data) setUserMeals(data);
+    const data = await api.meals.getAll().catch(() => []);
+    setUserMeals(data);
   }, [user]);
 
   const refreshShoppingList = useCallback(async () => {
     if (!user) return;
     const [slRes, slrRes] = await Promise.all([
-      supabase.from('shopping_list').select('*').eq('user_id', user.id).order('is_checked', { ascending: true }).order('ingredient_name', { ascending: true }),
-      supabase.from('shopping_list_recipes').select('portions, recipes(*, recipe_ingredients(*))').eq('user_id', user.id)
+      api.shoppingList.getItems().catch(() => []),
+      api.shoppingList.getRecipes().catch(() => [])
     ]);
-    
-    if (slRes.data) setShoppingList(slRes.data);
-    if (slrRes.data && slrRes.data.length > 0) {
-       const mappedRecipes = slrRes.data.map((r: any) => ({ ...r.recipes, portions: r.portions })).filter(Boolean);
+
+    setShoppingList(slRes);
+    if (slrRes && slrRes.length > 0) {
+       const mappedRecipes = slrRes.map((r: any) => ({ ...r.recipe, portions: r.portions })).filter(Boolean);
        const uniqueSrc = Array.from(new Map(mappedRecipes.map((r: any) => [r.id, r])).values());
        setShoppingListRecipes(uniqueSrc);
     } else {
@@ -118,16 +162,16 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const getConsumedForDay = useCallback((date: string) => {
-    const visibleMealsList = profile?.meal_config
-      ? profile.meal_config.filter((m: any) => m.visible).map((m: any) => m.id)
+    const visibleMealsList = profile?.mealConfig
+      ? profile.mealConfig.filter((m: any) => m.visible).map((m: any) => m.id)
       : (profile?.visible_meals || ['breakfast', 'lunch', 'dinner', 'supper', 'snack1', 'snack2']);
 
     const mealsToday = userMeals.filter(m => m.date_str === date && visibleMealsList.includes(m.meal_type));
     let kcal = 0, protein = 0, fat = 0, carbs = 0;
 
     mealsToday.forEach(meal => {
-      if (meal.recipe_id) {
-        const rec = recipes.find(r => r.id === meal.recipe_id);
+      if (meal.recipe) {
+        const rec = recipes.find(r => r.id === (meal.recipe?.id || meal.recipe));
         if (rec) {
           const mult = meal.portions_consumed || 1;
           kcal += Math.round(rec.kcal * mult);
@@ -135,14 +179,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           fat += parseFloat((rec.fat * mult).toFixed(1));
           carbs += parseFloat((rec.carbs * mult).toFixed(1));
         }
-      } else if (meal.product_id) {
-        const prod = products.find(p => p.id === meal.product_id);
+      } else if (meal.product) {
+        const prod = products.find(p => p.id === (meal.product?.id || meal.product));
         if (prod) {
-          // Dla produktów portions_consumed to waga w gramach (lub sztuki, ale przeliczone na gramy)
-          // Makroskładniki w bazie produktów są podane na 100g (chyba że unit='pc')
           const weight = meal.portions_consumed || 100;
           const factor = prod.unit === 'pc' ? weight : (weight / 100);
-          
           kcal += Math.round(prod.kcal * factor);
           protein += parseFloat((prod.protein * factor).toFixed(1));
           fat += parseFloat((prod.fat * factor).toFixed(1));
@@ -156,19 +197,19 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return { 
-      kcal, 
-      protein: parseFloat(protein.toFixed(1)), 
-      fat: parseFloat(fat.toFixed(1)), 
-      carbs: parseFloat(carbs.toFixed(1)) 
+    return {
+      kcal,
+      protein: parseFloat(protein.toFixed(1)),
+      fat: parseFloat(fat.toFixed(1)),
+      carbs: parseFloat(carbs.toFixed(1))
     };
-  }, [userMeals, recipes, profile]);
+  }, [userMeals, recipes, profile, products]);
 
   return (
-    <AppDataContext.Provider value={{ 
-      user, profile, recipes, products, userMeals, shoppingList, shoppingListRecipes, 
-      loading, refreshProfile, refreshRecipes, refreshProducts, refreshMeals, refreshShoppingList,
-      getConsumedForDay
+    <AppDataContext.Provider value={{
+      user, profile, recipes, products, userMeals, shoppingList, shoppingListRecipes,
+      loading, onLogout, refreshProfile, refreshRecipes, refreshProducts, refreshMeals, refreshShoppingList,
+      getConsumedForDay, setUserMeals, setShoppingList
     }}>
       {children}
     </AppDataContext.Provider>
