@@ -46,6 +46,8 @@ export function clearSession() {
 
 // HTTP helper 
 
+let longPendingRequestsCount = 0;
+
 async function request<T>(
   method: string,
   path: string,
@@ -61,43 +63,62 @@ async function request<T>(
     if (token) headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let isLong = false;
+  const timeoutId = setTimeout(() => {
+    isLong = true;
+    longPendingRequestsCount++;
+    if (longPendingRequestsCount === 1) {
+      window.dispatchEvent(new CustomEvent('backend-loading', { detail: { isLoading: true } }));
+    }
+  }, 2000); // 2 sekundy - próg powiadomienia o ładowaniu
 
-  if (!res.ok) {
-    if (res.status === 401 || res.status === 403) {
-      if (getToken()) {
-        clearSession();
-        window.dispatchEvent(new Event('auth-change'));
-        throw new Error('Sesja wygasła. Zaloguj się ponownie.');
+  try {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        if (getToken()) {
+          clearSession();
+          window.dispatchEvent(new Event('auth-change'));
+          throw new Error('Sesja wygasła. Zaloguj się ponownie.');
+        }
+      }
+      let message: string;
+      try {
+        const err = await res.json();
+        const raw: string = err.message || err.error || '';
+        // Wyciągnij ostatni 'default message [...]' z komunikatu Spring Validation
+        const match = raw.match(/default message \[([^\]]+)\](?!.*default message)/s);
+        if (match) {
+          message = match[1];
+        } else if (raw.startsWith('Validation failed')) {
+          message = 'Dane nie spełniają wymagań – sprawdź formularz.';
+        } else {
+          message = raw || `Błąd serwera (${res.status})`;
+        }
+      } catch {
+        message = `Błąd serwera (${res.status})`;
+      }
+      throw new Error(message);
+    }
+
+    // 204 No Content
+    if (res.status === 204) return undefined as T;
+
+    return res.json();
+  } finally {
+    clearTimeout(timeoutId);
+    if (isLong) {
+      longPendingRequestsCount--;
+      if (longPendingRequestsCount === 0) {
+        window.dispatchEvent(new CustomEvent('backend-loading', { detail: { isLoading: false } }));
       }
     }
-    let message: string;
-    try {
-      const err = await res.json();
-      const raw: string = err.message || err.error || '';
-      // Wyciągnij ostatni 'default message [...]' z komunikatu Spring Validation
-      const match = raw.match(/default message \[([^\]]+)\](?!.*default message)/s);
-      if (match) {
-        message = match[1];
-      } else if (raw.startsWith('Validation failed')) {
-        message = 'Dane nie spełniają wymagań – sprawdź formularz.';
-      } else {
-        message = raw || `Błąd serwera (${res.status})`;
-      }
-    } catch {
-      message = `Błąd serwera (${res.status})`;
-    }
-    throw new Error(message);
   }
-
-  // 204 No Content
-  if (res.status === 204) return undefined as T;
-
-  return res.json();
 }
 
 // Auth API 

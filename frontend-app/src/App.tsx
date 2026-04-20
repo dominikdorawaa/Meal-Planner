@@ -12,6 +12,7 @@ import { ProductDetails } from './pages/ProductDetails';
 import { AppDataProvider } from './lib/AppDataContext';
 import { useEffect, useState } from 'react';
 import { api, clearSession, type AuthUser } from './lib/apiClient';
+import { BackendLoader } from './components/BackendLoader';
 
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -47,6 +48,7 @@ function App() {
   return (
     <Router>
       <AppDataProvider user={user} onLogout={handleLogout}>
+        <BackendLoader />
         <Routes>
           <Route path="/login" element={!isLoggedIn ? <Login /> : <Navigate to="/" />} />
           <Route path="/" element={isLoggedIn ? <Plan /> : <Navigate to="/login" />} />
