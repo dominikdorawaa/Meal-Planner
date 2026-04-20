@@ -323,8 +323,6 @@ export function AddFood() {
                             <span className="material-symbols-outlined text-[10px] text-primary">local_fire_department</span>
                             <span className="text-[10px] sm:text-[11px] font-black text-primary tracking-wide leading-none">{recipe.kcal} kcal</span>
                           </div>
-                          <span className="text-[9px] sm:text-[10px] font-bold text-on-surface-variant uppercase tracking-wider shrink-0">{recipe.protein}g B</span>
-                          <span className="text-[9px] sm:text-[10px] font-bold text-on-surface-variant uppercase tracking-wider shrink-0">{recipe.fat}g T</span>
                         </div>
                       </div>
 
