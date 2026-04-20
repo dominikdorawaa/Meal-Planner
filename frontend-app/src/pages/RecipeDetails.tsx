@@ -290,7 +290,12 @@ export function RecipeDetails() {
                     }}
                     className={`w-[72px] border rounded-xl py-2 px-2 outline-none transition-all text-on-surface font-bold text-base text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm ${inputType === 'portions' ? 'bg-surface border-primary/50' : 'bg-surface-container-lowest border-outline-variant/20'}`}
                   />
-                <span className="font-bold text-on-surface-variant text-sm shrink-0 whitespace-nowrap">porcja</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-bold text-on-surface-variant text-sm shrink-0 whitespace-nowrap">
+                    porcj{Number(portionInput) === 1 ? 'a' : (Math.floor(Number(portionInput)) >= 2 && Math.floor(Number(portionInput)) <= 4 ? 'e' : 'i')}
+                  </span>
+                  <span className="text-xs font-medium text-on-surface-variant/60 ml-0.5">({Math.round(Number(portionInput || 0) * (safeWeight / basePortions))}g)</span>
+                </div>
               </div>
               <div className="flex items-baseline gap-1 ml-auto shrink-0">
                 <span className={`font-black text-xl transition-colors ${inputType === 'portions' ? 'text-primary' : 'text-on-surface'}`}>{Math.round(recipe.kcal * (Number(portionInput) || 0))}</span>
@@ -328,7 +333,7 @@ export function RecipeDetails() {
         {/* Kalorie - szybki wybór */}
         <section className="flex flex-col gap-3">
           <div>
-            <h2 className="font-headline font-bold text-lg text-on-surface">Kalorie <span className="text-on-surface-variant font-medium text-sm">na 1 porcję</span></h2>
+            <h2 className="font-headline font-bold text-lg text-on-surface">Kalorie <span className="text-on-surface-variant font-medium text-sm">na 1 porcję ({Math.round(safeWeight / basePortions)}g)</span></h2>
             <p className="text-xs text-on-surface-variant mt-1">Możesz dopasować energię i makroskładniki.</p>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-4 -mx-1 px-1 scrollbar-hide snap-x">
@@ -428,8 +433,9 @@ export function RecipeDetails() {
         {ingredients && ingredients.length > 0 && (
           <section className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">
-                Składniki na {activeIngredientPortions} porcj{activeIngredientPortions === 1 ? 'ę' : (Math.floor(activeIngredientPortions) >= 2 && Math.floor(activeIngredientPortions) <= 4 ? 'e' : 'i')}
+              <h2 className="text-sm font-bold uppercase tracking-widest text-on-surface-variant flex items-center gap-1 flex-wrap">
+                <span>Składniki na {activeIngredientPortions} porcj{activeIngredientPortions === 1 ? 'ę' : (Math.floor(activeIngredientPortions) >= 2 && Math.floor(activeIngredientPortions) <= 4 ? 'e' : 'i')}</span>
+                <span className="normal-case opacity-70">({Math.round(activeIngredientPortions * (safeWeight / basePortions))}g)</span>
               </h2>
 
               {/* Stepper porcji składników */}
