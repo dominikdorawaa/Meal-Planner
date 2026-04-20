@@ -70,7 +70,7 @@ async function request<T>(
     if (longPendingRequestsCount === 1) {
       window.dispatchEvent(new CustomEvent('backend-loading', { detail: { isLoading: true } }));
     }
-  }, 2000); // 2 sekundy - próg powiadomienia o ładowaniu
+  }, 10000); // 10 sekund - próg powiadomienia o ładowaniu
 
   try {
     const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -170,6 +170,9 @@ export const api = {
     },
     async create(data: any): Promise<any> {
       return request<any>('POST', '/api/products', data);
+    },
+    async delete(id: string): Promise<void> {
+      return request<void>('DELETE', `/api/products/${id}`);
     }
   },
 

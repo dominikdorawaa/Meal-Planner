@@ -25,6 +25,37 @@ export function ProductDetails() {
   const [grams, setGrams] = useState<number | ''>(100);
   const [pieces, setPieces] = useState<number | ''>(1);
 
+  const [activeDate, setActiveDate] = useState(selectDate || '');
+  const [activeMealType, setActiveMealType] = useState(selectType || '');
+  const [showMealPicker, setShowMealPicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(() => {
+    if (selectDate) {
+      const parts = selectDate.split('.');
+      if (parts.length === 2) {
+        const now = new Date();
+        return new Date(now.getFullYear(), parseInt(parts[1], 10) - 1, 1);
+      }
+    }
+    return new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  });
+
+  const availableMealTypes = useMemo(() => {
+    if (profile?.meal_config && profile.meal_config.length > 0) {
+      return profile.meal_config.map((m: any) => ({ id: m.id, name: m.name }));
+    }
+    return [
+      { id: 'breakfast', name: 'Śniadanie' },
+      { id: 'snack1', name: '2 Śniadanie' },
+      { id: 'lunch', name: 'Lunch' },
+      { id: 'snack2', name: 'Przekąska' },
+      { id: 'dinner', name: 'Obiad' },
+      { id: 'supper', name: 'Kolacja' },
+    ];
+  }, [profile]);
+
   useEffect(() => {
     async function loadProduct() {
       if (!id) return;
@@ -79,7 +110,9 @@ export function ProductDetails() {
   const pctC = Math.min(100, (currentMacros.carbs / totalMacros) * 100);
 
   const handleAddProduct = async () => {
-    if (!user || !product || !selectDate || !selectType) return;
+    const targetDate = activeDate || selectDate;
+    const targetType = activeMealType || selectType;
+    if (!user || !product || !targetDate || !targetType) return;
     setIsAdding(true);
 
     const getNextDate = (startStr: string, offset: number) => {
@@ -94,8 +127,8 @@ export function ProductDetails() {
     for (let i = 0; i < daysToAdd; i++) {
       mealInserts.push({
         product: { id: product.id },
-        date_str: getNextDate(selectDate, i),
-        meal_type: selectType,
+        date_str: getNextDate(targetDate, i),
+        meal_type: targetType,
         portions_consumed: currentWeight
       });
     }
@@ -116,6 +149,16 @@ export function ProductDetails() {
     }
   };
 
+  const handleDeleteProduct = async () => {
+    if (!product) return;
+    try {
+      await api.products.delete(product.id);
+      navigate('/?refresh=true');
+    } catch (e: any) {
+      alert('Błąd podczas usuwania produktu: ' + e.message);
+    }
+  };
+
   if (loading || !product) {
     return <div className="min-h-screen bg-surface flex items-center justify-center">Ładowanie...</div>;
   }
@@ -123,10 +166,10 @@ export function ProductDetails() {
   const MEAL_TYPE_LABELS: Record<string, string> = {
     breakfast: 'Śniadanie', snack1: '2 Śniadanie', lunch: 'Lunch', snack2: 'Przekąska', dinner: 'Obiad', supper: 'Kolacja',
   };
-  const mealLabel = MEAL_TYPE_LABELS[selectType || ''] || selectType;
+  const mealLabel = availableMealTypes.find(m => m.id === activeMealType)?.name || MEAL_TYPE_LABELS[activeMealType] || activeMealType;
   const today = new Date();
-  const todayDateStr = `${today.getDate().toString().padStart(2, '0')}.${(today.getMonth() + 1).toString().padStart(2, '0')}`;
-  const dateDisplay = selectDate === todayDateStr ? 'Dzisiaj' : selectDate;
+  const todayStr = `${String(today.getDate()).padStart(2,'0')}.${String(today.getMonth()+1).padStart(2,'0')}`;
+  const activeDateDisplay = activeDate === todayStr ? 'Dzisiaj' : (activeDate || selectDate);
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
@@ -136,16 +179,150 @@ export function ProductDetails() {
         <button onClick={() => navigate(-1)} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 shrink-0">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
-        <div className="flex flex-col pt-0.5 flex-1">
-          <h1 className="font-headline font-bold text-base text-on-surface leading-tight">
-            {mealId ? 'Edytujesz w: ' : 'Dodajesz do: '} <span className="text-secondary-container-on font-black">{mealLabel}</span>
-          </h1>
-          <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest leading-tight">{dateDisplay}</span>
+        <div className="flex flex-col pt-0.5 flex-1 relative">
+
+          {/* Meal picker */}
+          <div className="relative">
+            <button
+              onClick={() => { setShowMealPicker(v => !v); setShowDatePicker(false); }}
+              className="flex items-center gap-1 font-headline font-bold text-base text-on-surface leading-tight active:scale-95 transition-transform"
+            >
+              <span>{mealId ? 'Edytujesz w: ' : 'Dodajesz do: '} <span className="text-primary">{mealLabel}</span></span>
+              <span className={`material-symbols-outlined text-[14px] text-primary transition-transform ${showMealPicker ? 'rotate-180' : ''}`}>expand_more</span>
+            </button>
+            {showMealPicker && (
+              <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
+                {availableMealTypes.map(meal => (
+                  <button
+                    key={meal.id}
+                    onClick={() => { setActiveMealType(meal.id); setShowMealPicker(false); }}
+                    className={`flex items-center justify-between w-full px-4 py-2.5 text-sm font-bold transition-colors hover:bg-surface-container ${activeMealType === meal.id ? 'text-primary' : 'text-on-surface'}`}
+                  >
+                    <span>{meal.name}</span>
+                    {activeMealType === meal.id && <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Date picker */}
+          <div className="relative">
+            <button
+              onClick={() => { setShowDatePicker(v => !v); setShowMealPicker(false); }}
+              className="flex items-center gap-1 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest leading-tight active:scale-95 transition-transform w-fit"
+            >
+              <span>{activeDateDisplay}</span>
+              <span className={`material-symbols-outlined text-[11px] text-primary/70 transition-transform ${showDatePicker ? 'rotate-180' : ''}`}>expand_more</span>
+            </button>
+            {showDatePicker && (
+              <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
+                    <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                  </button>
+                  <span className="text-xs font-black text-on-surface uppercase tracking-widest">{calendarDate.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}</span>
+                  <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
+                    <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                  </button>
+                </div>
+                <div className="grid grid-cols-7 mb-1">
+                  {['Pn','Wt','Śr','Cz','Pt','So','Nd'].map(d => (
+                    <span key={d} className="text-center text-[9px] font-bold text-on-surface-variant/50 py-0.5">{d}</span>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-0.5">
+                  {(() => {
+                    const year = calendarDate.getFullYear();
+                    const month = calendarDate.getMonth();
+                    const firstDay = new Date(year, month, 1).getDay();
+                    const offset = firstDay === 0 ? 6 : firstDay - 1;
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    const cells = [];
+                    for (let i = 0; i < offset; i++) cells.push(<span key={`e${i}`} />);
+                    for (let d = 1; d <= daysInMonth; d++) {
+                      const ds = `${String(d).padStart(2,'0')}.${String(month+1).padStart(2,'0')}`;
+                      const isActive = activeDate === ds;
+                      const isTodayDay = todayStr === ds;
+                      cells.push(
+                        <button key={d} onClick={() => { setActiveDate(ds); setShowDatePicker(false); }}
+                          className={`w-full aspect-square flex items-center justify-center rounded-full text-xs font-bold transition-all active:scale-90 ${isActive ? 'bg-primary text-on-primary' : isTodayDay ? 'border border-primary text-primary' : 'text-on-surface hover:bg-surface-container'}`}>
+                          {d}
+                        </button>
+                      );
+                    }
+                    return cells;
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+
+           {(showMealPicker || showDatePicker) && (
+            <div className="fixed inset-0 z-[199]" onClick={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
+          )}
         </div>
-        <button className="w-10 h-10 ml-auto rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 shrink-0">
-          <span className="material-symbols-outlined">more_vert</span>
-        </button>
+
+        {/* Menu button */}
+        <div className="relative ml-auto">
+          <button 
+            onClick={() => setShowMenu(!showMenu)} 
+            className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 shrink-0"
+          >
+            <span className="material-symbols-outlined">more_vert</span>
+          </button>
+          
+          {showMenu && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setShowMenu(false)} 
+              />
+              <div className="absolute right-0 top-12 w-48 bg-surface-container border border-outline-variant/10 rounded-xl shadow-lg z-50 overflow-hidden text-sm py-1 animate-fade-in">
+                <button
+                  onClick={() => {
+                    setShowMenu(false);
+                    setShowDeleteConfirm(true);
+                  }}
+                  className="w-full flex items-center px-4 py-3 text-left font-medium text-[#ba1a1a] hover:bg-surface-container-highest transition-colors font-body"
+                >
+                  <span className="material-symbols-outlined mr-3 text-[18px]">delete</span>
+                  Usuń z bazy
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </header>
+
+      {/* Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-sm w-full animate-scale-up text-center border border-outline-variant/10 flex flex-col items-center">
+            <div className="w-16 h-16 bg-[#ba1a1a]/10 rounded-full flex items-center justify-center mb-4 text-[#ba1a1a]">
+              <span className="material-symbols-outlined text-[32px]">warning</span>
+            </div>
+            <h3 className="font-headline font-bold text-xl text-on-surface mb-2">Usunąć trwale?</h3>
+            <p className="text-on-surface-variant mb-8 text-sm leading-relaxed px-2">
+              Produkt <strong className="text-on-surface">{product.name}</strong> zostanie bezpowrotnie usunięty z bazy danych wraz z przypisanymi do niego posiłkami.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 w-full">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-3.5 bg-surface-container-highest text-on-surface hover:bg-surface-container-highest/80 rounded-xl font-bold font-headline transition-colors active:scale-95 text-sm"
+              >
+                Anuluj
+              </button>
+              <button
+                onClick={handleDeleteProduct}
+                className="flex-1 py-3.5 bg-[#ba1a1a] text-white hover:bg-[#ba1a1a]/90 rounded-xl font-bold font-headline shadow-sm transition-colors active:scale-95 text-sm"
+              >
+                Usuń produkt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Produkt Title - Zgodny ze screenem (pod nagłówkiem, bez zdjęcia) */}
       <div className="max-w-xl mx-auto w-full px-4 pt-6">

@@ -12,4 +12,5 @@ import java.util.UUID;
 public interface UserMealRepository extends JpaRepository<UserMeal, UUID> {
     List<UserMeal> findByUserAndDateStr(User user, String dateStr);
     List<UserMeal> findByUser(User user);
+    void deleteByProduct(com.example.demo.entity.Product product);
 }
