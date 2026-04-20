@@ -10,7 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -38,21 +37,24 @@ public class ShoppingListController {
 
     @GetMapping
     public ResponseEntity<?> getMyShoppingList(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) return unauthorized();
+        if (authentication == null || !authentication.isAuthenticated())
+            return unauthorized();
         User user = getUser(authentication);
         return ResponseEntity.ok(shoppingListRepository.findByUserOrderByIsCheckedAscIngredientNameAsc(user));
     }
 
     @GetMapping("/recipes")
     public ResponseEntity<?> getMyShoppingListRecipes(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) return unauthorized();
+        if (authentication == null || !authentication.isAuthenticated())
+            return unauthorized();
         User user = getUser(authentication);
         return ResponseEntity.ok(shoppingListRecipeRepository.findByUser(user));
     }
 
     @PostMapping
     public ResponseEntity<?> addTask(@RequestBody ShoppingListItem item, Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) return unauthorized();
+        if (authentication == null || !authentication.isAuthenticated())
+            return unauthorized();
         User user = getUser(authentication);
         item.setUser(user);
         return ResponseEntity.ok(shoppingListRepository.save(item));
@@ -60,14 +62,16 @@ public class ShoppingListController {
 
     @PostMapping("/recipes")
     public ResponseEntity<?> addRecipeToList(@RequestBody ShoppingListRecipe recipe, Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) return unauthorized();
+        if (authentication == null || !authentication.isAuthenticated())
+            return unauthorized();
         User user = getUser(authentication);
         recipe.setUser(user);
         return ResponseEntity.ok(shoppingListRecipeRepository.save(recipe));
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<ShoppingListItem> toggleItem(@PathVariable UUID id, @RequestBody ShoppingListItem partialUpdate) {
+    public ResponseEntity<ShoppingListItem> toggleItem(@PathVariable UUID id,
+            @RequestBody ShoppingListItem partialUpdate) {
         return shoppingListRepository.findById(id).map(item -> {
             if (partialUpdate.getIsChecked() != null) {
                 item.setIsChecked(partialUpdate.getIsChecked());
@@ -88,7 +92,8 @@ public class ShoppingListController {
     @Transactional
     @DeleteMapping("/clear")
     public ResponseEntity<?> clearAll(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) return unauthorized();
+        if (authentication == null || !authentication.isAuthenticated())
+            return unauthorized();
         User user = getUser(authentication);
         shoppingListRepository.deleteByUser(user);
         shoppingListRecipeRepository.deleteByUser(user);

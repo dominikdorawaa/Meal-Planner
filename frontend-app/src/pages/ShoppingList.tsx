@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { BottomNav } from '../components/BottomNav';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 
 export function ShoppingList() {
+  const navigate = useNavigate();
   const { shoppingList, shoppingListRecipes, refreshShoppingList, setShoppingList } = useAppData();
   const [items, setItems] = useState<any[]>(shoppingList || []);
   const [sourceRecipes, setSourceRecipes] = useState<any[]>(shoppingListRecipes || []);
@@ -78,13 +80,15 @@ export function ShoppingList() {
   };
 
   const clearList = async () => {
+    // Ukrywamy od razu dla płynnego UX
+    setShowConfirm(false);
+    
     // Optimistic update
     setItems([]);
     setShoppingList([]);
     try {
       await api.shoppingList.clearAll();
       await refreshShoppingList();
-      setShowConfirm(false);
     } catch (err) {
       console.error("Error clearing list:", err);
       refreshShoppingList();
@@ -113,6 +117,20 @@ export function ShoppingList() {
       return { title: 'Dodatki i Sosy', icon: 'local_dining' };
       
     return { title: 'Inne', icon: 'shopping_basket' };
+  };
+
+  const formatIngredientAmount = (amount: number, unit: string) => {
+    const u = (unit || '').toLowerCase().trim();
+    
+    // Jednostki płynne / sypkie -> tu zaokrąglenie do pełnych wartości ma sens (np. 134g ryżu, nie 134.25g)
+    if (['g', 'ml', 'kcal', 'mg'].includes(u)) {
+      return String(Math.round(amount));
+    }
+    
+    // Zostawiamy oryginalną wartość ułamkową (do max 2 miejsc po przecinku) dla sztuk, opakowań, itd.
+    // Dzięki temu ułamek (np. 1.25 avokado) jest widoczny bez narzutów.
+    const rounded = Math.round(amount * 100) / 100;
+    return String(rounded);
   };
 
   // Grupowanie
@@ -151,9 +169,9 @@ export function ShoppingList() {
           <button
             type="button"
             onClick={openAddModal}
-            className="bg-primary-gradient text-on-primary px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-ambient active:scale-95 transition-transform font-semibold text-sm"
+            className="bg-primary-gradient text-on-primary px-3 py-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-1.5 shadow-ambient active:scale-95 transition-transform font-semibold text-[13px] sm:text-sm whitespace-nowrap shrink-0"
           >
-            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>add</span>
+            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>add</span>
             Dodaj produkt
           </button>
         </div>
@@ -177,27 +195,29 @@ export function ShoppingList() {
                    const catInfo = getCategory(groupedItems[categoryName][0].ingredient_name);
                    return (
                      <section key={categoryName}>
-                       <div className="flex items-center gap-2 mb-4">
-                         <span className="material-symbols-outlined text-primary-container" style={{ fontVariationSettings: "'FILL' 1" }}>{catInfo.icon}</span>
-                         <h3 className="font-headline font-bold text-xl text-on-surface">{categoryName}</h3>
+                       <div className="flex items-center gap-1.5 mb-3">
+                         <span className="material-symbols-outlined text-primary-container text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>{catInfo.icon}</span>
+                         <h3 className="font-headline font-bold text-lg text-on-surface">{categoryName}</h3>
                        </div>
-                       <div className="bg-surface-container-low rounded-xl p-2 space-y-1">
+                       <div className="bg-surface-container-low rounded-xl p-1.5 space-y-0.5">
                          {groupedItems[categoryName].map((item: any) => (
-                           <label key={item.id} className="flex items-center justify-between p-4 bg-surface-container-lowest rounded-lg group cursor-pointer active:scale-[0.99] transition-all">
-                             <div className="flex items-center gap-4">
-                               <div className="relative flex items-center">
+                           <label key={item.id} className="flex items-center justify-between p-3 bg-surface-container-lowest rounded-lg group cursor-pointer active:scale-[0.99] transition-all">
+                             <div className="flex items-center gap-3 min-w-0 flex-1">
+                               <div className="relative flex items-center shrink-0">
                                  <input 
                                    checked={item.is_checked} 
                                    onChange={() => toggleCheck(item.id, !!item.is_checked)} 
-                                   className="w-6 h-6 rounded-md border-outline-variant text-primary focus:ring-primary-container bg-surface-container-low cursor-pointer" 
+                                   className="w-5 h-5 rounded-md border-outline-variant text-primary focus:ring-primary-container bg-surface-container-low cursor-pointer" 
                                    type="checkbox"
                                  />
                                </div>
-                               <div>
-                                 <p className={`font-semibold transition-opacity duration-300 ${item.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-on-surface'}`}>{item.ingredient_name}</p>
+                               <div className="min-w-0 flex-1 truncate pr-2">
+                                 <p className={`font-medium text-sm truncate transition-opacity duration-300 ${item.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-on-surface'}`}>{item.ingredient_name}</p>
                                </div>
                              </div>
-                             <span className={`font-bold transition-opacity duration-300 ${item.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-primary'}`}>{item.quantity} {item.unit}</span>
+                             <span className={`font-bold text-sm shrink-0 transition-opacity duration-300 ${item.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-primary'}`}>
+                               {formatIngredientAmount(item.quantity, item.unit)} {item.unit}
+                             </span>
                            </label>
                          ))}
                        </div>
@@ -219,7 +239,10 @@ export function ShoppingList() {
                           <span className="material-symbols-outlined text-[14px]">restaurant</span>
                           <span className="text-[10px] uppercase font-black tracking-wide">{r.portions} {r.portions === 1 ? 'Porcja' : (r.portions > 1 && r.portions < 5 ? 'Porcje' : 'Porcji')}</span>
                        </div>
-                       <div className="h-28 sm:h-32 w-full relative">
+                       <div 
+                           className="h-28 sm:h-32 w-full relative cursor-pointer active:scale-[0.98] transition-transform overflow-hidden rounded-t-2xl"
+                           onClick={() => navigate(`/recipe/${r.recipe?.id ?? r.id}`)}
+                       >
                           <RecipeCoverImage
                             recipe={{
                               id: r.recipe?.id ?? r.id,
@@ -239,22 +262,24 @@ export function ShoppingList() {
                            {(r.ingredients && r.ingredients.length > 0) ? r.ingredients.map((ing: any, i: number) => {
                               const shopItem = items.find(it => (it.ingredient_name || '').toLowerCase() === (ing.name || '').toLowerCase());
                               return (
-                                <label key={i} className={`flex items-center justify-between p-3 sm:p-4 bg-surface-container-lowest rounded-lg transition-all ${shopItem ? 'group cursor-pointer active:scale-[0.99] hover:bg-surface-container-highest/20' : 'opacity-50'}`}>
-                                  <div className="flex items-center gap-4">
-                                    <div className="relative flex items-center">
+                                <label key={i} className={`flex items-center justify-between p-3 bg-surface-container-lowest rounded-lg transition-all ${shopItem ? 'group cursor-pointer active:scale-[0.99] hover:bg-surface-container-highest/20' : 'opacity-50'}`}>
+                                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div className="relative flex items-center shrink-0">
                                       <input 
                                         checked={shopItem ? shopItem.is_checked : false} 
                                         onChange={() => shopItem && toggleCheck(shopItem.id, !!shopItem.is_checked)} 
                                         disabled={!shopItem}
-                                        className="w-5 h-5 sm:w-6 sm:h-6 rounded-md border-outline-variant text-primary focus:ring-primary-container bg-surface-container-low cursor-pointer disabled:opacity-50" 
+                                        className="w-5 h-5 rounded-md border-outline-variant text-primary focus:ring-primary-container bg-surface-container-low cursor-pointer disabled:opacity-50" 
                                         type="checkbox"
                                       />
                                     </div>
-                                    <div>
-                                      <p className={`font-semibold text-sm sm:text-base transition-opacity duration-300 ${shopItem?.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-on-surface'}`}>{ing.name}</p>
+                                    <div className="min-w-0 flex-1 truncate pr-2">
+                                      <p className={`font-medium text-sm truncate transition-opacity duration-300 ${shopItem?.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-on-surface'}`}>{ing.name}</p>
                                     </div>
                                   </div>
-                                  <span className={`font-bold text-sm transition-opacity duration-300 ${shopItem?.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-primary'}`}>{Number(ing.amount) * r.portions} {ing.unit}</span>
+                                  <span className={`font-bold text-sm shrink-0 transition-opacity duration-300 ${shopItem?.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-primary'}`}>
+                                    {formatIngredientAmount(Number(ing.amount) * r.portions, ing.unit)} {ing.unit}
+                                  </span>
                                 </label>
                               );
                            }) : (

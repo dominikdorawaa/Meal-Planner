@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
@@ -37,6 +37,35 @@ export function RecipeDetails() {
   const [quickMealType, setQuickMealType] = useState('');
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
+
+  const [activeDate, setActiveDate] = useState(selectDate || '');
+  const [activeMealType, setActiveMealType] = useState(selectType || '');
+  const [showMealPicker, setShowMealPicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(() => {
+    if (selectDate) {
+      const parts = selectDate.split('.');
+      if (parts.length === 2) {
+        const now = new Date();
+        return new Date(now.getFullYear(), parseInt(parts[1], 10) - 1, 1);
+      }
+    }
+    return new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  });
+
+  const availableMealTypes = useMemo(() => {
+    if (profile?.meal_config && profile.meal_config.length > 0) {
+      return profile.meal_config.map((m: any) => ({ id: m.id, name: m.name }));
+    }
+    return [
+      { id: 'breakfast', name: 'Śniadanie' },
+      { id: 'snack1', name: '2 Śniadanie' },
+      { id: 'lunch', name: 'Lunch' },
+      { id: 'snack2', name: 'Przekąska' },
+      { id: 'dinner', name: 'Obiad' },
+      { id: 'supper', name: 'Kolacja' },
+    ];
+  }, [profile]);
 
   const basePortions = recipe?.portions || 1;
   const safeWeight = (totalWeight && totalWeight > 0) ? totalWeight : 300;
@@ -99,12 +128,13 @@ export function RecipeDetails() {
     inputType === 'grams' ? (Number(String(gramInput).replace(',', '.')) ? (Number(String(gramInput).replace(',', '.')) / (safeWeight / basePortions)) : 0) :
     (quickPickPortions || 0);
   
-  // Składniki skalują się całkowicie niezależnie na życzenie użytkownika (domyślnie tak jak wpisany był przepis)
-  const activeIngredientPortions = ingredientPortions !== null ? ingredientPortions : basePortions;
+  // Składniki skalują się automatycznie wraz z wielkością posiłku (consumedPortions),
+  // dopóki użytkownik ręcznie nie nadpisze ich w stepperze (ingredientPortions)
+  const activeIngredientPortions = ingredientPortions !== null ? ingredientPortions : consumedPortions;
 
   const handleAddMeal = async (overrideDate?: string, overrideMealType?: string) => {
-    const targetDate = overrideDate || selectDate;
-    const targetType = overrideMealType || selectType;
+    const targetDate = overrideDate || activeDate || selectDate;
+    const targetType = overrideMealType || activeMealType || selectType;
     if (!user || !recipe || !targetDate || !targetType) return;
     
     setIsAdding(true);
@@ -223,7 +253,11 @@ export function RecipeDetails() {
     dinner: 'Obiad',
     supper: 'Kolacja',
   };
-  const mealLabel = MEAL_TYPE_LABELS[selectType || ''] || selectType;
+  const mealLabel = availableMealTypes.find(m => m.id === activeMealType)?.name || activeMealType || selectType || '';
+
+  const today2 = new Date();
+  const todayStr2 = `${String(today2.getDate()).padStart(2,'0')}.${String(today2.getMonth()+1).padStart(2,'0')}`;
+  const activeDateDisplay = activeDate === todayStr2 ? 'Dzisiaj' : (activeDate || dateDisplay);
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
@@ -243,11 +277,89 @@ export function RecipeDetails() {
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
         {selectType && selectDate ? (
-          <div className="flex flex-col pt-0.5 flex-1">
-            <h1 className="font-headline font-bold text-[15px] sm:text-base text-on-surface leading-tight">
-              {mealId ? 'Edytujesz w: ' : 'Dodajesz do: '} <span className="text-primary">{mealLabel}</span>
-            </h1>
-            <span className="text-[10px] sm:text-[11px] font-bold text-on-surface-variant uppercase tracking-widest leading-tight">{dateDisplay}</span>
+          <div className="flex flex-col pt-0.5 flex-1 relative">
+
+            {/* Meal picker */}
+            <div className="relative">
+              <button
+                onClick={() => { setShowMealPicker(v => !v); setShowDatePicker(false); }}
+                className="flex items-center gap-1 font-headline font-bold text-[15px] sm:text-base text-on-surface leading-tight active:scale-95 transition-transform"
+              >
+                <span>{mealId ? 'Edytujesz w: ' : 'Dodajesz do: '} <span className="text-primary">{mealLabel}</span></span>
+                <span className={`material-symbols-outlined text-[14px] text-primary transition-transform ${showMealPicker ? 'rotate-180' : ''}`}>expand_more</span>
+              </button>
+              {showMealPicker && (
+                <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
+                  {availableMealTypes.map(meal => (
+                    <button
+                      key={meal.id}
+                      onClick={() => { setActiveMealType(meal.id); setShowMealPicker(false); }}
+                      className={`flex items-center justify-between w-full px-4 py-2.5 text-sm font-bold transition-colors hover:bg-surface-container ${activeMealType === meal.id ? 'text-primary' : 'text-on-surface'}`}
+                    >
+                      <span>{meal.name}</span>
+                      {activeMealType === meal.id && <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Date picker */}
+            <div className="relative">
+              <button
+                onClick={() => { setShowDatePicker(v => !v); setShowMealPicker(false); }}
+                className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-on-surface-variant uppercase tracking-widest leading-tight active:scale-95 transition-transform w-fit"
+              >
+                <span>{activeDateDisplay}</span>
+                <span className={`material-symbols-outlined text-[11px] text-primary/70 transition-transform ${showDatePicker ? 'rotate-180' : ''}`}>expand_more</span>
+              </button>
+              {showDatePicker && (
+                <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
+                      <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                    </button>
+                    <span className="text-xs font-black text-on-surface uppercase tracking-widest">{calendarDate.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}</span>
+                    <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
+                      <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-7 mb-1">
+                    {['Pn','Wt','Śr','Cz','Pt','So','Nd'].map(d => (
+                      <span key={d} className="text-center text-[9px] font-bold text-on-surface-variant/50 py-0.5">{d}</span>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-0.5">
+                    {(() => {
+                      const year = calendarDate.getFullYear();
+                      const month = calendarDate.getMonth();
+                      const firstDay = new Date(year, month, 1).getDay();
+                      const offset = firstDay === 0 ? 6 : firstDay - 1;
+                      const daysInMonth = new Date(year, month + 1, 0).getDate();
+                      const cells = [];
+                      for (let i = 0; i < offset; i++) cells.push(<span key={`e${i}`} />);
+                      for (let d = 1; d <= daysInMonth; d++) {
+                        const ds = `${String(d).padStart(2,'0')}.${String(month+1).padStart(2,'0')}`;
+                        const isActive = activeDate === ds;
+                        const isTodayDay = todayStr2 === ds;
+                        cells.push(
+                          <button key={d} onClick={() => { setActiveDate(ds); setShowDatePicker(false); }}
+                            className={`w-full aspect-square flex items-center justify-center rounded-full text-xs font-bold transition-all active:scale-90 ${isActive ? 'bg-primary text-on-primary' : isTodayDay ? 'border border-primary text-primary' : 'text-on-surface hover:bg-surface-container'}`}>
+                            {d}
+                          </button>
+                        );
+                      }
+                      return cells;
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Close on outside click */}
+            {(showMealPicker || showDatePicker) && (
+              <div className="fixed inset-0 z-[199]" onClick={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
+            )}
           </div>
         ) : (
           <h1 className="font-headline font-bold text-[15px] sm:text-base text-on-surface leading-tight flex-1">Szczegóły Przepisu</h1>
@@ -333,33 +445,24 @@ export function RecipeDetails() {
         {/* Kalorie - szybki wybór */}
         <section className="flex flex-col gap-3">
           <div>
-            <h2 className="font-headline font-bold text-lg text-on-surface">Kalorie <span className="text-on-surface-variant font-medium text-sm">na 1 porcję ({Math.round(safeWeight / basePortions)}g)</span></h2>
+            <h2 className="font-headline font-bold text-lg text-on-surface">Kalorie <span className="text-on-surface-variant font-medium text-sm">na 1 porcję ({Math.round(consumedPortions * (safeWeight / basePortions))}g)</span></h2>
             <p className="text-xs text-on-surface-variant mt-1">Możesz dopasować energię i makroskładniki.</p>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-4 -mx-1 px-1 scrollbar-hide snap-x">
             {(() => {
               const baseKcal = Math.round(recipe.kcal);
-              const options = [
-                Math.round(baseKcal * 0.5),
-                Math.round(baseKcal * 0.7),
-                Math.round(baseKcal * 0.8),
-                Math.round(baseKcal * 0.9),
-                baseKcal,
-                Math.round(baseKcal * 1.1),
-                Math.round(baseKcal * 1.2),
-                Math.round(baseKcal * 1.3),
-                Math.round(baseKcal * 1.5),
-              ];
-              return options.map((kcalOption) => {
-                const optPortions = kcalOption / recipe.kcal;
-                const isSelected = inputType === 'quick-pick' && quickPickPortions !== null && Math.abs(quickPickPortions - optPortions) < 0.01;
+              // Używamy ułamków kulinarnych, żeby po przeliczeniu makro/składników wychodziły sensowne wartości do gotowania (np. pół, ćwierć)
+              const multipliers = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75];
+              
+              return multipliers.map((m) => {
+                const kcalOption = Math.round(baseKcal * m);
+                const isSelected = inputType === 'quick-pick' && quickPickPortions !== null && Math.abs(quickPickPortions - m) < 0.01;
                 return (
                   <button
-                    key={kcalOption}
+                    key={m}
                     onClick={() => {
-                      const newPortions = parseFloat((kcalOption / recipe.kcal).toFixed(2));
                       setInputType('quick-pick');
-                      setQuickPickPortions(newPortions);
+                      setQuickPickPortions(m);
                     }}
                     className={`shrink-0 w-[78px] py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 flex flex-col items-center justify-center snap-center ${
                       isSelected
@@ -433,24 +536,24 @@ export function RecipeDetails() {
         {ingredients && ingredients.length > 0 && (
           <section className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-widest text-on-surface-variant flex items-center gap-1 flex-wrap">
-                <span>Składniki na {activeIngredientPortions} porcj{activeIngredientPortions === 1 ? 'ę' : (Math.floor(activeIngredientPortions) >= 2 && Math.floor(activeIngredientPortions) <= 4 ? 'e' : 'i')}</span>
+              <h2 className="text-[11px] sm:text-xs font-bold uppercase tracking-wide text-on-surface-variant flex items-center gap-1 flex-wrap leading-tight">
+                <span>Składniki na {activeIngredientPortions} porcj{activeIngredientPortions === 1 ? 'ę' : (Math.floor(activeIngredientPortions) >= 2 && Math.floor(activeIngredientPortions) <= 4 && activeIngredientPortions % 1 === 0 ? 'e' : 'i')}</span>
                 <span className="normal-case opacity-70">({Math.round(activeIngredientPortions * (safeWeight / basePortions))}g)</span>
               </h2>
 
               {/* Stepper porcji składników */}
               <div className="flex items-center bg-surface-container-low rounded-xl p-1 shadow-sm border border-outline-variant/10">
                 <button 
-                  onClick={() => setIngredientPortions(p => Math.max(0.5, (p !== null ? p : basePortions) - 0.5))}
+                  onClick={() => setIngredientPortions(p => Math.max(0.25, (p !== null ? p : consumedPortions) - 0.25))}
                   className="w-8 h-8 flex items-center justify-center text-on-surface hover:bg-surface-container-highest rounded-lg transition-colors font-bold active:scale-95"
                 >
                   <span className="material-symbols-outlined text-[18px]">remove</span>
                 </button>
                 <div className="w-8 text-center font-bold text-sm text-on-surface select-none">
-                  {activeIngredientPortions}
+                  {Math.round(activeIngredientPortions * 100) / 100}
                 </div>
                 <button 
-                  onClick={() => setIngredientPortions(p => (p !== null ? p : basePortions) + 0.5)}
+                  onClick={() => setIngredientPortions(p => (p !== null ? p : consumedPortions) + 0.25)}
                   className="w-8 h-8 flex items-center justify-center text-on-surface hover:bg-surface-container-highest rounded-lg transition-colors font-bold active:scale-95"
                 >
                   <span className="material-symbols-outlined text-[18px]">add</span>

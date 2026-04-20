@@ -338,19 +338,33 @@ export function Plan() {
       }
 
       const localAccumulator = new Map<string, any>();
+      const recipePortions = new Map<string, number>();
+
       mealsToProcess.forEach(meal => {
         const rid = meal.recipe?.id || meal.recipe;
         if (!rid) return;
+        const recipe = recipesWithIngs.find(r => r.id === rid);
+        if (!recipe) return;
+
+        const basePortions = recipe.portions || 1.0;
+        const consumedPortions = meal.portions_consumed || 1.0;
+        const ratio = consumedPortions / basePortions;
+
+        // Sumujemy całkowitą proporcję dla przepisu z wszystkich dni (na potrzeby widoku ShoppingList wg przepisów)
+        recipePortions.set(rid, (recipePortions.get(rid) || 0) + ratio);
+
         const mealIngredients = ingredients.filter(i => i.recipe_id === rid);
         mealIngredients.forEach(ing => {
           const key = `${ing.name.toLowerCase()}_${ing.unit.toLowerCase()}`;
+          const scaledAmount = Number(ing.amount) * ratio;
+
           if (localAccumulator.has(key)) {
             const existing = localAccumulator.get(key);
-            existing.quantity = Number(existing.quantity) + Number(ing.amount);
+            existing.quantity = Number(existing.quantity) + scaledAmount;
           } else {
             localAccumulator.set(key, {
               ingredient_name: ing.name,
-              quantity: Number(ing.amount),
+              quantity: scaledAmount,
               unit: ing.unit
             });
           }
@@ -362,16 +376,8 @@ export function Plan() {
         promises.push(api.shoppingList.addItem(item));
       });
 
-      const recipePortions = new Map<string, number>();
-      mealsToProcess.forEach(meal => {
-        const rid = meal.recipe?.id || meal.recipe;
-        if (rid) {
-          recipePortions.set(rid, (recipePortions.get(rid) || 0) + 1);
-        }
-      });
-
-      recipePortions.forEach((portions, rid) => {
-        promises.push(api.shoppingList.addRecipe({ recipe: { id: rid }, portions }));
+      recipePortions.forEach((ratioAccumulated, rid) => {
+        promises.push(api.shoppingList.addRecipe({ recipe: { id: rid }, portions: ratioAccumulated }));
       });
 
       await Promise.all(promises);
@@ -577,7 +583,7 @@ export function Plan() {
                     isSelected={isSelected}
                     isShoppingMode={shoppingSelectionMode}
                     isSelectedShopping={isSelectedShopping}
-                    isProduct={false}
+                    isManual={true}
                   />
                 );
               }
@@ -1175,7 +1181,7 @@ export function Plan() {
   );
 }
 
-function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick, onClick, isCopyMode, isSelected, isShoppingMode, isSelectedShopping, noWrap, isProduct }: { title: string, kcal: string, macros: string, imgSrc: string, imageFallbackSrc?: string, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, isShoppingMode?: boolean, isSelectedShopping?: boolean, noWrap?: boolean, isProduct?: boolean }) {
+function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick, onClick, isCopyMode, isSelected, isShoppingMode, isSelectedShopping, noWrap, isProduct, isManual }: { title: string, kcal: string, macros: string, imgSrc: string, imageFallbackSrc?: string, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, isShoppingMode?: boolean, isSelectedShopping?: boolean, noWrap?: boolean, isProduct?: boolean, isManual?: boolean }) {
 
   const isSelectionMode = isCopyMode || isShoppingMode;
   const isSelectedState = isSelected || isSelectedShopping;
@@ -1211,10 +1217,10 @@ function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick
       );
     }
     return (
-      <div className={`absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-1.5 transition-all ${isProduct ? 'bg-primary/[0.03] group-hover:bg-primary/[0.06]' : 'bg-[#f1f6ed] group-hover:bg-[#e8f1e2]'}`}>
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner ${isProduct ? 'bg-primary/10 text-primary' : 'bg-white/50 text-[#6B8E23]'}`}>
-          <span className="material-symbols-outlined text-xl opacity-80">
-            {isProduct ? 'nutrition' : 'photo_camera'}
+      <div className={`absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-1.5 transition-all ${isManual ? 'bg-orange-50 group-hover:bg-orange-100' : isProduct ? 'bg-primary/[0.03] group-hover:bg-primary/[0.06]' : 'bg-[#f1f6ed] group-hover:bg-[#e8f1e2]'}`}>
+        <div className={`${isManual ? 'w-7 h-7' : 'w-10 h-10'} rounded-full flex items-center justify-center shadow-inner ${isManual ? 'bg-orange-100/50 text-orange-500' : isProduct ? 'bg-primary/10 text-primary' : 'bg-white/50 text-[#6B8E23]'}`}>
+          <span className={`material-symbols-outlined ${isManual ? 'text-sm' : 'text-xl'} opacity-80`}>
+            {isManual ? 'bolt' : isProduct ? 'nutrition' : 'photo_camera'}
           </span>
         </div>
       </div>
@@ -1224,20 +1230,20 @@ function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick
   const content = (
     <div onClick={isSelectionMode ? onMenuClick : onClick} className={`w-full max-w-[130px] flex flex-col gap-1.5 group relative transition-all duration-300 ${isSelectionMode || onClick ? 'cursor-pointer hover:scale-105' : ''}`}>
 
-      <div className={`h-[120px] sm:h-[135px] w-full rounded-2xl overflow-hidden bg-surface-container-lowest relative shadow-sm border transition-all ${isSelectedState ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface border-transparent' : 'border-outline-variant/10'}`}>
+      <div className={`${isManual ? 'h-[85px]' : 'h-[120px] sm:h-[135px]'} w-full rounded-2xl overflow-hidden bg-surface-container-lowest relative shadow-sm border transition-all ${isSelectedState ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface border-transparent' : 'border-outline-variant/10'}`}>
         {renderImage()}
 
-        <div className="absolute bottom-2 left-2 z-10 bg-surface/90 backdrop-blur-xl px-1.5 h-[14px] flex items-center justify-center gap-0.5 rounded-md shadow-sm">
+        <div className={`absolute ${isManual ? 'bottom-1.5 left-1.5' : 'bottom-2 left-2'} z-10 bg-surface/90 backdrop-blur-xl px-1.5 h-[14px] flex items-center justify-center gap-0.5 rounded-md shadow-sm`}>
           <span className="text-[9px] font-bold text-primary tracking-wide leading-none translate-y-[0.5px]">{kcal} kcal</span>
         </div>
 
         {isSelectionMode ? (
-          <div className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors ${isSelectedState ? 'bg-primary border-primary text-on-primary' : 'bg-surface/50 backdrop-blur-md border-white/80 text-transparent'}`}>
+          <div className={`absolute ${isManual ? 'top-1.5 right-1.5' : 'top-2 right-2'} w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors ${isSelectedState ? 'bg-primary border-primary text-on-primary' : 'bg-surface/50 backdrop-blur-md border-white/80 text-transparent'}`}>
             <span className="material-symbols-outlined text-[14px] font-bold">check</span>
           </div>
         ) : (
-          <button onClick={(e) => { e.stopPropagation(); onMenuClick(); }} className="absolute top-2 right-2 w-6 h-6 bg-black/30 backdrop-blur-md rounded-full shadow-sm flex items-center justify-center text-white hover:bg-black/40 transition-colors active:scale-90">
-            <span className="material-symbols-outlined text-[14px]">more_horiz</span>
+          <button onClick={(e) => { e.stopPropagation(); onMenuClick(); }} className={`absolute ${isManual ? 'top-1.5 right-1.5 w-5 h-5' : 'top-2 right-2 w-6 h-6'} bg-black/30 backdrop-blur-md rounded-full shadow-sm flex items-center justify-center text-white hover:bg-black/40 transition-colors active:scale-90`}>
+            <span className="material-symbols-outlined text-[13px]">more_horiz</span>
           </button>
         )}
       </div>

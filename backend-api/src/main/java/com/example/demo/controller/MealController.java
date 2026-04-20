@@ -1,7 +1,11 @@
 package com.example.demo.controller;
 
+import com.example.demo.entity.Product;
+import com.example.demo.entity.Recipe;
 import com.example.demo.entity.User;
 import com.example.demo.entity.UserMeal;
+import com.example.demo.repository.ProductRepository;
+import com.example.demo.repository.RecipeRepository;
 import com.example.demo.repository.UserMealRepository;
 import com.example.demo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -23,13 +26,20 @@ public class MealController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ProductRepository productRepository;
+
+    @Autowired
+    private RecipeRepository recipeRepository;
+
     private ResponseEntity<?> unauthorized() {
         return ResponseEntity.status(401).body(Map.of("error", "Brak autoryzacji"));
     }
 
     @GetMapping
     public ResponseEntity<?> getMyMeals(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) return unauthorized();
+        if (authentication == null || !authentication.isAuthenticated())
+            return unauthorized();
         String email = authentication.getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -38,7 +48,8 @@ public class MealController {
 
     @GetMapping("/day/{dateStr}")
     public ResponseEntity<?> getMealsForDay(@PathVariable String dateStr, Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) return unauthorized();
+        if (authentication == null || !authentication.isAuthenticated())
+            return unauthorized();
         String email = authentication.getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -47,11 +58,25 @@ public class MealController {
 
     @PostMapping
     public ResponseEntity<?> addMeal(@RequestBody UserMeal meal, Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) return unauthorized();
+        if (authentication == null || !authentication.isAuthenticated())
+            return unauthorized();
         String email = authentication.getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         meal.setUser(user);
+
+        // Resolve product from DB to avoid detached entity issues
+        if (meal.getProduct() != null && meal.getProduct().getId() != null) {
+            Product product = productRepository.findById(meal.getProduct().getId()).orElse(null);
+            meal.setProduct(product);
+        }
+
+        // Resolve recipe from DB to avoid detached entity issues
+        if (meal.getRecipe() != null && meal.getRecipe().getId() != null) {
+            Recipe recipe = recipeRepository.findById(meal.getRecipe().getId()).orElse(null);
+            meal.setRecipe(recipe);
+        }
+
         return ResponseEntity.ok(userMealRepository.save(meal));
     }
 
