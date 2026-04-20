@@ -245,15 +245,7 @@ export function RecipeDetails() {
   const isToday = selectDate === todayDateStr;
   const dateDisplay = isToday ? 'Dzisiaj' : selectDate;
 
-  const MEAL_TYPE_LABELS: Record<string, string> = {
-    breakfast: 'Śniadanie',
-    snack1: '2 Śniadanie',
-    lunch: 'Lunch',
-    snack2: 'Przekąska',
-    dinner: 'Obiad',
-    supper: 'Kolacja',
-  };
-  const mealLabel = availableMealTypes.find(m => m.id === activeMealType)?.name || activeMealType || selectType || '';
+  const mealLabel = availableMealTypes.find((m: any) => m.id === activeMealType)?.name || activeMealType || selectType || '';
 
   const today2 = new Date();
   const todayStr2 = `${String(today2.getDate()).padStart(2,'0')}.${String(today2.getMonth()+1).padStart(2,'0')}`;
@@ -290,7 +282,7 @@ export function RecipeDetails() {
               </button>
               {showMealPicker && (
                 <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
-                  {availableMealTypes.map(meal => (
+                  {availableMealTypes.map((meal: any) => (
                     <button
                       key={meal.id}
                       onClick={() => { setActiveMealType(meal.id); setShowMealPicker(false); }}

@@ -166,7 +166,7 @@ export function ProductDetails() {
   const MEAL_TYPE_LABELS: Record<string, string> = {
     breakfast: 'Śniadanie', snack1: '2 Śniadanie', lunch: 'Lunch', snack2: 'Przekąska', dinner: 'Obiad', supper: 'Kolacja',
   };
-  const mealLabel = availableMealTypes.find(m => m.id === activeMealType)?.name || MEAL_TYPE_LABELS[activeMealType] || activeMealType;
+  const mealLabel = availableMealTypes.find((m: any) => m.id === activeMealType)?.name || MEAL_TYPE_LABELS[activeMealType] || activeMealType;
   const today = new Date();
   const todayStr = `${String(today.getDate()).padStart(2,'0')}.${String(today.getMonth()+1).padStart(2,'0')}`;
   const activeDateDisplay = activeDate === todayStr ? 'Dzisiaj' : (activeDate || selectDate);
@@ -192,7 +192,7 @@ export function ProductDetails() {
             </button>
             {showMealPicker && (
               <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
-                {availableMealTypes.map(meal => (
+                {availableMealTypes.map((meal: any) => (
                   <button
                     key={meal.id}
                     onClick={() => { setActiveMealType(meal.id); setShowMealPicker(false); }}
@@ -469,7 +469,7 @@ export function ProductDetails() {
                             <h3 className="font-headline font-bold text-sm text-[#064e3b] leading-tight">
                               {previewMode === 'after' ? 'Bilans po dodaniu' : 'Aktualny bilans'}
                             </h3>
-                            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">{dateDisplay}</p>
+                            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">{activeDateDisplay}</p>
                           </div>
                         </div>
 

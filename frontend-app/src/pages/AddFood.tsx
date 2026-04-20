@@ -173,19 +173,7 @@ export function AddFood() {
     navigate(`/product/${product.id}?selectDate=${activeDate}&selectType=${activeMealType}`);
   };
 
-  // Generate nearby dates (yesterday, today, tomorrow + next 5 days)
-  const nearbyDates = useMemo(() => {
-    const dates = [];
-    const today = new Date();
-    for (let i = -1; i <= 6; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      dates.push(`${day}.${month}`);
-    }
-    return dates;
-  }, []);
+
 
   const availableMealTypes = useMemo(() => {
     if (profile?.meal_config && profile.meal_config.length > 0) {
@@ -265,7 +253,7 @@ export function AddFood() {
                   </button>
                   {showMealPicker && (
                     <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
-                      {availableMealTypes.map(meal => (
+                      {availableMealTypes.map((meal: any) => (
                         <button
                           key={meal.id}
                           onClick={() => { setActiveMealType(meal.id); setShowMealPicker(false); }}
