@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ApplicationYamlTest {
 
@@ -56,6 +57,31 @@ class ApplicationYamlTest {
         StandardEnvironment env = environmentWith(Map.of("JWT_EXPIRATION_MS", "3600000"));
 
         assertThat(env.getProperty("jwt.expiration-ms", Long.class)).isEqualTo(3_600_000L);
+    }
+
+    @Test
+    void databaseConnectionComesFromEnvironmentVariables() {
+        StandardEnvironment env = environmentWith(Map.of(
+                "DB_URL", "jdbc:postgresql://db.example.com:5432/example",
+                "DB_USERNAME", "example_user",
+                "DB_PASSWORD", "example_password"));
+
+        assertThat(env.getProperty("spring.datasource.url"))
+                .isEqualTo("jdbc:postgresql://db.example.com:5432/example");
+        assertThat(env.getProperty("spring.datasource.username")).isEqualTo("example_user");
+        assertThat(env.getProperty("spring.datasource.password")).isEqualTo("example_password");
+    }
+
+    @Test
+    void databaseConnectionHasNoBuiltInDefaults() {
+        StandardEnvironment env = environmentWith(Map.of());
+
+        assertThatThrownBy(() -> env.getProperty("spring.datasource.url"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("DB_URL");
+        assertThatThrownBy(() -> env.getProperty("spring.datasource.username"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("DB_USERNAME");
     }
 
     @Test
