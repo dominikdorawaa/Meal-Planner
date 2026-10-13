@@ -29,6 +29,15 @@ Przy pierwszym starcie backend zakłada tabele i dodaje przykładowe przepisy or
 docker compose up -d postgres
 ```
 
-Backend domyślnie łączy się z bazą `mealplanner` na `localhost:15433` jako użytkownik `mealplanner`. W `backend/.env` ustaw `DB_PASSWORD` i `JWT_SECRET` na te same wartości co w głównym `.env`. Zmienne `DB_URL` i `DB_USERNAME` podawaj tylko wtedy, gdy chcesz użyć innej bazy.
+Backend uruchamiany z IDE czyta ustawienia z `backend/.env`. Żeby połączył się z bazą z Dockera, ustaw w nim:
+
+```
+DB_URL=jdbc:postgresql://localhost:15433/mealplanner
+DB_USERNAME=mealplanner
+DB_PASSWORD=
+JWT_SECRET=
+```
+
+`DB_PASSWORD` musi być takie samo jak w głównym `.env`, bo z tym hasłem Docker zakłada bazę.
 
 Frontend uruchamiany przez `npm run dev` w katalogu `frontend` łączy się z `http://localhost:8080`. Inny adres API można podać w zmiennej `VITE_API_URL`.
