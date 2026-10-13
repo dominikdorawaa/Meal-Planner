@@ -2,8 +2,12 @@ package com.mealplanner.server.config;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.PropertiesPropertySource;
+import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.ClassPathResource;
 
+import java.util.Map;
 import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,9 +30,32 @@ class ApplicationYamlTest {
         Properties props = loadApplicationYaml();
 
         assertThat(props.getProperty("jwt.secret")).isEqualTo("${JWT_SECRET}");
-        assertThat(props.getProperty("jwt.expiration-ms")).isEqualTo("86400000");
+        assertThat(props.getProperty("jwt.expiration-ms")).isEqualTo("${JWT_EXPIRATION_MS:86400000}");
         assertThat(props.getProperty("corsAllowedOrigins")).isEqualTo("http://localhost:5173");
         assertThat(props.getProperty("server.port")).isEqualTo("8080");
+    }
+
+    private StandardEnvironment environmentWith(Map<String, Object> overrides) {
+        StandardEnvironment env = new StandardEnvironment();
+        env.getPropertySources().remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
+        env.getPropertySources().remove(StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME);
+        env.getPropertySources().addFirst(new MapPropertySource("overrides", overrides));
+        env.getPropertySources().addLast(new PropertiesPropertySource("application", loadApplicationYaml()));
+        return env;
+    }
+
+    @Test
+    void tokenLifetimeDefaultsToOneDay() {
+        StandardEnvironment env = environmentWith(Map.of());
+
+        assertThat(env.getProperty("jwt.expiration-ms", Long.class)).isEqualTo(86_400_000L);
+    }
+
+    @Test
+    void tokenLifetimeCanBeOverriddenWithEnvironmentVariable() {
+        StandardEnvironment env = environmentWith(Map.of("JWT_EXPIRATION_MS", "3600000"));
+
+        assertThat(env.getProperty("jwt.expiration-ms", Long.class)).isEqualTo(3_600_000L);
     }
 
     @Test
