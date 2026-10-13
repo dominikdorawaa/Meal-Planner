@@ -19,7 +19,7 @@ Wymagany jest Docker z Docker Compose.
 | Backend  | http://localhost:8080   |
 | Postgres | localhost:15433         |
 
-Przy pierwszym starcie backend zakłada tabele i dodaje przykładowe przepisy oraz produkty. Dane bazy są trzymane w wolumenie `postgres_data`, więc zostają po restarcie kontenerów. `docker compose down -v` usuwa je razem z wolumenem.
+Przy pierwszym starcie backend zakłada tabele i dodaje przykładowe przepisy oraz produkty. Dane bazy są trzymane w wolumenie `postgres18_data`, więc zostają po restarcie kontenerów. `docker compose down -v` usuwa je razem z wolumenem.
 
 ## Praca nad backendem lub frontendem
 
