@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          lob:
+            non_contextual_creation: true
+        boot:
+          allow_jdbc_metadata_access: true
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration-ms: 86400000
+
+corsAllowedOrigins: http://localhost:5173
+
+server:
+  port: 8080
