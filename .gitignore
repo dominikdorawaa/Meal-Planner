@@ -12,4 +12,5 @@ target/
 .vscode/
 .idea/
 *.env*
+!.env.example
 *.local
