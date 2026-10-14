@@ -3,7 +3,7 @@ import { DEFAULT_RECIPE_IMAGE_URL, recipeImageCandidates } from './recipeImage'
 
 describe('recipeImageCandidates', () => {
   it('points the default image at the bundled static file', () => {
-    expect(DEFAULT_RECIPE_IMAGE_URL).toBe('/recipe-images/default.webp')
+    expect(DEFAULT_RECIPE_IMAGE_URL).toBe('/recipe-images/default.svg')
   })
 
   it('uses only the default image when the recipe has no image', () => {

@@ -1,4 +1,4 @@
-export const DEFAULT_RECIPE_IMAGE_URL = `${import.meta.env.BASE_URL}recipe-images/default.webp`;
+export const DEFAULT_RECIPE_IMAGE_URL = `${import.meta.env.BASE_URL}recipe-images/default.svg`;
 
 export function recipeImageCandidates(imageUrl?: string | null): string[] {
   const custom = imageUrl?.trim();
