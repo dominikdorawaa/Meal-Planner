@@ -1,11 +1,18 @@
 import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  plugins: [react()],
   test: {
     environment: 'jsdom',
     coverage: {
       provider: 'v8',
-      include: ['src/i18n/index.ts', 'src/lib/apiClient.ts'],
+      include: [
+        'src/i18n/index.ts',
+        'src/lib/apiClient.ts',
+        'src/lib/recipeImage.ts',
+        'src/components/RecipeCoverImage.tsx',
+      ],
       reporter: ['text', 'html'],
     },
   },

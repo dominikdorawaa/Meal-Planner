@@ -4,11 +4,14 @@ import com.mealplanner.server.auth.AuthService;
 import com.mealplanner.server.auth.RegisterRequest;
 import com.mealplanner.server.user.ProfileService;
 import com.mealplanner.server.user.UserProfile;
+import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+
+import javax.sql.DataSource;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
@@ -33,6 +36,9 @@ class DatabaseMigrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private DataSource dataSource;
+
     private String registerNewUser() {
         RegisterRequest request = new RegisterRequest();
         request.setEmail("new-user-" + UUID.randomUUID() + "@example.com");
@@ -47,7 +53,7 @@ class DatabaseMigrationTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "select version, success from flyway_schema_history where version is not null order by installed_rank");
 
-        assertThat(history).extracting(row -> row.get("version")).containsExactly("1");
+        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2");
         assertThat(history).allSatisfy(row -> assertThat(row.get("success")).isEqualTo(true));
     }
 
@@ -72,6 +78,29 @@ class DatabaseMigrationTest {
     void seedsSampleRecipesAndProducts() {
         assertThat(jdbcTemplate.queryForObject("select count(*) from recipes", Integer.class)).isEqualTo(7);
         assertThat(jdbcTemplate.queryForObject("select count(*) from products", Integer.class)).isEqualTo(5);
+    }
+
+    @Test
+    void seedsSampleRecipesWithoutImageUrls() {
+        assertThat(jdbcTemplate.queryForObject("select count(*) from recipes where image_url is not null", Integer.class))
+                .isZero();
+    }
+
+    @Test
+    void clearsLoremFlickrImageUrlsAndKeepsCustomOnes() {
+        String schema = "image_migration_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("1").load().migrate();
+        jdbcTemplate.update("insert into " + schema + ".recipes (id, name, image_url) values (?, ?, ?), (?, ?, ?)",
+                UUID.randomUUID(), "Old fallback", "https://loremflickr.com/800/533/pasta,pesto?lock=106",
+                UUID.randomUUID(), "Custom photo", "https://example.com/my-photo.jpg");
+
+        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "select name, image_url from " + schema + ".recipes order by name");
+        assertThat(rows).extracting(row -> row.get("image_url"))
+                .containsExactly("https://example.com/my-photo.jpg", null);
+        jdbcTemplate.execute("drop schema " + schema + " cascade");
     }
 
     @Test
