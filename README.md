@@ -41,7 +41,7 @@ DB_PASSWORD=
 JWT_SECRET=
 ```
 
-`DB_PASSWORD` musi być takie samo jak w głównym `.env`. Testy uruchamia `mvn test` w katalogu `backend` i potrzebują działającego Dockera.
+`DB_PASSWORD` musi być takie samo jak w głównym `.env`. Testy uruchamia `mvn test` w katalogu `backend` i potrzebują działającego Dockera. Raport pokrycia JaCoCo powstaje w `backend/target/site/jacoco/index.html`.
 
 Frontend wymaga Node 24. W katalogu `frontend` uruchom `npm install` i `npm run dev`. Domyślnie łączy się z `http://localhost:8080`, inny adres API ustawia zmienna `VITE_API_URL`.
 
