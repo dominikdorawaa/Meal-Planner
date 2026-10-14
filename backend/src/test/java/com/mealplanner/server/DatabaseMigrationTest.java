@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,18 @@ class DatabaseMigrationTest {
 
     @Autowired
     private ProfileService profileService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private String registerNewUser() {
+        RegisterRequest request = new RegisterRequest();
+        request.setEmail("new-user-" + UUID.randomUUID() + "@example.com");
+        request.setName("New User");
+        request.setPassword("example-password");
+        authService.register(request);
+        return request.getEmail();
+    }
 
     @Test
     void appliesInitialMigrationOnEmptyDatabase() {
@@ -63,17 +76,35 @@ class DatabaseMigrationTest {
 
     @Test
     void newUserGetsAnEmptyProfileBeforeOnboarding() {
-        RegisterRequest request = new RegisterRequest();
-        request.setEmail("new-user-" + UUID.randomUUID() + "@example.com");
-        request.setName("New User");
-        request.setPassword("example-password");
-        authService.register(request);
+        String email = registerNewUser();
 
-        UserProfile profile = profileService.getProfileByEmail(request.getEmail()).orElseThrow();
+        UserProfile profile = profileService.getProfileByEmail(email).orElseThrow();
 
         assertThat(profile.getId()).isNotNull();
         assertThat(profile.getGender()).isNull();
         assertThat(profile.getAge()).isNull();
         assertThat(profile.getWeight()).isNull();
+    }
+
+    @Test
+    void storesMealSettingsInJsonColumns() {
+        String email = registerNewUser();
+        profileService.getProfileByEmail(email);
+        UserProfile update = objectMapper.readValue(
+                "{\"meal_config\":[{\"id\":\"breakfast\",\"name\":\"Sniadanie\",\"visible\":true},"
+                        + "{\"id\":\"lunch\",\"name\":\"Lunch\",\"visible\":false}],"
+                        + "\"visible_meals\":[\"breakfast\"]}",
+                UserProfile.class);
+
+        profileService.saveProfile(email, update);
+        UserProfile stored = profileService.getProfileByEmail(email).orElseThrow();
+
+        assertThat(stored.getMealConfig()).hasSize(2);
+        assertThat(stored.getMealConfig().get(0).get("name").asString()).isEqualTo("Sniadanie");
+        assertThat(stored.getMealConfig().get(1).get("visible").asBoolean()).isFalse();
+        assertThat(stored.getVisibleMeals().get(0).asString()).isEqualTo("breakfast");
+        String rawJson = jdbcTemplate.queryForObject(
+                "select meal_config::text from user_profiles where id = ?", String.class, stored.getId());
+        assertThat(rawJson).contains("\"name\": \"Sniadanie\"");
     }
 }

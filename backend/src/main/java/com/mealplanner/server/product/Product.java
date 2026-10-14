@@ -3,7 +3,6 @@ package com.mealplanner.server.product;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.OffsetDateTime;
@@ -13,7 +12,6 @@ import java.util.UUID;
 @Table(name = "products")
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class Product {
 
     @Id
