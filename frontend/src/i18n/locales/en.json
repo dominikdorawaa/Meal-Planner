@@ -1,0 +1,4 @@
+{
+  "api.sessionExpired": "Your session has expired. Please sign in again.",
+  "api.serverError": "Server error ({status})"
+}

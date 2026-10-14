@@ -1,0 +1,4 @@
+{
+  "api.sessionExpired": "Sesja wygasła. Zaloguj się ponownie.",
+  "api.serverError": "Błąd serwera ({status})"
+}
