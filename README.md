@@ -1,35 +1,38 @@
 # Meal-Planner
 
+Aplikacja do planowania posiłków: dzienny plan z kaloriami i makroskładnikami, baza przepisów i produktów oraz lista zakupów.
+
+- Backend: Java 25, Spring Boot 4, PostgreSQL, migracje Flyway (`backend`)
+- Frontend: React, TypeScript, Vite, Tailwind CSS (`frontend`)
+
 ## Uruchomienie lokalne
 
 Wymagany jest Docker z Docker Compose.
 
-1. Skopiuj `.env.example` do `.env` i uzupełnij wartości:
-   - `DB_PASSWORD`: dowolne hasło do lokalnej bazy,
-   - `JWT_SECRET`: losowy ciąg co najmniej 32 znaków.
-2. Uruchom całą aplikację:
+1. Skopiuj `.env.example` do `.env` i uzupełnij `DB_PASSWORD` (dowolne hasło do lokalnej bazy) oraz `JWT_SECRET` (losowy ciąg co najmniej 32 znaków).
+2. Uruchom aplikację:
 
    ```bash
    docker compose up -d --build
    ```
 
-| Usługa   | Adres                   |
-|----------|-------------------------|
-| Frontend | http://localhost:5173   |
-| Backend  | http://localhost:8080   |
-| Postgres | localhost:15433         |
+| Usługa   | Adres                 |
+|----------|-----------------------|
+| Frontend | http://localhost:5173 |
+| Backend  | http://localhost:8080 |
+| Postgres | localhost:15433       |
 
-Przy pierwszym starcie backend zakłada tabele migracjami Flyway i dodaje przykładowe przepisy oraz produkty. Dane bazy są trzymane w wolumenie `postgres18_data`, więc zostają po restarcie kontenerów. `docker compose down -v` usuwa je razem z wolumenem.
+Dane bazy zostają po restarcie kontenerów. `docker compose down -v` usuwa je razem z wolumenem.
 
-## Praca nad backendem lub frontendem
+## Praca nad kodem
 
-Żeby uruchamiać aplikację z IDE, wystarczy postawić samą bazę:
+Do pracy w IDE wystarczy sama baza z Dockera:
 
 ```bash
 docker compose up -d postgres
 ```
 
-Backend uruchamiany z IDE czyta ustawienia z `backend/.env`. Żeby połączył się z bazą z Dockera, ustaw w nim:
+Backend wymaga JDK 25 i czyta ustawienia z `backend/.env`:
 
 ```
 DB_URL=jdbc:postgresql://localhost:15433/mealplanner
@@ -38,25 +41,12 @@ DB_PASSWORD=
 JWT_SECRET=
 ```
 
-`DB_PASSWORD` musi być takie samo jak w głównym `.env`, bo z tym hasłem Docker zakłada bazę.
+`DB_PASSWORD` musi być takie samo jak w głównym `.env`. Testy uruchamia `mvn test` w katalogu `backend` i potrzebują działającego Dockera.
 
-Frontend uruchamiany przez `npm run dev` w katalogu `frontend` łączy się z `http://localhost:8080`. Inny adres API można podać w zmiennej `VITE_API_URL`.
+Frontend wymaga Node 24. W katalogu `frontend` uruchom `npm install` i `npm run dev`. Domyślnie łączy się z `http://localhost:8080`, inny adres API ustawia zmienna `VITE_API_URL`.
 
-## Schemat bazy i migracje
+## Migracje bazy
 
-Schematem bazy zarządza Flyway. Migracje leżą w `backend/src/main/resources/db/migration` i są wykonywane przy starcie backendu, zarówno lokalnie, jak i na produkcji. Hibernate niczego w bazie nie zmienia, tylko sprawdza przy starcie, czy schemat zgadza się z encjami (`ddl-auto: validate`). Jeśli się nie zgadza, backend się nie uruchomi.
+Schematem bazy zarządza Flyway. Migracje są w `backend/src/main/resources/db/migration` i wykonują się przy starcie backendu. Każda zmiana schematu to nowy plik z kolejnym numerem (np. `V2__add_recipe_category.sql`) i pasująca do niego zmiana encji. Nie edytuj migracji, która trafiła już na `main`.
 
-Zmiana schematu wygląda tak:
-
-1. Dodaj nowy plik z kolejnym numerem, np. `V2__add_recipe_category.sql`.
-2. Zmień encję w kodzie tak, żeby pasowała do nowego schematu.
-3. Uruchom `mvn test` w katalogu `backend`. Testy stawiają czystą bazę Postgres w kontenerze, wykonują wszystkie migracje i sprawdzają, czy aplikacja startuje.
-
-Nie edytuj migracji, która trafiła już na `main`. Każda zmiana to nowy plik.
-
-Flyway uruchamia się tylko na pustej bazie albo na bazie, którą sam wcześniej założył. Jeśli baza ma tabele bez historii migracji, backend zatrzyma się z błędem `Found non-empty schema(s) "public" but no schema history table`. Lokalnie wystarczy wtedy wyczyścić bazę:
-
-```bash
-docker compose down -v
-docker compose up -d postgres
-```
+Jeśli lokalna baza ma tabele bez historii Flyway, backend się nie uruchomi. Wtedy wyczyść bazę przez `docker compose down -v` i `docker compose up -d postgres`.
