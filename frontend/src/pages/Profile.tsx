@@ -825,7 +825,7 @@ export function Profile() {
             )}
           </div>
 
-          <div className="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50 flex gap-3">
+          <div className="fixed bottom-0 left-0 w-full p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50 flex gap-3">
             {!isInternalProfileEditing ? (
               <button
                 onClick={() => setIsInternalProfileEditing(true)}
@@ -1059,7 +1059,7 @@ export function Profile() {
 
           </div>
 
-          <div className="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50 flex gap-3">
+          <div className="fixed bottom-0 left-0 w-full p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50 flex gap-3">
             {!isInternalGoalsEditing ? (
               <button
                 onClick={() => setIsInternalGoalsEditing(true)}
@@ -1231,7 +1231,7 @@ export function Profile() {
             </div>
           </div>
 
-          <div className="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50">
+          <div className="fixed bottom-0 left-0 w-full p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50">
             <button
               onClick={handleSaveProfileData}
               disabled={tempProfile.is_manual_macros && percentages.total !== 100}
@@ -1346,7 +1346,7 @@ export function Profile() {
             ))}
           </div>
 
-          <div className="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50">
+          <div className="fixed bottom-0 left-0 w-full p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50">
             <button
               onClick={handleSaveMealConfig}
               className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold shadow-lg shadow-primary/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2 hover:brightness-105"

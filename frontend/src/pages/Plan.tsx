@@ -874,7 +874,7 @@ export function Plan() {
       {copyModeDay && (() => {
         const copyDay = days.find(d => d.date === copyModeDay);
         return (
-          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-[420px] bg-surface-container-lowest shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[2rem] p-3 pl-5 flex items-center justify-between z-[200] animate-slide-up border border-outline-variant/30 overflow-hidden">
+          <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[90%] max-w-[420px] bg-surface-container-lowest shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[2rem] p-3 pl-5 flex items-center justify-between z-[200] animate-slide-up border border-outline-variant/30 overflow-hidden">
 
             <div className="flex items-center w-[55%] gap-2 overflow-hidden">
               <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
@@ -962,7 +962,7 @@ export function Plan() {
         const copyRecipe = recipes.find(r => r.id === rid);
         const copyDay = days.find(d => d.date === copyModeMeal.date_str);
         return (
-          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-[420px] bg-surface-container-lowest shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[2rem] p-3 pl-4 flex items-center justify-between z-[200] animate-slide-up border border-outline-variant/30 overflow-hidden">
+          <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[90%] max-w-[420px] bg-surface-container-lowest shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[2rem] p-3 pl-4 flex items-center justify-between z-[200] animate-slide-up border border-outline-variant/30 overflow-hidden">
 
             <div className="flex items-center w-[55%] gap-3 overflow-hidden">
               {copyRecipe && (
@@ -1005,7 +1005,7 @@ export function Plan() {
         ]).size;
 
         return (
-          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[95%] max-w-[460px] bg-surface-container-lowest shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[2rem] p-3 flex items-center justify-between z-[200] animate-slide-up border border-outline-variant/30">
+          <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[95%] max-w-[460px] bg-surface-container-lowest shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[2rem] p-3 flex items-center justify-between z-[200] animate-slide-up border border-outline-variant/30">
             <div className="flex items-center w-[60%] gap-2.5 pl-1">
               <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined text-primary text-[18px] sm:text-xl">shopping_cart_checkout</span>

@@ -482,7 +482,7 @@ export function RecipeDetails() {
             
             {/* Kalorie */}
             <div className="flex flex-col items-center gap-3">
-              <div className="w-[72px] h-[72px] flex items-center justify-center">
+              <div className="w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px] flex items-center justify-center">
                  <span className="font-black text-3xl text-[#064e3b] leading-none">{currentKcal}</span>
               </div>
               <span className="text-[11px] font-black text-[#064e3b] uppercase tracking-widest leading-none">kcal</span>
@@ -490,7 +490,7 @@ export function RecipeDetails() {
             
             {/* Białko */}
             <div className="flex flex-col items-center gap-3">
-              <div className="relative w-[72px] h-[72px]">
+              <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#4F46E5 ${pctP}%, #4F46E510 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span className="font-black text-base text-[#064e3b] leading-none">{currentP}g</span>
@@ -501,7 +501,7 @@ export function RecipeDetails() {
 
             {/* Tłuszcz */}
             <div className="flex flex-col items-center gap-3">
-              <div className="relative w-[72px] h-[72px]">
+              <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#F59E0B ${pctF}%, #F59E0B10 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span className="font-black text-base text-[#064e3b] leading-none">{currentF}g</span>
@@ -512,7 +512,7 @@ export function RecipeDetails() {
 
             {/* Węglowodany */}
             <div className="flex flex-col items-center gap-3">
-              <div className="relative w-[72px] h-[72px]">
+              <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#10B981 ${pctC}%, #10B98110 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span className="font-black text-base text-[#064e3b] leading-none">{currentC}g</span>
