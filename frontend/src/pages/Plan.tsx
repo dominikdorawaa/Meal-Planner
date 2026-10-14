@@ -3,7 +3,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { useNavigate } from 'react-router-dom';
-import { recipeImageFallbackUrl } from '../lib/recipeImage';
+import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 
 const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN"; // Tylko marker do logiki poniżej
@@ -483,7 +483,7 @@ export function Plan() {
                     kcal={String(Math.round(recipe.kcal * mult))}
                     macros={formatMacrosShort(parseFloat((recipe.protein * mult).toFixed(1)), parseFloat((recipe.fat * mult).toFixed(1)))}
                     imgSrc={recipe.image_url || PLACEHOLDER_IMAGE}
-                    imageFallbackSrc={recipeImageFallbackUrl(recipe)}
+                    imageFallbackSrc={DEFAULT_RECIPE_IMAGE_URL}
                     noWrap
                     onClick={() => {
                       if (!shoppingSelectionMode && !copyModeDay && !copyModeMeal) {

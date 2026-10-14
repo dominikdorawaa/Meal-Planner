@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppData } from '../lib/AppDataContext';
 import { api } from '../lib/apiClient';
-import { recipeImageFallbackUrl, DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 
 interface IngredientDraft {
   id?: string;
@@ -127,17 +126,13 @@ export default function AddRecipe() {
       const totalFat = calculatedF > 0 ? calculatedF : baseMacros.f;
       const totalCarbs = calculatedC > 0 ? calculatedC : baseMacros.c;
       
-      const defaultImage = name.trim()
-        ? recipeImageFallbackUrl({ name: name.trim() })
-        : DEFAULT_RECIPE_IMAGE_URL;
-
       const recipePayload = {
         name,
         kcal: totalKcal,
         protein: totalProtein,
         fat: totalFat,
         carbs: totalCarbs,
-        image_url: imageUrl.trim() || defaultImage,
+        image_url: imageUrl.trim() || null,
         prep_time: parseInt(prepTime) || 0,
         portions: parseFloat(portions) || 1,
         instructions: instructions.map(i => i.text),
