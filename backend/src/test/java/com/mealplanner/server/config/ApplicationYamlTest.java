@@ -36,6 +36,13 @@ class ApplicationYamlTest {
         assertThat(props.getProperty("server.port")).isEqualTo("8080");
     }
 
+    @Test
+    void readsEnvFileFromRepositoryRoot() {
+        Properties props = loadApplicationYaml();
+
+        assertThat(props.getProperty("springdotenv.directory")).isEqualTo("..");
+    }
+
     private StandardEnvironment environmentWith(Map<String, Object> overrides) {
         StandardEnvironment env = new StandardEnvironment();
         env.getPropertySources().remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
