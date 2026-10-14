@@ -3,6 +3,7 @@ makiety_ekranow/
 
 # Keep SQL migration and setup files local
 *.sql
+!backend/src/main/resources/db/migration/*.sql
 
 # Build and IDE files
 node_modules/

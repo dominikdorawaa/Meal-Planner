@@ -92,7 +92,7 @@ class ApplicationYamlTest {
         assertThat(props.getProperty("spring.datasource.username")).isEqualTo("${DB_USERNAME}");
         assertThat(props.getProperty("spring.datasource.password")).isEqualTo("${DB_PASSWORD}");
         assertThat(props.getProperty("spring.datasource.driver-class-name")).isEqualTo("org.postgresql.Driver");
-        assertThat(props.getProperty("spring.jpa.hibernate.ddl-auto")).isEqualTo("update");
+        assertThat(props.getProperty("spring.jpa.hibernate.ddl-auto")).isEqualTo("validate");
         assertThat(props.getProperty("spring.jpa.open-in-view")).isEqualTo("false");
         assertThat(props.getProperty("spring.jpa.properties.hibernate.dialect"))
                 .isEqualTo("org.hibernate.dialect.PostgreSQLDialect");
