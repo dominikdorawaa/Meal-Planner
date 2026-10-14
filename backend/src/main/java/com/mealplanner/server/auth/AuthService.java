@@ -1,8 +1,10 @@
 package com.mealplanner.server.auth;
 
+import com.mealplanner.server.handler.ApiException;
 import com.mealplanner.server.user.User;
 import com.mealplanner.server.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +18,7 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Użytkownik z tym emailem już istnieje");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "auth.email-taken");
         }
 
         User user = new User();
@@ -35,14 +37,14 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> {
                     System.err.println("DEBUG: User not found: " + request.getEmail());
-                    return new IllegalArgumentException("Nieprawidłowy email lub hasło");
+                    return new ApiException(HttpStatus.UNAUTHORIZED, "auth.invalid-credentials");
                 });
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             System.err.println("DEBUG: Password mismatch for email: " + request.getEmail());
             // System.err.println("DEBUG: Provided: " + request.getPassword());
             // System.err.println("DEBUG: In DB: " + user.getPasswordHash());
-            throw new IllegalArgumentException("Nieprawidłowy email lub hasło");
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "auth.invalid-credentials");
         }
         System.out.println("DEBUG: Login successful for email: " + request.getEmail());
 
