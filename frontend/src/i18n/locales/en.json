@@ -1,4 +1,5 @@
 {
   "api.sessionExpired": "Your session has expired. Please sign in again.",
-  "api.serverError": "Server error ({status})"
+  "api.serverError": "Server error ({status})",
+  "onboarding.profileSaveFailed": "Could not save your profile. Please try again in a moment."
 }

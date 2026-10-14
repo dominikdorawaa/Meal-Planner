@@ -12,6 +12,7 @@ export default defineConfig({
         'src/lib/apiClient.ts',
         'src/lib/recipeImage.ts',
         'src/components/RecipeCoverImage.tsx',
+        'src/pages/Onboarding.tsx',
       ],
       reporter: ['text', 'html'],
     },

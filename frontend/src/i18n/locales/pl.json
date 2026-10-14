@@ -1,4 +1,5 @@
 {
   "api.sessionExpired": "Sesja wygasła. Zaloguj się ponownie.",
-  "api.serverError": "Błąd serwera ({status})"
+  "api.serverError": "Błąd serwera ({status})",
+  "onboarding.profileSaveFailed": "Nie udało się zapisać profilu. Spróbuj ponownie za chwilę."
 }
