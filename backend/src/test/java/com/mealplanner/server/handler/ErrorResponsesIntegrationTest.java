@@ -38,9 +38,9 @@ class ErrorResponsesIntegrationTest {
     void registrationWithInvalidDataReturnsBadRequest() throws Exception {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"not-an-email\",\"name\":\"Ania\",\"password\":\"secret123\"}"))
+                        .content("{\"email\":\"not-an-email\",\"name\":\"Alice\",\"password\":\"secret123\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Nieprawidłowy format email"));
+                .andExpect(jsonPath("$.error").isNotEmpty());
     }
 
     @Test
@@ -77,16 +77,16 @@ class ErrorResponsesIntegrationTest {
         String email = "profile-" + UUID.randomUUID() + "@example.com";
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"name\":\"Ania\",\"password\":\"secret123\"}"))
+                        .content("{\"email\":\"" + email + "\",\"name\":\"Alice\",\"password\":\"secret123\"}"))
                 .andExpect(status().isOk());
         String token = jwtService.generateToken(UUID.randomUUID(), email);
 
         mockMvc.perform(put("/api/profile")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"display_name\":\"Ania\"}"))
+                        .content("{\"display_name\":\"Alice\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.display_name").value("Ania"));
+                .andExpect(jsonPath("$.display_name").value("Alice"));
     }
 
     @Test

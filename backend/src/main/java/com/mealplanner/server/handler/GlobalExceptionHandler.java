@@ -24,12 +24,12 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    static final String VALIDATION_FAILED = "Dane nie spełniają wymagań.";
-    static final String BAD_REQUEST = "Nieprawidłowe żądanie.";
-    static final String UNAUTHORIZED = "Brak autoryzacji.";
-    static final String FORBIDDEN = "Brak dostępu.";
-    static final String REQUEST_FAILED = "Nie udało się obsłużyć żądania.";
-    static final String INTERNAL_ERROR = "Wewnętrzny błąd serwera.";
+    static final String VALIDATION_FAILED = "Request data is invalid.";
+    static final String BAD_REQUEST = "Malformed request.";
+    static final String UNAUTHORIZED = "Authentication required.";
+    static final String FORBIDDEN = "Access denied.";
+    static final String REQUEST_FAILED = "Request could not be processed.";
+    static final String INTERNAL_ERROR = "Internal server error.";
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException e) {

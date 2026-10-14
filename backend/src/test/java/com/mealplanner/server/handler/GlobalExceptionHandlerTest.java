@@ -52,7 +52,7 @@ class GlobalExceptionHandlerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"\",\"code\":\"a\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Kod jest za krótki; Nazwa jest wymagana"));
+                .andExpect(jsonPath("$.error").value("Code is too short; Name is required"));
     }
 
     @Test
@@ -117,7 +117,7 @@ class GlobalExceptionHandlerTest {
     void keepsClientErrorStatusOfSpringExceptions() throws Exception {
         mockMvc.perform(get("/test/not-found"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("Nie znaleziono"));
+                .andExpect(jsonPath("$.error").value("Not found"));
     }
 
     @Test
@@ -155,10 +155,10 @@ class GlobalExceptionHandlerTest {
     }
 
     static class TestBody {
-        @NotBlank(message = "Nazwa jest wymagana")
+        @NotBlank(message = "Name is required")
         private String name;
 
-        @Size(min = 3, message = "Kod jest za krótki")
+        @Size(min = 3, message = "Code is too short")
         private String code;
 
         public String getName() {
@@ -218,7 +218,7 @@ class GlobalExceptionHandlerTest {
 
         @GetMapping("/test/not-found")
         public String notFound() {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Nie znaleziono");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Not found");
         }
 
         @GetMapping("/test/conflict")
