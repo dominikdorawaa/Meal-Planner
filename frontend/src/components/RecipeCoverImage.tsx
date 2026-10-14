@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { recipeImageFallbackUrl } from '../lib/recipeImage';
+import { useMemo, useState } from 'react';
+import { recipeImageCandidates } from '../lib/recipeImage';
 
 type RecipeLike = { id?: string; name?: string; image_url?: string | null };
 
@@ -14,19 +14,11 @@ export function RecipeCoverImage({
   className?: string;
   imgClassName?: string;
 }) {
-  const candidates = useMemo(() => {
-    const u = recipe.image_url?.trim();
-    const fb = recipeImageFallbackUrl(recipe);
-    if (u && u !== fb) return [u, fb];
-    if (u) return [u];
-    return [fb];
-  }, [recipe.id, recipe.name, recipe.image_url]);
+  const candidates = useMemo(() => recipeImageCandidates(recipe.image_url), [recipe.image_url]);
 
-  const [idx, setIdx] = useState(0);
-
-  useEffect(() => {
-    setIdx(0);
-  }, [candidates.join('|')]);
+  const candidatesKey = candidates.join('|');
+  const [failed, setFailed] = useState({ key: candidatesKey, count: 0 });
+  const idx = failed.key === candidatesKey ? failed.count : 0;
 
   if (idx >= candidates.length) {
     return (
@@ -43,7 +35,7 @@ export function RecipeCoverImage({
       src={candidates[idx]}
       alt={alt}
       className={imgClassName}
-      onError={() => setIdx(i => i + 1)}
+      onError={() => setFailed({ key: candidatesKey, count: idx + 1 })}
     />
   );
 }

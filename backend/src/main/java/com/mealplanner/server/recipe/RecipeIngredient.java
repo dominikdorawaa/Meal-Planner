@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 import java.util.UUID;
 
@@ -12,7 +11,6 @@ import java.util.UUID;
 @Table(name = "recipe_ingredients")
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class RecipeIngredient {
 
     @Id

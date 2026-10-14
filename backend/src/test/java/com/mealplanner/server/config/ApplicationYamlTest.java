@@ -94,8 +94,8 @@ class ApplicationYamlTest {
         assertThat(props.getProperty("spring.datasource.driver-class-name")).isEqualTo("org.postgresql.Driver");
         assertThat(props.getProperty("spring.jpa.hibernate.ddl-auto")).isEqualTo("validate");
         assertThat(props.getProperty("spring.jpa.open-in-view")).isEqualTo("false");
-        assertThat(props.getProperty("spring.jpa.properties.hibernate.dialect"))
-                .isEqualTo("org.hibernate.dialect.PostgreSQLDialect");
+        assertThat(props.getProperty("spring.jpa.properties.hibernate.type.json_format_mapper"))
+                .isEqualTo("org.hibernate.type.format.jackson.Jackson3JsonFormatMapper");
         assertThat(props.getProperty("spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation"))
                 .isEqualTo("true");
         assertThat(props.getProperty("spring.jpa.properties.hibernate.boot.allow_jdbc_metadata_access"))

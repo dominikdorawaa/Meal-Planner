@@ -3,7 +3,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { useNavigate } from 'react-router-dom';
-import { recipeImageFallbackUrl } from '../lib/recipeImage';
+import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 
 const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN"; // Tylko marker do logiki poniżej
@@ -212,7 +212,7 @@ export function Plan() {
   };
 
   const handlePreSubmitCopyMode = () => {
-    let conflicts: any[] = [];
+    let conflicts: any[];
 
     if (copyModeMeal && selectedCopySlots.length > 0) {
       conflicts = userMeals.filter(m => selectedCopySlots.includes(`${m.date_str}_${m.meal_type}`));
@@ -483,7 +483,7 @@ export function Plan() {
                     kcal={String(Math.round(recipe.kcal * mult))}
                     macros={formatMacrosShort(parseFloat((recipe.protein * mult).toFixed(1)), parseFloat((recipe.fat * mult).toFixed(1)))}
                     imgSrc={recipe.image_url || PLACEHOLDER_IMAGE}
-                    imageFallbackSrc={recipeImageFallbackUrl(recipe)}
+                    imageFallbackSrc={DEFAULT_RECIPE_IMAGE_URL}
                     noWrap
                     onClick={() => {
                       if (!shoppingSelectionMode && !copyModeDay && !copyModeMeal) {
@@ -1199,11 +1199,9 @@ function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick
     return [];
   }, [isProduct, imgSrc, imageFallbackSrc]);
 
-  const [imageUrlIdx, setImageUrlIdx] = useState(0);
-
-  useEffect(() => {
-    setImageUrlIdx(0);
-  }, [imageUrls.join('|')]);
+  const imageUrlsKey = imageUrls.join('|');
+  const [failedImages, setFailedImages] = useState({ key: imageUrlsKey, count: 0 });
+  const imageUrlIdx = failedImages.key === imageUrlsKey ? failedImages.count : 0;
 
   const renderImage = () => {
     if (imageUrlIdx < imageUrls.length) {
@@ -1211,7 +1209,7 @@ function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick
         <img
           src={imageUrls[imageUrlIdx]}
           alt={title}
-          onError={() => setImageUrlIdx(i => i + 1)}
+          onError={() => setFailedImages({ key: imageUrlsKey, count: imageUrlIdx + 1 })}
           className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ${isSelectionMode && !isSelectedState ? 'grayscale opacity-70' : 'group-hover:scale-105'}`}
         />
       );

@@ -29,20 +29,13 @@ public class DataInitializer implements CommandLineRunner {
         if (recipeRepository.count() == 0) {
             System.out.println("DEBUG: Seeding sample recipes...");
             recipeRepository.saveAll(Arrays.asList(
-                    createRecipe("Sourdough & Avo", 510.0, 15.0, 35.0, 40.0,
-                            "https://loremflickr.com/800/533/bread,avocado?lock=101"),
-                    createRecipe("Berry Smoothie", 310.0, 8.0, 10.0, 45.0,
-                            "https://loremflickr.com/800/533/berries,smoothie?lock=102"),
-                    createRecipe("Scrambled Eggs", 400.0, 40.0, 11.0, 5.0,
-                            "https://loremflickr.com/800/533/eggs,breakfast?lock=103"),
-                    createRecipe("Chicken Salad", 410.0, 50.0, 20.0, 15.0,
-                            "https://loremflickr.com/800/533/chicken,salad?lock=104"),
-                    createRecipe("Quinoa Bowl", 450.0, 30.0, 30.0, 40.0,
-                            "https://loremflickr.com/800/533/quinoa,bowl?lock=105"),
-                    createRecipe("Pasta Pesto", 800.0, 40.0, 10.0, 85.0,
-                            "https://loremflickr.com/800/533/pasta,pesto?lock=106"),
-                    createRecipe("Baked Salmon", 900.0, 80.0, 60.0, 20.0,
-                            "https://loremflickr.com/800/533/salmon,seafood?lock=107")));
+                    createRecipe("Sourdough & Avo", 510.0, 15.0, 35.0, 40.0),
+                    createRecipe("Berry Smoothie", 310.0, 8.0, 10.0, 45.0),
+                    createRecipe("Scrambled Eggs", 400.0, 40.0, 11.0, 5.0),
+                    createRecipe("Chicken Salad", 410.0, 50.0, 20.0, 15.0),
+                    createRecipe("Quinoa Bowl", 450.0, 30.0, 30.0, 40.0),
+                    createRecipe("Pasta Pesto", 800.0, 40.0, 10.0, 85.0),
+                    createRecipe("Baked Salmon", 900.0, 80.0, 60.0, 20.0)));
             System.out.println("DEBUG: Seeding recipes complete.");
         }
     }
@@ -74,14 +67,13 @@ public class DataInitializer implements CommandLineRunner {
         return p;
     }
 
-    private Recipe createRecipe(String name, Double kcal, Double protein, Double fat, Double carbs, String imageUrl) {
+    private Recipe createRecipe(String name, Double kcal, Double protein, Double fat, Double carbs) {
         Recipe r = new Recipe();
         r.setName(name);
         r.setKcal(kcal);
         r.setProtein(protein);
         r.setFat(fat);
         r.setCarbs(carbs);
-        r.setImageUrl(imageUrl);
         r.setPortions(1.0);
         r.setPrepTime(20);
         r.setIsArchived(false);

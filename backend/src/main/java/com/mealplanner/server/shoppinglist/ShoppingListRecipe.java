@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.OffsetDateTime;
@@ -16,7 +15,6 @@ import java.util.UUID;
 @Table(name = "shopping_list_recipes")
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class ShoppingListRecipe {
 
     @Id

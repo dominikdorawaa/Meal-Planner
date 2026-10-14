@@ -1,11 +1,10 @@
 package com.mealplanner.server.user;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -16,7 +15,6 @@ import org.springframework.data.domain.Persistable;
 @Table(name = "user_profiles")
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class UserProfile implements Persistable<UUID> {
 
     @Id
@@ -30,12 +28,12 @@ public class UserProfile implements Persistable<UUID> {
 
     @Transient
     @JsonIgnore
-    private boolean isNewProfile = false;
+    private boolean newProfile = false;
 
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return isNewProfile;
+        return newProfile;
     }
 
     /** Nazwa pokazywana w aplikacji (niezależna od imienia przy rejestracji). */

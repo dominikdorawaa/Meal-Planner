@@ -102,6 +102,9 @@ export function AddFood() {
     window.scrollTo(0, 0);
   }, []);
 
+  const [showQuickAdd, setShowQuickAdd] = useState(!!mealId);
+  const [quickAddForm, setQuickAddForm] = useState({ name: '', kcal: '', protein: '', fat: '', carbs: '' });
+
   useEffect(() => {
     async function loadManualMeal() {
       if (!mealId) return;
@@ -124,8 +127,6 @@ export function AddFood() {
     }
     loadManualMeal();
   }, [mealId]);
-  const [showQuickAdd, setShowQuickAdd] = useState(!!mealId);
-  const [quickAddForm, setQuickAddForm] = useState({ name: '', kcal: '', protein: '', fat: '', carbs: '' });
 
 
 
