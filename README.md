@@ -9,7 +9,7 @@ Aplikacja do planowania posiłków: dzienny plan z kaloriami i makroskładnikami
 
 Wymagany jest Docker z Docker Compose.
 
-1. Skopiuj `.env.example` do `.env` i uzupełnij `DB_PASSWORD` (dowolne hasło do lokalnej bazy) oraz `JWT_SECRET` (losowy ciąg co najmniej 32 znaków).
+1. Skopiuj `.env.example` do `.env` w katalogu głównym i uzupełnij `DB_PASSWORD` (dowolne hasło do lokalnej bazy) oraz `JWT_SECRET` (losowy ciąg co najmniej 32 znaków).
 2. Uruchom aplikację:
 
    ```bash
@@ -32,18 +32,9 @@ Do pracy w IDE wystarczy sama baza z Dockera:
 docker compose up -d postgres
 ```
 
-Backend wymaga JDK 25 i czyta ustawienia z `backend/.env`:
+Backend wymaga JDK 25 i czyta ustawienia z tego samego głównego `.env` co Docker Compose. Testy uruchamia `mvn test` w katalogu `backend` i potrzebują działającego Dockera. Raport pokrycia JaCoCo powstaje w `backend/target/site/jacoco/index.html`.
 
-```
-DB_URL=jdbc:postgresql://localhost:15433/mealplanner
-DB_USERNAME=mealplanner
-DB_PASSWORD=
-JWT_SECRET=
-```
-
-`DB_PASSWORD` musi być takie samo jak w głównym `.env`. Testy uruchamia `mvn test` w katalogu `backend` i potrzebują działającego Dockera. Raport pokrycia JaCoCo powstaje w `backend/target/site/jacoco/index.html`.
-
-Frontend wymaga Node 24. W katalogu `frontend` uruchom `npm install` i `npm run dev`. Domyślnie łączy się z `http://localhost:8080`, inny adres API ustawia zmienna `VITE_API_URL`.
+Frontend wymaga Node 24. W katalogu `frontend` uruchom `npm install` i `npm run dev`. Domyślnie łączy się z `http://localhost:8080`, inny adres API ustawia zmienna `VITE_API_URL` w głównym `.env`.
 
 ## Migracje bazy
 
