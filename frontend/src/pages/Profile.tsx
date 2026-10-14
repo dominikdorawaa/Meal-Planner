@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { BottomNav } from '../components/BottomNav';
+import { InstallAppCard } from '../components/InstallAppCard';
 
 const MEAL_TYPES = [
   { id: 'breakfast', name: 'Śniadanie', icon: 'light_mode' },
@@ -592,6 +593,8 @@ export function Profile() {
           </div>
           <span className="material-symbols-outlined text-primary/50">chevron_right</span>
         </button>
+
+        <InstallAppCard />
 
         <div className="mt-4 mb-8 px-0">
           <button

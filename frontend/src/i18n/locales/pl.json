@@ -1,5 +1,8 @@
 {
   "api.sessionExpired": "Sesja wygasła. Zaloguj się ponownie.",
   "api.serverError": "Błąd serwera ({status})",
-  "onboarding.profileSaveFailed": "Nie udało się zapisać profilu. Spróbuj ponownie za chwilę."
+  "onboarding.profileSaveFailed": "Nie udało się zapisać profilu. Spróbuj ponownie za chwilę.",
+  "install.title": "Zainstaluj aplikację",
+  "install.description": "Dodaj Meal Planner do ekranu głównego",
+  "install.iosHint": "W Safari stuknij Udostępnij, a potem Do ekranu początkowego"
 }

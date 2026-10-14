@@ -12,6 +12,8 @@ export default defineConfig({
         'src/lib/apiClient.ts',
         'src/lib/recipeImage.ts',
         'src/components/RecipeCoverImage.tsx',
+        'src/components/InstallAppCard.tsx',
+        'src/lib/useInstallPrompt.ts',
         'src/pages/Onboarding.tsx',
       ],
       reporter: ['text', 'html'],
