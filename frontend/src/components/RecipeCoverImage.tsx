@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { recipeImageFallbackUrl } from '../lib/recipeImage';
+import { recipeImageCandidates } from '../lib/recipeImage';
 
 type RecipeLike = { id?: string; name?: string; image_url?: string | null };
 
@@ -14,13 +14,7 @@ export function RecipeCoverImage({
   className?: string;
   imgClassName?: string;
 }) {
-  const candidates = useMemo(() => {
-    const u = recipe.image_url?.trim();
-    const fb = recipeImageFallbackUrl({ id: recipe.id, name: recipe.name });
-    if (u && u !== fb) return [u, fb];
-    if (u) return [u];
-    return [fb];
-  }, [recipe.id, recipe.name, recipe.image_url]);
+  const candidates = useMemo(() => recipeImageCandidates(recipe.image_url), [recipe.image_url]);
 
   const candidatesKey = candidates.join('|');
   const [failed, setFailed] = useState({ key: candidatesKey, count: 0 });
