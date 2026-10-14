@@ -7,7 +7,13 @@ export default defineConfig({
     environment: 'jsdom',
     coverage: {
       provider: 'v8',
-      include: ['src/lib/recipeImage.ts', 'src/components/RecipeCoverImage.tsx'],
+      include: [
+        'src/i18n/index.ts',
+        'src/lib/apiClient.ts',
+        'src/lib/recipeImage.ts',
+        'src/components/RecipeCoverImage.tsx',
+      ],
+      reporter: ['text', 'html'],
     },
   },
 })

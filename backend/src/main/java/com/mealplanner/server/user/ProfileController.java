@@ -2,10 +2,9 @@ package com.mealplanner.server.user;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/profile")
@@ -17,7 +16,7 @@ public class ProfileController {
     @GetMapping
     public ResponseEntity<?> getProfile(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Brak autoryzacji"));
+            throw new AuthenticationCredentialsNotFoundException("Authentication required");
         }
         String email = authentication.getName();
         return profileService.getProfileByEmail(email)
@@ -28,15 +27,9 @@ public class ProfileController {
     @PutMapping
     public ResponseEntity<?> updateProfile(Authentication authentication, @RequestBody UserProfile profile) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Brak autoryzacji"));
+            throw new AuthenticationCredentialsNotFoundException("Authentication required");
         }
         String email = authentication.getName();
-        try {
-            UserProfile saved = profileService.saveProfile(email, profile);
-            return ResponseEntity.ok(saved);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage(), "trace", e.toString()));
-        }
+        return ResponseEntity.ok(profileService.saveProfile(email, profile));
     }
 }

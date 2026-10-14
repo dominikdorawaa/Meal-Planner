@@ -4,11 +4,12 @@ import com.mealplanner.server.user.User;
 import com.mealplanner.server.user.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -36,11 +37,11 @@ public class RecipeController {
     @PostMapping
     public ResponseEntity<?> createRecipe(@RequestBody Recipe recipe, Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Brak autoryzacji"));
+            throw new AuthenticationCredentialsNotFoundException("Authentication required");
         }
         String email = authentication.getName();
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         recipe.setCreatedBy(user.getId());
 

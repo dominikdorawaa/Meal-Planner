@@ -1,4 +1,4 @@
-
+import { getLanguage, t } from '../i18n';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (
   import.meta.env.MODE === 'development'
@@ -58,6 +58,7 @@ async function request<T>(
 ): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'Accept-Language': getLanguage(),
   };
 
   if (requiresAuth) {
@@ -86,24 +87,15 @@ async function request<T>(
         if (getToken()) {
           clearSession();
           window.dispatchEvent(new Event('auth-change'));
-          throw new Error('Sesja wygasła. Zaloguj się ponownie.');
+          throw new Error(t('api.sessionExpired'));
         }
       }
       let message: string;
       try {
         const err = await res.json();
-        const raw: string = err.message || err.error || '';
-        // Wyciągnij ostatni 'default message [...]' z komunikatu Spring Validation
-        const match = raw.match(/default message \[([^\]]+)\](?!.*default message)/s);
-        if (match) {
-          message = match[1];
-        } else if (raw.startsWith('Validation failed')) {
-          message = 'Dane nie spełniają wymagań – sprawdź formularz.';
-        } else {
-          message = raw || `Błąd serwera (${res.status})`;
-        }
+        message = err.error || err.message || t('api.serverError', { status: res.status });
       } catch {
-        message = `Błąd serwera (${res.status})`;
+        message = t('api.serverError', { status: res.status });
       }
       throw new Error(message);
     }

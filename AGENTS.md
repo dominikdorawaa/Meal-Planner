@@ -1,6 +1,7 @@
 # Zasady dla agentów
 
 - Nigdy nie dodawaj komentarzy w kodzie (Java, JS/JSX, CSS, SQL, XML, YAML ani żadnych innych plikach).
+- W kodzie wszystko zawsze piszemy po angielsku: nazwy zmiennych, klas i metod, stałe, komunikaty błędów, logi oraz dane i nazwy w testach.
 - Nie używaj em dashy (znak "—") w kodzie, tekstach, commitach ani odpowiedziach.
 - Nigdy nie dodawaj do commitów linii "Co-Authored-By" z modelem AI ani żadnej innej atrybucji AI. AI nigdy nie może trafić do contributorów.
 - Commity piszemy w formacie Conventional Commits (np. feat: ..., fix: ..., chore: ...), krótko i treściwie.
@@ -9,6 +10,7 @@
 - Tickety (issues, opisy PR) też mają być krótkie i treściwe, bez atrybucji AI.
 - Wszystkie nowe zmiany testuj w rozsądnym zakresie, odpowiednio do ich charakteru i ryzyka. Testy muszą dawać co najmniej 80% pokrycia linii, najlepiej 100%. Na końcu każdego ticketu sprawdź w raporcie pokrycia, że zmieniony lub testowany kod ma co najmniej 80%.
 - Przed oddaniem zmian uruchom testy dotyczące zmienionego obszaru i sprawdź formatowanie zmienionych plików. W podsumowaniu podaj wyniki; jeśli czegoś nie dało się sprawdzić, wskaż co i dlaczego.
+- Do README dodawaj tylko najistotniejsze informacje, które czytelnik projektu naprawdę potrzebuje (czym jest projekt, jak go uruchomić i skonfigurować, ważne zmiany w sposobie pracy z nim). Nie opisuj w README każdej zmiany ani szczegółów implementacji.
 - Nie dodawaj do repozytorium haseł, tokenów, kluczy prywatnych ani plików .env z rzeczywistymi danymi. W przykładach i dokumentacji używaj wyłącznie fikcyjnych wartości.
 - Tytuły ticketów na GitHubie pisz po angielsku, krótko i konkretnie, tak aby nadawały się na nazwę gałęzi. Szczegóły umieszczaj w opisie ticketa.
 - Nie dodawaj do ticketów etykiety ready-for-agent. Używaj tylko etykiet opisujących obszar i rodzaj zmiany (np. backend, frontend, testing, ci).
