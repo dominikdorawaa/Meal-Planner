@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
+import { t } from '../i18n';
 
 export function Onboarding() {
   const navigate = useNavigate();
@@ -54,7 +55,7 @@ export function Onboarding() {
       const user = api.auth.getUser();
       
       if (!user) {
-        alert("Wystąpił błąd: Sesja wygasła. Zaloguj się ponownie.");
+        alert(t('api.sessionExpired'));
         navigate('/login');
         return;
       }
@@ -70,7 +71,6 @@ export function Onboarding() {
         : calculateMacros();
 
       const { kcal, protein, fat, carbs } = m;
-      // Rzut rekordu bezpośrednio pod dany ID do Supabase
       const result = await api.profile.update({
           id: user.userId,
           gender: data.gender || 'male',
@@ -104,8 +104,8 @@ export function Onboarding() {
       // Przekierowanie do ekranu planu
       navigate('/');
     } catch (error: any) {
-      console.error('Supabase Error:', error.message);
-      alert('Ups, wystąpił problem z zapisem profilu. Upewnij się, że masz podpiętą nową tabelę z utworzonego skryptu sql!');
+      console.error('Profile save failed:', error.message);
+      alert(t('onboarding.profileSaveFailed'));
     } finally {
       setLoading(false);
     }
