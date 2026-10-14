@@ -6,12 +6,14 @@ import com.mealplanner.server.recipe.Recipe;
 import com.mealplanner.server.recipe.RecipeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 
 @Component
+@Profile("dev")
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 

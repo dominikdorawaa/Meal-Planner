@@ -1,7 +1,7 @@
 # Zasady dla agentów
 
 - Nigdy nie dodawaj komentarzy w kodzie (Java, JS/JSX, CSS, SQL, XML, YAML ani żadnych innych plikach).
-- W kodzie wszystko zawsze piszemy po angielsku: nazwy zmiennych, klas i metod, stałe, komunikaty błędów, logi oraz dane i nazwy w testach.
+- W kodzie wszystko zawsze piszemy po angielsku: nazwy zmiennych, klas i metod, stałe, komunikaty błędów, logi oraz dane i nazwy w testach. Wyjątek: treści widoczne dla użytkownika w aplikacji ustawionej na język polski (np. tłumaczenia, przykładowe przepisy i produkty) mogą być po polsku.
 - Nie używaj em dashy (znak "—") w kodzie, tekstach, commitach ani odpowiedziach.
 - Nigdy nie dodawaj do commitów linii "Co-Authored-By" z modelem AI ani żadnej innej atrybucji AI. AI nigdy nie może trafić do contributorów.
 - Commity piszemy w formacie Conventional Commits (np. feat: ..., fix: ..., chore: ...), krótko i treściwie.
