@@ -3,6 +3,7 @@ package com.mealplanner.server.auth;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -16,28 +17,18 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
-        try {
-            AuthResponse response = authService.register(request);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+        return ResponseEntity.ok(authService.register(request));
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
-        try {
-            AuthResponse response = authService.login(request);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
-        }
+        return ResponseEntity.ok(authService.login(request));
     }
 
     @GetMapping("/me")
     public ResponseEntity<?> me(org.springframework.security.core.Authentication auth) {
         if (auth == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Brak autoryzacji"));
+            throw new AuthenticationCredentialsNotFoundException("Authentication required");
         }
         // Principal to zazwyczaj ID użytkownika jako String. Jeśli potrzebujemy imienia,
         // musielibyśmy tu wyciągnąć User z bazy. Na razie zwracamy samo ID z rzutowaniem do AuthResponse

@@ -1,6 +1,9 @@
 package com.mealplanner.server.handler;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -22,14 +25,19 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
 
-    static final String VALIDATION_FAILED = "Request data is invalid.";
-    static final String BAD_REQUEST = "Malformed request.";
-    static final String UNAUTHORIZED = "Authentication required.";
-    static final String FORBIDDEN = "Access denied.";
-    static final String REQUEST_FAILED = "Request could not be processed.";
-    static final String INTERNAL_ERROR = "Internal server error.";
+    static final String VALIDATION_FAILED = "error.validation-failed";
+    static final String BAD_REQUEST = "error.bad-request";
+    static final String UNAUTHORIZED = "error.unauthorized";
+    static final String FORBIDDEN = "error.forbidden";
+    static final String NOT_FOUND = "error.not-found";
+    static final String METHOD_NOT_ALLOWED = "error.method-not-allowed";
+    static final String REQUEST_FAILED = "error.request-failed";
+    static final String INTERNAL_ERROR = "error.internal";
+
+    private final MessageSource messageSource;
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException e) {
@@ -38,7 +46,10 @@ public class GlobalExceptionHandler {
                 .filter(Objects::nonNull)
                 .sorted()
                 .collect(Collectors.joining("; "));
-        return error(HttpStatus.BAD_REQUEST, message.isEmpty() ? VALIDATION_FAILED : message);
+        if (message.isEmpty()) {
+            return error(HttpStatus.BAD_REQUEST, VALIDATION_FAILED);
+        }
+        return ResponseEntity.badRequest().body(Map.of("error", message));
     }
 
     @ExceptionHandler(HandlerMethodValidationException.class)
@@ -55,6 +66,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, BAD_REQUEST);
     }
 
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<Map<String, String>> handleApiException(ApiException e) {
+        return error(e.getStatus(), e.getMessageKey());
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Map<String, String>> handleAuthentication(AuthenticationException e) {
         return error(HttpStatus.UNAUTHORIZED, UNAUTHORIZED);
@@ -68,14 +84,25 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleException(Exception e) {
         if (e instanceof ErrorResponse errorResponse && errorResponse.getStatusCode().is4xxClientError()) {
-            String detail = errorResponse.getBody().getDetail();
-            return error(errorResponse.getStatusCode(), detail != null ? detail : REQUEST_FAILED);
+            HttpStatusCode status = errorResponse.getStatusCode();
+            return error(status, clientErrorKey(status));
         }
         log.error("Unexpected error while handling request", e);
         return error(HttpStatus.INTERNAL_SERVER_ERROR, INTERNAL_ERROR);
     }
 
-    private ResponseEntity<Map<String, String>> error(HttpStatusCode status, String message) {
+    private String clientErrorKey(HttpStatusCode status) {
+        if (status.isSameCodeAs(HttpStatus.NOT_FOUND)) {
+            return NOT_FOUND;
+        }
+        if (status.isSameCodeAs(HttpStatus.METHOD_NOT_ALLOWED)) {
+            return METHOD_NOT_ALLOWED;
+        }
+        return REQUEST_FAILED;
+    }
+
+    private ResponseEntity<Map<String, String>> error(HttpStatusCode status, String messageKey) {
+        String message = messageSource.getMessage(messageKey, null, messageKey, LocaleContextHolder.getLocale());
         return ResponseEntity.status(status).body(Map.of("error", message));
     }
 }
