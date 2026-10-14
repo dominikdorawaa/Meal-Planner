@@ -31,12 +31,6 @@ public class ProfileController {
             return ResponseEntity.status(401).body(Map.of("error", "Brak autoryzacji"));
         }
         String email = authentication.getName();
-        try {
-            UserProfile saved = profileService.saveProfile(email, profile);
-            return ResponseEntity.ok(saved);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage(), "trace", e.toString()));
-        }
+        return ResponseEntity.ok(profileService.saveProfile(email, profile));
     }
 }

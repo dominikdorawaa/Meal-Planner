@@ -1,6 +1,7 @@
 package com.mealplanner.server.user;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +31,7 @@ public class ProfileService {
     public UserProfile saveProfile(String email, UserProfile updatedProfile) {
         System.out.println("DEBUG: Saving profile for email: [" + email + "]");
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         // Pobierz istniejący profil lub utwórz nowy
         UserProfile existing = profileRepository.findById(user.getId())
