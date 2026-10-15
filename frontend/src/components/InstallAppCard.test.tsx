@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { InstallAppCard } from './InstallAppCard'
+import { listenForInstallPrompt } from '../lib/useInstallPrompt'
 import { t } from '../i18n'
 
 const ANDROID_USER_AGENT = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36'
@@ -20,12 +21,16 @@ function createInstallPromptEvent(outcome: 'accepted' | 'dismissed') {
   return { event, prompt }
 }
 
+let stopListening: () => void
+
 beforeEach(() => {
   localStorage.clear()
+  stopListening = listenForInstallPrompt()
 })
 
 afterEach(() => {
   cleanup()
+  stopListening()
   vi.restoreAllMocks()
   Reflect.deleteProperty(window.navigator, 'standalone')
   Reflect.deleteProperty(window.navigator, 'maxTouchPoints')
@@ -131,5 +136,24 @@ describe('InstallAppCard', () => {
     })
 
     expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('keeps an install offer made before the card was shown', () => {
+    mockEnvironment()
+
+    act(() => {
+      window.dispatchEvent(createInstallPromptEvent('accepted').event)
+    })
+    const { unmount } = render(<InstallAppCard />)
+    expect(screen.getByRole('button', { name: new RegExp(t('install.title')) })).toBeTruthy()
+
+    unmount()
+    render(<InstallAppCard />)
+
+    expect(screen.getByRole('button', { name: new RegExp(t('install.title')) })).toBeTruthy()
+  })
+
+  it('registers the browser listeners only once', () => {
+    expect(listenForInstallPrompt()).toBe(stopListening)
   })
 })
