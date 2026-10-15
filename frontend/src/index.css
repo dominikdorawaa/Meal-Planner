@@ -3,6 +3,46 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    color-scheme: light;
+    --color-surface: 248 250 247;
+    --color-surface-container-lowest: 255 255 255;
+    --color-surface-container-low: 241 243 240;
+    --color-surface-container: 236 238 235;
+    --color-surface-container-high: 230 233 229;
+    --color-surface-container-highest: 225 227 224;
+    --color-primary: 0 52 43;
+    --color-primary-container: 0 77 64;
+    --color-on-primary: 255 255 255;
+    --color-on-surface: 0 52 43;
+    --color-on-surface-variant: 63 73 69;
+    --color-outline-variant: 63 73 69;
+    --color-error: 186 26 26;
+    --color-on-error: 255 255 255;
+    --color-shadow: 0 52 43;
+    --shadow-ambient-opacity: 0.06;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --color-surface: 14 20 18;
+    --color-surface-container-lowest: 25 32 30;
+    --color-surface-container-low: 22 29 27;
+    --color-surface-container: 29 36 34;
+    --color-surface-container-high: 37 45 42;
+    --color-surface-container-highest: 47 55 52;
+    --color-primary: 132 213 194;
+    --color-primary-container: 107 191 172;
+    --color-on-primary: 0 56 47;
+    --color-on-surface: 222 228 224;
+    --color-on-surface-variant: 190 201 196;
+    --color-outline-variant: 190 201 196;
+    --color-error: 255 180 171;
+    --color-on-error: 105 0 5;
+    --color-shadow: 0 0 0;
+    --shadow-ambient-opacity: 0.4;
+  }
+
   body {
     @apply bg-surface text-on-surface-variant font-body antialiased m-0 p-0;
   }

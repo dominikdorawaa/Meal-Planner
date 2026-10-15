@@ -151,7 +151,7 @@ export function ShoppingList() {
           </div>
           <div className="flex items-center gap-4">
             <button onClick={() => setShowConfirm(true)} className="p-2 rounded-full hover:bg-surface-container-highest transition-colors text-on-surface-variant group relative">
-              <span className="material-symbols-outlined group-hover:text-[#ba1a1a] transition-colors">delete_sweep</span>
+              <span className="material-symbols-outlined group-hover:text-error transition-colors">delete_sweep</span>
             </button>
             <button className="p-2 rounded-full hover:bg-surface-container-highest transition-colors text-on-surface-variant">
               <span className="material-symbols-outlined">settings</span>
@@ -207,7 +207,7 @@ export function ShoppingList() {
                                  <input 
                                    checked={item.is_checked} 
                                    onChange={() => toggleCheck(item.id, !!item.is_checked)} 
-                                   className="w-5 h-5 rounded-md border-outline-variant text-primary focus:ring-primary-container bg-surface-container-low cursor-pointer" 
+                                   className="w-5 h-5 rounded-md border-outline-variant/[0.15] text-primary focus:ring-primary-container bg-surface-container-low cursor-pointer" 
                                    type="checkbox"
                                  />
                                </div>
@@ -269,7 +269,7 @@ export function ShoppingList() {
                                         checked={shopItem ? shopItem.is_checked : false} 
                                         onChange={() => shopItem && toggleCheck(shopItem.id, !!shopItem.is_checked)} 
                                         disabled={!shopItem}
-                                        className="w-5 h-5 rounded-md border-outline-variant text-primary focus:ring-primary-container bg-surface-container-low cursor-pointer disabled:opacity-50" 
+                                        className="w-5 h-5 rounded-md border-outline-variant/[0.15] text-primary focus:ring-primary-container bg-surface-container-low cursor-pointer disabled:opacity-50" 
                                         type="checkbox"
                                       />
                                     </div>
@@ -387,25 +387,25 @@ export function ShoppingList() {
             className="absolute inset-0 bg-black/40 animate-in fade-in duration-300" 
             onClick={() => setShowConfirm(false)}
           />
-          <div className="bg-white w-full max-w-[320px] rounded-[24px] overflow-hidden shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 border border-outline-variant/20">
+          <div className="bg-surface-container-lowest w-full max-w-[320px] rounded-[24px] overflow-hidden shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 border border-outline-variant/20">
             <div className="p-6 text-center">
-              <div className="w-12 h-12 bg-[#ba1a1a]/10 text-[#ba1a1a] rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="material-symbols-outlined text-2xl">delete_sweep</span>
               </div>
-              <h3 className="font-headline font-bold text-lg text-[#1c1b1f] mb-2">Wyczyścić listę?</h3>
-              <p className="text-[#49454f] leading-relaxed text-xs mb-6">
+              <h3 className="font-headline font-bold text-lg text-on-surface mb-2">Wyczyścić listę?</h3>
+              <p className="text-on-surface-variant leading-relaxed text-xs mb-6">
                 Czy na pewno chcesz usunąć wszystkie produkty? Tej operacji nie można cofnąć.
               </p>
               <div className="flex flex-col gap-2">
                 <button 
                   onClick={clearList}
-                  className="w-full bg-[#ba1a1a] text-white py-3 rounded-xl font-bold text-sm shadow-md active:scale-95 transition-all outline-none"
+                  className="w-full bg-error text-on-error py-3 rounded-xl font-bold text-sm shadow-md active:scale-95 transition-all outline-none"
                 >
                   Tak, wyczyść wszystko
                 </button>
                 <button 
                   onClick={() => setShowConfirm(false)}
-                  className="w-full bg-[#f4f3f7] text-[#1c1b1f] py-3 rounded-xl font-bold text-sm active:scale-95 transition-all outline-none"
+                  className="w-full bg-surface-container-highest text-on-surface py-3 rounded-xl font-bold text-sm active:scale-95 transition-all outline-none"
                 >
                   Anuluj
                 </button>

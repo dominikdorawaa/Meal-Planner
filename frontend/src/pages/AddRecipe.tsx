@@ -332,7 +332,7 @@ export default function AddRecipe() {
                   />
                   <button 
                     onClick={() => setStepToDelete(idx)}
-                    className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant/50 hover:text-[#ba1a1a] hover:bg-[#ba1a1a]/10 transition-colors"
+                    className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant/50 hover:text-error hover:bg-error/10 transition-colors"
                   >
                     <span className="material-symbols-outlined text-[18px]">delete</span>
                   </button>
@@ -421,7 +421,7 @@ export default function AddRecipe() {
       {stepToDelete !== null && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setStepToDelete(null)}>
           <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="w-14 h-14 bg-[#ba1a1a]/10 text-[#ba1a1a] rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-outlined text-3xl">delete</span>
             </div>
             <h3 className="font-headline font-bold text-lg text-on-surface mb-2">Usunąć krok?</h3>
@@ -436,7 +436,7 @@ export default function AddRecipe() {
               </button>
               <button
                 onClick={() => handleDeleteStepConfirm(stepToDelete)}
-                className="flex-[1.5] py-3 text-sm font-bold text-white bg-[#ba1a1a] rounded-xl shadow-sm hover:bg-[#ba1a1a]/90 transition-colors active:scale-95"
+                className="flex-[1.5] py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
               >
                 Usuń
               </button>
@@ -449,7 +449,7 @@ export default function AddRecipe() {
       {ingredientToDelete !== null && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setIngredientToDelete(null)}>
           <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="w-14 h-14 bg-[#ba1a1a]/10 text-[#ba1a1a] rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-outlined text-3xl">delete</span>
             </div>
             <h3 className="font-headline font-bold text-lg text-on-surface mb-2">Usunąć składnik?</h3>
@@ -467,7 +467,7 @@ export default function AddRecipe() {
                   setIngredients(ingredients.filter((_, i) => i !== ingredientToDelete));
                   setIngredientToDelete(null);
                 }}
-                className="flex-[1.5] py-3 text-sm font-bold text-white bg-[#ba1a1a] rounded-xl shadow-sm hover:bg-[#ba1a1a]/90 transition-colors active:scale-95"
+                className="flex-[1.5] py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
               >
                 Usuń
               </button>

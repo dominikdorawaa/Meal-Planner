@@ -458,7 +458,7 @@ export function RecipeDetails() {
                     }}
                     className={`shrink-0 w-[78px] py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 flex flex-col items-center justify-center snap-center ${
                       isSelected
-                        ? 'bg-[#e2f0d9] text-[#2d4d1e] border-[#b5ccaa] shadow-sm'
+                        ? 'bg-[#e2f0d9] text-[#2d4d1e] border-[#b5ccaa] shadow-sm dark:bg-primary/20 dark:text-primary dark:border-primary/40'
                         : 'bg-surface-container-lowest text-on-surface border-outline-variant/20 hover:border-on-surface/30'
                     }`}
                   >
@@ -473,7 +473,7 @@ export function RecipeDetails() {
         {/* Makro zależne od wpisanych porcji */}
         <section className="flex flex-col gap-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-[#064e3b] opacity-40">
+            <h2 className="text-[10px] font-black uppercase tracking-widest text-on-surface opacity-40">
               Wartości Odżywcze {displaySuffix}
             </h2>
           </div>
@@ -483,9 +483,9 @@ export function RecipeDetails() {
             {/* Kalorie */}
             <div className="flex flex-col items-center gap-3">
               <div className="w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px] flex items-center justify-center">
-                 <span className="font-black text-3xl text-[#064e3b] leading-none">{currentKcal}</span>
+                 <span className="font-black text-3xl text-on-surface leading-none">{currentKcal}</span>
               </div>
-              <span className="text-[11px] font-black text-[#064e3b] uppercase tracking-widest leading-none">kcal</span>
+              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">kcal</span>
             </div>
             
             {/* Białko */}
@@ -493,10 +493,10 @@ export function RecipeDetails() {
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#4F46E5 ${pctP}%, #4F46E510 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span className="font-black text-base text-[#064e3b] leading-none">{currentP}g</span>
+                   <span className="font-black text-base text-on-surface leading-none">{currentP}g</span>
                  </div>
               </div>
-              <span className="text-[11px] font-black text-[#064e3b] uppercase tracking-widest leading-none">Białko</span>
+              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Białko</span>
             </div>
 
             {/* Tłuszcz */}
@@ -504,10 +504,10 @@ export function RecipeDetails() {
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#F59E0B ${pctF}%, #F59E0B10 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span className="font-black text-base text-[#064e3b] leading-none">{currentF}g</span>
+                   <span className="font-black text-base text-on-surface leading-none">{currentF}g</span>
                  </div>
               </div>
-              <span className="text-[11px] font-black text-[#064e3b] uppercase tracking-widest leading-none">Tłuszcz</span>
+              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Tłuszcz</span>
             </div>
 
             {/* Węglowodany */}
@@ -515,10 +515,10 @@ export function RecipeDetails() {
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#10B981 ${pctC}%, #10B98110 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span className="font-black text-base text-[#064e3b] leading-none">{currentC}g</span>
+                   <span className="font-black text-base text-on-surface leading-none">{currentC}g</span>
                  </div>
               </div>
-              <span className="text-[11px] font-black text-[#064e3b] uppercase tracking-widest leading-none">Węgle</span>
+              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Węgle</span>
             </div>
 
           </div>
@@ -636,7 +636,7 @@ export function RecipeDetails() {
                       <div className="flex justify-between items-baseline leading-none gap-1">
                         <span className="text-primary uppercase tracking-normal text-[8px] font-bold">Kalorie</span>
                         <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                          <span className={`text-[10px] font-extrabold ${profile && currentData.kcal > profile.target_kcal ? 'text-[#ba1a1a]' : 'text-primary'}`}>
+                          <span className={`text-[10px] font-extrabold ${profile && currentData.kcal > profile.target_kcal ? 'text-error' : 'text-primary'}`}>
                             {currentData.kcal}
                           </span>
                           <span className="mx-0.5 opacity-50">/</span>
@@ -645,7 +645,7 @@ export function RecipeDetails() {
                       </div>
                       <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
                         <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-300" style={{ width: profile && profile.target_kcal > 0 ? `${Math.min(100, (currentData.kcal / profile.target_kcal) * 100)}%` : '0%' }}></div>
-                        <div className="absolute top-0 right-0 h-full bg-[#ba1a1a] rounded-full transition-all duration-300" style={{ width: profile && profile.target_kcal > 0 ? `${Math.max(0, Math.min(100, ((currentData.kcal / profile.target_kcal) * 100) - 100))}%` : '0%' }}></div>
+                        <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-300" style={{ width: profile && profile.target_kcal > 0 ? `${Math.max(0, Math.min(100, ((currentData.kcal / profile.target_kcal) * 100) - 100))}%` : '0%' }}></div>
                       </div>
                     </div>
 
@@ -656,7 +656,7 @@ export function RecipeDetails() {
                         <div className="flex justify-between items-baseline leading-none gap-1">
                           <span className="text-primary uppercase tracking-normal text-[7px] font-bold">Białka</span>
                           <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                            <span className={`text-[9px] font-extrabold ${profile && currentData.protein > (profile.target_protein_max || profile.target_protein * 1.1) ? 'text-[#ba1a1a]' : 'text-primary'}`}>
+                            <span className={`text-[9px] font-extrabold ${profile && currentData.protein > (profile.target_protein_max || profile.target_protein * 1.1) ? 'text-error' : 'text-primary'}`}>
                               {currentData.protein}
                             </span>
                             <span className="mx-0.5 opacity-50">/</span>
@@ -665,7 +665,7 @@ export function RecipeDetails() {
                         </div>
                         <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative text-primary">
                           <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-300" style={{ width: profile && (profile.target_protein_max || profile.target_protein * 1.1) > 0 ? `${Math.min(100, (currentData.protein / (profile.target_protein_max || profile.target_protein * 1.1)) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-[#ba1a1a] rounded-full transition-all duration-300" style={{ width: profile && (profile.target_protein_max || profile.target_protein * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((currentData.protein / (profile.target_protein_max || profile.target_protein * 1.1)) * 100) - 100))}%` : '0%' }}></div>
+                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-300" style={{ width: profile && (profile.target_protein_max || profile.target_protein * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((currentData.protein / (profile.target_protein_max || profile.target_protein * 1.1)) * 100) - 100))}%` : '0%' }}></div>
                         </div>
                       </div>
 
@@ -674,7 +674,7 @@ export function RecipeDetails() {
                         <div className="flex justify-between items-baseline leading-none gap-1">
                           <span className="text-primary uppercase tracking-normal text-[7px] font-bold">Tłuszcz</span>
                           <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                             <span className={`text-[9px] font-extrabold ${profile && currentData.fat > (profile.target_fat_max || profile.target_fat * 1.1) ? 'text-[#ba1a1a]' : 'text-primary'}`}>
+                             <span className={`text-[9px] font-extrabold ${profile && currentData.fat > (profile.target_fat_max || profile.target_fat * 1.1) ? 'text-error' : 'text-primary'}`}>
                               {currentData.fat}
                             </span>
                             <span className="mx-0.5 opacity-50">/</span>
@@ -683,7 +683,7 @@ export function RecipeDetails() {
                         </div>
                         <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
                           <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-300" style={{ width: profile && (profile.target_fat_max || profile.target_fat * 1.1) > 0 ? `${Math.min(100, (currentData.fat / (profile.target_fat_max || profile.target_fat * 1.1)) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-[#ba1a1a] rounded-full transition-all duration-300" style={{ width: profile && (profile.target_fat_max || profile.target_fat * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((currentData.fat / (profile.target_fat_max || profile.target_fat * 1.1)) * 100) - 100))}%` : '0%' }}></div>
+                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-300" style={{ width: profile && (profile.target_fat_max || profile.target_fat * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((currentData.fat / (profile.target_fat_max || profile.target_fat * 1.1)) * 100) - 100))}%` : '0%' }}></div>
                         </div>
                       </div>
 
@@ -692,7 +692,7 @@ export function RecipeDetails() {
                         <div className="flex justify-between items-baseline leading-none gap-1">
                           <span className="text-primary uppercase tracking-normal text-[7px] font-bold">Węgle</span>
                           <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                             <span className={`text-[9px] font-extrabold ${profile && currentData.carbs > (profile.target_carbs_max || profile.target_carbs * 1.1) ? 'text-[#ba1a1a]' : 'text-primary'}`}>
+                             <span className={`text-[9px] font-extrabold ${profile && currentData.carbs > (profile.target_carbs_max || profile.target_carbs * 1.1) ? 'text-error' : 'text-primary'}`}>
                               {currentData.carbs}
                             </span>
                             <span className="mx-0.5 opacity-50">/</span>
@@ -701,7 +701,7 @@ export function RecipeDetails() {
                         </div>
                         <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
                           <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-300" style={{ width: profile && (profile.target_carbs_max || profile.target_carbs * 1.1) > 0 ? `${Math.min(100, (currentData.carbs / (profile.target_carbs_max || profile.target_carbs * 1.1)) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-[#ba1a1a] rounded-full transition-all duration-300" style={{ width: profile && (profile.target_carbs_max || profile.target_carbs * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((currentData.carbs / (profile.target_carbs_max || profile.target_carbs * 1.1)) * 100) - 100))}%` : '0%' }}></div>
+                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-300" style={{ width: profile && (profile.target_carbs_max || profile.target_carbs * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((currentData.carbs / (profile.target_carbs_max || profile.target_carbs * 1.1)) * 100) - 100))}%` : '0%' }}></div>
                         </div>
                       </div>
                     </div>
@@ -939,11 +939,11 @@ export function RecipeDetails() {
                </div>
             </button>
 
-            <button onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }} className="flex items-center gap-4 p-4 rounded-xl bg-red-50 hover:bg-red-100 transition-colors text-left mt-2 border border-red-100">
-               <span className="material-symbols-outlined text-red-600">delete</span>
+            <button onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }} className="flex items-center gap-4 p-4 rounded-xl bg-error/5 hover:bg-error/10 transition-colors text-left mt-2 border border-error/10">
+               <span className="material-symbols-outlined text-error">delete</span>
                <div className="flex flex-col">
-                  <span className="font-bold text-red-700">Usuń przepis</span>
-                  <span className="text-[10px] text-red-600">Zniknie z wyszukiwarki (w planach pozostanie zachowany)</span>
+                  <span className="font-bold text-error">Usuń przepis</span>
+                  <span className="text-[10px] text-error">Zniknie z wyszukiwarki (w planach pozostanie zachowany)</span>
                </div>
             </button>
           </div>
@@ -955,14 +955,14 @@ export function RecipeDetails() {
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 animate-fade-in" onClick={() => setShowDeleteConfirm(false)}>
            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
            <div className="w-full max-w-sm bg-surface rounded-[32px] p-8 shadow-2xl relative animate-scale-up" onClick={e => e.stopPropagation()}>
-              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="material-symbols-outlined text-3xl text-red-600">delete_forever</span>
+              <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span className="material-symbols-outlined text-3xl text-error">delete_forever</span>
               </div>
               <h2 className="font-headline font-bold text-xl text-center text-on-surface mb-8">Usunąć przepis?</h2>
               <div className="flex flex-col gap-3">
                  <button 
                    onClick={handleArchive}
-                   className="w-full py-4 bg-red-600 text-white font-bold rounded-2xl active:scale-95 transition-all shadow-lg shadow-red-200"
+                   className="w-full py-4 bg-error text-on-error font-bold rounded-2xl active:scale-95 transition-all shadow-lg shadow-error/20"
                  >
                    Tak, usuń przepis
                  </button>

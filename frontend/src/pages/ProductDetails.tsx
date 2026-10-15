@@ -175,7 +175,7 @@ export function ProductDetails() {
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
       
       {/* Top Header - Zgodny ze screenem */}
-      <header className="sticky top-0 w-full z-40 bg-white px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10">
+      <header className="sticky top-0 w-full z-40 bg-surface-container-lowest px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10">
         <button onClick={() => navigate(-1)} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 shrink-0">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
@@ -284,7 +284,7 @@ export function ProductDetails() {
                     setShowMenu(false);
                     setShowDeleteConfirm(true);
                   }}
-                  className="w-full flex items-center px-4 py-3 text-left font-medium text-[#ba1a1a] hover:bg-surface-container-highest transition-colors font-body"
+                  className="w-full flex items-center px-4 py-3 text-left font-medium text-error hover:bg-surface-container-highest transition-colors font-body"
                 >
                   <span className="material-symbols-outlined mr-3 text-[18px]">delete</span>
                   Usuń z bazy
@@ -299,7 +299,7 @@ export function ProductDetails() {
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
           <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-sm w-full animate-scale-up text-center border border-outline-variant/10 flex flex-col items-center">
-            <div className="w-16 h-16 bg-[#ba1a1a]/10 rounded-full flex items-center justify-center mb-4 text-[#ba1a1a]">
+            <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mb-4 text-error">
               <span className="material-symbols-outlined text-[32px]">warning</span>
             </div>
             <h3 className="font-headline font-bold text-xl text-on-surface mb-2">Usunąć trwale?</h3>
@@ -315,7 +315,7 @@ export function ProductDetails() {
               </button>
               <button
                 onClick={handleDeleteProduct}
-                className="flex-1 py-3.5 bg-[#ba1a1a] text-white hover:bg-[#ba1a1a]/90 rounded-xl font-bold font-headline shadow-sm transition-colors active:scale-95 text-sm"
+                className="flex-1 py-3.5 bg-error text-on-error hover:bg-error/90 rounded-xl font-bold font-headline shadow-sm transition-colors active:scale-95 text-sm"
               >
                 Usuń produkt
               </button>
@@ -385,7 +385,7 @@ export function ProductDetails() {
 
         {/* Wartości Odżywcze - Zgodnie ze screenem */}
         <section className="flex flex-col gap-6">
-          <h2 className="text-[10px] font-black uppercase tracking-widest text-[#064e3b] opacity-40">
+          <h2 className="text-[10px] font-black uppercase tracking-widest text-on-surface opacity-40">
             WARTOŚCI ODŻYWCZE W {inputType === 'pieces' ? `${pieces} SZT.` : `${grams} G`}
           </h2>
           
@@ -393,9 +393,9 @@ export function ProductDetails() {
             {/* Kalorie */}
             <div className="flex flex-col items-center gap-3">
               <div className="w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px] flex items-center justify-center">
-                 <span className="font-black text-3xl text-[#064e3b] leading-none">{currentMacros.kcal}</span>
+                 <span className="font-black text-3xl text-on-surface leading-none">{currentMacros.kcal}</span>
               </div>
-              <span className="text-[11px] font-black text-[#064e3b] uppercase tracking-widest leading-none">kcal</span>
+              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">kcal</span>
             </div>
             
             {/* Białko */}
@@ -403,10 +403,10 @@ export function ProductDetails() {
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#4F46E5 ${pctP}%, #4F46E510 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span className="font-black text-base text-[#064e3b] leading-none">{currentMacros.protein}g</span>
+                   <span className="font-black text-base text-on-surface leading-none">{currentMacros.protein}g</span>
                  </div>
               </div>
-              <span className="text-[11px] font-black text-[#064e3b] uppercase tracking-widest leading-none">Białko</span>
+              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Białko</span>
             </div>
 
             {/* Tłuszcz */}
@@ -414,10 +414,10 @@ export function ProductDetails() {
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#F59E0B ${pctF}%, #F59E0B10 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span className="font-black text-base text-[#064e3b] leading-none">{currentMacros.fat}g</span>
+                   <span className="font-black text-base text-on-surface leading-none">{currentMacros.fat}g</span>
                  </div>
               </div>
-              <span className="text-[11px] font-black text-[#064e3b] uppercase tracking-widest leading-none">Tłuszcz</span>
+              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Tłuszcz</span>
             </div>
 
             {/* Węglowodany */}
@@ -425,10 +425,10 @@ export function ProductDetails() {
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#10B981 ${pctC}%, #10B98110 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span className="font-black text-base text-[#064e3b] leading-none">{currentMacros.carbs}g</span>
+                   <span className="font-black text-base text-on-surface leading-none">{currentMacros.carbs}g</span>
                  </div>
               </div>
-              <span className="text-[11px] font-black text-[#064e3b] uppercase tracking-widest leading-none">Węgle</span>
+              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Węgle</span>
             </div>
           </div>
         </section>
@@ -466,7 +466,7 @@ export function ProductDetails() {
                             <span className="material-symbols-outlined text-[20px]">calendar_today</span>
                           </div>
                           <div>
-                            <h3 className="font-headline font-bold text-sm text-[#064e3b] leading-tight">
+                            <h3 className="font-headline font-bold text-sm text-on-surface leading-tight">
                               {previewMode === 'after' ? 'Bilans po dodaniu' : 'Aktualny bilans'}
                             </h3>
                             <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">{activeDateDisplay}</p>
@@ -494,14 +494,14 @@ export function ProductDetails() {
                         {/* Kcal */}
                         <div className="flex flex-col gap-2">
                           <div className="flex justify-between items-baseline leading-none">
-                            <span className="text-[#064e3b] uppercase tracking-widest text-[8px] font-black">Kalorie</span>
-                            <span className="text-[10px] font-black text-[#064e3b]">
+                            <span className="text-on-surface uppercase tracking-widest text-[8px] font-black">Kalorie</span>
+                            <span className="text-[10px] font-black text-on-surface">
                               {currentData.kcal} / <span className="opacity-40">{profile?.target_kcal || '···'} kcal</span>
                             </span>
                           </div>
                           <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
                              <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-300" style={{ width: profile && profile.target_kcal > 0 ? `${Math.min(100, (currentData.kcal / profile.target_kcal) * 100)}%` : '0%' }}></div>
-                             <div className="absolute top-0 right-0 h-full bg-[#ba1a1a] rounded-full transition-all duration-300" style={{ width: profile && profile.target_kcal > 0 ? `${Math.max(0, Math.min(100, ((currentData.kcal / profile.target_kcal) * 100) - 100))}%` : '0%' }}></div>
+                             <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-300" style={{ width: profile && profile.target_kcal > 0 ? `${Math.max(0, Math.min(100, ((currentData.kcal / profile.target_kcal) * 100) - 100))}%` : '0%' }}></div>
                           </div>
                         </div>
 
@@ -510,8 +510,8 @@ export function ProductDetails() {
                           {/* Białko */}
                           <div className="flex flex-col gap-2">
                             <div className="flex justify-between items-baseline leading-none">
-                              <span className="text-[#064e3b] uppercase tracking-widest text-[8px] font-black">Białka</span>
-                              <span className="text-[10px] font-black text-[#064e3b]">
+                              <span className="text-on-surface uppercase tracking-widest text-[8px] font-black">Białka</span>
+                              <span className="text-[10px] font-black text-on-surface">
                                 {currentData.protein}g / <span className="opacity-40">{profile?.target_protein || '···'}g</span>
                               </span>
                             </div>
@@ -522,8 +522,8 @@ export function ProductDetails() {
                           {/* Tłuszcz */}
                           <div className="flex flex-col gap-2">
                             <div className="flex justify-between items-baseline leading-none">
-                              <span className="text-[#064e3b] uppercase tracking-widest text-[8px] font-black">Tłuszcze</span>
-                              <span className="text-[10px] font-black text-[#064e3b]">
+                              <span className="text-on-surface uppercase tracking-widest text-[8px] font-black">Tłuszcze</span>
+                              <span className="text-[10px] font-black text-on-surface">
                                 {currentData.fat}g / <span className="opacity-40">{profile?.target_fat || '···'}g</span>
                               </span>
                             </div>
@@ -534,8 +534,8 @@ export function ProductDetails() {
                           {/* Węgle */}
                           <div className="flex flex-col gap-2">
                             <div className="flex justify-between items-baseline leading-none">
-                              <span className="text-[#064e3b] uppercase tracking-widest text-[8px] font-black">Węglowodany</span>
-                              <span className="text-[10px] font-black text-[#064e3b]">
+                              <span className="text-on-surface uppercase tracking-widest text-[8px] font-black">Węglowodany</span>
+                              <span className="text-[10px] font-black text-on-surface">
                                 {currentData.carbs}g / <span className="opacity-40">{profile?.target_carbs || '···'}g</span>
                               </span>
                             </div>

@@ -732,7 +732,7 @@ export function Plan() {
                             <span className="uppercase tracking-normal text-[8px] font-extrabold pb-0.5">Kcal</span>
                           </div>
                           <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                            <span className={`text-[10px] font-extrabold ${profile && consumed.kcal > profile.target_kcal ? 'text-[#ba1a1a]' : 'text-primary'}`}>
+                            <span className={`text-[10px] font-extrabold ${profile && consumed.kcal > profile.target_kcal ? 'text-error' : 'text-primary'}`}>
                               {consumed.kcal}
                             </span>
                             <span className="mx-0.5 opacity-50">/</span>
@@ -741,14 +741,14 @@ export function Plan() {
                         </div>
                         <div className="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden -mt-0.5 relative">
                           <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-1000" style={{ width: profile && profile.target_kcal > 0 ? `${Math.min(100, (consumed.kcal / profile.target_kcal) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-[#ba1a1a] rounded-full transition-all duration-1000" style={{ width: profile && profile.target_kcal > 0 ? `${Math.max(0, Math.min(100, ((consumed.kcal / profile.target_kcal) * 100) - 100))}%` : '0%' }}></div>
+                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-1000" style={{ width: profile && profile.target_kcal > 0 ? `${Math.max(0, Math.min(100, ((consumed.kcal / profile.target_kcal) * 100) - 100))}%` : '0%' }}></div>
                         </div>
 
                         {/* Białko */}
                         <div className="flex justify-between items-baseline leading-none gap-1">
                           <span className="text-primary uppercase tracking-normal text-[7px] font-bold shrink-0">Białka</span>
                           <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                            <span className={`text-[9px] font-extrabold ${profile && consumed.protein > (profile.target_protein_max || profile.target_protein * 1.1) ? 'text-[#ba1a1a]' : 'text-primary'}`}>
+                            <span className={`text-[9px] font-extrabold ${profile && consumed.protein > (profile.target_protein_max || profile.target_protein * 1.1) ? 'text-error' : 'text-primary'}`}>
                               {consumed.protein}
                             </span>
                             <span className="mx-0.5 opacity-50">/</span>
@@ -759,14 +759,14 @@ export function Plan() {
                         </div>
                         <div className="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden -mt-0.5 relative">
                           <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_protein_max || profile.target_protein * 1.1) > 0 ? `${Math.min(100, (consumed.protein / (profile.target_protein_max || profile.target_protein * 1.1)) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-[#ba1a1a] rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_protein_max || profile.target_protein * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((consumed.protein / (profile.target_protein_max || profile.target_protein * 1.1)) * 100) - 100))}%` : '0%' }}></div>
+                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_protein_max || profile.target_protein * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((consumed.protein / (profile.target_protein_max || profile.target_protein * 1.1)) * 100) - 100))}%` : '0%' }}></div>
                         </div>
 
                         {/* Tłuszcz */}
                         <div className="flex justify-between items-baseline leading-none gap-1">
                           <span className="text-primary uppercase tracking-normal text-[7px] font-bold shrink-0">Tłuszcz</span>
                           <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                            <span className={`text-[9px] font-extrabold ${profile && consumed.fat > (profile.target_fat_max || profile.target_fat * 1.1) ? 'text-[#ba1a1a]' : 'text-primary'}`}>
+                            <span className={`text-[9px] font-extrabold ${profile && consumed.fat > (profile.target_fat_max || profile.target_fat * 1.1) ? 'text-error' : 'text-primary'}`}>
                               {consumed.fat}
                             </span>
                             <span className="mx-0.5 opacity-50">/</span>
@@ -777,14 +777,14 @@ export function Plan() {
                         </div>
                         <div className="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden -mt-0.5 relative">
                           <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_fat_max || profile.target_fat * 1.1) > 0 ? `${Math.min(100, (consumed.fat / (profile.target_fat_max || profile.target_fat * 1.1)) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-[#ba1a1a] rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_fat_max || profile.target_fat * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((consumed.fat / (profile.target_fat_max || profile.target_fat * 1.1)) * 100) - 100))}%` : '0%' }}></div>
+                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_fat_max || profile.target_fat * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((consumed.fat / (profile.target_fat_max || profile.target_fat * 1.1)) * 100) - 100))}%` : '0%' }}></div>
                         </div>
 
                         {/* Węglowodany */}
                         <div className="flex justify-between items-baseline leading-none gap-1">
                           <span className="text-primary uppercase tracking-normal text-[7px] font-bold shrink-0">Węgle</span>
                           <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                            <span className={`text-[9px] font-extrabold ${profile && consumed.carbs > (profile.target_carbs_max || profile.target_carbs * 1.1) ? 'text-[#ba1a1a]' : 'text-primary'}`}>
+                            <span className={`text-[9px] font-extrabold ${profile && consumed.carbs > (profile.target_carbs_max || profile.target_carbs * 1.1) ? 'text-error' : 'text-primary'}`}>
                               {consumed.carbs}
                             </span>
                             <span className="mx-0.5 opacity-50">/</span>
@@ -795,7 +795,7 @@ export function Plan() {
                         </div>
                         <div className="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden -mt-0.5 relative">
                           <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_carbs_max || profile.target_carbs * 1.1) > 0 ? `${Math.min(100, (consumed.carbs / (profile.target_carbs_max || profile.target_carbs * 1.1)) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-[#ba1a1a] rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_carbs_max || profile.target_carbs * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((consumed.carbs / (profile.target_carbs_max || profile.target_carbs * 1.1)) * 100) - 100))}%` : '0%' }}></div>
+                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_carbs_max || profile.target_carbs * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((consumed.carbs / (profile.target_carbs_max || profile.target_carbs * 1.1)) * 100) - 100))}%` : '0%' }}></div>
                         </div>
                       </div>
                     </div>
@@ -857,7 +857,7 @@ export function Plan() {
 
               <div className="h-px w-full bg-outline-variant/20 my-2"></div>
 
-              <button onClick={() => { setDayToDelete(activeDayMenu); setActiveDayMenu(null); }} className="w-full py-4 px-5 bg-[#ba1a1a]/5 rounded-2xl flex items-center gap-4 hover:bg-[#ba1a1a]/10 transition-colors active:scale-95 text-[#ba1a1a]">
+              <button onClick={() => { setDayToDelete(activeDayMenu); setActiveDayMenu(null); }} className="w-full py-4 px-5 bg-error/5 rounded-2xl flex items-center gap-4 hover:bg-error/10 transition-colors active:scale-95 text-error">
                 <span className="material-symbols-outlined">delete_sweep</span>
                 <span className="font-bold text-sm">Usuń posiłki z całego dnia</span>
               </button>
@@ -943,7 +943,7 @@ export function Plan() {
 
               <div className="h-px w-full bg-outline-variant/20 my-2"></div>
 
-              <button onClick={() => { setMealToDelete(activeMealMenu); setActiveMealMenu(null); }} className="w-full py-4 px-5 bg-[#ba1a1a]/5 rounded-2xl flex items-center gap-4 hover:bg-[#ba1a1a]/10 transition-colors active:scale-95 text-[#ba1a1a]">
+              <button onClick={() => { setMealToDelete(activeMealMenu); setActiveMealMenu(null); }} className="w-full py-4 px-5 bg-error/5 rounded-2xl flex items-center gap-4 hover:bg-error/10 transition-colors active:scale-95 text-error">
                 <span className="material-symbols-outlined">delete</span>
                 <span className="font-bold text-sm">Usuń posiłek</span>
               </button>
@@ -1036,7 +1036,7 @@ export function Plan() {
       {slotsToOverwrite.length > 0 && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[230] flex items-center justify-center p-4 animate-fade-in" onClick={() => setSlotsToOverwrite([])}>
           <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[320px] w-full border border-outline-variant/20 text-center flex flex-col max-h-[85vh] animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="w-14 h-14 bg-[#ba1a1a]/10 text-[#ba1a1a] rounded-full flex items-center justify-center mx-auto mb-4 shrink-0">
+            <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-4 shrink-0">
               <span className="material-symbols-outlined text-[28px]">warning</span>
             </div>
             <h3 className="font-headline font-bold text-lg text-on-surface mb-2 tracking-tight">Potwierdź podmianę</h3>
@@ -1049,7 +1049,7 @@ export function Plan() {
                 const day = days.find(d => d.date === m.date_str);
                 if (!recipe || !day) return null;
                 return (
-                  <div key={idx} className="flex items-center gap-3 p-3 bg-[#ba1a1a]/5 border border-[#ba1a1a]/10 rounded-2xl w-full">
+                  <div key={idx} className="flex items-center gap-3 p-3 bg-error/5 border border-error/10 rounded-2xl w-full">
                     <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm shrink-0">
                       <RecipeCoverImage
                         recipe={recipe}
@@ -1060,7 +1060,7 @@ export function Plan() {
                     </div>
                     <div className="flex flex-col overflow-hidden text-left w-full">
                       <span className="text-xs font-bold text-on-surface truncate">{recipe.name}</span>
-                      <span className="text-[10px] text-[#ba1a1a] font-medium truncate mt-0.5 opacity-80">{formatFullDate(day.name, day.date)} • {getMealTypeName(m.meal_type)}</span>
+                      <span className="text-[10px] text-error font-medium truncate mt-0.5 opacity-80">{formatFullDate(day.name, day.date)} • {getMealTypeName(m.meal_type)}</span>
                     </div>
                   </div>
                 );
@@ -1076,7 +1076,7 @@ export function Plan() {
               </button>
               <button
                 onClick={executeCopyAction}
-                className="flex-[1.5] py-3.5 text-sm font-bold text-white bg-[#ba1a1a] rounded-2xl shadow-sm hover:bg-[#ba1a1a]/90 transition-colors active:scale-95"
+                className="flex-[1.5] py-3.5 text-sm font-bold text-on-error bg-error rounded-2xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
               >
                 Podmień ({slotsToOverwrite.length})
               </button>
@@ -1107,7 +1107,7 @@ export function Plan() {
                   )}
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-surface-container-lowest rounded-full flex items-center justify-center z-10">
-                  <div className="w-5 h-5 bg-[#ba1a1a] text-white rounded-full flex items-center justify-center shadow-sm">
+                  <div className="w-5 h-5 bg-error text-on-error rounded-full flex items-center justify-center shadow-sm">
                     <span className="material-symbols-outlined text-[12px] font-bold">delete</span>
                   </div>
                 </div>
@@ -1116,11 +1116,11 @@ export function Plan() {
               <h3 className="font-headline font-bold text-lg text-on-surface mb-1">Usunąć {recipe?.name}?</h3>
               <p className="text-on-surface-variant text-xs mb-3">Zniknie z zaplanowanego menu:</p>
 
-              <div className="flex flex-col items-center gap-1.5 bg-[#ba1a1a]/5 border border-[#ba1a1a]/10 rounded-2xl p-3 mb-6 w-full">
-                <span className="text-[#ba1a1a] font-bold text-xs">
+              <div className="flex flex-col items-center gap-1.5 bg-error/5 border border-error/10 rounded-2xl p-3 mb-6 w-full">
+                <span className="text-error font-bold text-xs">
                   {day ? formatFullDate(day.name, day.date) : ''}
                 </span>
-                <div className="bg-[#ba1a1a]/10 px-2 py-0.5 rounded-md text-[#ba1a1a] font-bold text-[10px] tracking-wide uppercase">
+                <div className="bg-error/10 px-2 py-0.5 rounded-md text-error font-bold text-[10px] tracking-wide uppercase">
                   {getMealTypeName(mealToDelete.meal_type)}
                 </div>
               </div>
@@ -1137,7 +1137,7 @@ export function Plan() {
                     handleDeleteMeal(mealToDelete.id);
                     setMealToDelete(null);
                   }}
-                  className="flex-1 py-3 text-sm font-bold text-white bg-[#ba1a1a] rounded-xl shadow-sm hover:bg-[#ba1a1a]/90 transition-colors active:scale-95"
+                  className="flex-1 py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
                 >
                   Usuń
                 </button>
@@ -1153,7 +1153,7 @@ export function Plan() {
         return (
           <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-fade-in pointer-events-none">
             <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center pointer-events-auto flex flex-col items-center">
-              <div className="w-14 h-14 bg-[#ba1a1a]/10 text-[#ba1a1a] rounded-full flex items-center justify-center mb-4">
+              <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mb-4">
                 <span className="material-symbols-outlined text-3xl">delete_sweep</span>
               </div>
               <h3 className="font-headline font-bold text-lg text-on-surface mb-1">Czyszczenie dnia</h3>
@@ -1168,7 +1168,7 @@ export function Plan() {
                 </button>
                 <button
                   onClick={() => handleDeleteDay(dayToDelete)}
-                  className="flex-[1.5] py-3 text-sm font-bold text-white bg-[#ba1a1a] rounded-xl shadow-sm hover:bg-[#ba1a1a]/90 transition-colors active:scale-95"
+                  className="flex-[1.5] py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
                 >
                   Wyczyść listę
                 </button>
@@ -1215,8 +1215,8 @@ function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick
       );
     }
     return (
-      <div className={`absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-1.5 transition-all ${isManual ? 'bg-orange-50 group-hover:bg-orange-100' : isProduct ? 'bg-primary/[0.03] group-hover:bg-primary/[0.06]' : 'bg-[#f1f6ed] group-hover:bg-[#e8f1e2]'}`}>
-        <div className={`${isManual ? 'w-7 h-7' : 'w-10 h-10'} rounded-full flex items-center justify-center shadow-inner ${isManual ? 'bg-orange-100/50 text-orange-500' : isProduct ? 'bg-primary/10 text-primary' : 'bg-white/50 text-[#6B8E23]'}`}>
+      <div className={`absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-1.5 transition-all ${isManual ? 'bg-orange-50 group-hover:bg-orange-100 dark:bg-orange-500/10 dark:group-hover:bg-orange-500/20' : isProduct ? 'bg-primary/[0.03] group-hover:bg-primary/[0.06]' : 'bg-[#f1f6ed] group-hover:bg-[#e8f1e2] dark:bg-[#6B8E23]/10 dark:group-hover:bg-[#6B8E23]/20'}`}>
+        <div className={`${isManual ? 'w-7 h-7' : 'w-10 h-10'} rounded-full flex items-center justify-center shadow-inner ${isManual ? 'bg-orange-100/50 text-orange-500 dark:bg-orange-500/20' : isProduct ? 'bg-primary/10 text-primary' : 'bg-white/50 text-[#6B8E23] dark:bg-white/10'}`}>
           <span className={`material-symbols-outlined ${isManual ? 'text-sm' : 'text-xl'} opacity-80`}>
             {isManual ? 'bolt' : isProduct ? 'nutrition' : 'photo_camera'}
           </span>

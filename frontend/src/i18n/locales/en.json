@@ -4,5 +4,9 @@
   "onboarding.profileSaveFailed": "Could not save your profile. Please try again in a moment.",
   "install.title": "Install the app",
   "install.description": "Add Meal Planner to your home screen",
-  "install.iosHint": "In Safari, tap Share and then Add to Home Screen"
+  "install.iosHint": "In Safari, tap Share and then Add to Home Screen",
+  "theme.title": "Theme",
+  "theme.dark": "Dark",
+  "theme.light": "Light",
+  "theme.system": "System"
 }

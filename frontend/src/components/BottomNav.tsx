@@ -6,7 +6,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 w-full z-50 pointer-events-none">
-      <div className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-6 right-6 rounded-full h-16 z-50 overflow-hidden flex justify-around items-center px-2 min-[360px]:px-4 bg-white/90 backdrop-blur-2xl shadow-ambient pointer-events-auto border border-surface-container-highest/20">
+      <div className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-6 right-6 rounded-full h-16 z-50 overflow-hidden flex justify-around items-center px-2 min-[360px]:px-4 bg-surface-container-lowest/90 backdrop-blur-2xl shadow-ambient pointer-events-auto border border-surface-container-highest/20">
         
         <Link 
           to="/"
