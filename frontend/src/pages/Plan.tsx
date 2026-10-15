@@ -4,6 +4,7 @@ import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { useNavigate } from 'react-router-dom';
 import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
+import { formatMacrosShort } from '../lib/macros';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 
 const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN"; // Tylko marker do logiki poniżej
@@ -13,9 +14,6 @@ const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN"; // Tylko marker do logiki po
 
 const CARD_WRAPPER = "w-[33.3333vw] sm:w-[150px] shrink-0 px-2 sm:px-3 snap-start flex justify-center";
 
-const formatMacrosShort = (p: number, f: number) => {
-  return `${p}g B. · ${f}g Tł.`;
-};
 
 
 const formatFullDate = (dayName: string, dateStr: string) => {
@@ -481,7 +479,7 @@ export function Plan() {
                     key={assignedMeal.id}
                     title={recipe.name}
                     kcal={String(Math.round(recipe.kcal * mult))}
-                    macros={formatMacrosShort(parseFloat((recipe.protein * mult).toFixed(1)), parseFloat((recipe.fat * mult).toFixed(1)))}
+                    macros={formatMacrosShort(recipe.protein * mult, recipe.fat * mult, recipe.carbs * mult)}
                     imgSrc={recipe.image_url || PLACEHOLDER_IMAGE}
                     imageFallbackSrc={DEFAULT_RECIPE_IMAGE_URL}
                     noWrap
@@ -522,13 +520,14 @@ export function Plan() {
                 const kcal = Math.round(product.kcal * factor);
                 const p = parseFloat((product.protein * factor).toFixed(1));
                 const f = parseFloat((product.fat * factor).toFixed(1));
+                const c = parseFloat((product.carbs * factor).toFixed(1));
 
                 return (
                   <RecipeCard
                     key={assignedMeal.id}
                     title={product.name}
                     kcal={String(kcal)}
-                    macros={formatMacrosShort(p, f)}
+                    macros={formatMacrosShort(p, f, c)}
                     imgSrc={product.image_url || PLACEHOLDER_IMAGE}
                     noWrap
                     onClick={() => {
@@ -566,7 +565,7 @@ export function Plan() {
                     key={assignedMeal.id}
                     title={assignedMeal.manual_name || 'Szybki posiłek'}
                     kcal={String(assignedMeal.manual_kcal || 0)}
-                    macros={formatMacrosShort(Number(assignedMeal.manual_protein || 0), Number(assignedMeal.manual_fat || 0))}
+                    macros={formatMacrosShort(Number(assignedMeal.manual_protein || 0), Number(assignedMeal.manual_fat || 0), Number(assignedMeal.manual_carbs || 0))}
                     imgSrc={PLACEHOLDER_IMAGE}
                     noWrap
                     onClick={() => {

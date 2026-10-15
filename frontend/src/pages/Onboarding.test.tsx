@@ -116,16 +116,34 @@ describe('Onboarding', () => {
     )
   })
 
+  it('hides the skip button on the final summary screen', () => {
+    renderOnboarding()
+
+    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByText('Dalej'))
+
+    expect(screen.getByText('Idź do Planu Posiłków')).toBeTruthy()
+    expect(screen.queryByText('Pomiń')).toBeNull()
+  })
+
   it('saves manually entered macros', async () => {
     renderOnboarding()
 
     fireEvent.click(screen.getByText('Znasz już swoje makro?'))
     fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '1800' } })
+    fireEvent.change(screen.getAllByRole('spinbutton')[3], { target: { value: '220' } })
     fireEvent.click(screen.getByText('Zatwierdź własne makro'))
 
     await waitFor(() =>
-      expect(mocks.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ goal: 'manual', target_kcal: 1800 }))
+      expect(mocks.updateProfile).toHaveBeenCalledWith(expect.objectContaining({
+        goal: 'manual',
+        target_kcal: 1800,
+        target_carbs: 220,
+        target_carbs_min: 220,
+        target_carbs_max: 220,
+      }))
     )
+    expect(screen.getByText('Węgle (g)')).toBeTruthy()
+    expect(screen.queryByText('Pomiń')).toBeNull()
   })
 
   it('goes back from manual macros to the guided setup', async () => {

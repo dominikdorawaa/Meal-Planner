@@ -197,9 +197,11 @@ export function Onboarding() {
             ))}
           </div>
           
-          <button onClick={finish} className="text-primary/50 text-xs font-bold uppercase tracking-widest hover:text-primary transition-colors cursor-pointer active:scale-95">
-            Pomiń
-          </button>
+          {step >= 5 ?<div className="w-10 h-10"></div> : (
+            <button onClick={finish} className="text-primary/50 text-xs font-bold uppercase tracking-widest hover:text-primary transition-colors cursor-pointer active:scale-95">
+              Pomiń
+            </button>
+          )}
         </div>
 
         {/* Ciało kwestionariusza */}
@@ -451,8 +453,8 @@ export function Onboarding() {
               Oto Twój całkowity, niezależny cel. Aplikacja oprze na nim paski postępu.
             </p>
 
-            <div className="w-full grid grid-cols-2 gap-4 mb-4">
-              <div className="col-span-2 bg-surface-container-lowest p-4 rounded-3xl shadow-ambient border border-outline-variant/10 text-center">
+            <div className="w-full grid grid-cols-3 gap-3 mb-4">
+              <div className="col-span-3 bg-surface-container-lowest p-4 rounded-3xl shadow-ambient border border-outline-variant/10 text-center">
                 <span className="text-xs font-bold uppercase tracking-widest text-primary block mb-2">Kcal</span>
                 <input 
                   type="number"
@@ -476,6 +478,15 @@ export function Onboarding() {
                   type="number"
                   value={manualMacros.fat}
                   onChange={e => setManualMacros({...manualMacros, fat: parseInt(e.target.value) || 0})}
+                  className="w-full bg-transparent text-center font-bold text-xl text-primary outline-none"
+                />
+              </div>
+              <div className="bg-surface-container-lowest p-4 rounded-3xl shadow-ambient border border-outline-variant/10 text-center">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Węgle (g)</span>
+                <input
+                  type="number"
+                  value={manualMacros.carbs}
+                  onChange={e => setManualMacros({...manualMacros, carbs: parseInt(e.target.value) || 0})}
                   className="w-full bg-transparent text-center font-bold text-xl text-primary outline-none"
                 />
               </div>
