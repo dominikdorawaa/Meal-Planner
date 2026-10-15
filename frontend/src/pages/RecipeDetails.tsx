@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
+import { targetRange } from '../lib/macros';
 
 export function RecipeDetails() {
   const { id } = useParams();
@@ -660,7 +661,7 @@ export function RecipeDetails() {
                               {currentData.protein}
                             </span>
                             <span className="mx-0.5 opacity-50">/</span>
-                            {profile ? `${profile.target_protein_min}-${profile.target_protein_max}` : '··'}g
+                            {profile ? targetRange(profile.target_protein, profile.target_protein_min, profile.target_protein_max) : '··'}g
                           </span>
                         </div>
                         <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative text-primary">
@@ -678,7 +679,7 @@ export function RecipeDetails() {
                               {currentData.fat}
                             </span>
                             <span className="mx-0.5 opacity-50">/</span>
-                            {profile ? `${profile.target_fat_min}-${profile.target_fat_max}` : '··'}g
+                            {profile ? targetRange(profile.target_fat, profile.target_fat_min, profile.target_fat_max) : '··'}g
                           </span>
                         </div>
                         <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
@@ -696,7 +697,7 @@ export function RecipeDetails() {
                               {currentData.carbs}
                             </span>
                             <span className="mx-0.5 opacity-50">/</span>
-                            {profile ? `${profile.target_carbs_min}-${profile.target_carbs_max}` : '··'}g
+                            {profile ? targetRange(profile.target_carbs, profile.target_carbs_min, profile.target_carbs_max) : '··'}g
                           </span>
                         </div>
                         <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
