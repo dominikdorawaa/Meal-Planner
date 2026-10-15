@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const THEME_COLOR = '#0e1412'
+const THEME_COLOR = '#121411'
 const ONE_YEAR_IN_SECONDS = 60 * 60 * 24 * 365
 const SEVEN_DAYS_IN_SECONDS = 60 * 60 * 24 * 7
 

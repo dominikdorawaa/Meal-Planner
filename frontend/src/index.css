@@ -25,18 +25,18 @@
 
   .dark {
     color-scheme: dark;
-    --color-surface: 14 20 18;
-    --color-surface-container-lowest: 25 32 30;
-    --color-surface-container-low: 22 29 27;
-    --color-surface-container: 29 36 34;
-    --color-surface-container-high: 37 45 42;
-    --color-surface-container-highest: 47 55 52;
-    --color-primary: 132 213 194;
-    --color-primary-container: 107 191 172;
-    --color-on-primary: 0 56 47;
-    --color-on-surface: 222 228 224;
-    --color-on-surface-variant: 190 201 196;
-    --color-outline-variant: 190 201 196;
+    --color-surface: 18 20 17;
+    --color-surface-container-lowest: 28 31 27;
+    --color-surface-container-low: 24 27 23;
+    --color-surface-container: 32 35 31;
+    --color-surface-container-high: 41 44 40;
+    --color-surface-container-highest: 51 55 50;
+    --color-primary: 159 212 154;
+    --color-primary-container: 127 191 122;
+    --color-on-primary: 13 58 20;
+    --color-on-surface: 226 228 220;
+    --color-on-surface-variant: 196 200 190;
+    --color-outline-variant: 196 200 190;
     --color-error: 255 180 171;
     --color-on-error: 105 0 5;
     --color-shadow: 0 0 0;
