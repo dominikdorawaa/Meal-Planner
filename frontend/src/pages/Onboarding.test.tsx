@@ -127,4 +127,29 @@ describe('Onboarding', () => {
       expect(mocks.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ goal: 'manual', target_kcal: 1800 }))
     )
   })
+
+  it('goes back from manual macros to the guided setup', async () => {
+    renderOnboarding()
+
+    expect(screen.queryByLabelText('Wstecz')).toBeNull()
+    fireEvent.click(screen.getByText('Znasz już swoje makro?'))
+    fireEvent.click(screen.getByLabelText('Wstecz'))
+
+    expect(screen.getByText('Opowiedz nam o sobie')).toBeTruthy()
+    fireEvent.click(screen.getByText('Pomiń'))
+
+    await waitFor(() =>
+      expect(mocks.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ goal: 'reduce' }))
+    )
+  })
+
+  it('goes back one step in the guided setup', () => {
+    renderOnboarding()
+
+    fireEvent.click(screen.getByText('Dalej'))
+    expect(screen.getByText('Twoje wymiary')).toBeTruthy()
+    fireEvent.click(screen.getByLabelText('Wstecz'))
+
+    expect(screen.getByText('Opowiedz nam o sobie')).toBeTruthy()
+  })
 })

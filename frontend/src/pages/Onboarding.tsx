@@ -46,7 +46,14 @@ export function Onboarding() {
   }, []);
 
   const nextStep = () => setStep(prev => Math.min(prev + 1, 5));
-  const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
+  const prevStep = () => {
+    if (step === 6) {
+      setManualMode(false);
+      setStep(1);
+      return;
+    }
+    setStep(prev => Math.max(prev - 1, 1));
+  };
 
   const finish = async () => {
     try {
@@ -178,8 +185,8 @@ export function Onboarding() {
       {/* Header & pasek postępu */}
       <div className="px-6 pt-12 pb-6">
         <div className="flex items-center justify-between mb-8">
-          {step > 1 && step < 5 ? (
-            <button onClick={prevStep} className="w-10 h-10 rounded-full bg-surface-container-highest/50 flex items-center justify-center text-primary hover:bg-surface-container-highest transition-colors">
+          {(step > 1 && step < 5) || step === 6 ? (
+            <button onClick={prevStep} aria-label="Wstecz" className="w-10 h-10 rounded-full bg-surface-container-highest/50 flex items-center justify-center text-primary hover:bg-surface-container-highest transition-colors">
               <span className="material-symbols-outlined">arrow_back</span>
             </button>
           ) : <div className="w-10 h-10"></div>}
