@@ -143,6 +143,23 @@ describe('Onboarding', () => {
     )
   })
 
+  it('blocks going back while manual macros are being saved', async () => {
+    let resolveSave: (value: unknown) => void = () => {}
+    mocks.updateProfile.mockReturnValue(new Promise((resolve) => { resolveSave = resolve }))
+    renderOnboarding()
+
+    fireEvent.click(screen.getByText('Znasz już swoje makro?'))
+    fireEvent.click(screen.getByText('Zatwierdź własne makro'))
+
+    const backButton = screen.getByLabelText('Wstecz') as HTMLButtonElement
+    await waitFor(() => expect(backButton.disabled).toBe(true))
+    fireEvent.click(backButton)
+    expect(screen.queryByText('Opowiedz nam o sobie')).toBeNull()
+
+    resolveSave({})
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/'))
+  })
+
   it('goes back one step in the guided setup', () => {
     renderOnboarding()
 

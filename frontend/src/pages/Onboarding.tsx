@@ -186,7 +186,7 @@ export function Onboarding() {
       <div className="px-6 pt-12 pb-6">
         <div className="flex items-center justify-between mb-8">
           {(step > 1 && step < 5) || step === 6 ? (
-            <button onClick={prevStep} aria-label="Wstecz" className="w-10 h-10 rounded-full bg-surface-container-highest/50 flex items-center justify-center text-primary hover:bg-surface-container-highest transition-colors">
+            <button onClick={prevStep} disabled={loading} aria-label="Wstecz" className="w-10 h-10 rounded-full bg-surface-container-highest/50 flex items-center justify-center text-primary hover:bg-surface-container-highest transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               <span className="material-symbols-outlined">arrow_back</span>
             </button>
           ) : <div className="w-10 h-10"></div>}
