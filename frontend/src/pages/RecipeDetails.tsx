@@ -255,13 +255,13 @@ export function RecipeDetails() {
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
 
       {/* Toast sukcesu */}
-      <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-[200] transition-all duration-500 ${successToast ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
+      <div className={`fixed top-[calc(1.25rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 z-[200] transition-all duration-500 ${successToast ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
         <div className="flex items-center gap-3 bg-primary/10 backdrop-blur-md border border-primary/20 text-primary px-5 py-3 rounded-full shadow-lg whitespace-nowrap">
           <span className="material-symbols-outlined text-[18px] font-bold">check_circle</span>
           <span className="font-headline font-bold text-sm tracking-wide">{successToast}</span>
         </div>
       </div>      {/* Top Header */}
-      <header className="sticky top-0 w-full z-40 bg-surface/90 backdrop-blur-xl px-4 py-3 flex items-center gap-4 border-b border-outline-variant/10">
+      <header className="sticky top-0 w-full z-40 bg-surface/90 backdrop-blur-xl px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10">
         <button 
           onClick={() => navigate(-1)} 
           className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform hover:text-on-surface shrink-0"
@@ -482,7 +482,7 @@ export function RecipeDetails() {
             
             {/* Kalorie */}
             <div className="flex flex-col items-center gap-3">
-              <div className="w-[72px] h-[72px] flex items-center justify-center">
+              <div className="w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px] flex items-center justify-center">
                  <span className="font-black text-3xl text-[#064e3b] leading-none">{currentKcal}</span>
               </div>
               <span className="text-[11px] font-black text-[#064e3b] uppercase tracking-widest leading-none">kcal</span>
@@ -490,7 +490,7 @@ export function RecipeDetails() {
             
             {/* Białko */}
             <div className="flex flex-col items-center gap-3">
-              <div className="relative w-[72px] h-[72px]">
+              <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#4F46E5 ${pctP}%, #4F46E510 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span className="font-black text-base text-[#064e3b] leading-none">{currentP}g</span>
@@ -501,7 +501,7 @@ export function RecipeDetails() {
 
             {/* Tłuszcz */}
             <div className="flex flex-col items-center gap-3">
-              <div className="relative w-[72px] h-[72px]">
+              <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#F59E0B ${pctF}%, #F59E0B10 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span className="font-black text-base text-[#064e3b] leading-none">{currentF}g</span>
@@ -512,7 +512,7 @@ export function RecipeDetails() {
 
             {/* Węglowodany */}
             <div className="flex flex-col items-center gap-3">
-              <div className="relative w-[72px] h-[72px]">
+              <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#10B981 ${pctC}%, #10B98110 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span className="font-black text-base text-[#064e3b] leading-none">{currentC}g</span>
@@ -914,7 +914,7 @@ export function RecipeDetails() {
       {/* Bottom Sheet Menu */}
       {showMenu && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-surface rounded-t-3xl sm:rounded-3xl p-6 pb-safe flex flex-col gap-2 animate-slide-up sm:animate-fade-in relative shadow-ambient">
+          <div className="w-full max-w-md bg-surface rounded-t-3xl sm:rounded-3xl p-6 pb-safe-6 flex flex-col gap-2 animate-slide-up sm:animate-fade-in relative shadow-ambient">
             <button
               onClick={() => setShowMenu(false)}
               className="absolute top-4 right-4 w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform"

@@ -6,11 +6,11 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 w-full z-50 pointer-events-none">
-      <div className="fixed bottom-6 left-6 right-6 rounded-full h-16 z-50 overflow-hidden flex justify-around items-center px-4 bg-white/90 backdrop-blur-2xl shadow-ambient pointer-events-auto border border-surface-container-highest/20">
+      <div className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-6 right-6 rounded-full h-16 z-50 overflow-hidden flex justify-around items-center px-2 min-[360px]:px-4 bg-white/90 backdrop-blur-2xl shadow-ambient pointer-events-auto border border-surface-container-highest/20">
         
         <Link 
           to="/"
-          className={`flex flex-col items-center justify-center rounded-xl px-4 py-1.5 active:scale-90 duration-300 ${path === '/' ? 'bg-primary/10 text-primary' : 'text-primary/50 hover:text-primary'}`}
+          className={`flex flex-col items-center justify-center rounded-xl px-2 min-[360px]:px-4 py-1.5 active:scale-90 duration-300 ${path === '/' ? 'bg-primary/10 text-primary' : 'text-primary/50 hover:text-primary'}`}
         >
           <span className="material-symbols-outlined text-[20px] mb-0.5" style={path === '/' ? { fontVariationSettings: "'FILL' 1" } : {}}>calendar_month</span>
           <span className="font-body text-[8px] font-bold uppercase tracking-widest">Plan</span>
@@ -18,7 +18,7 @@ export function BottomNav() {
 
         <Link 
           to="/recipes"
-          className={`flex flex-col items-center justify-center rounded-xl px-4 py-1.5 active:scale-90 duration-300 ${path === '/recipes' ? 'bg-primary/10 text-primary' : 'text-primary/50 hover:text-primary'}`}
+          className={`flex flex-col items-center justify-center rounded-xl px-2 min-[360px]:px-4 py-1.5 active:scale-90 duration-300 ${path === '/recipes' ? 'bg-primary/10 text-primary' : 'text-primary/50 hover:text-primary'}`}
         >
           <span className="material-symbols-outlined text-[20px] mb-0.5" style={path === '/recipes' ? { fontVariationSettings: "'FILL' 1" } : {}}>restaurant_menu</span>
           <span className="font-body text-[8px] font-bold uppercase tracking-widest">Przepisy</span>
@@ -26,7 +26,7 @@ export function BottomNav() {
         
         <Link 
           to="/cart"
-          className={`flex flex-col items-center justify-center rounded-xl px-4 py-1.5 active:scale-90 duration-300 ${path === '/cart' ? 'bg-primary text-on-primary' : 'text-primary/50 hover:text-primary'}`}
+          className={`flex flex-col items-center justify-center rounded-xl px-2 min-[360px]:px-4 py-1.5 active:scale-90 duration-300 ${path === '/cart' ? 'bg-primary text-on-primary' : 'text-primary/50 hover:text-primary'}`}
         >
           <span className="material-symbols-outlined text-[20px] mb-0.5" style={path === '/cart' ? { fontVariationSettings: "'FILL' 1" } : {}}>list_alt</span>
           <span className="font-body text-[8px] font-bold uppercase tracking-widest">Zakupy</span>
@@ -34,7 +34,7 @@ export function BottomNav() {
         
         <Link 
           to="/profile"
-          className={`flex flex-col items-center justify-center rounded-xl px-4 py-1.5 active:scale-90 duration-300 ${path === '/profile' ? 'bg-primary/10 text-primary' : 'text-primary/50 hover:text-primary'}`}
+          className={`flex flex-col items-center justify-center rounded-xl px-2 min-[360px]:px-4 py-1.5 active:scale-90 duration-300 ${path === '/profile' ? 'bg-primary/10 text-primary' : 'text-primary/50 hover:text-primary'}`}
         >
           <span className="material-symbols-outlined text-[20px] mb-0.5" style={path === '/profile' ? { fontVariationSettings: "'FILL' 1" } : {}}>more_horiz</span>
           <span className="font-body text-[8px] font-bold uppercase tracking-widest">Więcej</span>

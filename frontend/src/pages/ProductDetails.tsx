@@ -175,7 +175,7 @@ export function ProductDetails() {
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
       
       {/* Top Header - Zgodny ze screenem */}
-      <header className="sticky top-0 w-full z-40 bg-white px-4 py-3 flex items-center gap-4 border-b border-outline-variant/10">
+      <header className="sticky top-0 w-full z-40 bg-white px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10">
         <button onClick={() => navigate(-1)} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 shrink-0">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
@@ -392,7 +392,7 @@ export function ProductDetails() {
           <div className="flex items-center justify-between gap-1 sm:gap-4 px-2">
             {/* Kalorie */}
             <div className="flex flex-col items-center gap-3">
-              <div className="w-[72px] h-[72px] flex items-center justify-center">
+              <div className="w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px] flex items-center justify-center">
                  <span className="font-black text-3xl text-[#064e3b] leading-none">{currentMacros.kcal}</span>
               </div>
               <span className="text-[11px] font-black text-[#064e3b] uppercase tracking-widest leading-none">kcal</span>
@@ -400,7 +400,7 @@ export function ProductDetails() {
             
             {/* Białko */}
             <div className="flex flex-col items-center gap-3">
-              <div className="relative w-[72px] h-[72px]">
+              <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#4F46E5 ${pctP}%, #4F46E510 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span className="font-black text-base text-[#064e3b] leading-none">{currentMacros.protein}g</span>
@@ -411,7 +411,7 @@ export function ProductDetails() {
 
             {/* Tłuszcz */}
             <div className="flex flex-col items-center gap-3">
-              <div className="relative w-[72px] h-[72px]">
+              <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#F59E0B ${pctF}%, #F59E0B10 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span className="font-black text-base text-[#064e3b] leading-none">{currentMacros.fat}g</span>
@@ -422,7 +422,7 @@ export function ProductDetails() {
 
             {/* Węglowodany */}
             <div className="flex flex-col items-center gap-3">
-              <div className="relative w-[72px] h-[72px]">
+              <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#10B981 ${pctC}%, #10B98110 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span className="font-black text-base text-[#064e3b] leading-none">{currentMacros.carbs}g</span>

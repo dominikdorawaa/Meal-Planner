@@ -233,7 +233,7 @@ export function AddFood() {
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col">
       {/* Sticky Header & Search */}
-      <header className="sticky top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/10">
+      <header className="sticky top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/10 pt-safe">
         <div className="max-w-xl mx-auto px-4 py-4 space-y-4">
 
           <div className="flex items-center justify-between">

@@ -143,7 +143,7 @@ export function ShoppingList() {
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32">
-      <nav className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm">
+      <nav className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm pt-safe">
         <div className="flex justify-between items-center px-6 h-16 w-full max-w-screen-xl mx-auto">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-primary">shopping_basket</span>
@@ -160,7 +160,7 @@ export function ShoppingList() {
         </div>
       </nav>
 
-      <main className="pt-24 px-6 max-w-screen-md mx-auto">
+      <main className="pt-[calc(6rem+env(safe-area-inset-top))] px-6 max-w-screen-md mx-auto">
         <div className="flex justify-between items-end mb-8">
           <div>
             <p className="text-on-surface-variant font-medium text-sm mb-1 uppercase tracking-widest">Twoja Kolekcja</p>
