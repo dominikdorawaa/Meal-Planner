@@ -114,7 +114,7 @@ export function Recipes() {
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32">
 
       {/* TopAppBar */}
-      <header className="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/10">
+      <header className="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/10 pt-safe">
         <div className="flex items-center justify-between px-5 h-16 w-full max-w-2xl mx-auto">
           <h1 className="font-headline font-bold text-xl tracking-tight text-primary">Przepisy</h1>
           <button
@@ -127,7 +127,7 @@ export function Recipes() {
         </div>
       </header>
 
-      <main className="pt-20 px-5 max-w-2xl mx-auto">
+      <main className="pt-[calc(5rem+env(safe-area-inset-top))] px-5 max-w-2xl mx-auto">
 
         {/* Search & Filter bar */}
         <div className="flex gap-3 items-center py-4">

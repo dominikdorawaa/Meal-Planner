@@ -621,14 +621,14 @@ export function Plan() {
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32">
       {/* Toast Sukcesu */}
       {successToast && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 bg-primary/10 backdrop-blur-md border border-primary/20 text-primary px-4 py-2.5 rounded-full shadow-sm z-[60] flex items-center justify-center gap-2 animate-slide-up whitespace-nowrap">
+        <div className="fixed top-[calc(1.25rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 bg-primary/10 backdrop-blur-md border border-primary/20 text-primary px-4 py-2.5 rounded-full shadow-sm z-[60] flex items-center justify-center gap-2 animate-slide-up whitespace-nowrap">
           <span className="material-symbols-outlined text-[16px] font-bold">check_circle</span>
           <span className="font-headline font-bold text-xs tracking-wide">{successToast}</span>
         </div>
       )}
 
       {/* TopAppBar */}
-      <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm">
+      <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm pt-safe">
         <div className="flex justify-between items-center px-6 h-16 w-full max-w-screen-xl mx-auto">
           <button className="text-primary focus:outline-none">
             <span className="material-symbols-outlined text-[28px]">calendar_month</span>
@@ -651,9 +651,9 @@ export function Plan() {
         </div>
       </header>
 
-      <main className="pt-32 max-w-[600px] mx-auto pb-6 relative">
+      <main className="pt-[calc(8rem+env(safe-area-inset-top))] max-w-[600px] mx-auto pb-6 relative">
         {/* Navigation Bar */}
-        <div className="fixed top-16 left-0 right-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/5 h-12 flex items-center justify-between px-6 max-w-[600px] mx-auto">
+        <div className="fixed top-[calc(4rem+env(safe-area-inset-top))] left-0 right-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/5 h-12 flex items-center justify-between px-6 max-w-[600px] mx-auto">
           <button onClick={handlePrevWeek} className="flex items-center text-primary/70 hover:text-primary active:scale-90 transition-all font-bold text-xs gap-1 group">
             <div className="w-8 h-8 rounded-full bg-primary/5 flex items-center justify-center group-hover:bg-primary/10">
               <span className="material-symbols-outlined text-[18px]">chevron_left</span>

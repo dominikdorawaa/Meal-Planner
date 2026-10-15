@@ -479,12 +479,12 @@ export function Profile() {
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32">
-      <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm h-16 flex items-center justify-center px-6">
+      <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm box-content h-16 pt-safe flex items-center justify-center px-6">
         <h1 className="font-headline font-bold text-xl tracking-tight text-primary">Profil</h1>
       </header>
 
       {/* Powiadomienie o zmianie kcal */}
-      <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-[200] transition-all duration-500 transform ${kcalNotification.show ? 'translate-y-0 opacity-100' : '-translate-y-8 opacity-0 pointer-events-none'}`}>
+      <div className={`fixed top-[calc(5rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 z-[200] transition-all duration-500 transform ${kcalNotification.show ? 'translate-y-0 opacity-100' : '-translate-y-8 opacity-0 pointer-events-none'}`}>
         <div className={`px-4 py-2 rounded-2xl shadow-xl border flex items-center gap-3 ${kcalNotification.diff === 0 ? 'bg-surface-container-highest border-outline-variant/20 text-on-surface' : (kcalNotification.diff > 0 ? 'bg-green-500 text-white border-green-400' : 'bg-amber-500 text-white border-amber-400')}`}>
           <span className="material-symbols-outlined text-[20px]">{kcalNotification.diff === 0 ? 'check_circle' : (kcalNotification.diff > 0 ? 'trending_up' : 'trending_down')}</span>
           <span className="text-sm font-bold whitespace-nowrap">
@@ -493,7 +493,7 @@ export function Profile() {
         </div>
       </div>
 
-      <main className="pt-24 max-w-xl mx-auto px-6 flex flex-col gap-4">
+      <main className="pt-[calc(6rem+env(safe-area-inset-top))] max-w-xl mx-auto px-6 flex flex-col gap-4">
 
         <div className="mb-6 flex flex-col items-center">
           <div className="w-24 h-24 bg-surface-container-highest/50 rounded-full flex items-center justify-center text-primary/50 mb-4 shadow-sm border-2 border-primary/10">
@@ -828,7 +828,7 @@ export function Profile() {
             )}
           </div>
 
-          <div className="fixed bottom-0 left-0 w-full p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50 flex gap-3">
+          <div className="fixed bottom-0 left-0 w-full p-6 pb-safe-6 bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50 flex gap-3">
             {!isInternalProfileEditing ? (
               <button
                 onClick={() => setIsInternalProfileEditing(true)}
@@ -1062,7 +1062,7 @@ export function Profile() {
 
           </div>
 
-          <div className="fixed bottom-0 left-0 w-full p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50 flex gap-3">
+          <div className="fixed bottom-0 left-0 w-full p-6 pb-safe-6 bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50 flex gap-3">
             {!isInternalGoalsEditing ? (
               <button
                 onClick={() => setIsInternalGoalsEditing(true)}
@@ -1234,7 +1234,7 @@ export function Profile() {
             </div>
           </div>
 
-          <div className="fixed bottom-0 left-0 w-full p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50">
+          <div className="fixed bottom-0 left-0 w-full p-6 pb-safe-6 bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50">
             <button
               onClick={handleSaveProfileData}
               disabled={tempProfile.is_manual_macros && percentages.total !== 100}
@@ -1349,7 +1349,7 @@ export function Profile() {
             ))}
           </div>
 
-          <div className="fixed bottom-0 left-0 w-full p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50">
+          <div className="fixed bottom-0 left-0 w-full p-6 pb-safe-6 bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50">
             <button
               onClick={handleSaveMealConfig}
               className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold shadow-lg shadow-primary/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2 hover:brightness-105"

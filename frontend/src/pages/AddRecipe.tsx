@@ -176,10 +176,10 @@ export default function AddRecipe() {
   };
 
   return (
-    <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col pt-safe">
+    <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col">
       
       {/* HEADER */}
-      <header className="sticky top-0 w-full z-40 bg-surface/90 backdrop-blur-xl border-b border-outline-variant/10 px-4 py-3 flex items-center justify-between">
+      <header className="sticky top-0 w-full z-40 bg-surface/90 backdrop-blur-xl border-b border-outline-variant/10 px-4 py-3 pt-safe-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform">
             <span className="material-symbols-outlined">close</span>
