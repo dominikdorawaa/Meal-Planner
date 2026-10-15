@@ -5,9 +5,11 @@ import { t } from '../i18n'
 
 const ANDROID_USER_AGENT = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36'
 const IPHONE_USER_AGENT = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1'
+const IPAD_DESKTOP_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15'
 
-function mockEnvironment({ userAgent = ANDROID_USER_AGENT, standalone = false } = {}) {
+function mockEnvironment({ userAgent = ANDROID_USER_AGENT, standalone = false, maxTouchPoints = 0 } = {}) {
   vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue(userAgent)
+  Object.defineProperty(window.navigator, 'maxTouchPoints', { value: maxTouchPoints, configurable: true })
   window.matchMedia = vi.fn().mockReturnValue({ matches: standalone }) as unknown as typeof window.matchMedia
 }
 
@@ -25,6 +27,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  Reflect.deleteProperty(window.navigator, 'standalone')
+  Reflect.deleteProperty(window.navigator, 'maxTouchPoints')
 })
 
 describe('InstallAppCard', () => {
@@ -38,6 +42,31 @@ describe('InstallAppCard', () => {
 
   it('renders nothing when the app already runs installed', () => {
     mockEnvironment({ userAgent: IPHONE_USER_AGENT, standalone: true })
+
+    const { container } = render(<InstallAppCard />)
+
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('renders nothing when the app was opened from the iPhone home screen', () => {
+    mockEnvironment({ userAgent: IPHONE_USER_AGENT })
+    Object.defineProperty(window.navigator, 'standalone', { value: true, configurable: true })
+
+    const { container } = render(<InstallAppCard />)
+
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('shows manual instructions on an iPad that reports a desktop browser', () => {
+    mockEnvironment({ userAgent: IPAD_DESKTOP_USER_AGENT, maxTouchPoints: 5 })
+
+    render(<InstallAppCard />)
+
+    expect(screen.getByText(t('install.iosHint'))).toBeTruthy()
+  })
+
+  it('renders nothing on a Mac without a touch screen', () => {
+    mockEnvironment({ userAgent: IPAD_DESKTOP_USER_AGENT })
 
     const { container } = render(<InstallAppCard />)
 
