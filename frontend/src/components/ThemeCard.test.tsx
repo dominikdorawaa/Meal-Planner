@@ -36,4 +36,36 @@ describe('ThemeCard', () => {
 
     expect(screen.getByRole('radio', { name: new RegExp(t('theme.system')) }).getAttribute('aria-checked')).toBe('true')
   })
+
+  it('moves the selection with arrow keys and keeps only the selected option in the tab order', () => {
+    render(<ThemeCard />)
+    const group = screen.getByRole('radiogroup')
+    const option = (label: 'theme.dark' | 'theme.light' | 'theme.system') =>
+      screen.getByRole('radio', { name: new RegExp(t(label)) })
+
+    expect(option('theme.dark').tabIndex).toBe(0)
+    expect(option('theme.light').tabIndex).toBe(-1)
+
+    fireEvent.keyDown(group, { key: 'ArrowRight' })
+    expect(option('theme.light').getAttribute('aria-checked')).toBe('true')
+    expect(document.activeElement).toBe(option('theme.light'))
+    expect(option('theme.light').tabIndex).toBe(0)
+    expect(option('theme.dark').tabIndex).toBe(-1)
+
+    fireEvent.keyDown(group, { key: 'ArrowDown' })
+    expect(option('theme.system').getAttribute('aria-checked')).toBe('true')
+
+    fireEvent.keyDown(group, { key: 'ArrowRight' })
+    expect(option('theme.dark').getAttribute('aria-checked')).toBe('true')
+
+    fireEvent.keyDown(group, { key: 'ArrowLeft' })
+    expect(option('theme.system').getAttribute('aria-checked')).toBe('true')
+
+    fireEvent.keyDown(group, { key: 'ArrowUp' })
+    expect(option('theme.light').getAttribute('aria-checked')).toBe('true')
+    expect(localStorage.getItem('mp_theme')).toBe('light')
+
+    fireEvent.keyDown(group, { key: 'Enter' })
+    expect(option('theme.light').getAttribute('aria-checked')).toBe('true')
+  })
 })

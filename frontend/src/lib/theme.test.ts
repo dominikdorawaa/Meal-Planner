@@ -119,4 +119,28 @@ describe('theme', () => {
 
     expect(() => stopListening()).not.toThrow();
   });
+
+  it('still applies the chosen theme when it cannot be saved', () => {
+    const listener = vi.fn();
+    window.addEventListener(THEME_CHANGE_EVENT, listener);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    });
+    applyTheme('dark');
+
+    setThemePreference('light');
+
+    expect(isDark()).toBe(false);
+    expect(themeColor()).toBe(THEME_COLORS.light);
+    expect(listener).toHaveBeenCalledTimes(1);
+    window.removeEventListener(THEME_CHANGE_EVENT, listener);
+  });
+
+  it('falls back to the default preference when storage cannot be read', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('Access denied', 'SecurityError');
+    });
+
+    expect(getThemePreference()).toBe('dark');
+  });
 });

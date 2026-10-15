@@ -14,8 +14,12 @@ export function isThemePreference(value: unknown): value is ThemePreference {
 }
 
 export function getThemePreference(): ThemePreference {
-  const stored = localStorage.getItem(THEME_KEY);
-  return isThemePreference(stored) ? stored : DEFAULT_THEME_PREFERENCE;
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    return isThemePreference(stored) ? stored : DEFAULT_THEME_PREFERENCE;
+  } catch {
+    return DEFAULT_THEME_PREFERENCE;
+  }
 }
 
 export function resolveTheme(preference: ThemePreference = getThemePreference()): Theme {
@@ -29,8 +33,17 @@ export function applyTheme(preference: ThemePreference = getThemePreference()) {
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLORS[theme]);
 }
 
+function storeThemePreference(preference: ThemePreference): boolean {
+  try {
+    localStorage.setItem(THEME_KEY, preference);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function setThemePreference(preference: ThemePreference) {
-  localStorage.setItem(THEME_KEY, preference);
+  storeThemePreference(preference);
   applyTheme(preference);
   window.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: { preference } }));
 }
