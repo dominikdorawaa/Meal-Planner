@@ -4,7 +4,7 @@ export type Theme = Exclude<ThemePreference, 'system'>;
 
 export const DEFAULT_THEME_PREFERENCE: ThemePreference = 'dark';
 export const THEME_CHANGE_EVENT = 'theme-change';
-export const THEME_COLORS: Record<Theme, string> = { light: '#f8faf7', dark: '#121411' };
+export const THEME_COLORS: Record<Theme, string> = { light: '#f8faf7', dark: '#0a0a0a' };
 
 const THEME_KEY = 'mp_theme';
 const DARK_SCHEME_QUERY = '(prefers-color-scheme: dark)';
