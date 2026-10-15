@@ -479,8 +479,10 @@ export function Profile() {
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32">
-      <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm box-content h-16 pt-safe flex items-center justify-center px-6">
-        <h1 className="font-headline font-bold text-xl tracking-tight text-primary">Profil</h1>
+      <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm pt-safe">
+        <div className="h-16 flex items-center justify-center px-6">
+          <h1 className="font-headline font-bold text-xl tracking-tight text-primary">Profil</h1>
+        </div>
       </header>
 
       {/* Powiadomienie o zmianie kcal */}
