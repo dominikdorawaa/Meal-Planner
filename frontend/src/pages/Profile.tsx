@@ -4,6 +4,7 @@ import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { BottomNav } from '../components/BottomNav';
 import { InstallAppCard } from '../components/InstallAppCard';
+import { ThemeCard } from '../components/ThemeCard';
 
 const MEAL_TYPES = [
   { id: 'breakfast', name: 'Śniadanie', icon: 'light_mode' },
@@ -595,6 +596,8 @@ export function Profile() {
           </div>
           <span className="material-symbols-outlined text-primary/50">chevron_right</span>
         </button>
+
+        <ThemeCard />
 
         <InstallAppCard />
 

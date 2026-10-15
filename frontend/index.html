@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pl">
+<html lang="pl" class="dark">
 
 <head>
   <meta charset="UTF-8" />
@@ -8,7 +8,18 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="Aplikacja do planowania posiłków." />
-  <meta name="theme-color" content="#f8faf7" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <script>
+    (function () {
+      try {
+        var preference = localStorage.getItem('mp_theme') || 'dark';
+        var dark = preference === 'system' ? window.matchMedia('(prefers-color-scheme: dark)').matches : preference !== 'light';
+        document.documentElement.classList.toggle('dark', dark);
+      } catch (error) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Meal Planner" />

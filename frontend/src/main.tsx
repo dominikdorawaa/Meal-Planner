@@ -4,8 +4,11 @@ import './index.css'
 import App from './App.tsx'
 import { applyLanguage } from './i18n'
 import { listenForInstallPrompt } from './lib/useInstallPrompt'
+import { applyTheme, listenForSystemThemeChanges } from './lib/theme'
 
 applyLanguage()
+applyTheme()
+listenForSystemThemeChanges()
 listenForInstallPrompt()
 
 createRoot(document.getElementById('root')!).render(
