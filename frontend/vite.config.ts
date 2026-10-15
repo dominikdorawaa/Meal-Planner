@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const THEME_COLOR = '#f8faf7'
 const ONE_YEAR_IN_SECONDS = 60 * 60 * 24 * 365
-const THIRTY_DAYS_IN_SECONDS = 60 * 60 * 24 * 30
+const SEVEN_DAYS_IN_SECONDS = 60 * 60 * 24 * 7
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -71,11 +71,11 @@ export default defineConfig({
           },
           {
             urlPattern: ({ request, sameOrigin }) => request.destination === 'image' && !sameOrigin,
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'recipe-images',
               cacheableResponse: { statuses: [0, 200] },
-              expiration: { maxEntries: 100, maxAgeSeconds: THIRTY_DAYS_IN_SECONDS }
+              expiration: { maxEntries: 30, maxAgeSeconds: SEVEN_DAYS_IN_SECONDS, purgeOnQuotaError: true }
             }
           }
         ]
