@@ -59,3 +59,11 @@ Przed importem eksportujemy kandydatów do CSV i przeglądamy go ręcznie. Pobie
 ```
 
 Plik zawiera wszystkie produkty sprzedawane w Polsce z wynikiem walidacji. W kolumnie `import` zostaw `yes` tylko przy produktach, które mają trafić do bazy. Podsumowanie z szacowanym rozmiarem tabeli trafia do `candidates.csv.summary.txt`.
+
+Przejrzany plik importujesz do bazy wskazanej w `DB_URL` (w katalogu `backend`):
+
+```bash
+./mvnw -q spring-boot:run "-Dspring-boot.run.arguments=--off.import.file=/sciezka/candidates.csv --spring.main.web-application-type=none --spring.jpa.show-sql=false"
+```
+
+Import można powtarzać. Aktualizuje tylko produkty pochodzące z Open Food Facts i nie nadpisuje produktów dodanych przez użytkowników. Na końcu wypisuje raport z rozmiarem tabeli produktów.

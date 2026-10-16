@@ -14,8 +14,11 @@ spring:
         type:
           json_format_mapper: org.hibernate.type.format.jackson.Jackson3JsonFormatMapper
         jdbc:
+          batch_size: 100
           lob:
             non_contextual_creation: true
+        order_inserts: true
+        order_updates: true
         boot:
           allow_jdbc_metadata_access: true
   jackson:
