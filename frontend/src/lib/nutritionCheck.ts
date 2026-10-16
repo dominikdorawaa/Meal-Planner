@@ -40,6 +40,7 @@ const DEVIATION_MIN_KCAL = 15;
 const DEVIATION_RATIO = 0.15;
 const PER_PIECE_UNIT = 'pc';
 const BAR_CODE_LENGTHS = [8, 12, 13];
+const WARNINGS: NutritionIssue[] = ['KCAL_MISMATCH', 'KCAL_DEVIATION'];
 
 export function isValidBarCode(barCode: string): boolean {
   if (!BAR_CODE_LENGTHS.includes(barCode.length) || !/^\d+$/.test(barCode)) return false;
@@ -73,8 +74,8 @@ function energyIssue(kcal: number, protein: number, fat: number, carbs: number):
 }
 
 function split(issues: NutritionIssue[]): NutritionCheck {
-  const errors = issues.filter(issue => issue !== 'KCAL_DEVIATION');
-  return { errors, warnings: issues.filter(issue => issue === 'KCAL_DEVIATION'), valid: errors.length === 0 };
+  const errors = issues.filter(issue => !WARNINGS.includes(issue));
+  return { errors, warnings: issues.filter(issue => WARNINGS.includes(issue)), valid: errors.length === 0 };
 }
 
 export function checkNutrition({ name, kcal, protein, fat, carbs, unit, barCode }: NutritionInput): NutritionCheck {

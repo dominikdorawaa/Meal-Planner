@@ -55,8 +55,10 @@ describe('checkNutrition', () => {
     [250, 0, 0, 0],
     [100, 12, 20, 40],
     [380, 10, 2, 5],
-  ])('rejects %s kcal that do not match the macros', (kcal, protein, fat, carbs) => {
-    expect(check(kcal, protein, fat, carbs).errors).toEqual(['KCAL_MISMATCH']);
+    [0, 0, 0, 100],
+    [230, 0, 0, 0],
+  ])('warns without blocking when %s kcal do not match the macros', (kcal, protein, fat, carbs) => {
+    expect(check(kcal, protein, fat, carbs)).toEqual({ errors: [], warnings: ['KCAL_MISMATCH'], valid: true });
   });
 
   it('warns about a moderate energy deviation without blocking', () => {
