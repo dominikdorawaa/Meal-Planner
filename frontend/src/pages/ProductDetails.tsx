@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
+import { canDeleteProduct } from '../lib/productPermissions';
 
 export function ProductDetails() {
   const { id } = useParams();
@@ -263,7 +264,7 @@ export function ProductDetails() {
           )}
         </div>
 
-        {/* Menu button */}
+        {canDeleteProduct(product, user) && (
         <div className="relative ml-auto">
           <button 
             onClick={() => setShowMenu(!showMenu)} 
@@ -293,6 +294,7 @@ export function ProductDetails() {
             </>
           )}
         </div>
+        )}
       </header>
 
       {/* Confirmation Modal */}
@@ -304,7 +306,7 @@ export function ProductDetails() {
             </div>
             <h3 className="font-headline font-bold text-xl text-on-surface mb-2">Usunąć trwale?</h3>
             <p className="text-on-surface-variant mb-8 text-sm leading-relaxed px-2">
-              Produkt <strong className="text-on-surface">{product.name}</strong> zostanie bezpowrotnie usunięty z bazy danych wraz z przypisanymi do niego posiłkami.
+              Produkt <strong className="text-on-surface">{product.name}</strong> zostanie usunięty z bazy produktów. Posiłki, w których go użyto, pozostaną w planie.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 w-full">
               <button
