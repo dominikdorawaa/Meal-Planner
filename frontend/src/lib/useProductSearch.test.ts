@@ -164,6 +164,22 @@ describe('useProductSearch', () => {
     expect(result.current.items).toEqual([{ id: 'a' }, { id: 'b' }]);
   });
 
+  it('clears results of the previous search when a new search fails', async () => {
+    mocks.search.mockResolvedValueOnce(page(['old'], 0, true)).mockRejectedValueOnce(new Error('offline'));
+    const { result, rerender } = renderHook(
+      ({ query }) => useProductSearch({ query, filters: noFilters, enabled: true }),
+      { initialProps: { query: 'old' } },
+    );
+    await flushDebounce();
+
+    rerender({ query: 'new' });
+    await flushDebounce();
+
+    expect(result.current.error).toBe(true);
+    expect(result.current.items).toEqual([]);
+    expect(result.current.hasNext).toBe(false);
+  });
+
   it('ignores a failure of an older search', async () => {
     let rejectOld: (reason: unknown) => void = () => {};
     mocks.search

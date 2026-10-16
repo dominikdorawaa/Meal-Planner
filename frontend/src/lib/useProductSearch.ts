@@ -42,7 +42,10 @@ export function useProductSearch({ query, filters, enabled }: ProductSearchOptio
     } catch {
       if (currentRequest !== requestId.current) return;
       setError(true);
-      if (!append) setHasNext(false);
+      if (!append) {
+        setItems([]);
+        setHasNext(false);
+      }
     } finally {
       if (currentRequest === requestId.current) setLoading(false);
     }
