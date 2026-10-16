@@ -44,7 +44,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
                               @Param("userId") String userId,
                               @Param("maxKcal") Double maxKcal, @Param("minProtein") Double minProtein,
                               @Param("maxFat") Double maxFat, @Param("maxCarbs") Double maxCarbs,
-                              @Param("limit") int limit, @Param("offset") int offset);
+                              @Param("limit") int limit, @Param("offset") long offset);
 
     @Query(nativeQuery = true, value = "SELECT COUNT(*) FROM products p WHERE " + VISIBLE_PRODUCTS + EXACT_MATCH)
     long countExact(@Param("query") String query, @Param("keyword") String keyword,
@@ -61,7 +61,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
                                 @Param("userId") String userId,
                                 @Param("maxKcal") Double maxKcal, @Param("minProtein") Double minProtein,
                                 @Param("maxFat") Double maxFat, @Param("maxCarbs") Double maxCarbs,
-                                @Param("limit") int limit, @Param("offset") int offset);
+                                @Param("limit") int limit, @Param("offset") long offset);
 
     @Query(nativeQuery = true, value = "SELECT p.* FROM products p WHERE " + VISIBLE_PRODUCTS + """
             ORDER BY p.name, p.id
@@ -70,5 +70,5 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     List<Product> listVisible(@Param("userId") String userId,
                               @Param("maxKcal") Double maxKcal, @Param("minProtein") Double minProtein,
                               @Param("maxFat") Double maxFat, @Param("maxCarbs") Double maxCarbs,
-                              @Param("limit") int limit, @Param("offset") int offset);
+                              @Param("limit") int limit, @Param("offset") long offset);
 }
