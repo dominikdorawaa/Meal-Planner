@@ -16,7 +16,7 @@
   "nutrition.macro-above-100g": "No macronutrient can exceed 100 g per 100 g of product.",
   "nutrition.macros-sum-above-100g": "Protein, fat and carbs together exceed 100 g per 100 g of product.",
   "nutrition.kcal-looks-like-kj": "Calories look like they are given in kJ. Enter the value in kcal.",
-  "nutrition.kcal-mismatch": "Calories do not match the macronutrients. Check that all values are per 100 g.",
+  "nutrition.kcal-mismatch": "Calories do not match the macronutrients. Check that all values are per 100 g. This is normal for alcohol or sweeteners such as erythritol.",
   "nutrition.invalid-bar-code": "The barcode is invalid.",
   "nutrition.kcal-deviation": "Calories differ a bit from the macronutrients. Make sure the values match the label."
 }
