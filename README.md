@@ -49,3 +49,13 @@ Nowi użytkownicy dostają rolę `USER`. Pierwszego administratora nadaje się r
 ```sql
 UPDATE app_users SET role = 'ADMIN' WHERE email = 'admin@example.com';
 ```
+
+## Baza produktów z Open Food Facts
+
+Przed importem eksportujemy kandydatów do CSV i przeglądamy go ręcznie. Pobierz zrzut JSONL z [Open Food Facts](https://world.openfoodfacts.org/data) (`openfoodfacts-products.jsonl.gz`) i w katalogu `backend` uruchom:
+
+```bash
+./mvnw -q compile exec:java "-Dexec.args=/sciezka/openfoodfacts-products.jsonl.gz candidates.csv"
+```
+
+Plik zawiera wszystkie produkty sprzedawane w Polsce z wynikiem walidacji. W kolumnie `import` zostaw `yes` tylko przy produktach, które mają trafić do bazy. Podsumowanie z szacowanym rozmiarem tabeli trafia do `candidates.csv.summary.txt`.
