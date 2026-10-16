@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,6 +23,8 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             """;
 
     Optional<Product> findByBarCodeAndStatusAndDeletedAtIsNull(String barCode, ProductStatus status);
+
+    List<Product> findByBarCodeInAndStatusAndDeletedAtIsNull(Collection<String> barCodes, ProductStatus status);
 
     String CONTAINS_EVERY_WORD =
             "p.search_text LIKE ALL (SELECT CONCAT('%', word, '%') FROM unnest(string_to_array(:query, ' ')) AS word)";
