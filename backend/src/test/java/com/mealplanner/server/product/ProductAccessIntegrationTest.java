@@ -97,6 +97,29 @@ class ProductAccessIntegrationTest {
     }
 
     @Test
+    void roleChangeAppliesToExistingTokenOnNextRequest() throws Exception {
+        User user = new User();
+        user.setEmail("user-" + UUID.randomUUID() + "@example.com");
+        user.setPasswordHash("hash");
+        user.setRole(UserRole.USER);
+        User saved = userRepository.save(user);
+        String token = "Bearer " + jwtService.generateToken(saved.getId(), saved.getEmail());
+
+        mockMvc.perform(get("/api/admin/products").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isForbidden());
+
+        saved.setRole(UserRole.ADMIN);
+        userRepository.save(saved);
+        mockMvc.perform(get("/api/admin/products").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isNotFound());
+
+        saved.setRole(UserRole.USER);
+        userRepository.save(saved);
+        mockMvc.perform(get("/api/admin/products").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void tokenOfDeletedUserGrantsNoRole() throws Exception {
         User user = new User();
         user.setEmail("user-" + UUID.randomUUID() + "@example.com");
