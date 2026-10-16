@@ -28,6 +28,8 @@
   "scanner.manualLabel": "Or enter the code",
   "scanner.search": "Search",
   "scanner.notFound": "No product found with code {code}.",
+  "scanner.foundToReview": "We found this product in Open Food Facts and filled in the form. Check that the name and values are right and fix them if needed.",
+  "scanner.foundToReviewWithoutName": "We found this product in Open Food Facts, but without a Polish name. Enter the name and check the filled-in values.",
   "scanner.loadFailed": "Could not load the scanner. Check your connection and try again.",
   "scanner.retry": "Try again",
   "scanner.lookingUp": "Looking up the product...",

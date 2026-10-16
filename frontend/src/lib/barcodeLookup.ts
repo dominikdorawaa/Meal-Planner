@@ -29,6 +29,13 @@ export async function findProductByBarCode(barCode: string): Promise<BarCodeLook
   }
 }
 
+export type MissingProductMessage = 'scanner.notFound' | 'scanner.foundToReview' | 'scanner.foundToReviewWithoutName';
+
+export function missingProductMessage(prefill: ProductPrefill | null): MissingProductMessage {
+  if (!prefill) return 'scanner.notFound';
+  return prefill.name?.trim() ? 'scanner.foundToReview' : 'scanner.foundToReviewWithoutName';
+}
+
 export function normalizeBarCode(value: string): string {
   return value.replace(/\D/g, '');
 }

@@ -28,6 +28,8 @@
   "scanner.manualLabel": "Albo wpisz kod",
   "scanner.search": "Szukaj",
   "scanner.notFound": "Nie znaleziono produktu z kodem {code}.",
+  "scanner.foundToReview": "Znaleźliśmy ten produkt w Open Food Facts i uzupełniliśmy formularz. Sprawdź, czy nazwa i wartości się zgadzają, i popraw je w razie potrzeby.",
+  "scanner.foundToReviewWithoutName": "Znaleźliśmy ten produkt w Open Food Facts, ale bez polskiej nazwy. Wpisz nazwę i sprawdź uzupełnione wartości.",
   "scanner.loadFailed": "Nie udało się wczytać skanera. Sprawdź połączenie i spróbuj ponownie.",
   "scanner.retry": "Spróbuj ponownie",
   "scanner.lookingUp": "Szukam produktu...",
