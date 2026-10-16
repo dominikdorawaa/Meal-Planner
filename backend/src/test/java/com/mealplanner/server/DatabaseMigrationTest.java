@@ -2,6 +2,7 @@ package com.mealplanner.server;
 
 import com.mealplanner.server.auth.AuthService;
 import com.mealplanner.server.auth.RegisterRequest;
+import com.mealplanner.server.product.ProductSearchText;
 import com.mealplanner.server.user.ProfileService;
 import com.mealplanner.server.user.UserProfile;
 import org.flywaydb.core.Flyway;
@@ -57,7 +58,7 @@ class DatabaseMigrationTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "select version, success from flyway_schema_history where version is not null order by installed_rank");
 
-        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5");
+        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6");
         assertThat(history).allSatisfy(row -> assertThat(row.get("success")).isEqualTo(true));
     }
 
@@ -104,6 +105,30 @@ class DatabaseMigrationTest {
                 "select name, image_url from " + schema + ".recipes order by name");
         assertThat(rows).extracting(row -> row.get("image_url"))
                 .containsExactly("https://example.com/my-photo.jpg", null);
+        jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    @Test
+    void fillsSearchTextOfExistingProductsTheSameWayAsNewProducts() {
+        String schema = "search_migration_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("4").load().migrate();
+        List<String[]> products = List.of(
+                new String[] {"Mājas biezpiens", null},
+                new String[] {"Straße Joghurt", "Müller"},
+                new String[] {"Żółty ser Łaciaty", "Mlekpol"},
+                new String[] {"Øko havregryn", "Ørsted"});
+        for (String[] product : products) {
+            jdbcTemplate.update("insert into " + schema + ".products (id, name, brand) values (?, ?, ?)",
+                    UUID.randomUUID(), product[0], product[1]);
+        }
+
+        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+
+        for (String[] product : products) {
+            assertThat(jdbcTemplate.queryForObject(
+                    "select search_text from " + schema + ".products where name = ?", String.class, product[0]))
+                    .isEqualTo(ProductSearchText.of(product[0], product[1]));
+        }
         jdbcTemplate.execute("drop schema " + schema + " cascade");
     }
 

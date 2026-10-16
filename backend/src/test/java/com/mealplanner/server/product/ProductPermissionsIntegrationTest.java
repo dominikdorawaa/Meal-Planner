@@ -205,7 +205,30 @@ class ProductPermissionsIntegrationTest {
         mockMvc.perform(get("/api/products/barcode/" + product.getBarCode()))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/products/" + product.getId()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deleted").value(true))
+                .andExpect(jsonPath("$.deleted_at").doesNotExist());
+    }
+
+    @Test
+    void activeProductIsNotMarkedAsDeleted() throws Exception {
+        Product product = saveProduct(ProductStatus.VERIFIED, null);
+
+        mockMvc.perform(get("/api/products/" + product.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deleted").value(false));
+    }
+
+    @Test
+    void deletedFlagSentByClientIsIgnored() throws Exception {
+        User user = saveUser(UserRole.USER);
+
+        mockMvc.perform(post("/api/products")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Twarog\",\"kcal\":65,\"protein\":12,\"fat\":0,\"carbs\":4.2,\"deleted\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deleted").value(false));
     }
 
     @Test

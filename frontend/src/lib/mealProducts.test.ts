@@ -36,6 +36,16 @@ describe('recentMealProducts', () => {
     expect(recentMealProducts(meals, 5)).toEqual([skyr, oats]);
   });
 
+  it('skips products that were deleted', () => {
+    const deleted = { id: 'deleted', name: 'Deleted', kcal: 100, deleted: true };
+    const meals = [
+      { created_at: '2026-10-02T08:00:00Z', product: deleted },
+      { created_at: '2026-10-01T08:00:00Z', product: skyr },
+    ];
+
+    expect(recentMealProducts(meals, 5)).toEqual([skyr]);
+  });
+
   it('stops at the limit', () => {
     const meals = [{ product: skyr }, { product: oats }];
 

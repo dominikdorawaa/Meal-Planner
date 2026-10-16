@@ -10,7 +10,7 @@
   "theme.light": "Jasny",
   "theme.system": "Systemowy",
   "nutrition.name-missing": "Podaj nazwę produktu.",
-  "nutrition.nutrient-missing": "Podaj kalorie, białko, tłuszcz i węglowodany.",
+  "nutrition.nutrient-missing": "Podaj kalorie, białko, tłuszcz i węglowodany. Jeśli produkt czegoś nie zawiera, wpisz 0.",
   "nutrition.negative-value": "Wartości odżywcze nie mogą być ujemne.",
   "nutrition.kcal-above-900": "100 g produktu nie może mieć więcej niż 900 kcal.",
   "nutrition.macro-above-100g": "Żaden makroskładnik nie może przekraczać 100 g na 100 g produktu.",

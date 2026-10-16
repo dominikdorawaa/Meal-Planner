@@ -65,13 +65,13 @@ class OffCandidatesExportTest {
         List<String> lines = readCsv(csv);
         assertThat(lines.getFirst()).isEqualTo(HEADER);
         assertThat(lines).hasSize(7);
-        assertThat(lines.get(1)).isEqualTo("5900820000318;Skyr naturalny;Piątnica;65;12;0;4,2;100g;150 g;OK;;yes;"
+        assertThat(lines.get(1)).isEqualTo("\"=\"\"5900820000318\"\"\";Skyr naturalny;Piątnica;65;12;0;4,2;100g;150 g;OK;;yes;"
                 + "https://world.openfoodfacts.org/product/5900820000318");
-        assertThat(lines.get(2)).startsWith("5901234123457;\"Baton; \"\"Mocny\"\"\";;500;5;25;65;100g;;OK;;yes;");
+        assertThat(lines.get(2)).startsWith("\"=\"\"5901234123457\"\"\";\"Baton; \"\"Mocny\"\"\";;500;5;25;65;100g;;OK;;yes;");
         assertThat(lines.get(3)).contains(";REJECTED;KCAL_LOOKS_LIKE_KJ;no;");
         assertThat(lines.get(4)).contains(";REJECTED;NUTRIENT_MISSING;no;");
-        assertThat(lines.get(5)).startsWith("5900820000318;Skyr duplikat;").contains(";REJECTED;DUPLICATE_BAR_CODE;no;");
-        assertThat(lines.get(6)).startsWith("123;;").contains(";REJECTED;NAME_MISSING,INVALID_BAR_CODE,NUTRIENT_MISSING;no;");
+        assertThat(lines.get(5)).startsWith("\"=\"\"5900820000318\"\"\";Skyr duplikat;").contains(";REJECTED;DUPLICATE_BAR_CODE;no;");
+        assertThat(lines.get(6)).startsWith("\"=\"\"123\"\"\";;").contains(";REJECTED;NAME_MISSING,INVALID_BAR_CODE,NUTRIENT_MISSING;no;");
 
         assertThat(summary.polishProducts()).isEqualTo(6);
         assertThat(summary.accepted()).isEqualTo(2);
@@ -121,6 +121,60 @@ class OffCandidatesExportTest {
         assertThat(lines).hasSize(3);
         assertThat(lines.get(2)).contains(";OK;KCAL_DEVIATION;yes;");
         assertThat(summary.polishProducts()).isEqualTo(2);
+        assertThat(summary.accepted()).isEqualTo(1);
+    }
+
+    @Test
+    void keepsTextFromTheDumpFromRunningAsSpreadsheetFormulas() throws IOException {
+        Path dump = tempDir.resolve("formulas.jsonl");
+        Files.write(dump, List.of(
+                "{\"code\":\"=1+1\",\"product_name\":\"=HYPERLINK(\\\"http://example.com\\\")\",\"brands\":\"+48 Foods\","
+                        + "\"quantity\":\"=1+1\",\"countries_tags\":[\"en:poland\"],\"nutriments\":{}}",
+                "{\"code\":\"5900820000318\",\"product_name\":\"@SUM\",\"brands\":\"-Brand\","
+                        + "\"quantity\":\"'quoted\",\"countries_tags\":[\"en:poland\"],\"nutriments\":{}}"));
+        Path csv = tempDir.resolve("formulas.csv");
+
+        OffCandidatesExport.export(dump, csv);
+
+        List<String> lines = readCsv(csv);
+        assertThat(lines.get(1)).startsWith("'=1+1;\"'=HYPERLINK(\"\"http://example.com\"\")\";'+48 Foods;;;;;100g;'=1+1;");
+        assertThat(lines.get(2)).startsWith("\"=\"\"5900820000318\"\"\";'@SUM;'-Brand;;;;;100g;''quoted;");
+    }
+
+    @Test
+    void readsCellsBackToTheOriginalText() {
+        assertThat(OffCandidatesExport.readCell("=\"036000291452\"")).isEqualTo("036000291452");
+        assertThat(OffCandidatesExport.readCell("036000291452")).isEqualTo("036000291452");
+        assertThat(OffCandidatesExport.readCell("'=1+1")).isEqualTo("=1+1");
+        assertThat(OffCandidatesExport.readCell("''quoted")).isEqualTo("'quoted");
+        assertThat(OffCandidatesExport.readCell("'plain")).isEqualTo("'plain");
+        assertThat(OffCandidatesExport.readCell("'")).isEqualTo("'");
+        assertThat(OffCandidatesExport.readCell("Skyr")).isEqualTo("Skyr");
+        assertThat(OffCandidatesExport.readCell("")).isEmpty();
+    }
+
+    @Test
+    void treatsNonFiniteNumbersAsMissingAndKeepsExporting() throws IOException {
+        Path dump = tempDir.resolve("numbers.jsonl");
+        Files.write(dump, List.of(
+                "{\"code\":\"5900820000318\",\"product_name\":\"Nan\",\"countries_tags\":[\"en:poland\"],"
+                        + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":\"NaN\",\"fat_100g\":0,\"carbohydrates_100g\":4.2}}",
+                "{\"code\":\"5901234123457\",\"product_name\":\"Huge\",\"countries_tags\":[\"en:poland\"],"
+                        + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":\"1e400\",\"fat_100g\":1e400,\"carbohydrates_100g\":4.2}}",
+                "{\"code\":\"96385074\",\"product_name\":\"Infinite kJ\",\"countries_tags\":[\"en:poland\"],"
+                        + "\"nutriments\":{\"energy-kj_100g\":\"Infinity\",\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}",
+                "{\"code\":\"036000291452\",\"product_name\":\"Skyr\",\"countries_tags\":[\"en:poland\"],"
+                        + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}"));
+        Path csv = tempDir.resolve("numbers.csv");
+
+        ExportSummary summary = OffCandidatesExport.export(dump, csv);
+
+        List<String> lines = readCsv(csv);
+        assertThat(lines).hasSize(5);
+        assertThat(lines.get(1)).contains(";Nan;;65;;0;4,2;").contains(";REJECTED;NUTRIENT_MISSING;no;");
+        assertThat(lines.get(2)).contains(";Huge;;65;;;4,2;").contains(";REJECTED;NUTRIENT_MISSING;no;");
+        assertThat(lines.get(3)).contains(";Infinite kJ;;;12;0;4,2;").contains(";REJECTED;NUTRIENT_MISSING;no;");
+        assertThat(lines.get(4)).contains(";Skyr;").contains(";OK;;yes;");
         assertThat(summary.accepted()).isEqualTo(1);
     }
 

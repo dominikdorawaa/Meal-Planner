@@ -96,6 +96,12 @@ export function checkNutrition({ name, kcal, protein, fat, carbs, unit, barCode 
   return split(issues);
 }
 
+export function formNutritionHints(check: NutritionCheck, nutrientsStarted: boolean): NutritionIssue[] {
+  const errors = check.errors.filter(issue =>
+    issue !== 'NAME_MISSING' && (issue !== 'NUTRIENT_MISSING' || nutrientsStarted));
+  return [...errors, ...check.warnings];
+}
+
 export function nutritionIssueMessageKey(issue: NutritionIssue): MessageKey {
   return `nutrition.${issue.toLowerCase().replace(/_/g, '-')}` as MessageKey;
 }
