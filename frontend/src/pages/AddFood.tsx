@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
+import { productDisplayName } from '../lib/productName';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { LoadMoreTrigger } from '../components/LoadMoreTrigger';
 import { recentMealProducts } from '../lib/mealProducts';
@@ -641,8 +642,7 @@ export function AddFood() {
                       </div>
 
                       <div className="flex flex-col justify-center px-3 flex-1 min-w-0">
-                        <h3 className="font-bold text-[13px] leading-relaxed py-1 group-hover:text-surface transition-colors line-clamp-2 pr-2">{prod.name}</h3>
-                        <span className="text-[10px] text-on-surface-variant group-hover:text-surface/70 truncate">{prod.brand}</span>
+                        <h3 className="font-bold text-[13px] leading-relaxed py-1 group-hover:text-surface transition-colors line-clamp-2 pr-2">{productDisplayName(prod)}</h3>
                       </div>
 
                       <div className="flex flex-col items-end justify-center pl-2 pr-3">

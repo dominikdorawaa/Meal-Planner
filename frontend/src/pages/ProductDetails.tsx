@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
+import { productDisplayName } from '../lib/productName';
 import { canDeleteProduct } from '../lib/productPermissions';
 
 export function ProductDetails() {
@@ -302,7 +303,7 @@ export function ProductDetails() {
             </div>
             <h3 className="font-headline font-bold text-xl text-on-surface mb-2">Usunąć trwale?</h3>
             <p className="text-on-surface-variant mb-8 text-sm leading-relaxed px-2">
-              Produkt <strong className="text-on-surface">{product.name}</strong> zostanie usunięty z bazy produktów. Posiłki, w których go użyto, pozostaną w planie.
+              Produkt <strong className="text-on-surface">{productDisplayName(product)}</strong> zostanie usunięty z bazy produktów. Posiłki, w których go użyto, pozostaną w planie.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 w-full">
               <button
@@ -324,7 +325,7 @@ export function ProductDetails() {
 
       {/* Produkt Title - Zgodny ze screenem (pod nagłówkiem, bez zdjęcia) */}
       <div className="max-w-xl mx-auto w-full px-4 pt-6">
-        <h1 className="font-headline font-bold text-2xl text-on-surface tracking-tight leading-tight">{product.name}</h1>
+        <h1 className="font-headline font-bold text-2xl text-on-surface tracking-tight leading-tight">{productDisplayName(product)}</h1>
       </div>
 
       {/* Kalkulator - Zgodny ze stylem "pigułek" ze screena */}

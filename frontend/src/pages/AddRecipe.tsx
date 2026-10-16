@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppData } from '../lib/AppDataContext';
+import { productDisplayName } from '../lib/productName';
 import { api } from '../lib/apiClient';
 import { useBarcodeLookup } from '../lib/useBarcodeLookup';
 import { ingredientFromProduct, type IngredientDraft } from '../lib/recipeIngredient';
@@ -100,7 +101,7 @@ export default function AddRecipe() {
   const handleAddIngredient = (product: typeof MOCK_PRODUCTS[0], amount: number) => {
     // In a real app, amount should be prompted or edited later. For now, defaulting to 100
     setIngredients(previous => [...previous, {
-      name: product.name,
+      name: productDisplayName(product),
       amount: amount,
       unit: product.serving === '100ml' ? 'ml' : 'g',
       kcal: Math.round((product.kcal * amount) / 100),

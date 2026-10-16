@@ -3,11 +3,13 @@ package com.mealplanner.server.off;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.Locale;
 import java.util.Optional;
 
 public final class OffProductParser {
 
     static final String POLAND_TAG = "en:poland";
+    static final String POLISH = "pl";
     static final double KJ_PER_KCAL = 4.184;
 
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
@@ -29,15 +31,42 @@ public final class OffProductParser {
 
     public static OffProduct fromNode(JsonNode node) {
         JsonNode nutriments = node.path("nutriments");
+        PolishName name = polishName(node);
         return new OffProduct(
                 text(node, "code"),
-                firstNonBlank(text(node, "product_name_pl"), text(node, "product_name")),
+                name.text(),
                 firstBrand(text(node, "brands")),
                 kcal(nutriments),
                 number(nutriments.path("proteins_100g")),
                 number(nutriments.path("fat_100g")),
                 number(nutriments.path("carbohydrates_100g")),
-                text(node, "quantity"));
+                text(node, "quantity"),
+                name.polish());
+    }
+
+    private record PolishName(String text, boolean polish) {
+    }
+
+    private static PolishName polishName(JsonNode node) {
+        String polishName = text(node, "product_name_pl");
+        String genericName = text(node, "generic_name_pl");
+        String mainName = text(node, "product_name");
+        if (polishName.isEmpty() && POLISH.equals(text(node, "lang"))) {
+            polishName = mainName;
+        }
+        if (!polishName.isEmpty()) {
+            return new PolishName(completeName(polishName, genericName), true);
+        }
+        if (!genericName.isEmpty()) {
+            return new PolishName(genericName, true);
+        }
+        return new PolishName(mainName, false);
+    }
+
+    private static String completeName(String name, String genericName) {
+        boolean genericAddsDetails = genericName.length() > name.length()
+                && genericName.toLowerCase(Locale.ROOT).startsWith(name.toLowerCase(Locale.ROOT));
+        return genericAddsDetails ? genericName : name;
     }
 
     private static boolean isSoldInPoland(JsonNode node) {
@@ -82,9 +111,6 @@ public final class OffProductParser {
         return value.isString() ? value.asString().trim() : "";
     }
 
-    private static String firstNonBlank(String first, String second) {
-        return first.isEmpty() ? second : first;
-    }
 
     private static String firstBrand(String brands) {
         int comma = brands.indexOf(',');

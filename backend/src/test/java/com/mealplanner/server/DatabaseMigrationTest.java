@@ -62,7 +62,7 @@ class DatabaseMigrationTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "select version, success from flyway_schema_history where version is not null order by installed_rank");
 
-        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6");
+        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7");
         assertThat(history).allSatisfy(row -> assertThat(row.get("success")).isEqualTo(true));
     }
 
@@ -188,6 +188,31 @@ class DatabaseMigrationTest {
         assertThat(product.get("created_by")).isNull();
         assertThat(jdbcTemplate.queryForObject("select role from " + schema + ".app_users", String.class))
                 .isEqualTo("USER");
+        jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    @Test
+    void renamesOpenFoodFactsSourceAndRoundsNutritionOfExistingProducts() {
+        String schema = "rounding_migration_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("6").load().migrate();
+        jdbcTemplate.update("insert into " + schema + ".products (id, name, source, kcal, protein, fat, carbs) "
+                        + "values (?, ?, 'OFF', 64.6, 12.0400009, 0.04, 4.19999980927), (?, ?, 'USER', null, null, null, null)",
+                UUID.randomUUID(), "From Open Food Facts", UUID.randomUUID(), "Empty");
+
+        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+
+        Map<String, Object> product = jdbcTemplate.queryForMap("select source, kcal, protein, fat, carbs from "
+                + schema + ".products where name = 'From Open Food Facts'");
+        assertThat(product.get("source")).isEqualTo("OPEN_FOOD_FACTS");
+        assertThat(product.get("kcal")).isEqualTo(65.0);
+        assertThat(product.get("protein")).isEqualTo(12.0);
+        assertThat(product.get("fat")).isEqualTo(0.0);
+        assertThat(product.get("carbs")).isEqualTo(4.2);
+        assertThat(jdbcTemplate.queryForObject("select kcal from " + schema + ".products where name = 'Empty'", Double.class))
+                .isNull();
+        assertThatThrownBy(() -> jdbcTemplate.update("insert into " + schema + ".products (id, name, source) values (?, ?, 'OFF')",
+                UUID.randomUUID(), "Old source"))
+                .isInstanceOf(DataIntegrityViolationException.class);
         jdbcTemplate.execute("drop schema " + schema + " cascade");
     }
 

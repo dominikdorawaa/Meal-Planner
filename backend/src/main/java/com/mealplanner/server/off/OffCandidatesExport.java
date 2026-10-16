@@ -2,6 +2,7 @@ package com.mealplanner.server.off;
 
 import com.mealplanner.server.product.NutritionCheck;
 import com.mealplanner.server.product.NutritionIssue;
+import com.mealplanner.server.product.NutritionRounding;
 import com.mealplanner.server.product.NutritionValidator;
 import tools.jackson.core.JacksonException;
 
@@ -31,6 +32,7 @@ public final class OffCandidatesExport {
     static final String SEPARATOR = ";";
     static final String UNIT = "100g";
     static final String DUPLICATE_BAR_CODE = "DUPLICATE_BAR_CODE";
+    static final String NAME_NOT_POLISH = "NAME_NOT_POLISH";
     static final String PRODUCT_URL = "https://world.openfoodfacts.org/product/";
     static final List<String> HEADER = List.of("code", "name", "brand", "kcal", "protein", "fat", "carbs", "unit",
             "quantity", "validation", "reasons", "import", "url");
@@ -85,6 +87,9 @@ public final class OffCandidatesExport {
                 NutritionCheck check = NutritionValidator.check(product.name(), product.kcal(), product.protein(),
                         product.fat(), product.carbs(), UNIT, product.code());
                 List<String> errors = new ArrayList<>(check.errors().stream().map(NutritionIssue::name).toList());
+                if (!product.polishName() && !product.name().isEmpty()) {
+                    errors.add(NAME_NOT_POLISH);
+                }
                 if (errors.isEmpty() && !seenCodes.add(product.code())) {
                     errors.add(DUPLICATE_BAR_CODE);
                 }
@@ -104,7 +109,8 @@ public final class OffCandidatesExport {
         check.warnings().forEach(warning -> reasons.add(warning.name()));
         boolean ok = errors.isEmpty();
         return List.of(barCodeCell(product.code()), textCell(product.name()), textCell(product.brand()),
-                decimal(product.kcal()), decimal(product.protein()), decimal(product.fat()), decimal(product.carbs()),
+                decimal(NutritionRounding.kcal(product.kcal())), decimal(NutritionRounding.grams(product.protein())),
+                decimal(NutritionRounding.grams(product.fat())), decimal(NutritionRounding.grams(product.carbs())),
                 UNIT, textCell(product.quantity()),
                 ok ? "OK" : "REJECTED", String.join(",", reasons), ok ? "yes" : "no", PRODUCT_URL + product.code());
     }

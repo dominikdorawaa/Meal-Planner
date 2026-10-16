@@ -2,6 +2,7 @@ package com.mealplanner.server.off;
 
 import com.mealplanner.server.product.NutritionCheck;
 import com.mealplanner.server.product.NutritionIssue;
+import com.mealplanner.server.product.NutritionRounding;
 import com.mealplanner.server.product.NutritionValidator;
 import com.mealplanner.server.product.Product;
 import com.mealplanner.server.product.ProductRepository;
@@ -97,11 +98,11 @@ public class OffImportService {
                     product = new Product();
                     product.setBarCode(row.code());
                     product.setStatus(ProductStatus.VERIFIED);
-                    product.setSource(ProductSource.OFF);
+                    product.setSource(ProductSource.OPEN_FOOD_FACTS);
                     apply(product, row);
                     toSave.add(product);
                     progress.inserted++;
-                } else if (product.getSource() != ProductSource.OFF) {
+                } else if (product.getSource() != ProductSource.OPEN_FOOD_FACTS) {
                     progress.skippedProtected++;
                 } else if (apply(product, row)) {
                     toSave.add(product);
@@ -119,17 +120,17 @@ public class OffImportService {
         String brand = row.brand().isEmpty() ? null : shorten(row.brand());
         boolean changed = !Objects.equals(product.getName(), name)
                 || !Objects.equals(product.getBrand(), brand)
-                || !Objects.equals(product.getKcal(), row.kcal())
-                || !Objects.equals(product.getProtein(), row.protein())
-                || !Objects.equals(product.getFat(), row.fat())
-                || !Objects.equals(product.getCarbs(), row.carbs())
+                || !Objects.equals(product.getKcal(), NutritionRounding.kcal(row.kcal()))
+                || !Objects.equals(product.getProtein(), NutritionRounding.grams(row.protein()))
+                || !Objects.equals(product.getFat(), NutritionRounding.grams(row.fat()))
+                || !Objects.equals(product.getCarbs(), NutritionRounding.grams(row.carbs()))
                 || !Objects.equals(product.getUnit(), row.unit());
         product.setName(name);
         product.setBrand(brand);
-        product.setKcal(row.kcal());
-        product.setProtein(row.protein());
-        product.setFat(row.fat());
-        product.setCarbs(row.carbs());
+        product.setKcal(NutritionRounding.kcal(row.kcal()));
+        product.setProtein(NutritionRounding.grams(row.protein()));
+        product.setFat(NutritionRounding.grams(row.fat()));
+        product.setCarbs(NutritionRounding.grams(row.carbs()));
         product.setUnit(row.unit());
         return changed;
     }

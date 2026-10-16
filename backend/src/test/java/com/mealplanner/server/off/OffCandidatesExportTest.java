@@ -23,7 +23,7 @@ class OffCandidatesExportTest {
             "{\"code\":\"5900820000318\",\"product_name_pl\":\"Skyr naturalny\",\"product_name\":\"Natural skyr\","
                     + "\"brands\":\"Piątnica,Mlekpol\",\"quantity\":\"150 g\",\"countries_tags\":[\"en:poland\"],"
                     + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}",
-            "{\"code\":\"5901234123457\",\"product_name\":\"Baton; \\\"Mocny\\\"\",\"countries_tags\":[\"en:poland\",\"en:germany\"],"
+            "{\"lang\":\"pl\",\"code\":\"5901234123457\",\"product_name\":\"Baton; \\\"Mocny\\\"\",\"countries_tags\":[\"en:poland\",\"en:germany\"],"
                     + "\"nutriments\":{\"energy-kj_100g\":\"2092\",\"proteins_100g\":\"5\",\"fat_100g\":25,\"carbohydrates_100g\":65}}",
             "{\"code\":\"96385074\",\"product_name_pl\":\"Jogurt w kJ\",\"countries_tags\":[\"en:poland\"],"
                     + "\"nutriments\":{\"energy-kcal_100g\":272,\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}",
@@ -87,6 +87,26 @@ class OffCandidatesExportTest {
     }
 
     @Test
+    void rejectsForeignNamesAndRoundsNutritionValues() throws IOException {
+        Path dump = tempDir.resolve("names.jsonl");
+        Files.write(dump, List.of(
+                "{\"lang\":\"de\",\"code\":\"5900820000318\",\"product_name\":\"Stracciatella Pasta Filata Käse\","
+                        + "\"countries_tags\":[\"en:poland\"],\"nutriments\":{\"energy-kcal_100g\":250,\"proteins_100g\":13,"
+                        + "\"fat_100g\":20,\"carbohydrates_100g\":3}}",
+                "{\"code\":\"5901234123457\",\"product_name_pl\":\"Śmietanka\",\"generic_name_pl\":\"Śmietanka 18%\","
+                        + "\"countries_tags\":[\"en:poland\"],\"nutriments\":{\"energy-kcal_100g\":185.6,"
+                        + "\"proteins_100g\":2.59999990463,\"fat_100g\":18.0000001,\"carbohydrates_100g\":3.40000009537}}"));
+        Path csv = tempDir.resolve("names.csv");
+
+        ExportSummary summary = OffCandidatesExport.export(dump, csv);
+
+        List<String> lines = readCsv(csv);
+        assertThat(lines.get(1)).contains(";REJECTED;NAME_NOT_POLISH;no;");
+        assertThat(lines.get(2)).contains(";Śmietanka 18%;;186;2,6;18;3,4;100g;;OK;;yes;");
+        assertThat(summary.rejectedByReason()).containsEntry("NAME_NOT_POLISH", 1L);
+    }
+
+    @Test
     void readsUncompressedDumpsAndWritesASummaryFile() throws IOException {
         Path csv = tempDir.resolve("candidates.csv");
 
@@ -107,9 +127,9 @@ class OffCandidatesExportTest {
     void keepsWarningsAcceptsCodesOfRejectedRowsAndIgnoresPolandOutsideCountries() throws IOException {
         Path dump = tempDir.resolve("edge.jsonl");
         Files.write(dump, List.of(
-                "{\"code\":\"5900820000318\",\"product_name\":\"Bez makro\",\"countries_tags\":[\"en:poland\"],"
+                "{\"lang\":\"pl\",\"code\":\"5900820000318\",\"product_name\":\"Bez makro\",\"countries_tags\":[\"en:poland\"],"
                         + "\"nutriments\":{\"energy-kcal_100g\":65}}",
-                "{\"code\":\"5900820000318\",\"product_name\":\"Z ostrzezeniem\",\"countries_tags\":[\"en:poland\"],"
+                "{\"lang\":\"pl\",\"code\":\"5900820000318\",\"product_name\":\"Z ostrzezeniem\",\"countries_tags\":[\"en:poland\"],"
                         + "\"nutriments\":{\"energy-kcal_100g\":85,\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}",
                 "{\"code\":\"5901234123457\",\"product_name\":\"Origin only\",\"origins_tags\":[\"en:poland\"],"
                         + "\"countries_tags\":\"en:poland\",\"nutriments\":{}}"));
@@ -128,9 +148,9 @@ class OffCandidatesExportTest {
     void keepsTextFromTheDumpFromRunningAsSpreadsheetFormulas() throws IOException {
         Path dump = tempDir.resolve("formulas.jsonl");
         Files.write(dump, List.of(
-                "{\"code\":\"=1+1\",\"product_name\":\"=HYPERLINK(\\\"http://example.com\\\")\",\"brands\":\"+48 Foods\","
+                "{\"lang\":\"pl\",\"code\":\"=1+1\",\"product_name\":\"=HYPERLINK(\\\"http://example.com\\\")\",\"brands\":\"+48 Foods\","
                         + "\"quantity\":\"=1+1\",\"countries_tags\":[\"en:poland\"],\"nutriments\":{}}",
-                "{\"code\":\"5900820000318\",\"product_name\":\"@SUM\",\"brands\":\"-Brand\","
+                "{\"lang\":\"pl\",\"code\":\"5900820000318\",\"product_name\":\"@SUM\",\"brands\":\"-Brand\","
                         + "\"quantity\":\"'quoted\",\"countries_tags\":[\"en:poland\"],\"nutriments\":{}}"));
         Path csv = tempDir.resolve("formulas.csv");
 
@@ -157,13 +177,13 @@ class OffCandidatesExportTest {
     void treatsNonFiniteNumbersAsMissingAndKeepsExporting() throws IOException {
         Path dump = tempDir.resolve("numbers.jsonl");
         Files.write(dump, List.of(
-                "{\"code\":\"5900820000318\",\"product_name\":\"Nan\",\"countries_tags\":[\"en:poland\"],"
+                "{\"lang\":\"pl\",\"code\":\"5900820000318\",\"product_name\":\"Nan\",\"countries_tags\":[\"en:poland\"],"
                         + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":\"NaN\",\"fat_100g\":0,\"carbohydrates_100g\":4.2}}",
-                "{\"code\":\"5901234123457\",\"product_name\":\"Huge\",\"countries_tags\":[\"en:poland\"],"
+                "{\"lang\":\"pl\",\"code\":\"5901234123457\",\"product_name\":\"Huge\",\"countries_tags\":[\"en:poland\"],"
                         + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":\"1e400\",\"fat_100g\":1e400,\"carbohydrates_100g\":4.2}}",
-                "{\"code\":\"96385074\",\"product_name\":\"Infinite kJ\",\"countries_tags\":[\"en:poland\"],"
+                "{\"lang\":\"pl\",\"code\":\"96385074\",\"product_name\":\"Infinite kJ\",\"countries_tags\":[\"en:poland\"],"
                         + "\"nutriments\":{\"energy-kj_100g\":\"Infinity\",\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}",
-                "{\"code\":\"036000291452\",\"product_name\":\"Skyr\",\"countries_tags\":[\"en:poland\"],"
+                "{\"lang\":\"pl\",\"code\":\"036000291452\",\"product_name\":\"Skyr\",\"countries_tags\":[\"en:poland\"],"
                         + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}"));
         Path csv = tempDir.resolve("numbers.csv");
 

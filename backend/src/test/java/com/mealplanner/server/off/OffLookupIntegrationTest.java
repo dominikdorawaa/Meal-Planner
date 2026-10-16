@@ -46,6 +46,7 @@ class OffLookupIntegrationTest {
     private static final String STATUS_ONLY = "5900000000022";
     private static final String EMPTY_BODY = "5900000000039";
     private static final String MISSING = "5900000000046";
+    private static final String FOREIGN = "5900000000053";
 
     private static final Map<String, Integer> REQUESTS = new ConcurrentHashMap<>();
     private static final List<String> USER_AGENTS = new CopyOnWriteArrayList<>();
@@ -67,7 +68,9 @@ class OffLookupIntegrationTest {
                 int status = 200;
                 String body = switch (code) {
                     case COMPLETE -> "{\"status\":1,\"product\":{\"product_name_pl\":\"Skyr naturalny\",\"brands\":\"Piątnica\","
-                            + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}}";
+                            + "\"nutriments\":{\"energy-kcal_100g\":64.6,\"proteins_100g\":12.0400009,\"fat_100g\":0,\"carbohydrates_100g\":4.19999980927}}}";
+                    case FOREIGN -> "{\"status\":1,\"product\":{\"lang\":\"de\",\"product_name\":\"Stracciatella Pasta Filata Käse\","
+                            + "\"brands\":\"Lidl\",\"nutriments\":{\"energy-kcal_100g\":250,\"proteins_100g\":13,\"fat_100g\":20,\"carbohydrates_100g\":3}}}";
                     case INCOMPLETE -> "{\"status\":1,\"product\":{\"product_name\":\"Baton\",\"brands\":\"Wedel\","
                             + "\"nutriments\":{\"energy-kcal_100g\":480,\"proteins_100g\":5}}}";
                     case BROKEN -> {
@@ -135,15 +138,29 @@ class OffLookupIntegrationTest {
                 .andExpect(jsonPath("$.name").value("Skyr naturalny"))
                 .andExpect(jsonPath("$.brand").value("Piątnica"))
                 .andExpect(jsonPath("$.status").value("VERIFIED"))
-                .andExpect(jsonPath("$.source").value("OFF"));
+                .andExpect(jsonPath("$.source").value("OPEN_FOOD_FACTS"));
 
         Product saved = productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(COMPLETE, ProductStatus.VERIFIED).orElseThrow();
-        assertThat(saved.getSource()).isEqualTo(ProductSource.OFF);
+        assertThat(saved.getSource()).isEqualTo(ProductSource.OPEN_FOOD_FACTS);
         assertThat(saved.getUnit()).isEqualTo("100g");
+        assertThat(saved.getKcal()).isEqualTo(65.0);
+        assertThat(saved.getProtein()).isEqualTo(12.0);
+        assertThat(saved.getCarbs()).isEqualTo(4.2);
         assertThat(USER_AGENTS).containsExactly("MealPlanner-Test/1.0");
 
         mockMvc.perform(get("/api/products/barcode/" + COMPLETE)).andExpect(status().isOk());
         assertThat(REQUESTS.get(COMPLETE)).isEqualTo(1);
+    }
+
+    @Test
+    void doesNotSaveAProductWithoutAPolishNameButOffersItForCorrection() throws Exception {
+        mockMvc.perform(get("/api/products/barcode/" + FOREIGN))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.prefill.name").value("Stracciatella Pasta Filata Käse"))
+                .andExpect(jsonPath("$.prefill.brand").value("Lidl"))
+                .andExpect(jsonPath("$.prefill.kcal").value(250.0));
+
+        assertThat(productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(FOREIGN, ProductStatus.VERIFIED)).isEmpty();
     }
 
     @Test
