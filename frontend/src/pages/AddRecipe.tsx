@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppData } from '../lib/AppDataContext';
 import { api } from '../lib/apiClient';
+import { findProductByBarCode } from '../lib/barcodeLookup';
+import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
+import { t } from '../i18n';
 
 interface IngredientDraft {
   id?: string;
@@ -42,6 +45,7 @@ export default function AddRecipe() {
 
   // Ingredient Modal Search State
   const [ingredientSearch, setIngredientSearch] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
 
   // Dla celów koncepcyjnych - przykładowe sztuczne produkty
   const MOCK_PRODUCTS = [
@@ -109,6 +113,29 @@ export default function AddRecipe() {
     }]);
     setShowIngredientModal(false);
     setIngredientSearch('');
+  };
+
+  const handleBarCode = async (barCode: string) => {
+    setShowScanner(false);
+    try {
+      const product = await findProductByBarCode(barCode);
+      if (!product) {
+        alert(t('scanner.notFound', { code: barCode }));
+        return;
+      }
+      handleAddIngredient({
+        id: product.id,
+        name: product.name,
+        brand: product.brand ?? '',
+        kcal: product.kcal,
+        protein: product.protein,
+        fat: product.fat,
+        carbs: product.carbs,
+        serving: product.unit === '100ml' ? '100ml' : '100g',
+      }, 100);
+    } catch {
+      alert(t('scanner.lookupFailed'));
+    }
   };
 
   const handleSaveRecipe = async () => {
@@ -372,7 +399,8 @@ export default function AddRecipe() {
           </div>
 
           <button
-            onClick={() => alert("Uruchomienie skanera kodów kreskowych...")}
+            onClick={() => setShowScanner(true)}
+            aria-label={t('scanner.title')}
             className="bg-primary/10 w-12 h-12 rounded-2xl flex items-center justify-center text-primary hover:bg-primary/20 transition-colors active:scale-95 shrink-0"
           >
             <span className="material-symbols-outlined text-xl">barcode_scanner</span>
@@ -476,6 +504,7 @@ export default function AddRecipe() {
         </div>
       )}
 
+      {showScanner && <LazyBarcodeScanner onDetected={handleBarCode} onClose={() => setShowScanner(false)} />}
     </div>
   );
 }

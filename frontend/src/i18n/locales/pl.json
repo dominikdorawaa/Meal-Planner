@@ -19,5 +19,15 @@
   "nutrition.kcal-mismatch": "Kalorie nie zgadzają się z makroskładnikami. Sprawdź, czy wszystkie wartości są na 100 g.",
   "nutrition.invalid-bar-code": "Kod kreskowy jest nieprawidłowy.",
   "nutrition.kcal-deviation": "Kalorie trochę odbiegają od makroskładników. Upewnij się, że wartości zgadzają się z etykietą.",
-  "attribution.productData": "Dane produktów"
+  "attribution.productData": "Dane produktów",
+  "scanner.title": "Skanuj kod kreskowy",
+  "scanner.close": "Zamknij skaner",
+  "scanner.starting": "Uruchamiam kamerę...",
+  "scanner.permissionDenied": "Brak dostępu do kamery. Zezwól na nią w ustawieniach przeglądarki albo wpisz kod ręcznie.",
+  "scanner.noCamera": "Nie znaleziono kamery. Wpisz kod ręcznie.",
+  "scanner.manualLabel": "Albo wpisz kod",
+  "scanner.search": "Szukaj",
+  "scanner.notFound": "Nie znaleziono produktu z kodem {code}.",
+  "scanner.lookupFailed": "Nie udało się sprawdzić kodu. Spróbuj ponownie.",
+  "product.barCode": "Kod kreskowy"
 }

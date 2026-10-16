@@ -16,6 +16,8 @@ export default defineConfig({
         'src/lib/nutritionCheck.ts',
         'src/components/LoadMoreTrigger.tsx',
         'src/components/ProductDataAttribution.tsx',
+        'src/components/BarcodeScanner.tsx',
+        'src/lib/barcodeLookup.ts',
         'src/lib/recipeImage.ts',
         'src/components/RecipeCoverImage.tsx',
         'src/components/InstallAppCard.tsx',
