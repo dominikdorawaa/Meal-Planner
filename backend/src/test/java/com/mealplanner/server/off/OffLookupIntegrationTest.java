@@ -42,6 +42,10 @@ class OffLookupIntegrationTest {
     private static final String UNKNOWN = "96385074";
     private static final String BROKEN = "036000291452";
     private static final String SLOW = "4006381333931";
+    private static final String EMPTY_OBJECT = "5900000000015";
+    private static final String STATUS_ONLY = "5900000000022";
+    private static final String EMPTY_BODY = "5900000000039";
+    private static final String MISSING = "5900000000046";
 
     private static final Map<String, Integer> REQUESTS = new ConcurrentHashMap<>();
     private static final List<String> USER_AGENTS = new CopyOnWriteArrayList<>();
@@ -69,6 +73,13 @@ class OffLookupIntegrationTest {
                     case BROKEN -> {
                         status = 500;
                         yield "{}";
+                    }
+                    case EMPTY_OBJECT -> "{}";
+                    case STATUS_ONLY -> "{\"status\":1}";
+                    case EMPTY_BODY -> "";
+                    case MISSING -> {
+                        status = 404;
+                        yield "{\"status\":0}";
                     }
                     case SLOW -> {
                         sleep();
@@ -166,6 +177,24 @@ class OffLookupIntegrationTest {
 
         assertThat(REQUESTS.get(BROKEN)).isEqualTo(2);
         assertThat(REQUESTS.get(SLOW)).isEqualTo(1);
+    }
+
+    @Test
+    void triesAgainLaterWhenOpenFoodFactsAnswersWithoutProductData() throws Exception {
+        for (String code : List.of(EMPTY_OBJECT, STATUS_ONLY, EMPTY_BODY)) {
+            mockMvc.perform(get("/api/products/barcode/" + code)).andExpect(status().isNotFound());
+            mockMvc.perform(get("/api/products/barcode/" + code)).andExpect(status().isNotFound());
+
+            assertThat(REQUESTS.get(code)).as(code).isEqualTo(2);
+        }
+    }
+
+    @Test
+    void remembersCodesThatOpenFoodFactsReportsAsMissing() throws Exception {
+        mockMvc.perform(get("/api/products/barcode/" + MISSING)).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/products/barcode/" + MISSING)).andExpect(status().isNotFound());
+
+        assertThat(REQUESTS.get(MISSING)).isEqualTo(1);
     }
 
     @Test

@@ -52,8 +52,12 @@ public class OffApiClient {
         } catch (RestClientException | JacksonException exception) {
             throw new OffUnavailableException(exception);
         }
-        if (response == null || response.path("status").asInt(0) != 1 || !response.has("product")) {
+        JsonNode status = response == null ? null : response.path("status");
+        if (status != null && status.isNumber() && status.asInt() == 0) {
             return Optional.empty();
+        }
+        if (status == null || !status.isNumber() || status.asInt() != 1 || !response.path("product").isObject()) {
+            throw new OffUnavailableException(new IllegalStateException("Unexpected Open Food Facts response"));
         }
         return Optional.of(OffProductParser.fromNode(response.path("product")));
     }
