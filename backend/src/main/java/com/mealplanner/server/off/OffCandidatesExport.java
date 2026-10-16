@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
 public final class OffCandidatesExport {
@@ -32,6 +34,11 @@ public final class OffCandidatesExport {
     static final String PRODUCT_URL = "https://world.openfoodfacts.org/product/";
     static final List<String> HEADER = List.of("code", "name", "brand", "kcal", "protein", "fat", "carbs", "unit",
             "quantity", "validation", "reasons", "import", "url");
+    static final String FORMULA_PREFIXES = "=+-@\t\r";
+    static final char TEXT_MARKER = '\'';
+
+    private static final Pattern DIGITS = Pattern.compile("[0-9]+");
+    private static final Pattern BAR_CODE_CELL = Pattern.compile("=\"([0-9]+)\"");
 
     private OffCandidatesExport() {
     }
@@ -96,9 +103,33 @@ public final class OffCandidatesExport {
         List<String> reasons = new ArrayList<>(errors);
         check.warnings().forEach(warning -> reasons.add(warning.name()));
         boolean ok = errors.isEmpty();
-        return List.of(product.code(), product.name(), product.brand(), decimal(product.kcal()),
-                decimal(product.protein()), decimal(product.fat()), decimal(product.carbs()), UNIT, product.quantity(),
+        return List.of(barCodeCell(product.code()), textCell(product.name()), textCell(product.brand()),
+                decimal(product.kcal()), decimal(product.protein()), decimal(product.fat()), decimal(product.carbs()),
+                UNIT, textCell(product.quantity()),
                 ok ? "OK" : "REJECTED", String.join(",", reasons), ok ? "yes" : "no", PRODUCT_URL + product.code());
+    }
+
+    public static String readCell(String cell) {
+        Matcher barCode = BAR_CODE_CELL.matcher(cell);
+        if (barCode.matches()) {
+            return barCode.group(1);
+        }
+        if (cell.length() > 1 && cell.charAt(0) == TEXT_MARKER && needsTextMarker(cell.substring(1))) {
+            return cell.substring(1);
+        }
+        return cell;
+    }
+
+    private static String barCodeCell(String code) {
+        return DIGITS.matcher(code).matches() ? "=\"" + code + "\"" : textCell(code);
+    }
+
+    private static String textCell(String value) {
+        return needsTextMarker(value) ? TEXT_MARKER + value : value;
+    }
+
+    private static boolean needsTextMarker(String value) {
+        return !value.isEmpty() && (value.charAt(0) == TEXT_MARKER || FORMULA_PREFIXES.indexOf(value.charAt(0)) >= 0);
     }
 
     private static BufferedReader open(Path dump) throws IOException {

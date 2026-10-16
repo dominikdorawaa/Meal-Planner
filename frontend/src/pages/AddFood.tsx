@@ -9,7 +9,7 @@ import { recentMealProducts } from '../lib/mealProducts';
 import { useProductSearch } from '../lib/useProductSearch';
 import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
 import { findProductByBarCode } from '../lib/barcodeLookup';
-import { checkNutrition, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
+import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { t } from '../i18n';
 
 
@@ -97,10 +97,9 @@ export function AddFood() {
     barCode: addProductForm.barCode || null,
   }), [addProductForm]);
   const newProductCheck = useMemo(() => checkNutrition(newProductValues), [newProductValues]);
-  const newProductHints = [
-    ...newProductCheck.errors.filter(issue => issue !== 'NAME_MISSING' && issue !== 'NUTRIENT_MISSING'),
-    ...newProductCheck.warnings,
-  ];
+  const newProductNutrientsStarted = [addProductForm.kcal, addProductForm.protein, addProductForm.fat, addProductForm.carbs]
+    .some(value => value.trim() !== '');
+  const newProductHints = formNutritionHints(newProductCheck, newProductNutrientsStarted);
 
   const [showScanner, setShowScanner] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
@@ -658,6 +657,9 @@ export function AddFood() {
                       </div>
                     </div>
                   ))}
+                  {activeTab !== 'recent' && productSearch.error && (
+                    <p className="pt-3 text-center text-sm font-medium text-error">Nie udało się pobrać kolejnych produktów</p>
+                  )}
                   {activeTab !== 'recent' && productSearch.hasNext && (
                     <LoadMoreTrigger onLoadMore={productSearch.loadMore} loading={productSearch.loading} />
                   )}
