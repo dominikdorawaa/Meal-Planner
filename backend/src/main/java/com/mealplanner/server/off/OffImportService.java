@@ -135,7 +135,9 @@ public class OffImportService {
     }
 
     private static String shorten(String text) {
-        return text.length() > MAX_TEXT_LENGTH ? text.substring(0, MAX_TEXT_LENGTH) : text;
+        return text.codePointCount(0, text.length()) > MAX_TEXT_LENGTH
+                ? text.substring(0, text.offsetByCodePoints(0, MAX_TEXT_LENGTH))
+                : text;
     }
 
     private static final class Progress {
