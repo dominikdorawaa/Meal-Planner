@@ -1,6 +1,7 @@
 package com.mealplanner.server.product;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -55,4 +56,9 @@ public class Product {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
+
+    @JsonProperty(value = "deleted", access = JsonProperty.Access.READ_ONLY)
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
 }
