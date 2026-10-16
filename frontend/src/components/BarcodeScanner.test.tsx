@@ -1,35 +1,32 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BarcodeScanner } from './BarcodeScanner';
-
-type DecodeCallback = (result: { getText: () => string } | undefined, error: unknown, controls: { stop: () => void }) => void;
+import { BarcodeScanner, SCAN_INTERVAL_MS } from './BarcodeScanner';
 
 const mocks = vi.hoisted(() => ({
-  decode: vi.fn(),
+  supported: vi.fn(),
+  open: vi.fn(),
+  tune: vi.fn(),
+  torch: vi.fn(),
   stop: vi.fn(),
+  createReader: vi.fn(),
+  detect: vi.fn(),
 }));
 
-vi.mock('@zxing/browser', () => ({
-  BrowserMultiFormatReader: class {
-    decodeFromVideoDevice = mocks.decode;
-  },
+vi.mock('../lib/barcodeCamera', () => ({
+  isCameraSupported: mocks.supported,
+  openBarcodeCamera: mocks.open,
+  tuneBarcodeCamera: mocks.tune,
+  setTorch: mocks.torch,
+  stopCamera: mocks.stop,
 }));
 
-function stubCamera(available: boolean) {
-  Object.defineProperty(navigator, 'mediaDevices', {
-    configurable: true,
-    value: available ? { getUserMedia: vi.fn() } : undefined,
-  });
-}
+vi.mock('../lib/barcodeDetection', async importOriginal => {
+  const original = await importOriginal<typeof import('../lib/barcodeDetection')>();
+  return { ...original, createBarcodeReader: mocks.createReader };
+});
 
-function startScanning() {
-  let callback: DecodeCallback = () => {};
-  mocks.decode.mockImplementation((_device: unknown, _video: unknown, onResult: DecodeCallback) => {
-    callback = onResult;
-    return Promise.resolve({ stop: mocks.stop });
-  });
-  return (text?: string) => callback(text ? { getText: () => text } : undefined, undefined, { stop: mocks.stop });
-}
+const track = { kind: 'video' };
+const stream = { getVideoTracks: () => [track] };
 
 function namedError(name: string) {
   const error = new Error(name);
@@ -37,120 +34,176 @@ function namedError(name: string) {
   return error;
 }
 
+async function flush(ms = 0) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
+}
+
+function renderScanner(onDetected = vi.fn(), onClose = vi.fn()) {
+  const view = render(<BarcodeScanner onDetected={onDetected} onClose={onClose} />);
+  return { ...view, onDetected, onClose };
+}
+
 beforeEach(() => {
-  stubCamera(true);
+  vi.useFakeTimers();
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+  mocks.supported.mockReturnValue(true);
+  mocks.open.mockResolvedValue(stream);
+  mocks.tune.mockResolvedValue({ torchSupported: false });
+  mocks.torch.mockResolvedValue(true);
+  mocks.createReader.mockResolvedValue({ detect: mocks.detect });
+  mocks.detect.mockResolvedValue([]);
 });
 
 afterEach(() => {
   cleanup();
-  mocks.decode.mockReset();
-  mocks.stop.mockReset();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  Object.values(mocks).forEach(mock => mock.mockReset());
 });
 
 describe('BarcodeScanner', () => {
-  it('reports the first scanned code and stops the camera', async () => {
-    const emit = startScanning();
-    const onDetected = vi.fn();
-    render(<BarcodeScanner onDetected={onDetected} onClose={vi.fn()} />);
-    await act(async () => {});
+  it('reports a code after two matching reads and stops the camera', async () => {
+    mocks.detect
+      .mockResolvedValueOnce([{ rawValue: '5900820000319' }])
+      .mockResolvedValueOnce([{ rawValue: '5900820000318' }])
+      .mockResolvedValueOnce([{ rawValue: '5900820000318' }]);
+    const { onDetected } = renderScanner();
 
-    act(() => emit());
-    act(() => emit('5900820000318'));
-    act(() => emit('5901234123457'));
+    await flush();
+    expect(screen.getByText(/Ustaw kod w ramce/)).toBeTruthy();
+    await flush(SCAN_INTERVAL_MS * 3);
 
     expect(onDetected).toHaveBeenCalledTimes(1);
     expect(onDetected).toHaveBeenCalledWith('5900820000318');
-    expect(mocks.stop).toHaveBeenCalled();
+    expect(mocks.stop).toHaveBeenCalledWith(stream);
   });
 
-  it('keeps scanning when the camera reads a code that is not a product barcode', async () => {
-    const emit = startScanning();
-    const onDetected = vi.fn();
-    render(<BarcodeScanner onDetected={onDetected} onClose={vi.fn()} />);
-    await act(async () => {});
+  it('keeps scanning when a frame cannot be read', async () => {
+    mocks.detect
+      .mockRejectedValueOnce(new Error('frame not ready'))
+      .mockResolvedValue([{ rawValue: '96385074' }]);
+    const { onDetected } = renderScanner();
 
-    act(() => emit('https://example.com'));
-    act(() => emit('5900820000319'));
-    expect(onDetected).not.toHaveBeenCalled();
-    expect(mocks.stop).not.toHaveBeenCalled();
+    await flush(SCAN_INTERVAL_MS * 3);
 
-    act(() => emit(' 5900820000318 '));
-    expect(onDetected).toHaveBeenCalledWith('5900820000318');
+    expect(onDetected).toHaveBeenCalledWith('96385074');
   });
 
-  it('stops the camera when closed', async () => {
-    startScanning();
-    const { unmount } = render(<BarcodeScanner onDetected={vi.fn()} onClose={vi.fn()} />);
-    await act(async () => {});
+  it('stops the camera and the scanning when closed', async () => {
+    const { unmount } = renderScanner();
+    await flush(SCAN_INTERVAL_MS);
+    const calls = mocks.detect.mock.calls.length;
 
     unmount();
+    await flush(SCAN_INTERVAL_MS * 3);
 
-    expect(mocks.stop).toHaveBeenCalled();
+    expect(mocks.stop).toHaveBeenCalledWith(stream);
+    expect(mocks.detect.mock.calls.length).toBe(calls);
   });
 
-  it('stops a camera that starts after the scanner was closed', async () => {
-    let finishStart: (controls: { stop: () => void }) => void = () => {};
-    mocks.decode.mockReturnValue(new Promise(resolve => { finishStart = resolve; }));
-    const { unmount } = render(<BarcodeScanner onDetected={vi.fn()} onClose={vi.fn()} />);
+  it('releases a camera that opens after the scanner was closed', async () => {
+    let finishOpening: (value: unknown) => void = () => {};
+    mocks.open.mockReturnValue(new Promise(resolve => { finishOpening = resolve; }));
+    const { unmount } = renderScanner();
 
     unmount();
-    await act(async () => finishStart({ stop: mocks.stop }));
+    await act(async () => finishOpening(stream));
 
-    expect(mocks.stop).toHaveBeenCalled();
+    expect(mocks.stop).toHaveBeenCalledWith(stream);
+    expect(mocks.createReader).not.toHaveBeenCalled();
   });
 
-  it('explains when camera access is denied', async () => {
-    mocks.decode.mockRejectedValue(namedError('NotAllowedError'));
-    render(<BarcodeScanner onDetected={vi.fn()} onClose={vi.fn()} />);
+  it('does not start scanning when closed while the reader loads', async () => {
+    let finishLoading: (value: unknown) => void = () => {};
+    mocks.createReader.mockReturnValue(new Promise(resolve => { finishLoading = resolve; }));
+    const { unmount } = renderScanner();
+    await flush();
 
-    expect(await screen.findByText(/Brak dostępu do kamery/)).toBeTruthy();
+    unmount();
+    await act(async () => finishLoading({ detect: mocks.detect }));
+    await flush(SCAN_INTERVAL_MS);
+
+    expect(mocks.detect).not.toHaveBeenCalled();
   });
 
-  it('explains when there is no camera', async () => {
-    mocks.decode.mockRejectedValue(namedError('NotFoundError'));
-    render(<BarcodeScanner onDetected={vi.fn()} onClose={vi.fn()} />);
+  it.each([
+    ['NotAllowedError', /Brak dostępu do kamery/],
+    ['NotFoundError', /Nie znaleziono kamery/],
+  ])('explains a %s', async (name, message) => {
+    mocks.open.mockRejectedValue(namedError(name));
+    renderScanner();
+    await flush();
 
-    expect(await screen.findByText(/Nie znaleziono kamery/)).toBeTruthy();
+    expect(screen.getByText(message)).toBeTruthy();
+  });
+
+  it('explains when the video cannot start', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(new Error('blocked'));
+    renderScanner();
+    await flush();
+
+    expect(screen.getByText(/Nie znaleziono kamery/)).toBeTruthy();
+  });
+
+  it('explains when the barcode reader cannot load', async () => {
+    mocks.createReader.mockRejectedValue(new Error('wasm failed'));
+    renderScanner();
+    await flush();
+
+    expect(screen.getByText(/Nie udało się uruchomić skanera/)).toBeTruthy();
   });
 
   it('does not touch the camera when the browser has no camera support', () => {
-    stubCamera(false);
-    render(<BarcodeScanner onDetected={vi.fn()} onClose={vi.fn()} />);
+    mocks.supported.mockReturnValue(false);
+    renderScanner();
 
     expect(screen.getByText(/Nie znaleziono kamery/)).toBeTruthy();
-    expect(mocks.decode).not.toHaveBeenCalled();
+    expect(mocks.open).not.toHaveBeenCalled();
   });
 
-  it('accepts a valid code typed by hand', () => {
-    stubCamera(false);
-    const onDetected = vi.fn();
-    render(<BarcodeScanner onDetected={onDetected} onClose={vi.fn()} />);
+  it('switches the flashlight when the camera has one', async () => {
+    mocks.tune.mockResolvedValue({ torchSupported: true });
+    mocks.torch.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    renderScanner();
+    await flush();
+    const button = screen.getByRole('button', { name: 'Latarka' });
 
-    fireEvent.change(screen.getByLabelText('Albo wpisz kod'), { target: { value: '590 0820 000318' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Szukaj' }));
+    await act(async () => fireEvent.click(button));
+    expect(mocks.torch).toHaveBeenLastCalledWith(track, true);
+    expect(button.getAttribute('aria-pressed')).toBe('true');
 
-    expect(onDetected).toHaveBeenCalledWith('5900820000318');
+    await act(async () => fireEvent.click(button));
+    expect(mocks.torch).toHaveBeenLastCalledWith(track, false);
+    expect(button.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('rejects an invalid code typed by hand until it is corrected', () => {
-    stubCamera(false);
-    const onDetected = vi.fn();
-    render(<BarcodeScanner onDetected={onDetected} onClose={vi.fn()} />);
+  it('hides the flashlight button when the camera has none', async () => {
+    renderScanner();
+    await flush();
+
+    expect(screen.queryByRole('button', { name: 'Latarka' })).toBeNull();
+  });
+
+  it('accepts a valid code typed by hand and rejects an invalid one', () => {
+    mocks.supported.mockReturnValue(false);
+    const { onDetected } = renderScanner();
     const input = screen.getByLabelText('Albo wpisz kod');
 
     fireEvent.change(input, { target: { value: '5900820000319' } });
     fireEvent.click(screen.getByRole('button', { name: 'Szukaj' }));
     expect(screen.getByText('Kod kreskowy jest nieprawidłowy.')).toBeTruthy();
-    expect(onDetected).not.toHaveBeenCalled();
 
-    fireEvent.change(input, { target: { value: '590082000031' } });
+    fireEvent.change(input, { target: { value: '590 0820 000318' } });
     expect(screen.queryByText('Kod kreskowy jest nieprawidłowy.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Szukaj' }));
+    expect(onDetected).toHaveBeenCalledWith('5900820000318');
   });
 
   it('closes with the close button or a click outside but not inside', () => {
-    stubCamera(false);
-    const onClose = vi.fn();
-    render(<BarcodeScanner onDetected={vi.fn()} onClose={onClose} />);
+    mocks.supported.mockReturnValue(false);
+    const { onClose } = renderScanner();
 
     fireEvent.click(screen.getByLabelText('Albo wpisz kod'));
     expect(onClose).not.toHaveBeenCalled();
