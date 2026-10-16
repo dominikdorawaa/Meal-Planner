@@ -8,7 +8,8 @@ import { LoadMoreTrigger } from '../components/LoadMoreTrigger';
 import { recentMealProducts } from '../lib/mealProducts';
 import { useProductSearch } from '../lib/useProductSearch';
 import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
-import { findProductByBarCode } from '../lib/barcodeLookup';
+import { useBarcodeLookup } from '../lib/useBarcodeLookup';
+import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { t } from '../i18n';
 
@@ -104,20 +105,19 @@ export function AddFood() {
   const [showScanner, setShowScanner] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
 
-  const handleBarCode = async (barCode: string) => {
+  const barcodeLookup = useBarcodeLookup();
+
+  const handleBarCode = (barCode: string) => {
     setShowScanner(false);
-    try {
-      const product = await findProductByBarCode(barCode);
-      if (product) {
-        handleSelectProduct(product);
-        return;
-      }
-      setAddProductForm({ ...EMPTY_PRODUCT_FORM, barCode });
-      setScanMessage(t('scanner.notFound', { code: barCode }));
-      setShowAddProduct(true);
-    } catch {
-      alert(t('scanner.lookupFailed'));
-    }
+    barcodeLookup.lookUp(barCode, {
+      onFound: product => handleSelectProduct(product),
+      onMissing: () => {
+        setAddProductForm({ ...EMPTY_PRODUCT_FORM, barCode });
+        setScanMessage(t('scanner.notFound', { code: barCode }));
+        setShowAddProduct(true);
+      },
+      onError: () => alert(t('scanner.lookupFailed')),
+    });
   };
 
   const handleCreateProduct = async () => {
@@ -950,6 +950,7 @@ export function AddFood() {
       )}
 
       {showScanner && <LazyBarcodeScanner onDetected={handleBarCode} onClose={() => setShowScanner(false)} />}
+      {barcodeLookup.pending && <BarcodeLookupPending onCancel={barcodeLookup.cancel} />}
     </div>
   );
 }

@@ -37,4 +37,21 @@ describe('LazyBarcodeScanner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Zamknij skaner' }));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('downloads the scanner again when the user retries', async () => {
+    let fail = true;
+    vi.doMock('./BarcodeScanner', () => {
+      if (fail) throw new Error('chunk failed');
+      return { BarcodeScanner: () => <p>scanner ready</p> };
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { LazyBarcodeScanner } = await import('./LazyBarcodeScanner');
+
+    render(<LazyBarcodeScanner onDetected={vi.fn()} onClose={vi.fn()} />);
+    await screen.findByText('Nie udało się wczytać skanera. Sprawdź połączenie i spróbuj ponownie.');
+    fail = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Spróbuj ponownie' }));
+
+    expect(await screen.findByText('scanner ready')).toBeTruthy();
+  });
 });
