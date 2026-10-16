@@ -8,7 +8,7 @@ export function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, refreshMeals, products, getConsumedForDay, profile } = useAppData();
+  const { user, refreshMeals, getConsumedForDay, profile } = useAppData();
   
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -60,18 +60,14 @@ export function ProductDetails() {
   useEffect(() => {
     async function loadProduct() {
       if (!id) return;
-      const existing = products.find(p => p.id === id);
-      if (existing) {
-        setProduct(existing);
-        setLoading(false);
-      } else {
-        const data = await api.products.getById(id).catch(() => null);
-        if (data) setProduct(data);
-        setLoading(false);
-      }
+      const data = await api.products.getById(id).catch(() => null);
+      if (data) setProduct(data);
+      setLoading(false);
     }
     loadProduct();
+  }, [id]);
 
+  useEffect(() => {
     async function loadMeal() {
       if (!mealId) return;
       const meals = await api.meals.getAll().catch(() => []);
@@ -86,7 +82,7 @@ export function ProductDetails() {
       }
     }
     loadMeal();
-  }, [id, products, mealId, product]);
+  }, [mealId, product]);
 
   const currentWeight = useMemo(() => {
     if (inputType === 'grams') return Number(grams) || 0;

@@ -29,7 +29,7 @@ describe('apiClient', () => {
   it('sends the default Polish language with every request', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, []));
 
-    await api.products.getAll();
+    await api.recipes.getAll();
 
     expect(sentHeaders()['Accept-Language']).toBe('pl');
   });
@@ -38,7 +38,7 @@ describe('apiClient', () => {
     setLanguage('en');
     fetchMock.mockResolvedValue(jsonResponse(200, []));
 
-    await api.products.getAll();
+    await api.recipes.getAll();
 
     expect(sentHeaders()['Accept-Language']).toBe('en');
   });
@@ -90,14 +90,32 @@ describe('apiClient', () => {
     await expect(api.auth.login('alice@example.com', 'wrong')).rejects.toThrow('Invalid email or password.');
   });
 
-  it('stores the user role returned after login', async () => {
+  it('stores the user id and role returned after login', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, {
-      token: 'token-1', userId: 'user-1', email: 'alice@example.com', name: 'Alice', role: 'ADMIN',
+      token: 'token-1', user_id: 'user-1', email: 'alice@example.com', name: 'Alice', role: 'ADMIN',
     }));
 
     const user = await api.auth.login('alice@example.com', 'secret123');
 
+    expect(user.userId).toBe('user-1');
     expect(user.role).toBe('ADMIN');
     expect(getStoredUser()?.role).toBe('ADMIN');
+  });
+
+  it('searches products with paging and only the filters that are set', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { items: [], page: 1, size: 20, has_next: false }));
+
+    await api.products.search({
+      query: '  zolty ser ',
+      page: 1,
+      size: 20,
+      filters: { maxKcal: '200', minProtein: '', maxFat: undefined, maxCarbs: '30' },
+    });
+
+    const url = new URL(fetchMock.mock.calls[0][0]);
+    expect(url.pathname).toBe('/api/products/search');
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      q: 'zolty ser', page: '1', size: '20', max_kcal: '200', max_carbs: '30',
+    });
   });
 });

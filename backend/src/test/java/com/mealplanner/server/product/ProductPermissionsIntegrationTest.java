@@ -179,8 +179,8 @@ class ProductPermissionsIntegrationTest {
 
         assertThat(productRepository.findById(product.getId()).orElseThrow().getDeletedAt()).isNotNull();
         assertThat(userMealRepository.findByUser(owner)).hasSize(1);
-        mockMvc.perform(get("/api/products"))
-                .andExpect(jsonPath("$[*].id", not(hasItem(product.getId().toString()))));
+        mockMvc.perform(get("/api/products/search").param("q", product.getName()))
+                .andExpect(jsonPath("$.items[*].id", not(hasItem(product.getId().toString()))));
         mockMvc.perform(get("/api/products/barcode/" + product.getBarCode()))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/products/" + product.getId()))

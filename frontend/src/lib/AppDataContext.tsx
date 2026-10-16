@@ -1,12 +1,11 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { type AuthUser, api } from './apiClient';
-import { resolveMealProduct } from './mealProduct';
+import { resolveMealProduct } from './mealProducts';
 
 interface AppData {
   user: AuthUser | null;
   profile: any;
   recipes: any[];
-  products: any[];
   userMeals: any[];
   shoppingList: any[];
   shoppingListRecipes: any[];
@@ -14,7 +13,6 @@ interface AppData {
   onLogout: () => void;
   refreshProfile: () => Promise<void>;
   refreshRecipes: () => Promise<void>;
-  refreshProducts: () => Promise<void>;
   refreshMeals: () => Promise<void>;
   refreshShoppingList: () => Promise<void>;
   getConsumedForDay: (date: string) => { kcal: number, protein: number, fat: number, carbs: number };
@@ -26,7 +24,6 @@ const AppDataContext = createContext<AppData>({
   user: null,
   profile: null,
   recipes: [],
-  products: [],
   userMeals: [],
   shoppingList: [],
   shoppingListRecipes: [],
@@ -34,7 +31,6 @@ const AppDataContext = createContext<AppData>({
   onLogout: () => {},
   refreshProfile: async () => {},
   refreshRecipes: async () => {},
-  refreshProducts: async () => {},
   refreshMeals: async () => {},
   refreshShoppingList: async () => {},
   getConsumedForDay: () => ({ kcal: 0, protein: 0, fat: 0, carbs: 0 }),
@@ -51,7 +47,6 @@ interface AppDataProviderProps {
 export function AppDataProvider({ children, user, onLogout }: AppDataProviderProps) {
   const [profile, setProfile] = useState<any>(null);
   const [recipes, setRecipes] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
   const [userMeals, setUserMeals] = useState<any[]>([]);
   const [shoppingList, setShoppingList] = useState<any[]>([]);
   const [shoppingListRecipes, setShoppingListRecipes] = useState<any[]>([]);
@@ -73,7 +68,6 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
       setLoading(false); 
       setProfile(null);
       setRecipes([]);
-      setProducts([]);
       setUserMeals([]);
       setShoppingList([]);
       return; 
@@ -84,14 +78,12 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
       const [
         profileResData,
         recipesRes,
-        productsRes,
         mealsRes,
         slRes,
         slrRes
       ] = await Promise.all([
         api.profile.get().catch(() => null),
         api.recipes.getAll().catch(() => []),
-        api.products.getAll().catch(() => []),
         api.meals.getAll().catch(() => []),
         api.shoppingList.getItems().catch(() => []),
         api.shoppingList.getRecipes().catch(() => []),
@@ -103,7 +95,6 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
         setProfile(null);
       }
       setRecipes(recipesRes);
-      setProducts(productsRes);
       setUserMeals(mealsRes);
       setShoppingList(slRes);
 
@@ -132,11 +123,6 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
   const refreshRecipes = useCallback(async () => {
     const data = await api.recipes.getAll().catch(() => []);
     setRecipes(data);
-  }, []);
-
-  const refreshProducts = useCallback(async () => {
-    const data = await api.products.getAll().catch(() => []);
-    setProducts(data);
   }, []);
 
   const refreshMeals = useCallback(async () => {
@@ -181,7 +167,7 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
           carbs += parseFloat((rec.carbs * mult).toFixed(1));
         }
       } else if (meal.product) {
-        const prod = resolveMealProduct(meal, products);
+        const prod = resolveMealProduct(meal, userMeals);
         if (prod) {
           const weight = meal.portions_consumed || 100;
           const factor = prod.unit === 'pc' ? weight : (weight / 100);
@@ -204,12 +190,12 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
       fat: parseFloat(fat.toFixed(1)),
       carbs: parseFloat(carbs.toFixed(1))
     };
-  }, [userMeals, recipes, profile, products]);
+  }, [userMeals, recipes, profile]);
 
   return (
     <AppDataContext.Provider value={{
-      user, profile, recipes, products, userMeals, shoppingList, shoppingListRecipes,
-      loading, onLogout, refreshProfile, refreshRecipes, refreshProducts, refreshMeals, refreshShoppingList,
+      user, profile, recipes, userMeals, shoppingList, shoppingListRecipes,
+      loading, onLogout, refreshProfile, refreshRecipes, refreshMeals, refreshShoppingList,
       getConsumedForDay, setUserMeals, setShoppingList
     }}>
       {children}

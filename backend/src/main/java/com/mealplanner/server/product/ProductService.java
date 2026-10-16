@@ -11,11 +11,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class ProductService {
+
+    static final int MIN_PAGE_SIZE = 1;
+    static final int MAX_PAGE_SIZE = 50;
 
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
@@ -48,6 +55,50 @@ public class ProductService {
         } else {
             productRepository.delete(product);
         }
+    }
+
+    public ProductPage search(String query, ProductFilters filters, int page, int size, String email) {
+        int pageSize = Math.clamp(size, MIN_PAGE_SIZE, MAX_PAGE_SIZE);
+        int pageNumber = Math.max(page, 0);
+        String userId = email == null ? null : userRepository.findByEmail(email)
+                .map(user -> user.getId().toString())
+                .orElse(null);
+        String normalizedQuery = ProductSearchText.normalize(query);
+        int limit = pageSize + 1;
+        long offset = (long) pageNumber * pageSize;
+
+        List<Product> found = normalizedQuery.isEmpty()
+                ? productRepository.listVisible(userId, filters.maxKcal(), filters.minProtein(),
+                        filters.maxFat(), filters.maxCarbs(), limit, offset)
+                : searchByText(normalizedQuery, query.trim(), userId, filters, limit, offset);
+
+        boolean hasNext = found.size() > pageSize;
+        List<Product> items = hasNext ? found.subList(0, pageSize) : found;
+        return new ProductPage(items, pageNumber, pageSize, hasNext);
+    }
+
+    private List<Product> searchByText(String query, String rawQuery, String userId, ProductFilters filters,
+                                       int limit, long offset) {
+        String keyword = Arrays.stream(query.split(" "))
+                .max(Comparator.comparingInt(String::length))
+                .orElse(query);
+        List<Product> exact = productRepository.searchExact(query, keyword, rawQuery, userId, filters.maxKcal(),
+                filters.minProtein(), filters.maxFat(), filters.maxCarbs(), limit, offset);
+        if (exact.size() == limit) {
+            return exact;
+        }
+
+        long exactTotal = exact.isEmpty() && offset > 0
+                ? productRepository.countExact(query, keyword, rawQuery, userId, filters.maxKcal(),
+                        filters.minProtein(), filters.maxFat(), filters.maxCarbs())
+                : offset + exact.size();
+        long similarOffset = Math.max(0, offset - exactTotal);
+        List<Product> similar = productRepository.searchSimilar(query, rawQuery, userId, filters.maxKcal(),
+                filters.minProtein(), filters.maxFat(), filters.maxCarbs(), limit - exact.size(), similarOffset);
+
+        List<Product> combined = new ArrayList<>(exact);
+        combined.addAll(similar);
+        return combined;
     }
 
     private boolean canDelete(Product product, User user) {

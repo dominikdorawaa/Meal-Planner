@@ -4,7 +4,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
+import { LoadMoreTrigger } from '../components/LoadMoreTrigger';
+import { recentMealProducts } from '../lib/mealProducts';
+import { useProductSearch } from '../lib/useProductSearch';
 
+
+const RECENT_PRODUCTS_LIMIT = 5;
 
 const MEAL_TYPE_LABELS: Record<string, string> = {
   breakfast: 'Śniadanie',
@@ -38,7 +43,7 @@ const formatDateLabel = (dateStr: string) => {
 export function AddFood() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { recipes, products, profile, loading: contextLoading, refreshMeals } = useAppData();
+  const { recipes, userMeals, profile, loading: contextLoading, refreshMeals } = useAppData();
 
   const selectDate = searchParams.get('selectDate');
   const selectType = searchParams.get('selectType');
@@ -66,6 +71,11 @@ export function AddFood() {
   const [filters, setFilters] = useState({ maxKcal: '', minProtein: '', maxFat: '', maxCarbs: '' });
 
   const hasActiveFilters = Object.values(filters).some(v => v !== '');
+  const productSearch = useProductSearch({
+    query: searchQuery,
+    filters,
+    enabled: activeTab === 'products' || activeTab === 'all',
+  });
 
   const [isAdding, setIsAdding] = useState(false);
 
@@ -91,6 +101,7 @@ export function AddFood() {
       });
       setShowAddProduct(false);
       setAddProductForm({ name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '' });
+      productSearch.reload();
     } catch (err: any) {
       alert(`Błąd przy tworzeniu produktu: ${err.message}`);
     } finally {
@@ -151,8 +162,8 @@ export function AddFood() {
     return list;
   }, [recipes, searchQuery, filters]);
 
-  const filteredProducts = useMemo(() => {
-    let list = products;
+  const recentProducts = useMemo(() => {
+    let list = recentMealProducts(userMeals, RECENT_PRODUCTS_LIMIT);
     if (searchQuery) {
       const lowerQ = searchQuery.toLowerCase();
       list = list.filter(p => p.name.toLowerCase().includes(lowerQ) || (p.brand && p.brand.toLowerCase().includes(lowerQ)));
@@ -162,7 +173,10 @@ export function AddFood() {
     if (filters.maxFat !== '') list = list.filter(p => Number(p.fat) <= Number(filters.maxFat));
     if (filters.maxCarbs !== '') list = list.filter(p => Number(p.carbs) <= Number(filters.maxCarbs));
     return list;
-  }, [products, searchQuery, filters]);
+  }, [userMeals, searchQuery, filters]);
+
+  const filteredProducts = activeTab === 'recent' ? recentProducts : productSearch.items;
+  const isSearchingProducts = activeTab !== 'recent' && productSearch.loading && filteredProducts.length === 0;
 
   const handleSelectRecipe = (recipe: any) => {
     if (!activeDate || !activeMealType) return;
@@ -568,7 +582,7 @@ export function AddFood() {
               </h2>
               {filteredProducts.length > 0 ? (
                 <div className="flex flex-col gap-3">
-                  {(activeTab === 'recent' ? filteredProducts.slice(0, 5) : filteredProducts).map((prod) => (
+                  {filteredProducts.map((prod) => (
                     <div
                       key={prod.id}
                       onClick={() => handleSelectProduct(prod)}
@@ -595,11 +609,21 @@ export function AddFood() {
                       </div>
                     </div>
                   ))}
+                  {activeTab !== 'recent' && productSearch.error && (
+                    <p className="pt-3 text-center text-sm font-medium text-error">Nie udało się pobrać kolejnych produktów</p>
+                  )}
+                  {activeTab !== 'recent' && productSearch.hasNext && (
+                    <LoadMoreTrigger onLoadMore={productSearch.loadMore} loading={productSearch.loading} />
+                  )}
                 </div>
+              ) : isSearchingProducts ? (
+                <p className="py-8 text-center text-sm font-medium text-on-surface-variant/60">Szukam produktów...</p>
               ) : (
                 <div className="py-8 text-center bg-surface-container-lowest rounded-[24px] border border-outline-variant/10 border-dashed">
                   <span className="material-symbols-outlined text-3xl text-on-surface-variant/30 mb-2">search_off</span>
-                  <p className="text-sm font-medium text-on-surface-variant/60">Brak dopasowanych produktów</p>
+                  <p className="text-sm font-medium text-on-surface-variant/60">
+                    {activeTab !== 'recent' && productSearch.error ? 'Nie udało się pobrać produktów' : 'Brak dopasowanych produktów'}
+                  </p>
                 </div>
               )}
             </section>
