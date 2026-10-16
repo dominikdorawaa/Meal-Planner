@@ -1,20 +1,24 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser';
 import { t, type MessageKey } from '../i18n';
 import { isValidBarCode } from '../lib/nutritionCheck';
 import { normalizeBarCode } from '../lib/barcodeLookup';
+import { isCameraSupported, openBarcodeCamera, setTorch, stopCamera, tuneBarcodeCamera } from '../lib/barcodeCamera';
+import { createBarcodeReader, createReadConfirmer } from '../lib/barcodeDetection';
 
 interface BarcodeScannerProps {
   onDetected: (barCode: string) => void;
   onClose: () => void;
 }
 
-type CameraState = 'starting' | 'scanning' | 'denied' | 'unavailable';
+type CameraState = 'starting' | 'scanning' | 'denied' | 'unavailable' | 'engineFailed';
+
+export const SCAN_INTERVAL_MS = 120;
 
 const CAMERA_MESSAGES: Partial<Record<CameraState, MessageKey>> = {
   starting: 'scanner.starting',
   denied: 'scanner.permissionDenied',
   unavailable: 'scanner.noCamera',
+  engineFailed: 'scanner.engineFailed',
 };
 
 function cameraErrorState(error: unknown): CameraState {
@@ -24,8 +28,11 @@ function cameraErrorState(error: unknown): CameraState {
 
 export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const trackRef = useRef<MediaStreamTrack | null>(null);
   const onDetectedRef = useRef(onDetected);
   const [cameraState, setCameraState] = useState<CameraState>('starting');
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [manualError, setManualError] = useState(false);
 
@@ -34,41 +41,87 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
   }, [onDetected]);
 
   useEffect(() => {
-    let controls: IScannerControls | null = null;
     let finished = false;
+    let stream: MediaStream | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const video = videoRef.current;
 
-    if (!video || !navigator.mediaDevices?.getUserMedia) {
+    if (!video || !isCameraSupported()) {
       setCameraState('unavailable');
       return;
     }
 
-    new BrowserMultiFormatReader()
-      .decodeFromVideoDevice(undefined, video, (result, _error, activeControls) => {
-        if (!result || finished) return;
-        const code = normalizeBarCode(result.getText());
-        if (!isValidBarCode(code)) return;
-        finished = true;
-        activeControls.stop();
-        onDetectedRef.current(code);
-      })
-      .then(started => {
-        if (finished) {
-          started.stop();
-          return;
-        }
-        controls = started;
-        setCameraState('scanning');
-      })
-      .catch(error => {
+    const start = async () => {
+      try {
+        stream = await openBarcodeCamera();
+      } catch (error) {
         if (!finished) setCameraState(cameraErrorState(error));
-      });
+        return;
+      }
+      if (finished) {
+        stopCamera(stream);
+        return;
+      }
+      const track = stream.getVideoTracks()[0];
+      trackRef.current = track ?? null;
+      video.srcObject = stream;
+      try {
+        await video.play();
+      } catch {
+        if (!finished) setCameraState('unavailable');
+        return;
+      }
+      if (track) {
+        const tuning = await tuneBarcodeCamera(track);
+        if (!finished) setTorchSupported(tuning.torchSupported);
+      }
+
+      let reader;
+      try {
+        reader = await createBarcodeReader();
+      } catch {
+        if (!finished) setCameraState('engineFailed');
+        return;
+      }
+      if (finished) return;
+      setCameraState('scanning');
+
+      const confirm = createReadConfirmer();
+      const scan = async () => {
+        if (finished) return;
+        try {
+          for (const barcode of await reader.detect(video)) {
+            const code = confirm(barcode.rawValue);
+            if (code && !finished) {
+              finished = true;
+              stopCamera(stream);
+              onDetectedRef.current(code);
+              return;
+            }
+          }
+        } catch {
+          if (finished) return;
+        }
+        if (!finished) timer = setTimeout(scan, SCAN_INTERVAL_MS);
+      };
+      scan();
+    };
+
+    start();
 
     return () => {
       finished = true;
-      controls?.stop();
+      if (timer) clearTimeout(timer);
+      stopCamera(stream);
+      trackRef.current = null;
     };
   }, []);
+
+  const toggleTorch = async () => {
+    const track = trackRef.current;
+    if (!track) return;
+    if (await setTorch(track, !torchOn)) setTorchOn(!torchOn);
+  };
 
   const submitManualCode = (event: FormEvent) => {
     event.preventDefault();
@@ -107,9 +160,26 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
         </div>
 
         <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-black">
-          <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
+          <video ref={videoRef} className="w-full h-full object-cover" muted playsInline autoPlay />
           {cameraState === 'scanning' && (
-            <div className="absolute inset-x-8 top-1/2 h-0.5 bg-primary/80 shadow-[0_0_12px_rgba(0,0,0,0.4)]" />
+            <>
+              <div className="absolute left-[10%] right-[10%] top-[32%] bottom-[32%] rounded-xl border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+              <div className="absolute left-[12%] right-[12%] top-1/2 h-0.5 bg-primary/90" />
+              <p className="absolute inset-x-0 bottom-3 text-center text-xs font-medium text-white/90 px-4">
+                {t('scanner.aimHint')}
+              </p>
+              {torchSupported && (
+                <button
+                  type="button"
+                  onClick={toggleTorch}
+                  aria-pressed={torchOn}
+                  aria-label={t('scanner.torch')}
+                  className="absolute top-3 right-3 w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center active:scale-90"
+                >
+                  <span className="material-symbols-outlined text-[20px]">{torchOn ? 'flashlight_off' : 'flashlight_on'}</span>
+                </button>
+              )}
+            </>
           )}
           {cameraMessage && (
             <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm font-medium text-white/90">

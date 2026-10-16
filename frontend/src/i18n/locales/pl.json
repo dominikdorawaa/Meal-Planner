@@ -33,5 +33,8 @@
   "scanner.lookingUp": "Szukam produktu...",
   "scanner.cancel": "Anuluj",
   "scanner.lookupFailed": "Nie udało się sprawdzić kodu. Spróbuj ponownie.",
-  "product.barCode": "Kod kreskowy"
+  "product.barCode": "Kod kreskowy",
+  "scanner.engineFailed": "Nie udało się uruchomić skanera. Wpisz kod ręcznie.",
+  "scanner.aimHint": "Ustaw kod w ramce, 15 do 20 cm od aparatu",
+  "scanner.torch": "Latarka"
 }
