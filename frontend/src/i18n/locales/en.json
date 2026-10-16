@@ -28,6 +28,7 @@
   "scanner.manualLabel": "Or enter the code",
   "scanner.search": "Search",
   "scanner.notFound": "No product found with code {code}.",
+  "scanner.loadFailed": "Could not load the scanner. Check your connection and try again.",
   "scanner.lookupFailed": "Could not check the code. Try again.",
   "product.barCode": "Barcode"
 }

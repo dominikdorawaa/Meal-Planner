@@ -28,6 +28,7 @@
   "scanner.manualLabel": "Albo wpisz kod",
   "scanner.search": "Szukaj",
   "scanner.notFound": "Nie znaleziono produktu z kodem {code}.",
+  "scanner.loadFailed": "Nie udało się wczytać skanera. Sprawdź połączenie i spróbuj ponownie.",
   "scanner.lookupFailed": "Nie udało się sprawdzić kodu. Spróbuj ponownie.",
   "product.barCode": "Kod kreskowy"
 }

@@ -102,7 +102,7 @@ export default function AddRecipe() {
 
   const handleAddIngredient = (product: typeof MOCK_PRODUCTS[0], amount: number) => {
     // In a real app, amount should be prompted or edited later. For now, defaulting to 100
-    setIngredients([...ingredients, {
+    setIngredients(previous => [...previous, {
       name: product.name,
       amount: amount,
       unit: product.serving === '100ml' ? 'ml' : 'g',
