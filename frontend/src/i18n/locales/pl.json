@@ -18,5 +18,6 @@
   "nutrition.kcal-looks-like-kj": "Kalorie wyglądają na podane w kJ. Podaj wartość w kcal.",
   "nutrition.kcal-mismatch": "Kalorie nie zgadzają się z makroskładnikami. Sprawdź, czy wszystkie wartości są na 100 g. Przy alkoholu lub słodzikach takich jak erytrytol to normalne.",
   "nutrition.invalid-bar-code": "Kod kreskowy jest nieprawidłowy.",
-  "nutrition.kcal-deviation": "Kalorie trochę odbiegają od makroskładników. Upewnij się, że wartości zgadzają się z etykietą."
+  "nutrition.kcal-deviation": "Kalorie trochę odbiegają od makroskładników. Upewnij się, że wartości zgadzają się z etykietą.",
+  "attribution.productData": "Dane produktów"
 }

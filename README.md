@@ -52,6 +52,8 @@ UPDATE app_users SET role = 'ADMIN' WHERE email = 'admin@example.com';
 
 ## Baza produktów z Open Food Facts
 
+Dane produktów pochodzą z [Open Food Facts](https://world.openfoodfacts.org) i są dostępne na licencji [ODbL](https://opendatacommons.org/licenses/odbl/1-0/). Aplikacja pokazuje tę informację na ekranie profilu.
+
 Przed importem eksportujemy kandydatów do CSV i przeglądamy go ręcznie. Pobierz zrzut JSONL z [Open Food Facts](https://world.openfoodfacts.org/data) (`openfoodfacts-products.jsonl.gz`) i w katalogu `backend` uruchom:
 
 ```bash
