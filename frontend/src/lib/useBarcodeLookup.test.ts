@@ -26,7 +26,7 @@ describe('useBarcodeLookup', () => {
     expect(result.current.pending).toBe(true);
 
     await act(async () => {
-      resolve({ id: 'p1' });
+      resolve({ product: { id: 'p1' }, prefill: null });
       await lookup;
     });
 
@@ -35,7 +35,9 @@ describe('useBarcodeLookup', () => {
   });
 
   it('reports a missing product and a failed lookup', async () => {
-    mocks.find.mockResolvedValueOnce(null).mockRejectedValueOnce(new Error('offline'));
+    mocks.find
+      .mockResolvedValueOnce({ product: null, prefill: { name: 'Skyr' } })
+      .mockRejectedValueOnce(new Error('offline'));
     const { result } = renderHook(() => useBarcodeLookup());
     const missing = handlers();
     const failed = handlers();
@@ -43,7 +45,7 @@ describe('useBarcodeLookup', () => {
     await act(() => result.current.lookUp('5900820000318', missing));
     await act(() => result.current.lookUp('5900820000318', failed));
 
-    expect(missing.onMissing).toHaveBeenCalled();
+    expect(missing.onMissing).toHaveBeenCalledWith({ name: 'Skyr' });
     expect(failed.onError).toHaveBeenCalled();
     expect(result.current.pending).toBe(false);
   });
@@ -67,7 +69,7 @@ describe('useBarcodeLookup', () => {
     act(() => result.current.cancel());
 
     await act(async () => {
-      resolve(null);
+      resolve({ product: null, prefill: null });
       reject(new Error('late'));
       await firstLookup;
       await secondLookup;

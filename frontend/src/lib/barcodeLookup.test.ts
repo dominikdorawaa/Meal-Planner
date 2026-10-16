@@ -18,13 +18,28 @@ describe('findProductByBarCode', () => {
     const product = { id: '1', name: 'Skyr', kcal: 65, protein: 12, fat: 0, carbs: 4.2 };
     mocks.getByBarCode.mockResolvedValue(product);
 
-    await expect(findProductByBarCode('5900820000318')).resolves.toBe(product);
+    await expect(findProductByBarCode('5900820000318')).resolves.toEqual({ product, prefill: null });
   });
 
   it('returns null when no product has the code', async () => {
     mocks.getByBarCode.mockRejectedValue(new ApiError('Not found', 404));
 
-    await expect(findProductByBarCode('5900820000318')).resolves.toBeNull();
+    await expect(findProductByBarCode('5900820000318')).resolves.toEqual({ product: null, prefill: null });
+  });
+
+  it('passes on data from Open Food Facts to fill in the form', async () => {
+    const prefill = { name: 'Baton', brand: 'Wedel', kcal: 480, protein: 5 };
+    mocks.getByBarCode.mockRejectedValue(new ApiError('Not found', 404, { error: 'Not found', prefill }));
+
+    await expect(findProductByBarCode('5900820000318')).resolves.toEqual({ product: null, prefill });
+  });
+
+  it('ignores a malformed error body', async () => {
+    mocks.getByBarCode.mockRejectedValueOnce(new ApiError('Not found', 404, { prefill: 'text' }));
+    await expect(findProductByBarCode('5900820000318')).resolves.toEqual({ product: null, prefill: null });
+
+    mocks.getByBarCode.mockRejectedValueOnce(new ApiError('Not found', 404, 'text'));
+    await expect(findProductByBarCode('5900820000318')).resolves.toEqual({ product: null, prefill: null });
   });
 
   it('passes on other failures', async () => {

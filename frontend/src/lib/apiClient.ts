@@ -95,11 +95,13 @@ export function clearSession() {
 
 export class ApiError extends Error {
   readonly status: number;
+  readonly body: unknown;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, body: unknown = null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -148,13 +150,15 @@ async function request<T>(
         }
       }
       let message: string;
+      let errorBody: unknown = null;
       try {
         const err = await res.json();
+        errorBody = err;
         message = err.error || err.message || t('api.serverError', { status: res.status });
       } catch {
         message = t('api.serverError', { status: res.status });
       }
-      throw new ApiError(message, res.status);
+      throw new ApiError(message, res.status, errorBody);
     }
 
     // 204 No Content

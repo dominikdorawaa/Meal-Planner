@@ -111,8 +111,17 @@ export function AddFood() {
     setShowScanner(false);
     barcodeLookup.lookUp(barCode, {
       onFound: product => handleSelectProduct(product),
-      onMissing: () => {
-        setAddProductForm({ ...EMPTY_PRODUCT_FORM, barCode });
+      onMissing: prefill => {
+        const text = (value: string | number | null | undefined) => (value == null ? '' : String(value));
+        setAddProductForm({
+          name: text(prefill?.name),
+          brand: text(prefill?.brand),
+          kcal: text(prefill?.kcal),
+          protein: text(prefill?.protein),
+          fat: text(prefill?.fat),
+          carbs: text(prefill?.carbs),
+          barCode,
+        });
         setScanMessage(t('scanner.notFound', { code: barCode }));
         setShowAddProduct(true);
       },
