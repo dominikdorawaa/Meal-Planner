@@ -24,8 +24,12 @@ public final class OffProductParser {
         if (!isSoldInPoland(node)) {
             return Optional.empty();
         }
+        return Optional.of(fromNode(node));
+    }
+
+    public static OffProduct fromNode(JsonNode node) {
         JsonNode nutriments = node.path("nutriments");
-        return Optional.of(new OffProduct(
+        return new OffProduct(
                 text(node, "code"),
                 firstNonBlank(text(node, "product_name_pl"), text(node, "product_name")),
                 firstBrand(text(node, "brands")),
@@ -33,7 +37,7 @@ public final class OffProductParser {
                 number(nutriments.path("proteins_100g")),
                 number(nutriments.path("fat_100g")),
                 number(nutriments.path("carbohydrates_100g")),
-                text(node, "quantity")));
+                text(node, "quantity"));
     }
 
     private static boolean isSoldInPoland(JsonNode node) {

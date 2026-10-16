@@ -127,5 +127,6 @@ describe('apiClient', () => {
     expect(error).toBeInstanceOf(ApiError);
     expect(error.status).toBe(404);
     expect(error.message).toBe('Nie znaleziono zasobu.');
+    expect(error.body).toEqual({ error: 'Nie znaleziono zasobu.' });
   });
 });

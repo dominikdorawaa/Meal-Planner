@@ -118,7 +118,7 @@ export default function AddRecipe() {
   const handleBarCode = async (barCode: string) => {
     setShowScanner(false);
     try {
-      const product = await findProductByBarCode(barCode);
+      const { product } = await findProductByBarCode(barCode);
       if (!product) {
         alert(t('scanner.notFound', { code: barCode }));
         return;

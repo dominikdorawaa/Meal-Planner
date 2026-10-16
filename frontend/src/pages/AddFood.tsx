@@ -108,12 +108,21 @@ export function AddFood() {
   const handleBarCode = async (barCode: string) => {
     setShowScanner(false);
     try {
-      const product = await findProductByBarCode(barCode);
+      const { product, prefill } = await findProductByBarCode(barCode);
       if (product) {
         handleSelectProduct(product);
         return;
       }
-      setAddProductForm({ ...EMPTY_PRODUCT_FORM, barCode });
+      const text = (value: string | number | null | undefined) => (value == null ? '' : String(value));
+      setAddProductForm({
+        name: text(prefill?.name),
+        brand: text(prefill?.brand),
+        kcal: text(prefill?.kcal),
+        protein: text(prefill?.protein),
+        fat: text(prefill?.fat),
+        carbs: text(prefill?.carbs),
+        barCode,
+      });
       setScanMessage(t('scanner.notFound', { code: barCode }));
       setShowAddProduct(true);
     } catch {
