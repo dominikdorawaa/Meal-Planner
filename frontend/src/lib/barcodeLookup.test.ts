@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from './apiClient';
-import { findProductByBarCode, normalizeBarCode } from './barcodeLookup';
+import { findProductByBarCode, missingProductMessage, normalizeBarCode } from './barcodeLookup';
 
 const mocks = vi.hoisted(() => ({ getByBarCode: vi.fn() }));
 
@@ -54,5 +54,20 @@ describe('findProductByBarCode', () => {
 describe('normalizeBarCode', () => {
   it('keeps only digits', () => {
     expect(normalizeBarCode(' 590-0820 000318 ')).toBe('5900820000318');
+  });
+});
+
+describe('missingProductMessage', () => {
+  it('says the product was not found when there is nothing to fill in', () => {
+    expect(missingProductMessage(null)).toBe('scanner.notFound');
+  });
+
+  it('asks to check the data when the form was filled in', () => {
+    expect(missingProductMessage({ name: 'Milk chocolate candies', kcal: 500 })).toBe('scanner.foundToReview');
+  });
+
+  it('asks to enter the name when the filled-in data has no name', () => {
+    expect(missingProductMessage({ name: '  ', kcal: 500 })).toBe('scanner.foundToReviewWithoutName');
+    expect(missingProductMessage({ kcal: 500 })).toBe('scanner.foundToReviewWithoutName');
   });
 });

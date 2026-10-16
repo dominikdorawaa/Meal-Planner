@@ -10,6 +10,7 @@ import { recentMealProducts } from '../lib/mealProducts';
 import { useProductSearch } from '../lib/useProductSearch';
 import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
 import { useBarcodeLookup } from '../lib/useBarcodeLookup';
+import { missingProductMessage } from '../lib/barcodeLookup';
 import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { t } from '../i18n';
@@ -123,7 +124,7 @@ export function AddFood() {
           carbs: text(prefill?.carbs),
           barCode,
         });
-        setScanMessage(t('scanner.notFound', { code: barCode }));
+        setScanMessage(t(missingProductMessage(prefill), { code: barCode }));
         setShowAddProduct(true);
       },
       onError: () => alert(t('scanner.lookupFailed')),

@@ -10,6 +10,7 @@ public final class OffProductParser {
 
     static final String POLAND_TAG = "en:poland";
     static final String POLISH = "pl";
+    static final String POLISH_BARCODE_PREFIX = "590";
     static final double KJ_PER_KCAL = 4.184;
 
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
@@ -51,7 +52,7 @@ public final class OffProductParser {
         String polishName = text(node, "product_name_pl");
         String genericName = text(node, "generic_name_pl");
         String mainName = text(node, "product_name");
-        if (polishName.isEmpty() && POLISH.equals(text(node, "lang"))) {
+        if (polishName.isEmpty() && (POLISH.equals(text(node, "lang")) || isPolishBarcode(text(node, "code")))) {
             polishName = mainName;
         }
         if (!polishName.isEmpty()) {
@@ -60,7 +61,25 @@ public final class OffProductParser {
         if (!genericName.isEmpty()) {
             return new PolishName(genericName, true);
         }
-        return new PolishName(mainName, false);
+        return new PolishName(readableForeignName(node, mainName), false);
+    }
+
+    private static boolean isPolishBarcode(String code) {
+        return code.length() == 13 && code.startsWith(POLISH_BARCODE_PREFIX);
+    }
+
+    private static String readableForeignName(JsonNode node, String mainName) {
+        String englishName = text(node, "product_name_en");
+        if (!englishName.isEmpty()) {
+            return englishName;
+        }
+        return isLatinScript(mainName) ? mainName : "";
+    }
+
+    private static boolean isLatinScript(String name) {
+        return name.codePoints()
+                .filter(Character::isLetter)
+                .allMatch(codePoint -> Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.LATIN);
     }
 
     private static String completeName(String name, String genericName) {
