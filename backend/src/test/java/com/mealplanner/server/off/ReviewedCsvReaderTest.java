@@ -41,6 +41,25 @@ class ReviewedCsvReaderTest {
     }
 
     @Test
+    void readsBarCodesAndTextBackFromAFileCreatedByTheExport() throws IOException {
+        Path dump = tempDir.resolve("dump.jsonl");
+        Files.write(dump, List.of(
+                "{\"code\":\"036000291452\",\"product_name\":\"=Skyr\",\"brands\":\"+Brand\",\"countries_tags\":[\"en:poland\"],"
+                        + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}",
+                "{\"code\":\"5900820000318\",\"product_name\":\"'Ser\",\"countries_tags\":[\"en:poland\"],"
+                        + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}"));
+        Path csv = tempDir.resolve("exported.csv");
+        OffCandidatesExport.export(dump, csv);
+        List<ReviewedRow> rows = new ArrayList<>();
+
+        ReviewedCsvReader.read(csv, rows::add);
+
+        assertThat(rows).containsExactly(
+                new ReviewedRow(2, "036000291452", "=Skyr", "+Brand", 65.0, 12.0, 0.0, 4.2, "100g", true),
+                new ReviewedRow(3, "5900820000318", "'Ser", "", 65.0, 12.0, 0.0, 4.2, "100g", true));
+    }
+
+    @Test
     void acceptsColumnsInAnyOrderAndMissingOptionalOnes() throws IOException {
         List<ReviewedRow> rows = read("import;kcal;protein;fat;carbs;name;code\n yes ;65;12;;x;Skyr;5900820000318\n");
 
