@@ -32,7 +32,7 @@ export function recentMealProducts(meals: MealWithProduct[], limit: number): Pro
   const result: Product[] = [];
   for (const meal of sorted) {
     const product = withNutrition(meal);
-    if (!product || seen.has(product.id)) continue;
+    if (!product || product.deleted || seen.has(product.id)) continue;
     seen.add(product.id);
     result.push(product);
     if (result.length === limit) break;

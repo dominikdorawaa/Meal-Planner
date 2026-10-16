@@ -52,15 +52,19 @@ public final class ReviewedCsvReader {
     private static ReviewedRow toRow(int rowNumber, List<String> record, Map<String, Integer> columns) {
         String unit = value(record, columns, "unit");
         return new ReviewedRow(rowNumber,
-                value(record, columns, "code"),
-                value(record, columns, "name"),
-                value(record, columns, "brand"),
+                text(record, columns, "code"),
+                text(record, columns, "name"),
+                text(record, columns, "brand"),
                 number(value(record, columns, "kcal")),
                 number(value(record, columns, "protein")),
                 number(value(record, columns, "fat")),
                 number(value(record, columns, "carbs")),
                 unit.isEmpty() ? DEFAULT_UNIT : unit,
                 "yes".equalsIgnoreCase(value(record, columns, "import")));
+    }
+
+    private static String text(List<String> record, Map<String, Integer> columns, String column) {
+        return OffCandidatesExport.readCell(value(record, columns, column));
     }
 
     private static String value(List<String> record, Map<String, Integer> columns, String column) {

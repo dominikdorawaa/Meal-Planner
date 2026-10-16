@@ -55,6 +55,11 @@ public final class OffProductParser {
     }
 
     private static Double number(JsonNode value) {
+        Double parsed = parsedNumber(value);
+        return parsed == null || !Double.isFinite(parsed) ? null : parsed;
+    }
+
+    private static Double parsedNumber(JsonNode value) {
         if (value.isNumber()) {
             return value.doubleValue();
         }

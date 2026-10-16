@@ -49,6 +49,7 @@ export interface Product {
   status?: string;
   source?: string;
   created_by?: string | null;
+  deleted?: boolean;
 }
 
 export interface ProductSearchPage {

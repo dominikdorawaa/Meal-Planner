@@ -1,6 +1,7 @@
 package com.mealplanner.server.product;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -64,5 +65,10 @@ public class Product {
     @PreUpdate
     void updateSearchText() {
         searchText = ProductSearchText.of(name, brand);
+    }
+
+    @JsonProperty(value = "deleted", access = JsonProperty.Access.READ_ONLY)
+    public boolean isDeleted() {
+        return deletedAt != null;
     }
 }

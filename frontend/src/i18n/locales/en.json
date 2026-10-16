@@ -10,7 +10,7 @@
   "theme.light": "Light",
   "theme.system": "System",
   "nutrition.name-missing": "Enter the product name.",
-  "nutrition.nutrient-missing": "Enter calories, protein, fat and carbs.",
+  "nutrition.nutrient-missing": "Enter calories, protein, fat and carbs. Type 0 if the product has none.",
   "nutrition.negative-value": "Nutrition values cannot be negative.",
   "nutrition.kcal-above-900": "100 g of a product cannot have more than 900 kcal.",
   "nutrition.macro-above-100g": "No macronutrient can exceed 100 g per 100 g of product.",
