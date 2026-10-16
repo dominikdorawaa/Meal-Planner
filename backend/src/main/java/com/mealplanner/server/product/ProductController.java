@@ -5,7 +5,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -19,9 +18,18 @@ public class ProductController {
     @Autowired
     private ProductService productService;
 
-    @GetMapping
-    public List<Product> getAllProducts() {
-        return productRepository.findByDeletedAtIsNull();
+    @GetMapping("/search")
+    public ProductPage searchProducts(@RequestParam(name = "q", defaultValue = "") String query,
+                                      @RequestParam(defaultValue = "0") int page,
+                                      @RequestParam(defaultValue = "20") int size,
+                                      @RequestParam(name = "max_kcal", required = false) Double maxKcal,
+                                      @RequestParam(name = "min_protein", required = false) Double minProtein,
+                                      @RequestParam(name = "max_fat", required = false) Double maxFat,
+                                      @RequestParam(name = "max_carbs", required = false) Double maxCarbs,
+                                      Authentication authentication) {
+        String email = authentication == null ? null : authentication.getName();
+        ProductFilters filters = new ProductFilters(maxKcal, minProtein, maxFat, maxCarbs);
+        return productService.search(query, filters, page, size, email);
     }
 
     @GetMapping("/{id}")

@@ -8,5 +8,15 @@
   "theme.title": "Motyw",
   "theme.dark": "Ciemny",
   "theme.light": "Jasny",
-  "theme.system": "Systemowy"
+  "theme.system": "Systemowy",
+  "nutrition.name-missing": "Podaj nazwę produktu.",
+  "nutrition.nutrient-missing": "Podaj kalorie, białko, tłuszcz i węglowodany. Jeśli produkt czegoś nie zawiera, wpisz 0.",
+  "nutrition.negative-value": "Wartości odżywcze nie mogą być ujemne.",
+  "nutrition.kcal-above-900": "100 g produktu nie może mieć więcej niż 900 kcal.",
+  "nutrition.macro-above-100g": "Żaden makroskładnik nie może przekraczać 100 g na 100 g produktu.",
+  "nutrition.macros-sum-above-100g": "Białko, tłuszcz i węglowodany razem przekraczają 100 g na 100 g produktu.",
+  "nutrition.kcal-looks-like-kj": "Kalorie wyglądają na podane w kJ. Podaj wartość w kcal.",
+  "nutrition.kcal-mismatch": "Kalorie nie zgadzają się z makroskładnikami. Sprawdź, czy wszystkie wartości są na 100 g. Przy alkoholu lub słodzikach takich jak erytrytol to normalne.",
+  "nutrition.invalid-bar-code": "Kod kreskowy jest nieprawidłowy.",
+  "nutrition.kcal-deviation": "Kalorie trochę odbiegają od makroskładników. Upewnij się, że wartości zgadzają się z etykietą."
 }

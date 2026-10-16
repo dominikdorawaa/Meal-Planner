@@ -4,7 +4,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
+import { LoadMoreTrigger } from '../components/LoadMoreTrigger';
+import { recentMealProducts } from '../lib/mealProducts';
+import { useProductSearch } from '../lib/useProductSearch';
+import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
+import { t } from '../i18n';
 
+
+const RECENT_PRODUCTS_LIMIT = 5;
 
 const MEAL_TYPE_LABELS: Record<string, string> = {
   breakfast: 'Śniadanie',
@@ -38,7 +45,7 @@ const formatDateLabel = (dateStr: string) => {
 export function AddFood() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { recipes, products, profile, loading: contextLoading, refreshMeals } = useAppData();
+  const { recipes, userMeals, profile, loading: contextLoading, refreshMeals } = useAppData();
 
   const selectDate = searchParams.get('selectDate');
   const selectType = searchParams.get('selectType');
@@ -66,6 +73,11 @@ export function AddFood() {
   const [filters, setFilters] = useState({ maxKcal: '', minProtein: '', maxFat: '', maxCarbs: '' });
 
   const hasActiveFilters = Object.values(filters).some(v => v !== '');
+  const productSearch = useProductSearch({
+    query: searchQuery,
+    filters,
+    enabled: activeTab === 'products' || activeTab === 'all',
+  });
 
   const [isAdding, setIsAdding] = useState(false);
 
@@ -73,24 +85,30 @@ export function AddFood() {
   const [addProductForm, setAddProductForm] = useState({ name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '' });
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
+  const newProductValues = useMemo(() => ({
+    name: addProductForm.name.trim(),
+    kcal: parseNutritionValue(addProductForm.kcal),
+    protein: parseNutritionValue(addProductForm.protein),
+    fat: parseNutritionValue(addProductForm.fat),
+    carbs: parseNutritionValue(addProductForm.carbs),
+  }), [addProductForm]);
+  const newProductCheck = useMemo(() => checkNutrition(newProductValues), [newProductValues]);
+  const newProductNutrientsStarted = [addProductForm.kcal, addProductForm.protein, addProductForm.fat, addProductForm.carbs]
+    .some(value => value.trim() !== '');
+  const newProductHints = formNutritionHints(newProductCheck, newProductNutrientsStarted);
+
   const handleCreateProduct = async () => {
-    if (!addProductForm.name || !addProductForm.kcal) {
-      alert('Podaj przynajmniej nazwę i kalorie!');
-      return;
-    }
+    if (!newProductCheck.valid) return;
     setIsCreatingProduct(true);
     try {
       await api.products.create({
-        name: addProductForm.name,
-        brand: addProductForm.brand || null,
-        kcal: parseFloat(addProductForm.kcal) || 0,
-        protein: parseFloat(addProductForm.protein) || 0,
-        fat: parseFloat(addProductForm.fat) || 0,
-        carbs: parseFloat(addProductForm.carbs) || 0,
-        serving_size: '100g',
+        ...newProductValues,
+        brand: addProductForm.brand.trim() || null,
+        unit: '100g',
       });
       setShowAddProduct(false);
       setAddProductForm({ name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '' });
+      productSearch.reload();
     } catch (err: any) {
       alert(`Błąd przy tworzeniu produktu: ${err.message}`);
     } finally {
@@ -151,8 +169,8 @@ export function AddFood() {
     return list;
   }, [recipes, searchQuery, filters]);
 
-  const filteredProducts = useMemo(() => {
-    let list = products;
+  const recentProducts = useMemo(() => {
+    let list = recentMealProducts(userMeals, RECENT_PRODUCTS_LIMIT);
     if (searchQuery) {
       const lowerQ = searchQuery.toLowerCase();
       list = list.filter(p => p.name.toLowerCase().includes(lowerQ) || (p.brand && p.brand.toLowerCase().includes(lowerQ)));
@@ -162,7 +180,10 @@ export function AddFood() {
     if (filters.maxFat !== '') list = list.filter(p => Number(p.fat) <= Number(filters.maxFat));
     if (filters.maxCarbs !== '') list = list.filter(p => Number(p.carbs) <= Number(filters.maxCarbs));
     return list;
-  }, [products, searchQuery, filters]);
+  }, [userMeals, searchQuery, filters]);
+
+  const filteredProducts = activeTab === 'recent' ? recentProducts : productSearch.items;
+  const isSearchingProducts = activeTab !== 'recent' && productSearch.loading && filteredProducts.length === 0;
 
   const handleSelectRecipe = (recipe: any) => {
     if (!activeDate || !activeMealType) return;
@@ -568,7 +589,7 @@ export function AddFood() {
               </h2>
               {filteredProducts.length > 0 ? (
                 <div className="flex flex-col gap-3">
-                  {(activeTab === 'recent' ? filteredProducts.slice(0, 5) : filteredProducts).map((prod) => (
+                  {filteredProducts.map((prod) => (
                     <div
                       key={prod.id}
                       onClick={() => handleSelectProduct(prod)}
@@ -595,11 +616,30 @@ export function AddFood() {
                       </div>
                     </div>
                   ))}
+                  {activeTab !== 'recent' && productSearch.error && (
+                    <p className="pt-3 text-center text-sm font-medium text-error">Nie udało się pobrać kolejnych produktów</p>
+                  )}
+                  {activeTab !== 'recent' && productSearch.hasNext && (
+                    <LoadMoreTrigger onLoadMore={productSearch.loadMore} loading={productSearch.loading} />
+                  )}
                 </div>
+              ) : isSearchingProducts ? (
+                <p className="py-8 text-center text-sm font-medium text-on-surface-variant/60">Szukam produktów...</p>
               ) : (
                 <div className="py-8 text-center bg-surface-container-lowest rounded-[24px] border border-outline-variant/10 border-dashed">
                   <span className="material-symbols-outlined text-3xl text-on-surface-variant/30 mb-2">search_off</span>
-                  <p className="text-sm font-medium text-on-surface-variant/60">Brak dopasowanych produktów</p>
+                  <p className="text-sm font-medium text-on-surface-variant/60">
+                    {activeTab !== 'recent' && productSearch.error ? 'Nie udało się pobrać produktów' : 'Brak dopasowanych produktów'}
+                  </p>
+                  {activeTab !== 'recent' && productSearch.error && (
+                    <button
+                      type="button"
+                      onClick={productSearch.reload}
+                      className="mt-3 px-5 py-2 rounded-full text-sm font-bold text-primary bg-primary/10 active:scale-95 transition-all"
+                    >
+                      Spróbuj ponownie
+                    </button>
+                  )}
                 </div>
               )}
             </section>
@@ -815,9 +855,9 @@ export function AddFood() {
               {/* Makro */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { key: 'protein', label: 'Białko' },
-                  { key: 'carbs', label: 'Węgle' },
-                  { key: 'fat', label: 'Tłuszcz' },
+                  { key: 'protein', label: 'Białko *' },
+                  { key: 'carbs', label: 'Węgle *' },
+                  { key: 'fat', label: 'Tłuszcz *' },
                 ].map(f => (
                   <div key={f.key} className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest leading-none truncate">{f.label}</label>
@@ -835,11 +875,25 @@ export function AddFood() {
                   </div>
                 ))}
               </div>
+
+              {newProductHints.length > 0 && (
+                <ul className="flex flex-col gap-2" aria-live="polite">
+                  {newProductHints.map(issue => (
+                    <li
+                      key={issue}
+                      className={`flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs font-medium ${newProductCheck.errors.includes(issue) ? 'bg-error/10 text-error' : 'bg-primary/10 text-on-surface'}`}
+                    >
+                      <span className="material-symbols-outlined text-[16px] shrink-0">{newProductCheck.errors.includes(issue) ? 'error' : 'info'}</span>
+                      {t(nutritionIssueMessageKey(issue))}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <button
               onClick={handleCreateProduct}
-              disabled={isCreatingProduct || !addProductForm.name || !addProductForm.kcal}
+              disabled={isCreatingProduct || !newProductCheck.valid}
               className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
             >
               {isCreatingProduct ? (

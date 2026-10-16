@@ -2,10 +2,10 @@ import { BottomNav } from '../components/BottomNav';
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
+import { resolveMealProduct } from '../lib/mealProducts';
 import { useNavigate } from 'react-router-dom';
 import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 import { formatMacrosShort } from '../lib/macros';
-import { resolveMealProduct } from '../lib/mealProduct';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 
 const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN"; // Tylko marker do logiki poniżej
@@ -46,7 +46,7 @@ const getMealTypeName = (type: string, mealConfig?: any[]) => {
 
 export function Plan() {
   const navigate = useNavigate();
-  const { recipes, products, profile, userMeals, setUserMeals, loading: contextLoading, refreshMeals, getConsumedForDay, refreshShoppingList } = useAppData();
+  const { recipes, profile, userMeals, setUserMeals, loading: contextLoading, refreshMeals, getConsumedForDay, refreshShoppingList } = useAppData();
   const [mealToDelete, setMealToDelete] = useState<any | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeMealMenu, setActiveMealMenu] = useState<any | null>(null);
@@ -513,7 +513,7 @@ export function Plan() {
                   />
                 );
               } else if (pid) {
-                const product = resolveMealProduct(assignedMeal, products);
+                const product = resolveMealProduct(assignedMeal, userMeals);
                 if (!product) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
 
                 const weight = assignedMeal.portions_consumed || 100;
