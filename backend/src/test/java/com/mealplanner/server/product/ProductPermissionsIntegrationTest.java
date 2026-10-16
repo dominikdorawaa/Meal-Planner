@@ -90,7 +90,7 @@ class ProductPermissionsIntegrationTest {
         mockMvc.perform(post("/api/products")
                         .header(HttpHeaders.AUTHORIZATION, bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"kcal\":65,\"protein\":12,\"fat\":0,\"carbs\":4.2,\"name\":\"Twarog\",\"status\":\"VERIFIED\",\"source\":\"OFF\","
+                        .content("{\"kcal\":65,\"protein\":12,\"fat\":0,\"carbs\":4.2,\"name\":\"Twarog\",\"status\":\"VERIFIED\",\"source\":\"OPEN_FOOD_FACTS\","
                                 + "\"created_by\":\"" + someoneElse + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING"))

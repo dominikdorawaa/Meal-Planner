@@ -70,6 +70,22 @@ class OffImportIntegrationTest {
     }
 
     @Test
+    void roundsNutritionValuesSoRepeatedImportsChangeNothing() throws IOException {
+        Path file = csv("5900820000318;Skyr naturalny;Piątnica;64,6;12,04;0,0001;4,19999980927;100g;;OK;;yes;");
+
+        importService.importReviewed(file);
+        ImportReport second = importService.importReviewed(file);
+
+        Product skyr = byBarCode("5900820000318");
+        assertThat(skyr.getKcal()).isEqualTo(65.0);
+        assertThat(skyr.getProtein()).isEqualTo(12.0);
+        assertThat(skyr.getFat()).isEqualTo(0.0);
+        assertThat(skyr.getCarbs()).isEqualTo(4.2);
+        assertThat(second.unchanged()).isEqualTo(1);
+        assertThat(second.updated()).isZero();
+    }
+
+    @Test
     void importsSelectedValidProductsAsVerifiedOpenFoodFactsProducts() throws IOException {
         ImportReport report = importService.importReviewed(csv(
                 "5900820000318;Skyr naturalny;Piątnica;65;12;0;4,2;100g;150 g;OK;;yes;",
@@ -81,7 +97,7 @@ class OffImportIntegrationTest {
         assertThat(skyr.getBrand()).isEqualTo("Piątnica");
         assertThat(skyr.getCarbs()).isEqualTo(4.2);
         assertThat(skyr.getUnit()).isEqualTo("100g");
-        assertThat(skyr.getSource()).isEqualTo(ProductSource.OFF);
+        assertThat(skyr.getSource()).isEqualTo(ProductSource.OPEN_FOOD_FACTS);
         assertThat(skyr.getCreatedBy()).isNull();
         assertThat(skyr.getSearchText()).isEqualTo("skyr naturalny piatnica");
         assertThat(productRepository.count()).isEqualTo(1);
@@ -144,7 +160,7 @@ class OffImportIntegrationTest {
                 csv("5900820000318;Skyr z OFF;Piątnica;70;11;0;5;100g;;OK;;yes;"));
 
         assertThat(report.inserted()).isEqualTo(1);
-        assertThat(byBarCode("5900820000318").getSource()).isEqualTo(ProductSource.OFF);
+        assertThat(byBarCode("5900820000318").getSource()).isEqualTo(ProductSource.OPEN_FOOD_FACTS);
         assertThat(productRepository.findById(pending.getId()).orElseThrow().getStatus()).isEqualTo(ProductStatus.PENDING);
     }
 

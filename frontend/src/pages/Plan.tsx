@@ -2,6 +2,7 @@ import { BottomNav } from '../components/BottomNav';
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
+import { productDisplayName } from '../lib/productName';
 import { resolveMealProduct } from '../lib/mealProducts';
 import { useNavigate } from 'react-router-dom';
 import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
@@ -526,7 +527,7 @@ export function Plan() {
                 return (
                   <RecipeCard
                     key={assignedMeal.id}
-                    title={product.name}
+                    title={productDisplayName(product)}
                     kcal={String(kcal)}
                     macros={formatMacrosShort(p, f, c)}
                     imgSrc={product.image_url || PLACEHOLDER_IMAGE}

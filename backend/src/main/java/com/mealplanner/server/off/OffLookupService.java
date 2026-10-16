@@ -53,8 +53,8 @@ public class OffLookupService {
             return OffLookupResult.missing();
         }
         OffProduct offProduct = withCode(found.get(), barCode);
-        boolean valid = NutritionValidator.check(offProduct.name(), offProduct.kcal(), offProduct.protein(),
-                offProduct.fat(), offProduct.carbs(), UNIT, barCode).isValid();
+        boolean valid = offProduct.polishName() && NutritionValidator.check(offProduct.name(), offProduct.kcal(),
+                offProduct.protein(), offProduct.fat(), offProduct.carbs(), UNIT, barCode).isValid();
         return valid ? OffLookupResult.found(save(offProduct)) : OffLookupResult.incomplete(offProduct);
     }
 
@@ -69,7 +69,7 @@ public class OffLookupService {
         product.setCarbs(offProduct.carbs());
         product.setUnit(UNIT);
         product.setStatus(ProductStatus.VERIFIED);
-        product.setSource(ProductSource.OFF);
+        product.setSource(ProductSource.OPEN_FOOD_FACTS);
         try {
             return productRepository.saveAndFlush(product);
         } catch (DataIntegrityViolationException exception) {
@@ -80,7 +80,7 @@ public class OffLookupService {
 
     private static OffProduct withCode(OffProduct product, String barCode) {
         return new OffProduct(barCode, product.name(), product.brand(), product.kcal(), product.protein(),
-                product.fat(), product.carbs(), product.quantity());
+                product.fat(), product.carbs(), product.quantity(), product.polishName());
     }
 
     private static String shorten(String text) {

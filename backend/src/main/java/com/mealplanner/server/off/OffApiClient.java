@@ -17,7 +17,7 @@ import java.util.Optional;
 @Component
 public class OffApiClient {
 
-    static final String FIELDS = "code,product_name,product_name_pl,brands,quantity,nutriments";
+    static final String FIELDS = "code,lang,product_name,product_name_pl,generic_name_pl,brands,quantity,nutriments";
 
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 

@@ -63,8 +63,12 @@ public class Product {
 
     @PrePersist
     @PreUpdate
-    void updateSearchText() {
+    void beforeSave() {
         searchText = ProductSearchText.of(name, brand);
+        kcal = NutritionRounding.kcal(kcal);
+        protein = NutritionRounding.grams(protein);
+        fat = NutritionRounding.grams(fat);
+        carbs = NutritionRounding.grams(carbs);
     }
 
     @JsonProperty(value = "deleted", access = JsonProperty.Access.READ_ONLY)

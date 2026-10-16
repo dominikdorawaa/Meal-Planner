@@ -1,6 +1,6 @@
 package com.mealplanner.server.product;
 
 public enum ProductSource {
-    OFF,
+    OPEN_FOOD_FACTS,
     USER
 }

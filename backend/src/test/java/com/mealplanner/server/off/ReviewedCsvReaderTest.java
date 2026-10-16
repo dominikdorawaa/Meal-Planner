@@ -44,9 +44,9 @@ class ReviewedCsvReaderTest {
     void readsBarCodesAndTextBackFromAFileCreatedByTheExport() throws IOException {
         Path dump = tempDir.resolve("dump.jsonl");
         Files.write(dump, List.of(
-                "{\"code\":\"036000291452\",\"product_name\":\"=Skyr\",\"brands\":\"+Brand\",\"countries_tags\":[\"en:poland\"],"
+                "{\"lang\":\"pl\",\"code\":\"036000291452\",\"product_name\":\"=Skyr\",\"brands\":\"+Brand\",\"countries_tags\":[\"en:poland\"],"
                         + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}",
-                "{\"code\":\"5900820000318\",\"product_name\":\"'Ser\",\"countries_tags\":[\"en:poland\"],"
+                "{\"lang\":\"pl\",\"code\":\"5900820000318\",\"product_name\":\"'Ser\",\"countries_tags\":[\"en:poland\"],"
                         + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}"));
         Path csv = tempDir.resolve("exported.csv");
         OffCandidatesExport.export(dump, csv);

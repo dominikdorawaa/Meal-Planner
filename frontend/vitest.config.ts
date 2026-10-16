@@ -22,6 +22,7 @@ export default defineConfig({
         'src/lib/useBarcodeLookup.ts',
         'src/lib/recipeIngredient.ts',
         'src/lib/barcodeLookup.ts',
+        'src/lib/productName.ts',
         'src/lib/barcodeCamera.ts',
         'src/lib/barcodeDetection.ts',
         'src/lib/recipeImage.ts',
