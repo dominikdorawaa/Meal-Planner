@@ -52,7 +52,17 @@ public class Product {
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
 
+    @JsonIgnore
+    @Column(name = "search_text", nullable = false)
+    private String searchText = "";
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
+
+    @PrePersist
+    @PreUpdate
+    void updateSearchText() {
+        searchText = ProductSearchText.of(name, brand);
+    }
 }

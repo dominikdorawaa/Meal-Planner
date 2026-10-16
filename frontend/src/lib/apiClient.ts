@@ -20,9 +20,47 @@ export interface AuthUser {
   role?: UserRole;
 }
 
+export interface ProductSearchFilters {
+  maxKcal?: string;
+  minProtein?: string;
+  maxFat?: string;
+  maxCarbs?: string;
+}
+
+export interface ProductSearchParams {
+  query: string;
+  page: number;
+  size: number;
+  filters: ProductSearchFilters;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  brand?: string | null;
+  kcal: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+  unit?: string | null;
+  image_url?: string | null;
+  piece_weight?: number | null;
+  bar_code?: string | null;
+  status?: string;
+  source?: string;
+  created_by?: string | null;
+}
+
+export interface ProductSearchPage {
+  items: Product[];
+  page: number;
+  size: number;
+  has_next: boolean;
+}
+
 interface AuthResponse {
   token: string;
-  userId: string;
+  user_id: string;
   email: string;
   name: string;
   role: UserRole;
@@ -41,7 +79,7 @@ export function getStoredUser(): AuthUser | null {
 }
 
 function toAuthUser(data: AuthResponse): AuthUser {
-  return { userId: data.userId, email: data.email, name: data.name, role: data.role };
+  return { userId: data.user_id, email: data.email, name: data.name, role: data.role };
 }
 
 function saveSession(data: AuthResponse) {
@@ -161,8 +199,16 @@ export const api = {
 
   // ─── Products API ────────────────────────────────────────────────────────────
   products: {
-    async getAll(): Promise<any[]> {
-      return request<any[]>('GET', '/api/products');
+    async search({ query, page, size, filters }: ProductSearchParams): Promise<ProductSearchPage> {
+      const params = new URLSearchParams({ q: query.trim(), page: String(page), size: String(size) });
+      const filterParams: Record<keyof ProductSearchFilters, string> = {
+        maxKcal: 'max_kcal', minProtein: 'min_protein', maxFat: 'max_fat', maxCarbs: 'max_carbs',
+      };
+      for (const [key, param] of Object.entries(filterParams)) {
+        const value = filters[key as keyof ProductSearchFilters];
+        if (value !== undefined && value !== '') params.set(param, value);
+      }
+      return request<ProductSearchPage>('GET', `/api/products/search?${params}`);
     },
     async getById(id: string): Promise<any> {
       return request<any>('GET', `/api/products/${id}`);
