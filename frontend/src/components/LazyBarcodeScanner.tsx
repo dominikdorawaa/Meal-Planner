@@ -1,10 +1,14 @@
-import { Component, lazy, Suspense, type ComponentProps, type ReactNode } from 'react';
+import { Component, lazy, Suspense, useState, type ComponentProps, type ReactNode } from 'react';
 import { t } from '../i18n';
+import type { BarcodeScanner as BarcodeScannerComponent } from './BarcodeScanner';
 
-const BarcodeScanner = lazy(() => import('./BarcodeScanner').then(module => ({ default: module.BarcodeScanner })));
+function loadScanner() {
+  return lazy(() => import('./BarcodeScanner').then(module => ({ default: module.BarcodeScanner })));
+}
 
 interface ScannerLoadBoundaryProps {
   onClose: () => void;
+  onRetry: () => void;
   children: ReactNode;
 }
 
@@ -31,8 +35,15 @@ class ScannerLoadBoundary extends Component<ScannerLoadBoundaryProps, { failed: 
           <p className="text-sm font-medium text-on-surface">{t('scanner.loadFailed')}</p>
           <button
             type="button"
-            onClick={this.props.onClose}
+            onClick={this.props.onRetry}
             className="w-full py-3 rounded-2xl bg-primary text-on-primary font-bold text-sm active:scale-95"
+          >
+            {t('scanner.retry')}
+          </button>
+          <button
+            type="button"
+            onClick={this.props.onClose}
+            className="w-full py-3 rounded-2xl bg-surface-container-highest text-on-surface font-bold text-sm active:scale-95"
           >
             {t('scanner.close')}
           </button>
@@ -42,9 +53,18 @@ class ScannerLoadBoundary extends Component<ScannerLoadBoundaryProps, { failed: 
   }
 }
 
-export function LazyBarcodeScanner(props: ComponentProps<typeof BarcodeScanner>) {
+let BarcodeScanner = loadScanner();
+
+export function LazyBarcodeScanner(props: ComponentProps<typeof BarcodeScannerComponent>) {
+  const [attempt, setAttempt] = useState(0);
+
+  const retry = () => {
+    BarcodeScanner = loadScanner();
+    setAttempt(value => value + 1);
+  };
+
   return (
-    <ScannerLoadBoundary onClose={props.onClose}>
+    <ScannerLoadBoundary key={attempt} onClose={props.onClose} onRetry={retry}>
       <Suspense fallback={null}>
         <BarcodeScanner {...props} />
       </Suspense>

@@ -2,20 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppData } from '../lib/AppDataContext';
 import { api } from '../lib/apiClient';
-import { findProductByBarCode } from '../lib/barcodeLookup';
+import { useBarcodeLookup } from '../lib/useBarcodeLookup';
+import { ingredientFromProduct, type IngredientDraft } from '../lib/recipeIngredient';
+import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
 import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
 import { t } from '../i18n';
-
-interface IngredientDraft {
-  id?: string;
-  name: string;
-  amount: number;
-  unit: string;
-  kcal: number;
-  protein: number;
-  fat: number;
-  carbs: number;
-}
 
 interface InstructionStep {
   text: string;
@@ -100,6 +91,12 @@ export default function AddRecipe() {
 
   const filteredProducts = MOCK_PRODUCTS.filter(p => p.name.toLowerCase().includes(ingredientSearch.toLowerCase()));
 
+  const addIngredient = (ingredient: IngredientDraft) => {
+    setIngredients(previous => [...previous, ingredient]);
+    setShowIngredientModal(false);
+    setIngredientSearch('');
+  };
+
   const handleAddIngredient = (product: typeof MOCK_PRODUCTS[0], amount: number) => {
     // In a real app, amount should be prompted or edited later. For now, defaulting to 100
     setIngredients(previous => [...previous, {
@@ -115,27 +112,15 @@ export default function AddRecipe() {
     setIngredientSearch('');
   };
 
-  const handleBarCode = async (barCode: string) => {
+  const barcodeLookup = useBarcodeLookup();
+
+  const handleBarCode = (barCode: string) => {
     setShowScanner(false);
-    try {
-      const { product } = await findProductByBarCode(barCode);
-      if (!product) {
-        alert(t('scanner.notFound', { code: barCode }));
-        return;
-      }
-      handleAddIngredient({
-        id: product.id,
-        name: product.name,
-        brand: product.brand ?? '',
-        kcal: product.kcal,
-        protein: product.protein,
-        fat: product.fat,
-        carbs: product.carbs,
-        serving: product.unit === '100ml' ? '100ml' : '100g',
-      }, 100);
-    } catch {
-      alert(t('scanner.lookupFailed'));
-    }
+    barcodeLookup.lookUp(barCode, {
+      onFound: product => addIngredient(ingredientFromProduct(product)),
+      onMissing: () => alert(t('scanner.notFound', { code: barCode })),
+      onError: () => alert(t('scanner.lookupFailed')),
+    });
   };
 
   const handleSaveRecipe = async () => {
@@ -505,6 +490,7 @@ export default function AddRecipe() {
       )}
 
       {showScanner && <LazyBarcodeScanner onDetected={handleBarCode} onClose={() => setShowScanner(false)} />}
+      {barcodeLookup.pending && <BarcodeLookupPending onCancel={barcodeLookup.cancel} />}
     </div>
   );
 }
