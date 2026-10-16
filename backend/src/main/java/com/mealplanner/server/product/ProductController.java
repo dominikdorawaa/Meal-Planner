@@ -34,7 +34,7 @@ public class ProductController {
 
     @GetMapping("/barcode/{barCode}")
     public ResponseEntity<Product> getProductByBarCode(@PathVariable String barCode) {
-        return productRepository.findByBarCode(barCode)
+        return productRepository.findByBarCodeAndStatus(barCode, ProductStatus.VERIFIED)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

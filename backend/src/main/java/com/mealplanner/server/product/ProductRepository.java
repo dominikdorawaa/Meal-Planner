@@ -8,5 +8,5 @@ import java.util.UUID;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, UUID> {
-    Optional<Product> findByBarCode(String barCode);
+    Optional<Product> findByBarCodeAndStatus(String barCode, ProductStatus status);
 }

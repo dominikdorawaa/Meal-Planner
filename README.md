@@ -41,3 +41,11 @@ Frontend wymaga Node 24. W katalogu `frontend` uruchom `npm install` i `npm run 
 Schematem bazy zarządza Flyway. Migracje są w `backend/src/main/resources/db/migration` i wykonują się przy starcie backendu. Każda zmiana schematu to nowy plik z kolejnym numerem (np. `V2__add_recipe_category.sql`) i pasująca do niego zmiana encji. Nie edytuj migracji, która trafiła już na `main`.
 
 Jeśli lokalna baza ma tabele bez historii Flyway, backend się nie uruchomi. Wtedy wyczyść bazę przez `docker compose down -v` i `docker compose up -d postgres`.
+
+## Konto administratora
+
+Nowi użytkownicy dostają rolę `USER`. Pierwszego administratora nadaje się ręcznie w bazie, a zmiana działa od następnego żądania:
+
+```sql
+UPDATE app_users SET role = 'ADMIN' WHERE email = 'admin@example.com';
+```

@@ -33,8 +33,19 @@ public class Product {
 
     private String unit;
 
-    @Column(name = "bar_code", unique = true)
+    @Column(name = "bar_code")
     private String barCode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ProductStatus status = ProductStatus.VERIFIED;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ProductSource source = ProductSource.USER;
+
+    @Column(name = "created_by")
+    private UUID createdBy;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
