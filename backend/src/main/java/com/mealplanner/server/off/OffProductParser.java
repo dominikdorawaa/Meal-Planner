@@ -60,7 +60,21 @@ public final class OffProductParser {
         if (!genericName.isEmpty()) {
             return new PolishName(genericName, true);
         }
-        return new PolishName(mainName, false);
+        return new PolishName(readableForeignName(node, mainName), false);
+    }
+
+    private static String readableForeignName(JsonNode node, String mainName) {
+        String englishName = text(node, "product_name_en");
+        if (!englishName.isEmpty()) {
+            return englishName;
+        }
+        return isLatinScript(mainName) ? mainName : "";
+    }
+
+    private static boolean isLatinScript(String name) {
+        return name.codePoints()
+                .filter(Character::isLetter)
+                .allMatch(codePoint -> Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.LATIN);
     }
 
     private static String completeName(String name, String genericName) {
