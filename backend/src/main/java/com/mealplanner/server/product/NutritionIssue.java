@@ -10,7 +10,7 @@ public enum NutritionIssue {
     MACRO_ABOVE_100G(true),
     MACROS_SUM_ABOVE_100G(true),
     KCAL_LOOKS_LIKE_KJ(true),
-    KCAL_MISMATCH(true),
+    KCAL_MISMATCH(false),
     INVALID_BAR_CODE(true),
     KCAL_DEVIATION(false);
 
