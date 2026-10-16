@@ -226,7 +226,7 @@ class ProductPermissionsIntegrationTest {
         mockMvc.perform(post("/api/products")
                         .header(HttpHeaders.AUTHORIZATION, bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Twarog\",\"bar_code\":\"test-" + UUID.randomUUID() + "\",\"deleted\":true}"))
+                        .content("{\"name\":\"Twarog\",\"kcal\":65,\"protein\":12,\"fat\":0,\"carbs\":4.2,\"deleted\":true}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.deleted").value(false));
     }
