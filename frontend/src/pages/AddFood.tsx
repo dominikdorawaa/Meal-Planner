@@ -617,6 +617,9 @@ export function AddFood() {
                       </div>
                     </div>
                   ))}
+                  {activeTab !== 'recent' && productSearch.error && (
+                    <p className="pt-3 text-center text-sm font-medium text-error">Nie udało się pobrać kolejnych produktów</p>
+                  )}
                   {activeTab !== 'recent' && productSearch.hasNext && (
                     <LoadMoreTrigger onLoadMore={productSearch.loadMore} loading={productSearch.loading} />
                   )}

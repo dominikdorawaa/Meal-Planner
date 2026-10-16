@@ -91,6 +91,46 @@ describe('useProductSearch', () => {
     expect(result.current.items).toEqual([{ id: 'new' }]);
   });
 
+  it('does not load more pages of the previous search while a new search is waiting', async () => {
+    mocks.search.mockResolvedValueOnce(page(['old'], 0, true)).mockResolvedValueOnce(page(['new'], 0, false));
+    const { result, rerender } = renderHook(
+      ({ query }) => useProductSearch({ query, filters: noFilters, enabled: true }),
+      { initialProps: { query: 'old' } },
+    );
+    await flushDebounce();
+
+    rerender({ query: 'new' });
+    expect(result.current.hasNext).toBe(false);
+    await act(async () => {
+      result.current.loadMore();
+    });
+    expect(mocks.search).toHaveBeenCalledTimes(1);
+
+    await flushDebounce();
+    expect(mocks.search).toHaveBeenLastCalledWith(expect.objectContaining({ query: 'new', page: 0 }));
+    expect(result.current.items).toEqual([{ id: 'new' }]);
+  });
+
+  it('ignores an older search that finishes while a new search is waiting', async () => {
+    let resolveOld: (value: unknown) => void = () => {};
+    mocks.search
+      .mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve; }))
+      .mockResolvedValueOnce(page(['new'], 0, false));
+    const { result, rerender } = renderHook(
+      ({ query }) => useProductSearch({ query, filters: noFilters, enabled: true }),
+      { initialProps: { query: 'old' } },
+    );
+    await flushDebounce();
+
+    rerender({ query: 'new' });
+    await act(async () => {
+      resolveOld(page(['old'], 0, true));
+    });
+
+    expect(result.current.items).toEqual([]);
+    expect(result.current.hasNext).toBe(false);
+  });
+
   it('reports a failed search', async () => {
     mocks.search.mockRejectedValue(new Error('offline'));
     const { result } = renderHook(() => useProductSearch({ query: 'ser', filters: noFilters, enabled: true }));
@@ -99,6 +139,45 @@ describe('useProductSearch', () => {
     expect(result.current.error).toBe(true);
     expect(result.current.hasNext).toBe(false);
     expect(result.current.loading).toBe(false);
+  });
+
+  it('keeps loaded results and lets the user retry when a next page fails', async () => {
+    mocks.search
+      .mockResolvedValueOnce(page(['a'], 0, true))
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(page(['b'], 1, false));
+    const { result } = renderHook(() => useProductSearch({ query: 'ser', filters: noFilters, enabled: true }));
+    await flushDebounce();
+
+    await act(async () => {
+      result.current.loadMore();
+    });
+    expect(result.current.error).toBe(true);
+    expect(result.current.hasNext).toBe(true);
+    expect(result.current.items).toEqual([{ id: 'a' }]);
+
+    await act(async () => {
+      result.current.loadMore();
+    });
+    expect(mocks.search).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 }));
+    expect(result.current.error).toBe(false);
+    expect(result.current.items).toEqual([{ id: 'a' }, { id: 'b' }]);
+  });
+
+  it('clears results of the previous search when a new search fails', async () => {
+    mocks.search.mockResolvedValueOnce(page(['old'], 0, true)).mockRejectedValueOnce(new Error('offline'));
+    const { result, rerender } = renderHook(
+      ({ query }) => useProductSearch({ query, filters: noFilters, enabled: true }),
+      { initialProps: { query: 'old' } },
+    );
+    await flushDebounce();
+
+    rerender({ query: 'new' });
+    await flushDebounce();
+
+    expect(result.current.error).toBe(true);
+    expect(result.current.items).toEqual([]);
+    expect(result.current.hasNext).toBe(false);
   });
 
   it('ignores a failure of an older search', async () => {

@@ -26,6 +26,11 @@ describe('canDeleteProduct', () => {
     expect(canDeleteProduct({ status: 'VERIFIED', created_by: null }, legacyUser)).toBe(false);
   });
 
+  it('does not offer deleting a product that is already deleted', () => {
+    expect(canDeleteProduct({ status: 'VERIFIED', created_by: null, deleted: true }, admin)).toBe(false);
+    expect(canDeleteProduct({ status: 'PENDING', created_by: 'user-1', deleted: true }, user)).toBe(false);
+  });
+
   it('does not let a signed out visitor delete products', () => {
     expect(canDeleteProduct({ status: 'PENDING', created_by: 'user-1' }, null)).toBe(false);
   });
