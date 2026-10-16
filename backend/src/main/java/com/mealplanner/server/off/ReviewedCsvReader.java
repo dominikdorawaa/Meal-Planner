@@ -15,6 +15,7 @@ import java.util.function.Consumer;
 public final class ReviewedCsvReader {
 
     static final char SEPARATOR = ';';
+    static final char BYTE_ORDER_MARK = (char) 0xFEFF;
     static final String DEFAULT_UNIT = "100g";
     static final List<String> REQUIRED_COLUMNS = List.of("code", "name", "kcal", "protein", "fat", "carbs", "import");
 
@@ -23,11 +24,12 @@ public final class ReviewedCsvReader {
 
     public static void read(Path csv, Consumer<ReviewedRow> consumer) throws IOException {
         try (BufferedReader reader = Files.newBufferedReader(csv, StandardCharsets.UTF_8)) {
-            List<String> header = nextRecord(reader);
+            skipByteOrderMark(reader);
+            List<String> header = nextRecord(reader, 1);
             Map<String, Integer> columns = columns(header == null ? List.of() : header);
             int rowNumber = 1;
             List<String> record;
-            while ((record = nextRecord(reader)) != null) {
+            while ((record = nextRecord(reader, rowNumber + 1)) != null) {
                 rowNumber++;
                 if (record.size() == 1 && record.getFirst().isBlank()) {
                     continue;
@@ -77,13 +79,21 @@ public final class ReviewedCsvReader {
             return null;
         }
         try {
-            return Double.parseDouble(value.replace(',', '.'));
+            double parsed = Double.parseDouble(value.replace(',', '.'));
+            return Double.isFinite(parsed) ? parsed : null;
         } catch (NumberFormatException exception) {
             return null;
         }
     }
 
-    private static List<String> nextRecord(BufferedReader reader) throws IOException {
+    private static void skipByteOrderMark(BufferedReader reader) throws IOException {
+        reader.mark(1);
+        if (reader.read() != BYTE_ORDER_MARK) {
+            reader.reset();
+        }
+    }
+
+    private static List<String> nextRecord(BufferedReader reader, int rowNumber) throws IOException {
         int next = reader.read();
         if (next == -1) {
             return null;
@@ -119,6 +129,9 @@ public final class ReviewedCsvReader {
                 field.append(c);
             }
             next = reader.read();
+        }
+        if (quoted) {
+            throw new IllegalArgumentException("Unclosed quote in CSV row " + rowNumber);
         }
         fields.add(field.toString());
         return fields;

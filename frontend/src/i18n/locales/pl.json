@@ -16,7 +16,7 @@
   "nutrition.macro-above-100g": "Żaden makroskładnik nie może przekraczać 100 g na 100 g produktu.",
   "nutrition.macros-sum-above-100g": "Białko, tłuszcz i węglowodany razem przekraczają 100 g na 100 g produktu.",
   "nutrition.kcal-looks-like-kj": "Kalorie wyglądają na podane w kJ. Podaj wartość w kcal.",
-  "nutrition.kcal-mismatch": "Kalorie nie zgadzają się z makroskładnikami. Sprawdź, czy wszystkie wartości są na 100 g.",
+  "nutrition.kcal-mismatch": "Kalorie nie zgadzają się z makroskładnikami. Sprawdź, czy wszystkie wartości są na 100 g. Przy alkoholu lub słodzikach takich jak erytrytol to normalne.",
   "nutrition.invalid-bar-code": "Kod kreskowy jest nieprawidłowy.",
   "nutrition.kcal-deviation": "Kalorie trochę odbiegają od makroskładników. Upewnij się, że wartości zgadzają się z etykietą.",
   "attribution.productData": "Dane produktów"
