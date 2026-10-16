@@ -1,9 +1,8 @@
 package com.mealplanner.server.product;
 
-import com.mealplanner.server.meal.UserMealRepository;
-import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,11 +17,11 @@ public class ProductController {
     private ProductRepository productRepository;
 
     @Autowired
-    private UserMealRepository userMealRepository;
+    private ProductService productService;
 
     @GetMapping
     public List<Product> getAllProducts() {
-        return productRepository.findAll();
+        return productRepository.findByDeletedAtIsNull();
     }
 
     @GetMapping("/{id}")
@@ -34,23 +33,19 @@ public class ProductController {
 
     @GetMapping("/barcode/{barCode}")
     public ResponseEntity<Product> getProductByBarCode(@PathVariable String barCode) {
-        return productRepository.findByBarCodeAndStatus(barCode, ProductStatus.VERIFIED)
+        return productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(barCode, ProductStatus.VERIFIED)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public Product createProduct(@RequestBody Product product) {
-        return productRepository.save(product);
+    public Product createProduct(@RequestBody Product product, Authentication authentication) {
+        return productService.create(product, authentication.getName());
     }
 
     @DeleteMapping("/{id}")
-    @Transactional
-    public ResponseEntity<Void> deleteProduct(@PathVariable UUID id) {
-        return productRepository.findById(id).map(product -> {
-            userMealRepository.deleteByProduct(product);
-            productRepository.delete(product);
-            return ResponseEntity.ok().<Void>build();
-        }).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Void> deleteProduct(@PathVariable UUID id, Authentication authentication) {
+        productService.delete(id, authentication.getName());
+        return ResponseEntity.ok().build();
     }
 }

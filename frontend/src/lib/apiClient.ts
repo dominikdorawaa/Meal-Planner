@@ -11,10 +11,13 @@ const USER_KEY = 'mp_auth_user';
 
 // Typy 
 
+export type UserRole = 'USER' | 'ADMIN';
+
 export interface AuthUser {
   userId: string;
   email: string;
   name: string;
+  role?: UserRole;
 }
 
 interface AuthResponse {
@@ -22,6 +25,7 @@ interface AuthResponse {
   userId: string;
   email: string;
   name: string;
+  role: UserRole;
 }
 
 // Token helpers
@@ -36,9 +40,13 @@ export function getStoredUser(): AuthUser | null {
   try { return JSON.parse(raw); } catch { return null; }
 }
 
+function toAuthUser(data: AuthResponse): AuthUser {
+  return { userId: data.userId, email: data.email, name: data.name, role: data.role };
+}
+
 function saveSession(data: AuthResponse) {
   localStorage.setItem(TOKEN_KEY, data.token);
-  localStorage.setItem(USER_KEY, JSON.stringify({ userId: data.userId, email: data.email, name: data.name }));
+  localStorage.setItem(USER_KEY, JSON.stringify(toAuthUser(data)));
 }
 
 export function clearSession() {
@@ -122,13 +130,13 @@ export const api = {
     async register(email: string, password: string, name: string): Promise<AuthUser> {
       const data = await request<AuthResponse>('POST', '/api/auth/register', { email, password, name }, false);
       saveSession(data);
-      return { userId: data.userId, email: data.email, name: data.name };
+      return toAuthUser(data);
     },
 
     async login(email: string, password: string): Promise<AuthUser> {
       const data = await request<AuthResponse>('POST', '/api/auth/login', { email, password }, false);
       saveSession(data);
-      return { userId: data.userId, email: data.email, name: data.name };
+      return toAuthUser(data);
     },
 
     logout() {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLanguage, t } from '../i18n';
-import { api, getToken } from './apiClient';
+import { api, getStoredUser, getToken } from './apiClient';
 
 const fetchMock = vi.fn();
 
@@ -88,5 +88,16 @@ describe('apiClient', () => {
     fetchMock.mockResolvedValue(jsonResponse(401, { error: 'Invalid email or password.' }));
 
     await expect(api.auth.login('alice@example.com', 'wrong')).rejects.toThrow('Invalid email or password.');
+  });
+
+  it('stores the user role returned after login', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, {
+      token: 'token-1', userId: 'user-1', email: 'alice@example.com', name: 'Alice', role: 'ADMIN',
+    }));
+
+    const user = await api.auth.login('alice@example.com', 'secret123');
+
+    expect(user.role).toBe('ADMIN');
+    expect(getStoredUser()?.role).toBe('ADMIN');
   });
 });

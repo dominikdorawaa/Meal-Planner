@@ -1,5 +1,6 @@
 package com.mealplanner.server.product;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -46,6 +47,10 @@ public class Product {
 
     @Column(name = "created_by")
     private UUID createdBy;
+
+    @JsonIgnore
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
