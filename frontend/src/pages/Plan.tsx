@@ -5,6 +5,7 @@ import { useAppData } from '../lib/AppDataContext';
 import { useNavigate } from 'react-router-dom';
 import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 import { formatMacrosShort } from '../lib/macros';
+import { resolveMealProduct } from '../lib/mealProduct';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 
 const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN"; // Tylko marker do logiki poniżej
@@ -512,7 +513,7 @@ export function Plan() {
                   />
                 );
               } else if (pid) {
-                const product = products.find(p => p.id === pid);
+                const product = resolveMealProduct(assignedMeal, products);
                 if (!product) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
 
                 const weight = assignedMeal.portions_consumed || 100;

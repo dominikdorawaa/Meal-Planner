@@ -11,6 +11,7 @@ export default defineConfig({
         'src/i18n/index.ts',
         'src/lib/apiClient.ts',
         'src/lib/productPermissions.ts',
+        'src/lib/mealProduct.ts',
         'src/lib/recipeImage.ts',
         'src/components/RecipeCoverImage.tsx',
         'src/components/InstallAppCard.tsx',

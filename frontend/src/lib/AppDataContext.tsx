@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { type AuthUser, api } from './apiClient';
+import { resolveMealProduct } from './mealProduct';
 
 interface AppData {
   user: AuthUser | null;
@@ -180,7 +181,7 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
           carbs += parseFloat((rec.carbs * mult).toFixed(1));
         }
       } else if (meal.product) {
-        const prod = products.find(p => p.id === (meal.product?.id || meal.product));
+        const prod = resolveMealProduct(meal, products);
         if (prod) {
           const weight = meal.portions_consumed || 100;
           const factor = prod.unit === 'pc' ? weight : (weight / 100);
