@@ -5,6 +5,7 @@ import com.mealplanner.server.auth.RegisterRequest;
 import com.mealplanner.server.user.ProfileService;
 import com.mealplanner.server.user.UserProfile;
 import org.flywaydb.core.Flyway;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,6 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
@@ -55,7 +57,7 @@ class DatabaseMigrationTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "select version, success from flyway_schema_history where version is not null order by installed_rank");
 
-        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2");
+        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3");
         assertThat(history).allSatisfy(row -> assertThat(row.get("success")).isEqualTo(true));
     }
 
@@ -103,6 +105,90 @@ class DatabaseMigrationTest {
         assertThat(rows).extracting(row -> row.get("image_url"))
                 .containsExactly("https://example.com/my-photo.jpg", null);
         jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    @Test
+    void marksExistingProductsAsVerifiedUserProductsAndExistingUsersAsRegularUsers() {
+        String schema = "status_migration_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("2").load().migrate();
+        jdbcTemplate.update("insert into " + schema + ".app_users (id, email, password_hash) values (?, ?, ?)",
+                UUID.randomUUID(), "existing@example.com", "hash");
+        jdbcTemplate.update("insert into " + schema + ".products (id, name, bar_code) values (?, ?, ?)",
+                UUID.randomUUID(), "Existing product", "5900000000001");
+
+        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+
+        Map<String, Object> product = jdbcTemplate.queryForMap(
+                "select status, source, created_by from " + schema + ".products");
+        assertThat(product.get("status")).isEqualTo("VERIFIED");
+        assertThat(product.get("source")).isEqualTo("USER");
+        assertThat(product.get("created_by")).isNull();
+        assertThat(jdbcTemplate.queryForObject("select role from " + schema + ".app_users", String.class))
+                .isEqualTo("USER");
+        jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    @Test
+    void allowsManyUnverifiedProductsWithTheSameBarCodeButOnlyOneVerified() {
+        String barCode = "test-" + UUID.randomUUID();
+        insertProduct(barCode, "PENDING");
+        insertProduct(barCode, "PENDING");
+        insertProduct(barCode, "REJECTED");
+        insertProduct(barCode, "VERIFIED");
+
+        assertThatThrownBy(() -> insertProduct(barCode, "VERIFIED"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from products where bar_code = ?", Integer.class, barCode)).isEqualTo(4);
+        jdbcTemplate.update("delete from products where bar_code = ?", barCode);
+    }
+
+    @Test
+    void rejectsUnknownProductStatusSourceAndUserRole() {
+        assertThatThrownBy(() -> insertProduct("5900000000002", "UNKNOWN"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "insert into products (id, name, source) values (?, ?, ?)", UUID.randomUUID(), "Bad source", "SHOP"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "insert into app_users (id, email, password_hash, role) values (?, ?, ?, ?)",
+                UUID.randomUUID(), uniqueEmail(), "hash", "OWNER"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void keepsProductWithoutCreatorWhenCreatorIsDeleted() {
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        jdbcTemplate.update("insert into app_users (id, email, password_hash) values (?, ?, ?)",
+                userId, uniqueEmail(), "hash");
+        jdbcTemplate.update("insert into products (id, name, created_by) values (?, ?, ?)",
+                productId, "Created product", userId);
+
+        jdbcTemplate.update("delete from app_users where id = ?", userId);
+
+        Map<String, Object> product = jdbcTemplate.queryForMap(
+                "select name, created_by from products where id = ?", productId);
+        assertThat(product.get("name")).isEqualTo("Created product");
+        assertThat(product.get("created_by")).isNull();
+        jdbcTemplate.update("delete from products where id = ?", productId);
+    }
+
+    @Test
+    void rejectsProductWithUnknownCreator() {
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "insert into products (id, name, created_by) values (?, ?, ?)",
+                UUID.randomUUID(), "Orphan product", UUID.randomUUID()))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    private void insertProduct(String barCode, String status) {
+        jdbcTemplate.update("insert into products (id, name, bar_code, status) values (?, ?, ?, ?)",
+                UUID.randomUUID(), "Product " + status, barCode, status);
+    }
+
+    private String uniqueEmail() {
+        return "user-" + UUID.randomUUID() + "@example.com";
     }
 
     @Test
