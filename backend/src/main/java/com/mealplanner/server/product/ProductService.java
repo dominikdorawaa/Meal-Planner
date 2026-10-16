@@ -30,6 +30,10 @@ public class ProductService {
 
     public Product create(Product product, String email) {
         User author = findUser(email);
+        NutritionCheck check = NutritionValidator.check(product);
+        if (!check.isValid()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, check.errors().getFirst().messageKey());
+        }
         product.setId(null);
         product.setDeletedAt(null);
         product.setSource(ProductSource.USER);

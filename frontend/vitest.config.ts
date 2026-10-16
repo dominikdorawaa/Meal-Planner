@@ -13,6 +13,7 @@ export default defineConfig({
         'src/lib/productPermissions.ts',
         'src/lib/useProductSearch.ts',
         'src/lib/mealProducts.ts',
+        'src/lib/nutritionCheck.ts',
         'src/components/LoadMoreTrigger.tsx',
         'src/lib/recipeImage.ts',
         'src/components/RecipeCoverImage.tsx',
