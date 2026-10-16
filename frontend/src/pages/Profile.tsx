@@ -5,6 +5,7 @@ import { useAppData } from '../lib/AppDataContext';
 import { BottomNav } from '../components/BottomNav';
 import { InstallAppCard } from '../components/InstallAppCard';
 import { ThemeCard } from '../components/ThemeCard';
+import { ProductDataAttribution } from '../components/ProductDataAttribution';
 
 const MEAL_TYPES = [
   { id: 'breakfast', name: 'Śniadanie', icon: 'light_mode' },
@@ -610,6 +611,8 @@ export function Profile() {
             Wyloguj się
           </button>
         </div>
+
+        <ProductDataAttribution />
 
       </main>
       <BottomNav />

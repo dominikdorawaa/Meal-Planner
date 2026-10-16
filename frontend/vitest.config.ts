@@ -15,6 +15,7 @@ export default defineConfig({
         'src/lib/mealProducts.ts',
         'src/lib/nutritionCheck.ts',
         'src/components/LoadMoreTrigger.tsx',
+        'src/components/ProductDataAttribution.tsx',
         'src/lib/recipeImage.ts',
         'src/components/RecipeCoverImage.tsx',
         'src/components/InstallAppCard.tsx',
