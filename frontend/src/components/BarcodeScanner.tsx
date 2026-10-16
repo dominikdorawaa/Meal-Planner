@@ -46,9 +46,11 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
     new BrowserMultiFormatReader()
       .decodeFromVideoDevice(undefined, video, (result, _error, activeControls) => {
         if (!result || finished) return;
+        const code = normalizeBarCode(result.getText());
+        if (!isValidBarCode(code)) return;
         finished = true;
         activeControls.stop();
-        onDetectedRef.current(result.getText());
+        onDetectedRef.current(code);
       })
       .then(started => {
         if (finished) {

@@ -73,6 +73,33 @@ class ReviewedCsvReaderTest {
     }
 
     @Test
+    void readsQuotedHeadersAfterTheByteOrderMark() throws IOException {
+        List<ReviewedRow> rows = read("﻿\"code\";\"name\";\"kcal\";\"protein\";\"fat\";\"carbs\";\"import\"\n"
+                + "\"5900820000318\";\"Skyr\";65;12;0;4,2;yes\n");
+
+        assertThat(rows).containsExactly(
+                new ReviewedRow(2, "5900820000318", "Skyr", "", 65.0, 12.0, 0.0, 4.2, "100g", true));
+    }
+
+    @Test
+    void rejectsAQuotedFieldThatIsNeverClosed() {
+        assertThatThrownBy(() -> read("code;name;kcal;protein;fat;carbs;import\n"
+                + "5900820000318;\"Skyr;65;12;0;4,2;yes\n"
+                + "5901234123457;Ser;300;25;25;0;yes\n"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("row 2");
+    }
+
+    @Test
+    void treatsNonFiniteNumbersAsMissing() throws IOException {
+        List<ReviewedRow> rows = read("code;name;kcal;protein;fat;carbs;import\n"
+                + "5900820000318;Skyr;NaN;Infinity;1e400;-Infinity;yes\n");
+
+        assertThat(rows).containsExactly(
+                new ReviewedRow(2, "5900820000318", "Skyr", "", null, null, null, null, "100g", true));
+    }
+
+    @Test
     void rejectsFilesWithoutRequiredColumns() {
         assertThatThrownBy(() -> read("code;name\n1;Skyr\n"))
                 .isInstanceOf(IllegalArgumentException.class)

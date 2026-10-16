@@ -63,6 +63,21 @@ describe('BarcodeScanner', () => {
     expect(mocks.stop).toHaveBeenCalled();
   });
 
+  it('keeps scanning when the camera reads a code that is not a product barcode', async () => {
+    const emit = startScanning();
+    const onDetected = vi.fn();
+    render(<BarcodeScanner onDetected={onDetected} onClose={vi.fn()} />);
+    await act(async () => {});
+
+    act(() => emit('https://example.com'));
+    act(() => emit('5900820000319'));
+    expect(onDetected).not.toHaveBeenCalled();
+    expect(mocks.stop).not.toHaveBeenCalled();
+
+    act(() => emit(' 5900820000318 '));
+    expect(onDetected).toHaveBeenCalledWith('5900820000318');
+  });
+
   it('stops the camera when closed', async () => {
     startScanning();
     const { unmount } = render(<BarcodeScanner onDetected={vi.fn()} onClose={vi.fn()} />);

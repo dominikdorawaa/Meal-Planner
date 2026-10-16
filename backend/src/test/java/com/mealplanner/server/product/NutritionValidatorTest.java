@@ -76,10 +76,16 @@ class NutritionValidatorTest {
     @CsvSource({
             "250, 0, 0, 0",
             "100, 12, 20, 40",
-            "380, 10, 2, 5"
+            "380, 10, 2, 5",
+            "0, 0, 0, 100",
+            "230, 0, 0, 0"
     })
-    void rejectsEnergyThatDoesNotMatchMacros(double kcal, double protein, double fat, double carbs) {
-        assertThat(check(kcal, protein, fat, carbs).errors()).containsExactly(KCAL_MISMATCH);
+    void warnsWithoutBlockingWhenEnergyDoesNotMatchMacros(double kcal, double protein, double fat, double carbs) {
+        NutritionCheck result = check(kcal, protein, fat, carbs);
+
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.warnings()).containsExactly(KCAL_MISMATCH);
+        assertThat(result.isValid()).isTrue();
     }
 
     @Test
@@ -137,6 +143,6 @@ class NutritionValidatorTest {
     void namesMessageKeysAfterIssueCodes() {
         assertThat(KCAL_LOOKS_LIKE_KJ.messageKey()).isEqualTo("product.nutrition.kcal-looks-like-kj");
         assertThat(KCAL_DEVIATION.isError()).isFalse();
-        assertThat(KCAL_MISMATCH.isError()).isTrue();
+        assertThat(KCAL_MISMATCH.isError()).isFalse();
     }
 }

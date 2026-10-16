@@ -672,6 +672,15 @@ export function AddFood() {
                   <p className="text-sm font-medium text-on-surface-variant/60">
                     {activeTab !== 'recent' && productSearch.error ? 'Nie udało się pobrać produktów' : 'Brak dopasowanych produktów'}
                   </p>
+                  {activeTab !== 'recent' && productSearch.error && (
+                    <button
+                      type="button"
+                      onClick={productSearch.reload}
+                      className="mt-3 px-5 py-2 rounded-full text-sm font-bold text-primary bg-primary/10 active:scale-95 transition-all"
+                    >
+                      Spróbuj ponownie
+                    </button>
+                  )}
                 </div>
               )}
             </section>

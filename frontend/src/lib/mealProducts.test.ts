@@ -23,7 +23,23 @@ describe('resolveMealProduct', () => {
   });
 });
 
+describe('resolveMealProduct with incomplete nutrition', () => {
+  it('keeps a saved product without calories so its meal card still shows', () => {
+    const noCalories = { id: 'old', name: 'Old product', kcal: null };
+
+    expect(resolveMealProduct({ product: noCalories }, [])).toBe(noCalories);
+    expect(resolveMealProduct({ product: { id: 'old' } }, [{ product: noCalories }])).toBe(noCalories);
+  });
+});
+
 describe('recentMealProducts', () => {
+  it('does not offer products without calories for new meals', () => {
+    const noCalories = { id: 'old', name: 'Old product', kcal: null };
+
+    expect(recentMealProducts([{ product: noCalories }, { product: skyr }], 5)).toEqual([skyr]);
+  });
+
+
   it('returns unique products from the newest meals first', () => {
     const meals = [
       { created_at: '2026-10-01T08:00:00Z', product: oats },

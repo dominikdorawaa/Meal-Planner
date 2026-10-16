@@ -164,6 +164,16 @@ class OffImportIntegrationTest {
     }
 
     @Test
+    void shortensTextWithoutSplittingCharacters() throws IOException {
+        String emoji = new String(Character.toChars(0x1F95B));
+        String name = "a".repeat(254) + emoji + "b";
+
+        importService.importReviewed(csv("5900820000318;" + name + ";;65;12;0;4,2;100g;;OK;;yes;"));
+
+        assertThat(byBarCode("5900820000318").getName()).isEqualTo("a".repeat(254) + emoji);
+    }
+
+    @Test
     void importsManyProductsInBatches() throws IOException {
         List<String> rows = new ArrayList<>();
         for (int i = 0; i < OffImportService.BATCH_SIZE + 5; i++) {
