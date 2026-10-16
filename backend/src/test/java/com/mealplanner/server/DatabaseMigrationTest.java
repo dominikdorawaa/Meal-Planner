@@ -156,6 +156,32 @@ class DatabaseMigrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @Test
+    void keepsProductWithoutCreatorWhenCreatorIsDeleted() {
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        jdbcTemplate.update("insert into app_users (id, email, password_hash) values (?, ?, ?)",
+                userId, uniqueEmail(), "hash");
+        jdbcTemplate.update("insert into products (id, name, created_by) values (?, ?, ?)",
+                productId, "Created product", userId);
+
+        jdbcTemplate.update("delete from app_users where id = ?", userId);
+
+        Map<String, Object> product = jdbcTemplate.queryForMap(
+                "select name, created_by from products where id = ?", productId);
+        assertThat(product.get("name")).isEqualTo("Created product");
+        assertThat(product.get("created_by")).isNull();
+        jdbcTemplate.update("delete from products where id = ?", productId);
+    }
+
+    @Test
+    void rejectsProductWithUnknownCreator() {
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "insert into products (id, name, created_by) values (?, ?, ?)",
+                UUID.randomUUID(), "Orphan product", UUID.randomUUID()))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
     private void insertProduct(String barCode, String status) {
         jdbcTemplate.update("insert into products (id, name, bar_code, status) values (?, ?, ?, ?)",
                 UUID.randomUUID(), "Product " + status, barCode, status);
