@@ -33,5 +33,8 @@
   "scanner.lookingUp": "Looking up the product...",
   "scanner.cancel": "Cancel",
   "scanner.lookupFailed": "Could not check the code. Try again.",
-  "product.barCode": "Barcode"
+  "product.barCode": "Barcode",
+  "scanner.engineFailed": "Could not start the scanner. Enter the code by hand.",
+  "scanner.aimHint": "Fit the code in the frame, 15 to 20 cm from the camera",
+  "scanner.torch": "Flashlight"
 }
