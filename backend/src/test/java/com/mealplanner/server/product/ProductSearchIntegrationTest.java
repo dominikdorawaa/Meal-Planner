@@ -196,6 +196,17 @@ class ProductSearchIntegrationTest {
     }
 
     @Test
+    void returnsAnEmptyPageForVeryLargePageNumbers() throws Exception {
+        mockMvc.perform(search("ser").param("size", "20").param("page", "107374183"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(0)))
+                .andExpect(jsonPath("$.has_next").value(false));
+        mockMvc.perform(search("").param("size", "50").param("page", String.valueOf(Integer.MAX_VALUE)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(0)));
+    }
+
+    @Test
     void limitsPageSizeAndRejectsNegativePages() throws Exception {
         mockMvc.perform(search("ser").param("size", "500").param("page", "-3"))
                 .andExpect(jsonPath("$.size").value(50))

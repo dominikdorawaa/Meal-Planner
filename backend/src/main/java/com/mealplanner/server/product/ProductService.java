@@ -65,7 +65,7 @@ public class ProductService {
                 .orElse(null);
         String normalizedQuery = ProductSearchText.normalize(query);
         int limit = pageSize + 1;
-        int offset = pageNumber * pageSize;
+        long offset = (long) pageNumber * pageSize;
 
         List<Product> found = normalizedQuery.isEmpty()
                 ? productRepository.listVisible(userId, filters.maxKcal(), filters.minProtein(),
@@ -78,7 +78,7 @@ public class ProductService {
     }
 
     private List<Product> searchByText(String query, String rawQuery, String userId, ProductFilters filters,
-                                       int limit, int offset) {
+                                       int limit, long offset) {
         String keyword = Arrays.stream(query.split(" "))
                 .max(Comparator.comparingInt(String::length))
                 .orElse(query);
@@ -92,7 +92,7 @@ public class ProductService {
                 ? productRepository.countExact(query, keyword, rawQuery, userId, filters.maxKcal(),
                         filters.minProtein(), filters.maxFat(), filters.maxCarbs())
                 : offset + exact.size();
-        int similarOffset = (int) Math.max(0, offset - exactTotal);
+        long similarOffset = Math.max(0, offset - exactTotal);
         List<Product> similar = productRepository.searchSimilar(query, rawQuery, userId, filters.maxKcal(),
                 filters.minProtein(), filters.maxFat(), filters.maxCarbs(), limit - exact.size(), similarOffset);
 
