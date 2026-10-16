@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { t } from '../i18n';
 import {
   checkNutrition,
+  formNutritionHints,
   isValidBarCode,
   nutritionIssueMessageKey,
   parseNutritionValue,
@@ -94,6 +95,28 @@ describe('parseNutritionValue', () => {
   it('returns null for empty or invalid input', () => {
     expect(parseNutritionValue('')).toBeNull();
     expect(parseNutritionValue('abc')).toBeNull();
+  });
+});
+
+describe('formNutritionHints', () => {
+  it('hides the missing name and missing values before the user enters any value', () => {
+    const empty = checkNutrition({ name: '', kcal: null, protein: null, fat: null, carbs: null });
+
+    expect(formNutritionHints(empty, false)).toEqual([]);
+  });
+
+  it('tells the user about missing values once they started entering them', () => {
+    const oil = checkNutrition({ name: 'Olej', kcal: 900, protein: null, fat: 100, carbs: null });
+
+    expect(formNutritionHints(oil, true)).toEqual(['NUTRIENT_MISSING']);
+  });
+
+  it('shows other errors and warnings but never the missing name', () => {
+    const noName = checkNutrition({ name: '', kcal: 1000, protein: 0, fat: 100, carbs: 0, unit: '100g' });
+    const deviation = check(130, 10, 2, 10);
+
+    expect(formNutritionHints(noName, true)).toEqual(['KCAL_ABOVE_900']);
+    expect(formNutritionHints(deviation, true)).toEqual(['KCAL_DEVIATION']);
   });
 });
 

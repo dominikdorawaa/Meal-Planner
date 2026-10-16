@@ -7,7 +7,7 @@ import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { LoadMoreTrigger } from '../components/LoadMoreTrigger';
 import { recentMealProducts } from '../lib/mealProducts';
 import { useProductSearch } from '../lib/useProductSearch';
-import { checkNutrition, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
+import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { t } from '../i18n';
 
 
@@ -93,10 +93,9 @@ export function AddFood() {
     carbs: parseNutritionValue(addProductForm.carbs),
   }), [addProductForm]);
   const newProductCheck = useMemo(() => checkNutrition(newProductValues), [newProductValues]);
-  const newProductHints = [
-    ...newProductCheck.errors.filter(issue => issue !== 'NAME_MISSING' && issue !== 'NUTRIENT_MISSING'),
-    ...newProductCheck.warnings,
-  ];
+  const newProductNutrientsStarted = [addProductForm.kcal, addProductForm.protein, addProductForm.fat, addProductForm.carbs]
+    .some(value => value.trim() !== '');
+  const newProductHints = formNutritionHints(newProductCheck, newProductNutrientsStarted);
 
   const handleCreateProduct = async () => {
     if (!newProductCheck.valid) return;
