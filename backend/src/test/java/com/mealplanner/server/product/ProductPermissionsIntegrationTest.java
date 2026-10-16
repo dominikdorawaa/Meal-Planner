@@ -2,6 +2,7 @@ package com.mealplanner.server.product;
 
 import com.mealplanner.server.TestcontainersConfiguration;
 import com.mealplanner.server.auth.JwtService;
+import com.mealplanner.server.config.LocaleConfig;
 import com.mealplanner.server.meal.UserMeal;
 import com.mealplanner.server.meal.UserMealRepository;
 import com.mealplanner.server.user.User;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -46,6 +48,9 @@ class ProductPermissionsIntegrationTest {
 
     @Autowired
     private UserMealRepository userMealRepository;
+
+    @Autowired
+    private MessageSource messageSource;
 
     private User saveUser(UserRole role) {
         User user = new User();
@@ -85,7 +90,7 @@ class ProductPermissionsIntegrationTest {
         mockMvc.perform(post("/api/products")
                         .header(HttpHeaders.AUTHORIZATION, bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Twarog\",\"status\":\"VERIFIED\",\"source\":\"OFF\","
+                        .content("{\"kcal\":65,\"protein\":12,\"fat\":0,\"carbs\":4.2,\"name\":\"Twarog\",\"status\":\"VERIFIED\",\"source\":\"OFF\","
                                 + "\"created_by\":\"" + someoneElse + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING"))
@@ -100,7 +105,7 @@ class ProductPermissionsIntegrationTest {
         mockMvc.perform(post("/api/products")
                         .header(HttpHeaders.AUTHORIZATION, bearer(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Maslo\",\"status\":\"PENDING\"}"))
+                        .content("{\"kcal\":65,\"protein\":12,\"fat\":0,\"carbs\":4.2,\"name\":\"Maslo\",\"status\":\"PENDING\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("VERIFIED"))
                 .andExpect(jsonPath("$.source").value("USER"))
@@ -115,11 +120,27 @@ class ProductPermissionsIntegrationTest {
         mockMvc.perform(post("/api/products")
                         .header(HttpHeaders.AUTHORIZATION, bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"id\":\"" + existing.getId() + "\",\"name\":\"Overwritten\"}"))
+                        .content("{\"id\":\"" + existing.getId() + "\",\"name\":\"Overwritten\",\"kcal\":65,\"protein\":12,\"fat\":0,\"carbs\":4.2}"))
                 .andExpect(status().isOk());
 
         assertThat(productRepository.findById(existing.getId()).orElseThrow().getName())
                 .isEqualTo("Product VERIFIED");
+    }
+
+    @Test
+    void rejectsProductWithImpossibleNutritionData() throws Exception {
+        User user = saveUser(UserRole.USER);
+        long before = productRepository.count();
+
+        mockMvc.perform(post("/api/products")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Jogurt\",\"kcal\":272,\"protein\":12,\"fat\":0,\"carbs\":4.2}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(messageSource.getMessage(
+                        NutritionIssue.KCAL_LOOKS_LIKE_KJ.messageKey(), null, LocaleConfig.DEFAULT_LOCALE)));
+
+        assertThat(productRepository.count()).isEqualTo(before);
     }
 
     @Test

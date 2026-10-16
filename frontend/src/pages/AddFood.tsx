@@ -7,6 +7,8 @@ import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { LoadMoreTrigger } from '../components/LoadMoreTrigger';
 import { recentMealProducts } from '../lib/mealProducts';
 import { useProductSearch } from '../lib/useProductSearch';
+import { checkNutrition, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
+import { t } from '../i18n';
 
 
 const RECENT_PRODUCTS_LIMIT = 5;
@@ -83,21 +85,27 @@ export function AddFood() {
   const [addProductForm, setAddProductForm] = useState({ name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '' });
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
+  const newProductValues = useMemo(() => ({
+    name: addProductForm.name.trim(),
+    kcal: parseNutritionValue(addProductForm.kcal),
+    protein: parseNutritionValue(addProductForm.protein),
+    fat: parseNutritionValue(addProductForm.fat),
+    carbs: parseNutritionValue(addProductForm.carbs),
+  }), [addProductForm]);
+  const newProductCheck = useMemo(() => checkNutrition(newProductValues), [newProductValues]);
+  const newProductHints = [
+    ...newProductCheck.errors.filter(issue => issue !== 'NAME_MISSING' && issue !== 'NUTRIENT_MISSING'),
+    ...newProductCheck.warnings,
+  ];
+
   const handleCreateProduct = async () => {
-    if (!addProductForm.name || !addProductForm.kcal) {
-      alert('Podaj przynajmniej nazwę i kalorie!');
-      return;
-    }
+    if (!newProductCheck.valid) return;
     setIsCreatingProduct(true);
     try {
       await api.products.create({
-        name: addProductForm.name,
-        brand: addProductForm.brand || null,
-        kcal: parseFloat(addProductForm.kcal) || 0,
-        protein: parseFloat(addProductForm.protein) || 0,
-        fat: parseFloat(addProductForm.fat) || 0,
-        carbs: parseFloat(addProductForm.carbs) || 0,
-        serving_size: '100g',
+        ...newProductValues,
+        brand: addProductForm.brand.trim() || null,
+        unit: '100g',
       });
       setShowAddProduct(false);
       setAddProductForm({ name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '' });
@@ -836,9 +844,9 @@ export function AddFood() {
               {/* Makro */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { key: 'protein', label: 'Białko' },
-                  { key: 'carbs', label: 'Węgle' },
-                  { key: 'fat', label: 'Tłuszcz' },
+                  { key: 'protein', label: 'Białko *' },
+                  { key: 'carbs', label: 'Węgle *' },
+                  { key: 'fat', label: 'Tłuszcz *' },
                 ].map(f => (
                   <div key={f.key} className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest leading-none truncate">{f.label}</label>
@@ -856,11 +864,25 @@ export function AddFood() {
                   </div>
                 ))}
               </div>
+
+              {newProductHints.length > 0 && (
+                <ul className="flex flex-col gap-2" aria-live="polite">
+                  {newProductHints.map(issue => (
+                    <li
+                      key={issue}
+                      className={`flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs font-medium ${newProductCheck.errors.includes(issue) ? 'bg-error/10 text-error' : 'bg-primary/10 text-on-surface'}`}
+                    >
+                      <span className="material-symbols-outlined text-[16px] shrink-0">{newProductCheck.errors.includes(issue) ? 'error' : 'info'}</span>
+                      {t(nutritionIssueMessageKey(issue))}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <button
               onClick={handleCreateProduct}
-              disabled={isCreatingProduct || !addProductForm.name || !addProductForm.kcal}
+              disabled={isCreatingProduct || !newProductCheck.valid}
               className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
             >
               {isCreatingProduct ? (
