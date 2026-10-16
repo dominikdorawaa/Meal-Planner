@@ -1,9 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { setLanguage } from '../i18n';
 import { ODBL_URL, OPEN_FOOD_FACTS_URL, ProductDataAttribution } from './ProductDataAttribution';
 
 afterEach(() => {
+  cleanup();
   localStorage.clear();
 });
 

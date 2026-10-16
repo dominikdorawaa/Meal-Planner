@@ -2,17 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppData } from '../lib/AppDataContext';
 import { api } from '../lib/apiClient';
-
-interface IngredientDraft {
-  id?: string;
-  name: string;
-  amount: number;
-  unit: string;
-  kcal: number;
-  protein: number;
-  fat: number;
-  carbs: number;
-}
+import { useBarcodeLookup } from '../lib/useBarcodeLookup';
+import { ingredientFromProduct, type IngredientDraft } from '../lib/recipeIngredient';
+import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
+import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
+import { t } from '../i18n';
 
 interface InstructionStep {
   text: string;
@@ -42,6 +36,7 @@ export default function AddRecipe() {
 
   // Ingredient Modal Search State
   const [ingredientSearch, setIngredientSearch] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
 
   // Dla celów koncepcyjnych - przykładowe sztuczne produkty
   const MOCK_PRODUCTS = [
@@ -96,9 +91,15 @@ export default function AddRecipe() {
 
   const filteredProducts = MOCK_PRODUCTS.filter(p => p.name.toLowerCase().includes(ingredientSearch.toLowerCase()));
 
+  const addIngredient = (ingredient: IngredientDraft) => {
+    setIngredients(previous => [...previous, ingredient]);
+    setShowIngredientModal(false);
+    setIngredientSearch('');
+  };
+
   const handleAddIngredient = (product: typeof MOCK_PRODUCTS[0], amount: number) => {
     // In a real app, amount should be prompted or edited later. For now, defaulting to 100
-    setIngredients([...ingredients, {
+    setIngredients(previous => [...previous, {
       name: product.name,
       amount: amount,
       unit: product.serving === '100ml' ? 'ml' : 'g',
@@ -109,6 +110,17 @@ export default function AddRecipe() {
     }]);
     setShowIngredientModal(false);
     setIngredientSearch('');
+  };
+
+  const barcodeLookup = useBarcodeLookup();
+
+  const handleBarCode = (barCode: string) => {
+    setShowScanner(false);
+    barcodeLookup.lookUp(barCode, {
+      onFound: product => addIngredient(ingredientFromProduct(product)),
+      onMissing: () => alert(t('scanner.notFound', { code: barCode })),
+      onError: () => alert(t('scanner.lookupFailed')),
+    });
   };
 
   const handleSaveRecipe = async () => {
@@ -372,7 +384,8 @@ export default function AddRecipe() {
           </div>
 
           <button
-            onClick={() => alert("Uruchomienie skanera kodów kreskowych...")}
+            onClick={() => setShowScanner(true)}
+            aria-label={t('scanner.title')}
             className="bg-primary/10 w-12 h-12 rounded-2xl flex items-center justify-center text-primary hover:bg-primary/20 transition-colors active:scale-95 shrink-0"
           >
             <span className="material-symbols-outlined text-xl">barcode_scanner</span>
@@ -476,6 +489,8 @@ export default function AddRecipe() {
         </div>
       )}
 
+      {showScanner && <LazyBarcodeScanner onDetected={handleBarCode} onClose={() => setShowScanner(false)} />}
+      {barcodeLookup.pending && <BarcodeLookupPending onCancel={barcodeLookup.cancel} />}
     </div>
   );
 }

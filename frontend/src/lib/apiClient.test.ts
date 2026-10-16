@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLanguage, t } from '../i18n';
-import { api, getStoredUser, getToken } from './apiClient';
+import { api, ApiError, getStoredUser, getToken } from './apiClient';
 
 const fetchMock = vi.fn();
 
@@ -117,5 +117,15 @@ describe('apiClient', () => {
     expect(Object.fromEntries(url.searchParams)).toEqual({
       q: 'zolty ser', page: '1', size: '20', max_kcal: '200', max_carbs: '30',
     });
+  });
+
+  it('keeps the HTTP status of a failed request', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(404, { error: 'Nie znaleziono zasobu.' }));
+
+    const error = await api.products.getByBarCode('5900820000318').catch(failure => failure);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.status).toBe(404);
+    expect(error.message).toBe('Nie znaleziono zasobu.');
   });
 });

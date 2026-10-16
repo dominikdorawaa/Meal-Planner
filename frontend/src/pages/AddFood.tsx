@@ -7,11 +7,15 @@ import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { LoadMoreTrigger } from '../components/LoadMoreTrigger';
 import { recentMealProducts } from '../lib/mealProducts';
 import { useProductSearch } from '../lib/useProductSearch';
+import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
+import { useBarcodeLookup } from '../lib/useBarcodeLookup';
+import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { t } from '../i18n';
 
 
 const RECENT_PRODUCTS_LIMIT = 5;
+const EMPTY_PRODUCT_FORM = { name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '', barCode: '' };
 
 const MEAL_TYPE_LABELS: Record<string, string> = {
   breakfast: 'Śniadanie',
@@ -82,7 +86,7 @@ export function AddFood() {
   const [isAdding, setIsAdding] = useState(false);
 
   const [showAddProduct, setShowAddProduct] = useState(false);
-  const [addProductForm, setAddProductForm] = useState({ name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '' });
+  const [addProductForm, setAddProductForm] = useState(EMPTY_PRODUCT_FORM);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
   const newProductValues = useMemo(() => ({
@@ -91,23 +95,48 @@ export function AddFood() {
     protein: parseNutritionValue(addProductForm.protein),
     fat: parseNutritionValue(addProductForm.fat),
     carbs: parseNutritionValue(addProductForm.carbs),
+    barCode: addProductForm.barCode || null,
   }), [addProductForm]);
   const newProductCheck = useMemo(() => checkNutrition(newProductValues), [newProductValues]);
   const newProductNutrientsStarted = [addProductForm.kcal, addProductForm.protein, addProductForm.fat, addProductForm.carbs]
     .some(value => value.trim() !== '');
   const newProductHints = formNutritionHints(newProductCheck, newProductNutrientsStarted);
 
+  const [showScanner, setShowScanner] = useState(false);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
+
+  const barcodeLookup = useBarcodeLookup();
+
+  const handleBarCode = (barCode: string) => {
+    setShowScanner(false);
+    barcodeLookup.lookUp(barCode, {
+      onFound: product => handleSelectProduct(product),
+      onMissing: () => {
+        setAddProductForm({ ...EMPTY_PRODUCT_FORM, barCode });
+        setScanMessage(t('scanner.notFound', { code: barCode }));
+        setShowAddProduct(true);
+      },
+      onError: () => alert(t('scanner.lookupFailed')),
+    });
+  };
+
   const handleCreateProduct = async () => {
     if (!newProductCheck.valid) return;
     setIsCreatingProduct(true);
     try {
       await api.products.create({
-        ...newProductValues,
+        name: newProductValues.name,
+        kcal: newProductValues.kcal,
+        protein: newProductValues.protein,
+        fat: newProductValues.fat,
+        carbs: newProductValues.carbs,
+        bar_code: newProductValues.barCode,
         brand: addProductForm.brand.trim() || null,
         unit: '100g',
       });
       setShowAddProduct(false);
-      setAddProductForm({ name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '' });
+      setAddProductForm(EMPTY_PRODUCT_FORM);
+      setScanMessage(null);
       productSearch.reload();
     } catch (err: any) {
       alert(`Błąd przy tworzeniu produktu: ${err.message}`);
@@ -387,9 +416,8 @@ export function AddFood() {
                   </button>
                 )}
               </div>
-              {/* Barcode Scanner Button */}
               <button
-                onClick={() => alert("Uruchomienie modulu skanera kodów kreskowych...")}
+                onClick={() => setShowScanner(true)}
                 className="bg-primary/10 w-12 h-12 rounded-2xl flex items-center justify-center text-primary hover:bg-primary/20 transition-colors active:scale-95 shrink-0 border border-primary/20 shadow-sm"
                 title="Skanuj kod"
               >
@@ -480,7 +508,11 @@ export function AddFood() {
           {!mealId && (
             <div className="flex items-center justify-between gap-2 pt-1">
               <button
-                onClick={() => setShowAddProduct(true)}
+                onClick={() => {
+                  setAddProductForm(EMPTY_PRODUCT_FORM);
+                  setScanMessage(null);
+                  setShowAddProduct(true);
+                }}
                 className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-none bg-surface-container-low rounded-xl border border-outline-variant/10"
               >
                 <div className="relative flex items-center justify-center">
@@ -812,7 +844,15 @@ export function AddFood() {
             </div>
 
             <div className="flex flex-col gap-4 mb-8">
-              {/* Nazwa */}
+              {scanMessage && (
+                <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-primary/10 text-on-surface">{scanMessage}</p>
+              )}
+              {addProductForm.barCode && (
+                <p className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">
+                  {t('product.barCode')}: <span className="text-on-surface">{addProductForm.barCode}</span>
+                </p>
+              )}
+
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">Nazwa *</label>
                 <input
@@ -909,6 +949,8 @@ export function AddFood() {
         </div>
       )}
 
+      {showScanner && <LazyBarcodeScanner onDetected={handleBarCode} onClose={() => setShowScanner(false)} />}
+      {barcodeLookup.pending && <BarcodeLookupPending onCancel={barcodeLookup.cancel} />}
     </div>
   );
 }

@@ -93,6 +93,16 @@ export function clearSession() {
   localStorage.removeItem(USER_KEY);
 }
 
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 // HTTP helper 
 
 let longPendingRequestsCount = 0;
@@ -144,7 +154,7 @@ async function request<T>(
       } catch {
         message = t('api.serverError', { status: res.status });
       }
-      throw new Error(message);
+      throw new ApiError(message, res.status);
     }
 
     // 204 No Content
@@ -214,8 +224,8 @@ export const api = {
     async getById(id: string): Promise<any> {
       return request<any>('GET', `/api/products/${id}`);
     },
-    async getByBarCode(barCode: string): Promise<any> {
-      return request<any>('GET', `/api/products/barcode/${barCode}`);
+    async getByBarCode(barCode: string): Promise<Product> {
+      return request<Product>('GET', `/api/products/barcode/${encodeURIComponent(barCode)}`);
     },
     async create(data: any): Promise<any> {
       return request<any>('POST', '/api/products', data);
