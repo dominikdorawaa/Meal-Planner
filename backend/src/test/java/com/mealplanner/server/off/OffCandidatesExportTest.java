@@ -90,7 +90,7 @@ class OffCandidatesExportTest {
     void rejectsForeignNamesAndRoundsNutritionValues() throws IOException {
         Path dump = tempDir.resolve("names.jsonl");
         Files.write(dump, List.of(
-                "{\"lang\":\"de\",\"code\":\"5900820000318\",\"product_name\":\"Stracciatella Pasta Filata Käse\","
+                "{\"lang\":\"de\",\"code\":\"4056489000310\",\"product_name\":\"Stracciatella Pasta Filata Käse\","
                         + "\"countries_tags\":[\"en:poland\"],\"nutriments\":{\"energy-kcal_100g\":250,\"proteins_100g\":13,"
                         + "\"fat_100g\":20,\"carbohydrates_100g\":3}}",
                 "{\"code\":\"5901234123457\",\"product_name_pl\":\"Śmietanka\",\"generic_name_pl\":\"Śmietanka 18%\","
