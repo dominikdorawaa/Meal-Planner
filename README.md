@@ -58,4 +58,4 @@ Przed importem eksportujemy kandydatów do CSV i przeglądamy go ręcznie. Pobie
 ./mvnw -q compile exec:java "-Dexec.args=/sciezka/openfoodfacts-products.jsonl.gz candidates.csv"
 ```
 
-Plik zawiera wszystkie produkty sprzedawane w Polsce z wynikiem walidacji. W kolumnie `import` zostaw `yes` tylko przy produktach, które mają trafić do bazy. Podsumowanie z szacowanym rozmiarem tabeli trafia do `candidates.csv.summary.txt`.
+Plik zawiera wszystkie produkty sprzedawane w Polsce z wynikiem walidacji. W kolumnie `import` zostaw `yes` tylko przy produktach, które mają trafić do bazy. Podsumowanie z szacowanym rozmiarem tabeli trafia do `candidates.csv.summary.txt`. Kody kreskowe są zapisane jako `="036000291452"`, żeby arkusz nie gubił zer na początku, a tekst z Open Food Facts zaczynający się od `=`, `+`, `-` lub `@` dostaje na początku `'`, żeby nie był liczony jako formuła.
