@@ -6,6 +6,8 @@ import { BottomNav } from '../components/BottomNav';
 import { InstallAppCard } from '../components/InstallAppCard';
 import { ThemeCard } from '../components/ThemeCard';
 import { ProductDataAttribution } from '../components/ProductDataAttribution';
+import { MealSettingsList } from '../components/MealSettingsList';
+import type { MealSetting } from '../lib/mealSettings';
 
 const MEAL_TYPES = [
   { id: 'breakfast', name: 'Śniadanie', icon: 'light_mode' },
@@ -18,10 +20,9 @@ const MEAL_TYPES = [
 
 export function Profile() {
   const navigate = useNavigate();
-  const [mealConfig, setMealConfig] = useState<any[]>([]);
+  const [mealConfig, setMealConfig] = useState<MealSetting[]>([]);
   const [isEditingMeals, setIsEditingMeals] = useState<boolean>(false);
   const [isReordering, setIsReordering] = useState<boolean>(false);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [editingMealId, setEditingMealId] = useState<string | null>(null);
   const [tempName, setTempName] = useState<string>("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -71,7 +72,7 @@ export function Profile() {
     return parseFloat(((ft * 30.48) + (inches * 2.54)).toFixed(1));
   };
 
-  const { user, profile: cachedProfile, onLogout, refreshProfile } = useAppData();
+  const { user, profile: cachedProfile, onLogout, saveProfile } = useAppData();
 
   const displayGreetingName =
     (profile?.display_name || cachedProfile?.display_name || user?.name || '').trim() || null;
@@ -189,31 +190,11 @@ export function Profile() {
     setMealConfig(newConfig);
   };
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.setData('text/plain', index.toString());
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = (index: number) => {
-    if (draggedIndex === null || draggedIndex === index) return;
-    const newConfig = [...mealConfig];
-    const [item] = newConfig.splice(draggedIndex, 1);
-    newConfig.splice(index, 0, item);
-    setMealConfig(newConfig);
-    setDraggedIndex(null);
-  };
-
   const handleToggleVisibility = (id: string) => {
     setMealConfig(prev => prev.map(m => m.id === id ? { ...m, visible: !m.visible } : m));
   };
 
-  const handleStartRename = (meal: any) => {
+  const handleStartRename = (meal: MealSetting) => {
     setEditingMealId(meal.id);
     setTempName(meal.name);
   };
@@ -232,7 +213,7 @@ export function Profile() {
 
     const user = api.auth.getUser();
     if (user) {
-      const result = await api.profile.update({
+      const result = await saveProfile({
         meal_config: finalConfig,
         visible_meals: finalConfig.filter(m => m.visible).map(m => m.id)
       }).catch((e) => ({ error: e }));
@@ -349,7 +330,7 @@ export function Profile() {
 
     const oldKcal = profile?.target_kcal || 0;
     const newKcal = dbData.target_kcal;
-    const result = await api.profile.update(dbData).catch((e) => ({ error: e }));
+    const result = await saveProfile(dbData).catch((e) => ({ error: e }));
 
     if (!(result as any).error) {
       if (tempProfile.is_manual_macros) {
@@ -361,7 +342,6 @@ export function Profile() {
 
       setProfile(dbData);
       setTempProfile(dbData);
-      void refreshProfile();
       setIsEditingProfile(false);
       setIsEditingGoals(false);
       setIsEditingMacros(false);
@@ -1271,7 +1251,7 @@ export function Profile() {
           <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar pb-32">
             <div className="flex items-center justify-between mb-2">
               <p className="text-on-surface-variant text-sm italic leading-relaxed opacity-80">
-                {isReordering ? "Przeciągnij posiłek, aby zmienić jego pozycję." : "Dostosuj nazwy i wybierz aktywne posiłki."}
+                {isReordering ? "Przeciągnij posiłek za uchwyt, aby zmienić jego pozycję." : "Dostosuj nazwy i wybierz aktywne posiłki."}
               </p>
               <button
                 onClick={() => setIsReordering(!isReordering)}
@@ -1282,24 +1262,19 @@ export function Profile() {
               </button>
             </div>
 
-            {mealConfig.map((meal, index) => (
-              <div
-                key={meal.id}
-                draggable={isReordering}
-                onDragStart={(e) => handleDragStart(e, index)}
-                onDragOver={handleDragOver}
-                onDrop={() => handleDrop(index)}
-                className={`p-4 rounded-3xl border border-outline-variant/10 shadow-sm flex flex-col gap-3 transition-all duration-200 ${isReordering ? 'cursor-grab active:cursor-grabbing hover:bg-primary/[0.03] border-dashed bg-surface/50' : 'bg-surface-container-lowest'} ${draggedIndex === index ? 'opacity-30 scale-95 border-primary bg-primary/5' : 'opacity-100'}`}
-              >
+            <MealSettingsList
+              meals={mealConfig}
+              isReordering={isReordering}
+              onReorder={setMealConfig}
+              renderMeal={(meal, index, handle) => (
+              <>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-primary shadow-sm border border-primary/5">
-                      {isReordering ? (
-                        <span className="material-symbols-outlined text-[18px]">drag_indicator</span>
-                      ) : (
+                    {handle ?? (
+                      <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-primary shadow-sm border border-primary/5">
                         <span className="material-symbols-outlined text-[18px]">{meal.icon}</span>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     {editingMealId === meal.id && !isReordering ? (
                       <div className="flex items-center gap-2">
@@ -1353,8 +1328,9 @@ export function Profile() {
                     </button>
                   </div>
                 )}
-              </div>
-            ))}
+              </>
+              )}
+            />
           </div>
 
           <div className="fixed bottom-0 left-0 w-full p-6 pb-safe-6 bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50">

@@ -192,6 +192,12 @@ export const api = {
       return toAuthUser(data);
     },
 
+    async refresh(): Promise<void> {
+      const renewedToken = getToken();
+      const data = await request<AuthResponse>('POST', '/api/auth/refresh');
+      if (getToken() === renewedToken) saveSession(data);
+    },
+
     logout() {
       clearSession();
     },
@@ -266,8 +272,8 @@ export const api = {
     async getAll(): Promise<any[]> {
       return request<any[]>('GET', '/api/meals');
     },
-    async getByDay(dateStr: string): Promise<any[]> {
-      return request<any[]>('GET', `/api/meals/day/${dateStr}`);
+    async getByDay(isoDate: string): Promise<any[]> {
+      return request<any[]>('GET', `/api/meals/day/${isoDate}`);
     },
     async add(data: any): Promise<any> {
       return request<any>('POST', '/api/meals', data);
