@@ -68,5 +68,14 @@
   "plan.weekdayGenitive.3": "Wednesday",
   "plan.weekdayGenitive.4": "Thursday",
   "plan.weekdayGenitive.5": "Friday",
-  "plan.weekdayGenitive.6": "Saturday"
+  "plan.weekdayGenitive.6": "Saturday",
+  "plan.quickMeal": "Quick meal",
+  "plan.paste": "Paste",
+  "plan.pasteCount": "Paste ({count})",
+  "plan.copying": "Copying",
+  "plan.copyFrom": "From: {day}",
+  "plan.meal.copyToOtherDays": "Copy to other days",
+  "plan.day.copyToOtherDays": "Copy meals to other days",
+  "plan.day.copying": "Copying a day",
+  "plan.day.delete": "Delete all meals of the day"
 }

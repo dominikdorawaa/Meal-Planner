@@ -68,5 +68,14 @@
   "plan.weekdayGenitive.3": "środy",
   "plan.weekdayGenitive.4": "czwartku",
   "plan.weekdayGenitive.5": "piątku",
-  "plan.weekdayGenitive.6": "soboty"
+  "plan.weekdayGenitive.6": "soboty",
+  "plan.quickMeal": "Szybki posiłek",
+  "plan.paste": "Wklej",
+  "plan.pasteCount": "Wklej ({count})",
+  "plan.copying": "Kopiowanie",
+  "plan.copyFrom": "Z: {day}",
+  "plan.meal.copyToOtherDays": "Skopiuj na inne dni",
+  "plan.day.copyToOtherDays": "Skopiuj posiłki na inne dni",
+  "plan.day.copying": "Kopiowanie dnia",
+  "plan.day.delete": "Usuń posiłki z całego dnia"
 }

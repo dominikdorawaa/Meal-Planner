@@ -208,6 +208,69 @@ describe('Plan copying', () => {
     expect(mocks.add.mock.calls.map(([payload]) => `${payload.meal_date} ${payload.meal_type}`)).toEqual(['2026-10-14 breakfast', '2026-10-15 lunch'])
   })
 
+  it('asks before copying a day to a next day that already has meals', async () => {
+    renderPlan()
+
+    openDayMenu(0)
+    click(/Skopiuj na następny dzień/)
+
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getAllByRole('listitem')).toHaveLength(1)
+    expect(within(dialog).getByText('Yogurt')).toBeTruthy()
+
+    click('Dopisz')
+
+    expect(await screen.findByText('Skopiowano')).toBeTruthy()
+    expect(mocks.add.mock.calls.map(([payload]) => `${payload.meal_date} ${payload.meal_type}`)).toEqual(['2026-10-13 breakfast', '2026-10-13 lunch'])
+    expect(mocks.delete).not.toHaveBeenCalled()
+  })
+
+  it('ignores hidden meals whose recipe no longer exists', async () => {
+    mocks.userMeals.push({ id: 'meal-5', meal_date: '2026-10-14', meal_type: 'breakfast', recipe: { id: 'deleted-recipe' } })
+    const { container } = renderPlan()
+
+    openMealMenu(container, '2026-10-12', 'lunch')
+    click(/Skopiuj na inne dni/)
+    fireEvent.click(slot(container, '2026-10-14', 'breakfast').getByText('Wklej'))
+    click('Wklej (1)')
+
+    expect(await screen.findByText('Skopiowano')).toBeTruthy()
+    expect(mocks.delete).not.toHaveBeenCalled()
+
+    openDayMenu(2)
+    click(/Usuń posiłki z całego dnia/)
+
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(screen.getByText('Ten dzień nie ma jeszcze posiłków')).toBeTruthy()
+  })
+
+  it('does not let a day be copied onto itself', () => {
+    renderPlan()
+
+    openDayMenu(0)
+    click(/Skopiuj posiłki na inne dni/)
+    fireEvent.click(screen.getByText('12.10'))
+
+    expect((screen.getByRole('button', { name: 'Wklej (0)' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('saves only once when the paste button is tapped twice', async () => {
+    let finishAdd: (value: unknown) => void = () => {}
+    mocks.add.mockImplementation(() => new Promise(resolve => { finishAdd = resolve }))
+    const { container } = renderPlan()
+
+    openMealMenu(container, '2026-10-12', 'lunch')
+    click(/Skopiuj na inne dni/)
+    fireEvent.click(slot(container, '2026-10-14', 'breakfast').getByText('Wklej'))
+    click('Wklej (1)')
+    fireEvent.click(screen.getByRole('button', { name: 'Wklej (1)' }))
+
+    expect(mocks.add).toHaveBeenCalledOnce()
+    finishAdd({ id: 'copy-1' })
+    expect(await screen.findByText('Skopiowano')).toBeTruthy()
+    expect(mocks.add).toHaveBeenCalledOnce()
+  })
+
   it('shows an error without undo when copying fails', async () => {
     mocks.add.mockRejectedValue(new Error('Server error (500)'))
     const { container } = renderPlan()
@@ -267,6 +330,34 @@ describe('Plan moving', () => {
     expect(await screen.findByText('Przeniesiono')).toBeTruthy()
     expect(mocks.add).toHaveBeenCalledWith(expect.objectContaining({ meal_date: '2026-10-13', meal_type: 'breakfast' }))
     expect(mocks.delete.mock.calls).toEqual([['meal-3'], ['meal-2']])
+  })
+
+  it('undoes a move that overwrote a meal', async () => {
+    const { container } = renderPlan()
+
+    openMealMenu(container, '2026-10-12', 'lunch')
+    click(/Przenieś do\.\.\./)
+    fireEvent.click(slot(container, '2026-10-13', 'breakfast').getByText('Yogurt'))
+    click('Przenieś')
+    click('Nadpisz')
+    await screen.findByText('Przeniesiono')
+    click('Cofnij')
+
+    await waitFor(() => expect(mocks.delete).toHaveBeenLastCalledWith('copy-1'))
+    expect(mocks.add.mock.calls.slice(1).map(([payload]) => payload.manual_name)).toEqual(['Yogurt', 'Coffee'])
+  })
+
+  it('offers undo when a move could not remove the original item', async () => {
+    mocks.delete.mockRejectedValue(new Error('Server error (500)'))
+    const { container } = renderPlan()
+
+    openMealMenu(container, '2026-10-12', 'lunch')
+    click(/Przenieś do\.\.\./)
+    fireEvent.click(slot(container, '2026-10-14', 'lunch').getByText('Tutaj'))
+    click('Przenieś')
+
+    expect(await screen.findByText('Nie udało się zapisać zmian. Spróbuj ponownie.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Cofnij' })).toBeTruthy()
   })
 
   it('does not offer the current slot as a move target', () => {

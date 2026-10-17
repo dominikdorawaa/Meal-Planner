@@ -17,7 +17,7 @@ export type PlanMeal = {
 };
 export type Placement = { meal: PlanMeal; meal_date: string; meal_type: string };
 export type ConflictMode = 'overwrite' | 'append';
-export type TransferResult = { created: PlanMeal[]; removed: PlanMeal[] };
+export type TransferResult = { created: PlanMeal[]; removed: PlanMeal[]; complete: boolean };
 
 export const slotKey = (mealDate: string, mealType: string) => `${mealDate}_${mealType}`;
 
@@ -62,23 +62,37 @@ export const findConflicts = (meals: PlanMeal[], placements: Placement[], ignore
   return meals.filter(meal => targetSlots.has(slotKey(meal.meal_date, meal.meal_type)) && !ignoredIds.has(meal.id));
 };
 
+const fulfilledValues = <T>(results: PromiseSettledResult<T>[]) =>
+  results.flatMap(result => (result.status === 'fulfilled' ? [result.value] : []));
+
+const addCopy = (meal: PlanMeal, mealDate: string, mealType: string): Promise<PlanMeal> =>
+  api.meals.add(mealCopyPayload(meal, mealDate, mealType));
+
 export async function transferMeals(
   placements: Placement[],
   conflicts: PlanMeal[],
   mode: ConflictMode,
   removedSources: PlanMeal[] = []
 ): Promise<TransferResult> {
-  const created = await Promise.all(
-    placements.map(placement => api.meals.add(mealCopyPayload(placement.meal, placement.meal_date, placement.meal_type)))
+  const created = fulfilledValues(
+    await Promise.allSettled(placements.map(placement => addCopy(placement.meal, placement.meal_date, placement.meal_type)))
   );
-  const removed = [...(mode === 'overwrite' ? conflicts : []), ...removedSources];
-  await deleteMeals(removed);
-  return { created, removed };
+  if (created.length < placements.length) {
+    await Promise.allSettled(created.map(meal => api.meals.delete(meal.id)));
+    throw new Error('Could not add every meal copy');
+  }
+  const toRemove = [...(mode === 'overwrite' ? conflicts : []), ...removedSources];
+  const deletions = await Promise.allSettled(toRemove.map(meal => api.meals.delete(meal.id)));
+  const removed = toRemove.filter((_, index) => deletions[index].status === 'fulfilled');
+  return { created, removed, complete: removed.length === toRemove.length };
 }
 
 export async function undoTransfer(result: TransferResult) {
-  await Promise.all(result.removed.map(meal => api.meals.add(mealCopyPayload(meal, meal.meal_date, meal.meal_type))));
-  await deleteMeals(result.created);
+  const restores = await Promise.allSettled(result.removed.map(meal => addCopy(meal, meal.meal_date, meal.meal_type)));
+  const deletions = await Promise.allSettled(result.created.map(meal => api.meals.delete(meal.id)));
+  if ([...restores, ...deletions].some(outcome => outcome.status === 'rejected')) {
+    throw new Error('Could not undo every change');
+  }
 }
 
 export async function deleteMeals(meals: PlanMeal[]) {

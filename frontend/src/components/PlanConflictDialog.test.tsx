@@ -49,10 +49,21 @@ describe('PlanConflictDialog', () => {
     expect(onCancel).toHaveBeenCalledOnce()
   })
 
+  it('cancels with the Escape key and focuses the safe action first', () => {
+    const { onCancel } = renderDialog()
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Anuluj' }))
+    fireEvent.keyDown(window, { key: 'Enter' })
+    expect(onCancel).not.toHaveBeenCalled()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onCancel).toHaveBeenCalledOnce()
+  })
+
   it('blocks every action while the transfer is saving', () => {
     const { onCancel, view } = renderDialog(true)
 
     fireEvent.click(view.container.firstChild as HTMLElement)
+    fireEvent.keyDown(window, { key: 'Escape' })
 
     expect(onCancel).not.toHaveBeenCalled()
     expect((screen.getByRole('button', { name: 'Nadpisz' }) as HTMLButtonElement).disabled).toBe(true)

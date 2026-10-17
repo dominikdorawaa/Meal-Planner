@@ -26,7 +26,7 @@ const manualMeal: PlanMeal = { id: 'meal-3', meal_date: '2026-10-13', meal_type:
 const meals = [recipeMeal, productMeal, manualMeal];
 
 afterEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe('planTransfer', () => {
@@ -94,7 +94,7 @@ describe('planTransfer', () => {
 
     expect(mocks.add).toHaveBeenCalledWith(expect.objectContaining({ meal_date: '2026-10-13', meal_type: 'breakfast', recipe: { id: 'recipe-1' } }));
     expect(mocks.delete).not.toHaveBeenCalled();
-    expect(result).toEqual({ created: [{ id: 'copy-1' }], removed: [] });
+    expect(result).toEqual({ created: [{ id: 'copy-1' }], removed: [], complete: true });
   });
 
   it('removes conflicts and moved sources after adding the copies', async () => {
@@ -105,22 +105,42 @@ describe('planTransfer', () => {
     const result = await transferMeals(placeMealInSlots(recipeMeal, ['2026-10-13_breakfast']), [manualMeal], 'overwrite', [recipeMeal]);
 
     expect(calls).toEqual(['add', 'delete meal-3', 'delete meal-1']);
-    expect(result).toEqual({ created: [{ id: 'copy-1' }], removed: [manualMeal, recipeMeal] });
+    expect(result).toEqual({ created: [{ id: 'copy-1' }], removed: [manualMeal, recipeMeal], complete: true });
   });
 
-  it('does not remove anything when adding a copy fails', async () => {
-    mocks.add.mockRejectedValueOnce(new Error('Server error (500)'));
+  it('removes the copies that were added and nothing else when one copy fails', async () => {
+    mocks.add.mockResolvedValueOnce({ id: 'copy-1' }).mockRejectedValueOnce(new Error('Server error (500)'));
 
-    await expect(transferMeals(placeMealInSlots(recipeMeal, ['2026-10-13_breakfast']), [manualMeal], 'overwrite')).rejects.toThrow('Server error (500)');
-    expect(mocks.delete).not.toHaveBeenCalled();
+    await expect(
+      transferMeals(placeMealInSlots(recipeMeal, ['2026-10-13_breakfast', '2026-10-14_breakfast']), [manualMeal], 'overwrite')
+    ).rejects.toThrow('Could not add every meal copy');
+    expect(mocks.delete.mock.calls).toEqual([['copy-1']]);
+  });
+
+  it('reports an incomplete transfer with what was really removed when a delete fails', async () => {
+    mocks.add.mockResolvedValueOnce({ id: 'copy-1' });
+    mocks.delete.mockImplementation(async (id: string) => {
+      if (id === 'meal-1') throw new Error('Server error (500)');
+    });
+
+    const result = await transferMeals(placeMealInSlots(recipeMeal, ['2026-10-13_breakfast']), [manualMeal], 'overwrite', [recipeMeal]);
+
+    expect(result).toEqual({ created: [{ id: 'copy-1' }], removed: [manualMeal], complete: false });
   });
 
   it('undoes a transfer by restoring removed meals and deleting the copies', async () => {
     mocks.add.mockResolvedValue({ id: 'restored' });
 
-    await undoTransfer({ created: [{ ...recipeMeal, id: 'copy-1' }], removed: [manualMeal] });
+    await undoTransfer({ created: [{ ...recipeMeal, id: 'copy-1' }], removed: [manualMeal], complete: true });
 
     expect(mocks.add).toHaveBeenCalledWith(expect.objectContaining({ meal_date: '2026-10-13', meal_type: 'breakfast', manual_name: 'Coffee' }));
+    expect(mocks.delete).toHaveBeenCalledWith('copy-1');
+  });
+
+  it('still removes the copies but reports a failure when a restore fails', async () => {
+    mocks.add.mockRejectedValueOnce(new Error('Server error (500)'));
+
+    await expect(undoTransfer({ created: [{ ...recipeMeal, id: 'copy-1' }], removed: [manualMeal], complete: true })).rejects.toThrow('Could not undo every change');
     expect(mocks.delete).toHaveBeenCalledWith('copy-1');
   });
 
