@@ -39,6 +39,8 @@ export default defineConfig({
         'src/lib/planTransfer.ts',
         'src/components/PlanConflictDialog.tsx',
         'src/components/UndoSnackbar.tsx',
+        'src/lib/planSelection.ts',
+        'src/components/PlanSelectionControls.tsx',
       ],
       reporter: ['text', 'html'],
     },
