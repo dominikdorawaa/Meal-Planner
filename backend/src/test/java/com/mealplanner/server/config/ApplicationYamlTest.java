@@ -31,7 +31,7 @@ class ApplicationYamlTest {
         Properties props = loadApplicationYaml();
 
         assertThat(props.getProperty("jwt.secret")).isEqualTo("${JWT_SECRET}");
-        assertThat(props.getProperty("jwt.expiration-ms")).isEqualTo("${JWT_EXPIRATION_MS:86400000}");
+        assertThat(props.getProperty("jwt.expiration-ms")).isEqualTo("${JWT_EXPIRATION_MS:5184000000}");
         assertThat(props.getProperty("corsAllowedOrigins")).isEqualTo("http://localhost:5173");
         assertThat(props.getProperty("server.port")).isEqualTo("8080");
     }
@@ -53,10 +53,10 @@ class ApplicationYamlTest {
     }
 
     @Test
-    void tokenLifetimeDefaultsToOneDay() {
+    void tokenLifetimeDefaultsToSixtyDays() {
         StandardEnvironment env = environmentWith(Map.of());
 
-        assertThat(env.getProperty("jwt.expiration-ms", Long.class)).isEqualTo(86_400_000L);
+        assertThat(env.getProperty("jwt.expiration-ms", Long.class)).isEqualTo(5_184_000_000L);
     }
 
     @Test

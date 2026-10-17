@@ -25,6 +25,14 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(request));
     }
 
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(org.springframework.security.core.Authentication auth) {
+        if (auth == null) {
+            throw new AuthenticationCredentialsNotFoundException("Authentication required");
+        }
+        return ResponseEntity.ok(authService.refresh(auth.getName(), String.valueOf(auth.getDetails())));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<?> me(org.springframework.security.core.Authentication auth) {
         if (auth == null) {

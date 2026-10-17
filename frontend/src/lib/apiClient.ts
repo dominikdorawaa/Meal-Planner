@@ -192,6 +192,12 @@ export const api = {
       return toAuthUser(data);
     },
 
+    async refresh(): Promise<void> {
+      const renewedToken = getToken();
+      const data = await request<AuthResponse>('POST', '/api/auth/refresh');
+      if (getToken() === renewedToken) saveSession(data);
+    },
+
     logout() {
       clearSession();
     },
