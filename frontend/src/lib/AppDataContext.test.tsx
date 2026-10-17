@@ -199,17 +199,17 @@ describe('AppDataProvider saveProfile', () => {
 describe('AppDataProvider getConsumedForDay', () => {
   const date = '2026-10-17'
   const meals = [
-    { id: 'm1', date_str: date, meal_type: 'breakfast', recipe: { id: 'r1' }, portions_consumed: 2 },
-    { id: 'm2', date_str: date, meal_type: 'lunch', product: { id: 'p1', name: 'Oats', unit: 'g', kcal: 380, protein: 13, fat: 7, carbs: 60 }, portions_consumed: 50 },
-    { id: 'm3', date_str: date, meal_type: 'lunch', product: { id: 'p2', name: 'Egg', unit: 'pc', kcal: 70, protein: 6, fat: 5, carbs: 0.5 }, portions_consumed: 2 },
-    { id: 'm4', date_str: date, meal_type: 'breakfast', manual_kcal: '100', manual_protein: '1.5', manual_fat: '2', manual_carbs: '3' },
-    { id: 'm5', date_str: date, meal_type: 'supper', manual_kcal: 999 },
-    { id: 'm6', date_str: '2026-10-18', meal_type: 'breakfast', manual_kcal: 999 },
-    { id: 'm7', date_str: date, meal_type: 'breakfast', recipe: 'missing' },
-    { id: 'm8', date_str: date, meal_type: 'breakfast', product: 'unknown' },
-    { id: 'm9', date_str: date, meal_type: 'lunch', recipe: { id: 'r1' } },
-    { id: 'm10', date_str: date, meal_type: 'lunch', product: { id: 'p1', name: 'Oats', unit: 'g', kcal: 380, protein: 13, fat: 7, carbs: 60 } },
-    { id: 'm11', date_str: date, meal_type: 'breakfast' },
+    { id: 'm1', meal_date: date, meal_type: 'breakfast', recipe: { id: 'r1' }, portions_consumed: 2 },
+    { id: 'm2', meal_date: date, meal_type: 'lunch', product: { id: 'p1', name: 'Oats', unit: 'g', kcal: 380, protein: 13, fat: 7, carbs: 60 }, portions_consumed: 50 },
+    { id: 'm3', meal_date: date, meal_type: 'lunch', product: { id: 'p2', name: 'Egg', unit: 'pc', kcal: 70, protein: 6, fat: 5, carbs: 0.5 }, portions_consumed: 2 },
+    { id: 'm4', meal_date: date, meal_type: 'breakfast', manual_kcal: '100', manual_protein: '1.5', manual_fat: '2', manual_carbs: '3' },
+    { id: 'm5', meal_date: date, meal_type: 'supper', manual_kcal: 999 },
+    { id: 'm6', meal_date: '2026-10-18', meal_type: 'breakfast', manual_kcal: 999 },
+    { id: 'm7', meal_date: date, meal_type: 'breakfast', recipe: 'missing' },
+    { id: 'm8', meal_date: date, meal_type: 'breakfast', product: 'unknown' },
+    { id: 'm9', meal_date: date, meal_type: 'lunch', recipe: { id: 'r1' } },
+    { id: 'm10', meal_date: date, meal_type: 'lunch', product: { id: 'p1', name: 'Oats', unit: 'g', kcal: 380, protein: 13, fat: 7, carbs: 60 } },
+    { id: 'm11', meal_date: date, meal_type: 'breakfast' },
   ]
 
   it('adds up only meals shown in the saved meal settings for the given day', async () => {

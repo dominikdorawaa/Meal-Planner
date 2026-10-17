@@ -144,10 +144,10 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
       onClick={onClose}
     >
       <div
-        className="bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 w-full max-w-xl mx-auto flex flex-col gap-4"
+        className="bg-surface-container-lowest rounded-t-[32px] px-4 pt-6 pb-8 w-full max-w-xl max-h-[100dvh] overflow-y-auto mx-auto flex flex-col gap-4"
         onClick={event => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-2">
           <h2 className="font-headline font-bold text-lg text-on-surface">{t('scanner.title')}</h2>
           <button
             type="button"
@@ -159,11 +159,11 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
           </button>
         </div>
 
-        <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-black">
+        <div data-testid="scanner-preview" className="relative w-full aspect-square rounded-2xl overflow-hidden bg-black">
           <video ref={videoRef} className="w-full h-full object-cover" muted playsInline autoPlay />
           {cameraState === 'scanning' && (
             <>
-              <div className="absolute left-[10%] right-[10%] top-[32%] bottom-[32%] rounded-xl border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+              <div data-testid="scanner-aim-frame" className="absolute left-[10%] right-[10%] top-[30%] bottom-[30%] rounded-xl border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
               <div className="absolute left-[12%] right-[12%] top-1/2 h-0.5 bg-primary/90" />
               <p className="absolute inset-x-0 bottom-3 text-center text-xs font-medium text-white/90 px-4">
                 {t('scanner.aimHint')}
@@ -188,7 +188,7 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
           )}
         </div>
 
-        <form onSubmit={submitManualCode} className="flex flex-col gap-2">
+        <form onSubmit={submitManualCode} className="flex flex-col gap-2 px-2">
           <label htmlFor="manual-bar-code" className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">
             {t('scanner.manualLabel')}
           </label>

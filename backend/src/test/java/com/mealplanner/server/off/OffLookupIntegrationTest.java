@@ -47,6 +47,7 @@ class OffLookupIntegrationTest {
     private static final String EMPTY_BODY = "5900000000039";
     private static final String MISSING = "5900000000046";
     private static final String FOREIGN = "5900000000053";
+    private static final String NOT_ASKED = "5900000000060";
 
     private static final Map<String, Integer> REQUESTS = new ConcurrentHashMap<>();
     private static final List<String> USER_AGENTS = new CopyOnWriteArrayList<>();
@@ -218,6 +219,13 @@ class OffLookupIntegrationTest {
     void doesNotAskOpenFoodFactsAboutInvalidCodes() throws Exception {
         mockMvc.perform(get("/api/products/barcode/5900820000319")).andExpect(status().isNotFound());
         mockMvc.perform(get("/api/products/barcode/abc")).andExpect(status().isNotFound());
+
+        assertThat(REQUESTS).isEmpty();
+    }
+
+    @Test
+    void existingProductLookupDoesNotAskOpenFoodFacts() throws Exception {
+        mockMvc.perform(get("/api/products/barcode/" + NOT_ASKED + "/existing")).andExpect(status().isNotFound());
 
         assertThat(REQUESTS).isEmpty();
     }

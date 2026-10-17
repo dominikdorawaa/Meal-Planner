@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -280,5 +281,52 @@ class ProductPermissionsIntegrationTest {
                         .content("{\"email\":\"" + email + "\",\"password\":\"secret123\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("ADMIN"));
+    }
+
+    private static String uniqueValidBarCode() {
+        String digits = String.format("%012d", Math.floorMod(UUID.randomUUID().getMostSignificantBits(), 1_000_000_000_000L));
+        int sum = 0;
+        for (int i = 0; i < digits.length(); i++) {
+            sum += (digits.charAt(i) - '0') * (i % 2 == 0 ? 1 : 3);
+        }
+        return digits + (10 - sum % 10) % 10;
+    }
+
+    private ResultActions createWithBarCode(User user, String barCode) throws Exception {
+        return mockMvc.perform(post("/api/products")
+                .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Kefir\",\"kcal\":65,\"protein\":12,\"fat\":0,\"carbs\":4.2,\"bar_code\":\"" + barCode + "\"}"));
+    }
+
+    @Test
+    void adminCannotCreateASecondVerifiedProductWithTheSameBarCode() throws Exception {
+        User admin = saveUser(UserRole.ADMIN);
+        String barCode = uniqueValidBarCode();
+        createWithBarCode(admin, barCode).andExpect(status().isOk());
+
+        createWithBarCode(admin, barCode)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value(messageSource.getMessage(
+                        ProductService.BAR_CODE_EXISTS, null, LocaleConfig.DEFAULT_LOCALE)));
+    }
+
+    @Test
+    void regularUserCannotRepeatTheBarCodeOfTheirOwnPendingProduct() throws Exception {
+        User user = saveUser(UserRole.USER);
+        String barCode = uniqueValidBarCode();
+        createWithBarCode(user, barCode).andExpect(status().isOk());
+
+        createWithBarCode(user, barCode).andExpect(status().isConflict());
+    }
+
+    @Test
+    void regularUserMayUseTheBarCodeOfSomeoneElsesPendingProduct() throws Exception {
+        String barCode = uniqueValidBarCode();
+        createWithBarCode(saveUser(UserRole.USER), barCode).andExpect(status().isOk());
+
+        createWithBarCode(saveUser(UserRole.USER), barCode)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bar_code").value(barCode));
     }
 }

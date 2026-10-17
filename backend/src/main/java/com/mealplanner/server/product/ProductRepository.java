@@ -24,6 +24,9 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     Optional<Product> findByBarCodeAndStatusAndDeletedAtIsNull(String barCode, ProductStatus status);
 
+    Optional<Product> findFirstByBarCodeAndStatusAndCreatedByAndDeletedAtIsNullOrderByCreatedAtDesc(
+            String barCode, ProductStatus status, UUID createdBy);
+
     List<Product> findByBarCodeInAndStatusAndDeletedAtIsNull(Collection<String> barCodes, ProductStatus status);
 
     String CONTAINS_EVERY_WORD =

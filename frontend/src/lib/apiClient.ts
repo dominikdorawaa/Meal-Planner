@@ -237,6 +237,9 @@ export const api = {
     async getByBarCode(barCode: string): Promise<Product> {
       return request<Product>('GET', `/api/products/barcode/${encodeURIComponent(barCode)}`);
     },
+    async getExistingByBarCode(barCode: string): Promise<Product> {
+      return request<Product>('GET', `/api/products/barcode/${encodeURIComponent(barCode)}/existing`);
+    },
     async create(data: any): Promise<any> {
       return request<any>('POST', '/api/products', data);
     },
