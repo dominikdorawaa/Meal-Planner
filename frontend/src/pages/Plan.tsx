@@ -8,7 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 import { formatMacrosShort } from '../lib/macros';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
-import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, planDays } from '../lib/planDates';
+import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, parseIsoDate, planDays, toIsoDate, todayIsoDate } from '../lib/planDates';
+import { forgetPlanReturnPosition, readPlanReturnPosition, rememberPlanReturnPosition } from '../lib/planPosition';
 
 const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN"; // Tylko marker do logiki poniżej
 
@@ -27,6 +28,12 @@ const MEAL_TYPES = [
   { id: 'dinner', name: 'Obiad', icon: 'restaurant' },
   { id: 'supper', name: 'Kolacja', icon: 'dark_mode' },
 ];
+
+const startOfToday = () => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
 
 const getMealTypeName = (type: string, mealConfig?: any[]) => {
   if (mealConfig) {
@@ -58,21 +65,8 @@ export function Plan() {
   const [selectedShoppingMeals, setSelectedShoppingMeals] = useState<string[]>([]);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
-  // Kalendarz dynamiczny - zapamiętaj pozycję między nawigacjami
-  const [baseDate, setBaseDate] = useState<Date>(() => {
-    const saved = sessionStorage.getItem('planBaseDate');
-    if (saved) {
-      const d = new Date(saved);
-      if (!isNaN(d.getTime())) return d;
-    }
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
-
-  useEffect(() => {
-    sessionStorage.setItem('planBaseDate', baseDate.toISOString());
-  }, [baseDate]);
+  const [returnPosition] = useState(readPlanReturnPosition);
+  const [baseDate, setBaseDate] = useState<Date>(() => parseIsoDate(returnPosition?.startDate) ?? startOfToday());
 
   const days = planDays(baseDate);
 
@@ -93,13 +87,32 @@ export function Plan() {
   };
 
   const handleGoToToday = () => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    setBaseDate(d);
+    setBaseDate(startOfToday());
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
     }
   };
+
+  const openPlanItem = (path: string) => {
+    rememberPlanReturnPosition({ startDate: toIsoDate(baseDate), scrollLeft: scrollRef.current?.scrollLeft ?? 0 });
+    navigate(path);
+  };
+
+  useEffect(() => {
+    let shownDay = todayIsoDate();
+    const showTodayAfterDayChange = () => {
+      if (document.visibilityState !== 'visible' || todayIsoDate() === shownDay) return;
+      shownDay = todayIsoDate();
+      setBaseDate(startOfToday());
+      scrollRef.current?.scrollTo({ left: 0 });
+    };
+    document.addEventListener('visibilitychange', showTodayAfterDayChange);
+    window.addEventListener('focus', showTodayAfterDayChange);
+    return () => {
+      document.removeEventListener('visibilitychange', showTodayAfterDayChange);
+      window.removeEventListener('focus', showTodayAfterDayChange);
+    };
+  }, []);
 
   // Sprawdź onboarding (tylko gdy profil jest załadowany, a cel kaloryczny jest nadal zerowy/null)
   useEffect(() => {
@@ -116,25 +129,13 @@ export function Plan() {
   // Odśwież meals po powrocie na stronę (np. po dodaniu przepisu w /recipes)
   useEffect(() => {
     refreshMeals();
-    // Przywróć pozycję scrolla bez animacji
-    const savedScroll = sessionStorage.getItem('planScrollLeft');
-    if (savedScroll && scrollRef.current) {
+    forgetPlanReturnPosition();
+    if (returnPosition && scrollRef.current) {
       const el = scrollRef.current;
       el.classList.remove('scroll-smooth');
-      el.scrollLeft = parseInt(savedScroll, 10);
+      el.scrollLeft = returnPosition.scrollLeft;
       requestAnimationFrame(() => el.classList.add('scroll-smooth'));
     }
-  }, []);
-
-  // Zapamiętaj pozycję scrolla
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      sessionStorage.setItem('planScrollLeft', String(el.scrollLeft));
-    };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
   }, []);
 
   const handleDeleteMeal = async (mealId: string) => {
@@ -422,7 +423,7 @@ export function Plan() {
         toggleCopySlot(slotKey);
         return;
       }
-      navigate(`/add-food?selectDate=${date}&selectType=${mealType}`);
+      openPlanItem(`/add-food?selectDate=${date}&selectType=${mealType}`);
     };
 
     if (validMeals.length > 0) {
@@ -450,7 +451,7 @@ export function Plan() {
                     noWrap
                     onClick={() => {
                       if (!shoppingSelectionMode && !copyModeDay && !copyModeMeal) {
-                        navigate(`/recipe/${recipe.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
+                        openPlanItem(`/recipe/${recipe.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
                       }
                     }}
                     onMenuClick={() => {
@@ -497,7 +498,7 @@ export function Plan() {
                     noWrap
                     onClick={() => {
                       if (!shoppingSelectionMode && !copyModeDay && !copyModeMeal) {
-                        navigate(`/product/${product.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
+                        openPlanItem(`/product/${product.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
                       }
                     }}
                     onMenuClick={() => {
@@ -535,7 +536,7 @@ export function Plan() {
                     noWrap
                     onClick={() => {
                       if (!shoppingSelectionMode && !copyModeDay && !copyModeMeal) {
-                        navigate(`/add-food?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
+                        openPlanItem(`/add-food?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
                       }
                     }}
                     onMenuClick={() => {
@@ -881,11 +882,11 @@ export function Plan() {
                   const rid = meal.recipe?.id || meal.recipe;
                   const pid = meal.product?.id || meal.product;
                   if (rid) {
-                    navigate(`/recipe/${rid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
+                    openPlanItem(`/recipe/${rid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   } else if (pid) {
-                    navigate(`/product/${pid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
+                    openPlanItem(`/product/${pid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   } else {
-                    navigate(`/add-food?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
+                    openPlanItem(`/add-food?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   }
                   setActiveMealMenu(null);
                 }}
