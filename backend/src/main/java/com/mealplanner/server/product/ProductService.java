@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -23,6 +24,7 @@ public class ProductService {
 
     static final int MIN_PAGE_SIZE = 1;
     static final int MAX_PAGE_SIZE = 50;
+    static final String BAR_CODE_EXISTS = "product.bar-code-exists";
 
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
@@ -34,12 +36,29 @@ public class ProductService {
         if (!check.isValid()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, check.errors().getFirst().messageKey());
         }
+        if (product.getBarCode() != null && findByBarCode(product.getBarCode(), author).isPresent()) {
+            throw new ApiException(HttpStatus.CONFLICT, BAR_CODE_EXISTS);
+        }
         product.setId(null);
         product.setDeletedAt(null);
         product.setSource(ProductSource.USER);
         product.setCreatedBy(author.getId());
         product.setStatus(author.getRole() == UserRole.ADMIN ? ProductStatus.VERIFIED : ProductStatus.PENDING);
         return productRepository.save(product);
+    }
+
+    public Optional<Product> findByBarCode(String barCode, String email) {
+        User user = email == null ? null : userRepository.findByEmail(email).orElse(null);
+        return findByBarCode(barCode, user);
+    }
+
+    private Optional<Product> findByBarCode(String barCode, User user) {
+        Optional<Product> verified = productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(barCode, ProductStatus.VERIFIED);
+        if (verified.isPresent() || user == null) {
+            return verified;
+        }
+        return productRepository.findFirstByBarCodeAndStatusAndCreatedByAndDeletedAtIsNullOrderByCreatedAtDesc(
+                barCode, ProductStatus.PENDING, user.getId());
     }
 
     @Transactional

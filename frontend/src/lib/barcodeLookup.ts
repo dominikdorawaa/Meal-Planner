@@ -29,6 +29,15 @@ export async function findProductByBarCode(barCode: string): Promise<BarCodeLook
   }
 }
 
+export async function findExistingProduct(barCode: string): Promise<Product | null> {
+  try {
+    return await api.products.getExistingByBarCode(barCode);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+}
+
 export type MissingProductMessage = 'scanner.notFound' | 'scanner.foundToReview' | 'scanner.foundToReviewWithoutName';
 
 export function missingProductMessage(prefill: ProductPrefill | null): MissingProductMessage {
