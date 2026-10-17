@@ -1,16 +1,34 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from './apiClient';
-import { findProductByBarCode, missingProductMessage, normalizeBarCode } from './barcodeLookup';
+import { findExistingProduct, findProductByBarCode, missingProductMessage, normalizeBarCode } from './barcodeLookup';
 
-const mocks = vi.hoisted(() => ({ getByBarCode: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getByBarCode: vi.fn(), getExistingByBarCode: vi.fn() }));
 
 vi.mock('./apiClient', async importOriginal => {
   const original = await importOriginal<typeof import('./apiClient')>();
-  return { ...original, api: { products: { getByBarCode: mocks.getByBarCode } } };
+  return { ...original, api: { products: { getByBarCode: mocks.getByBarCode, getExistingByBarCode: mocks.getExistingByBarCode } } };
 });
 
 afterEach(() => {
   mocks.getByBarCode.mockReset();
+  mocks.getExistingByBarCode.mockReset();
+});
+
+describe('findExistingProduct', () => {
+  it('returns the product that already has the code', async () => {
+    mocks.getExistingByBarCode.mockResolvedValue({ id: 'p1' });
+
+    await expect(findExistingProduct('5900820000318')).resolves.toEqual({ id: 'p1' });
+  });
+
+  it('returns null when no product has the code and passes on other failures', async () => {
+    mocks.getExistingByBarCode
+      .mockRejectedValueOnce(new ApiError('Not found', 404))
+      .mockRejectedValueOnce(new ApiError('Server error', 500));
+
+    await expect(findExistingProduct('5900820000318')).resolves.toBeNull();
+    await expect(findExistingProduct('5900820000318')).rejects.toThrow('Server error');
+  });
 });
 
 describe('findProductByBarCode', () => {

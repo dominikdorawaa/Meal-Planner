@@ -56,8 +56,9 @@ public class ProductController {
     }
 
     @GetMapping("/barcode/{barCode}")
-    public ResponseEntity<?> getProductByBarCode(@PathVariable String barCode) {
-        Optional<Product> local = productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(barCode, ProductStatus.VERIFIED);
+    public ResponseEntity<?> getProductByBarCode(@PathVariable String barCode, Authentication authentication) {
+        String email = authentication == null ? null : authentication.getName();
+        Optional<Product> local = productService.findByBarCode(barCode, email);
         if (local.isPresent()) {
             return ResponseEntity.ok(local.get());
         }
@@ -71,6 +72,14 @@ public class ProductController {
             body.put("prefill", ProductPrefill.from(result.prefill()));
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    @GetMapping("/barcode/{barCode}/existing")
+    public ResponseEntity<Product> getExistingProductByBarCode(@PathVariable String barCode, Authentication authentication) {
+        String email = authentication == null ? null : authentication.getName();
+        return productService.findByBarCode(barCode, email)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping

@@ -119,6 +119,14 @@ describe('apiClient', () => {
     });
   });
 
+  it('checks for an existing product without asking Open Food Facts', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: 'p1' }));
+
+    await expect(api.products.getExistingByBarCode('5900820000318')).resolves.toEqual({ id: 'p1' });
+
+    expect(new URL(fetchMock.mock.calls[0][0]).pathname).toBe('/api/products/barcode/5900820000318/existing');
+  });
+
   it('keeps the HTTP status of a failed request', async () => {
     fetchMock.mockResolvedValue(jsonResponse(404, { error: 'Nie znaleziono zasobu.' }));
 

@@ -38,5 +38,7 @@
   "product.barCode": "Kod kreskowy",
   "scanner.engineFailed": "Nie udało się uruchomić skanera. Wpisz kod ręcznie.",
   "scanner.aimHint": "Ustaw kod w ramce, 15 do 20 cm od aparatu",
-  "scanner.torch": "Latarka"
+  "scanner.torch": "Latarka",
+  "product.scanBarCode": "Zeskanuj kod kreskowy",
+  "product.alreadyExists": "Ten produkt już istnieje"
 }
