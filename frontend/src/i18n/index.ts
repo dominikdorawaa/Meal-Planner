@@ -40,3 +40,10 @@ export function t(
     name in params ? String(params[name]) : placeholder
   );
 }
+
+export type PluralForm = 'one' | 'few' | 'many';
+
+export function pluralForm(count: number, language: Language = getLanguage()): PluralForm {
+  const category = new Intl.PluralRules(language).select(count);
+  return category === 'one' || category === 'few' ? category : 'many';
+}
