@@ -1,5 +1,7 @@
 package com.mealplanner.server.off;
 
+import com.mealplanner.server.product.ExtraNutrients;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -61,6 +63,11 @@ public final class ReviewedCsvReader {
                 number(value(record, columns, "protein")),
                 number(value(record, columns, "fat")),
                 number(value(record, columns, "carbs")),
+                new ExtraNutrients(
+                        number(value(record, columns, "saturated_fat")),
+                        number(value(record, columns, "sugars")),
+                        number(value(record, columns, "fiber")),
+                        number(value(record, columns, "salt"))),
                 unit.isEmpty() ? DEFAULT_UNIT : unit,
                 "yes".equalsIgnoreCase(value(record, columns, "import")));
     }

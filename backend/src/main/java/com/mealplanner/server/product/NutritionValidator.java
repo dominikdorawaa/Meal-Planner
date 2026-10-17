@@ -2,6 +2,7 @@ package com.mealplanner.server.product;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 public final class NutritionValidator {
@@ -23,11 +24,16 @@ public final class NutritionValidator {
 
     public static NutritionCheck check(Product product) {
         return check(product.getName(), product.getKcal(), product.getProtein(), product.getFat(),
-                product.getCarbs(), product.getUnit(), product.getBarCode());
+                product.getCarbs(), product.getUnit(), product.getBarCode(), ExtraNutrients.of(product));
     }
 
     public static NutritionCheck check(String name, Double kcal, Double protein, Double fat, Double carbs,
                                        String unit, String barCode) {
+        return check(name, kcal, protein, fat, carbs, unit, barCode, ExtraNutrients.NONE);
+    }
+
+    public static NutritionCheck check(String name, Double kcal, Double protein, Double fat, Double carbs,
+                                       String unit, String barCode, ExtraNutrients extras) {
         List<NutritionIssue> issues = new ArrayList<>();
         if (name == null || name.isBlank()) {
             issues.add(NutritionIssue.NAME_MISSING);
@@ -39,22 +45,36 @@ public final class NutritionValidator {
             issues.add(NutritionIssue.NUTRIENT_MISSING);
             return split(issues);
         }
-        if (Stream.of(kcal, protein, fat, carbs).anyMatch(value -> value < 0)) {
+        List<Double> extraValues = Stream.of(extras.saturatedFat(), extras.sugars(), extras.fiber(), extras.salt())
+                .filter(Objects::nonNull)
+                .toList();
+        if (Stream.concat(Stream.of(kcal, protein, fat, carbs), extraValues.stream()).anyMatch(value -> value < 0)) {
             issues.add(NutritionIssue.NEGATIVE_VALUE);
         }
         if (!PER_PIECE_UNIT.equals(unit)) {
-            checkPerHundredGrams(issues, kcal, protein, fat, carbs);
+            checkPerHundredGrams(issues, kcal, protein, fat, carbs, extraValues);
         }
+        checkParts(issues, fat, carbs, extras);
         checkEnergy(issues, kcal, protein, fat, carbs);
         return split(issues);
     }
 
+    private static void checkParts(List<NutritionIssue> issues, double fat, double carbs, ExtraNutrients extras) {
+        if (extras.saturatedFat() != null && extras.saturatedFat() > fat) {
+            issues.add(NutritionIssue.SATURATED_FAT_ABOVE_FAT);
+        }
+        if (extras.sugars() != null && extras.sugars() > carbs) {
+            issues.add(NutritionIssue.SUGARS_ABOVE_CARBS);
+        }
+    }
+
     private static void checkPerHundredGrams(List<NutritionIssue> issues, double kcal, double protein,
-                                             double fat, double carbs) {
+                                             double fat, double carbs, List<Double> extraValues) {
         if (kcal > MAX_KCAL_PER_100G) {
             issues.add(NutritionIssue.KCAL_ABOVE_900);
         }
-        if (Stream.of(protein, fat, carbs).anyMatch(value -> value > MAX_GRAMS_PER_100G)) {
+        if (Stream.concat(Stream.of(protein, fat, carbs), extraValues.stream())
+                .anyMatch(value -> value > MAX_GRAMS_PER_100G)) {
             issues.add(NutritionIssue.MACRO_ABOVE_100G);
         }
         if (protein + fat + carbs > MAX_GRAMS_PER_100G + MACROS_SUM_ROUNDING) {

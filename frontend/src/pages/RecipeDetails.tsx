@@ -5,6 +5,7 @@ import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, firstDayOfMonth, formatDayMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { targetRange } from '../lib/macros';
+import { RecipeMoreNutrients } from '../components/RecipeMoreNutrients';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 
 export function RecipeDetails() {
@@ -508,6 +509,8 @@ export function RecipeDetails() {
 
           </div>
         </section>
+
+        <RecipeMoreNutrients ingredients={ingredients} portions={basePortions} />
 
         {/* Składniki */}
         {ingredients && ingredients.length > 0 && (

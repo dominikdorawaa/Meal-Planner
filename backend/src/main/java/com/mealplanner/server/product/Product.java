@@ -33,6 +33,15 @@ public class Product {
 
     private Double carbs;
 
+    @Column(name = "saturated_fat")
+    private Double saturatedFat;
+
+    private Double sugars;
+
+    private Double fiber;
+
+    private Double salt;
+
     private String unit;
 
     @Column(name = "bar_code")
@@ -69,6 +78,7 @@ public class Product {
         protein = NutritionRounding.grams(protein);
         fat = NutritionRounding.grams(fat);
         carbs = NutritionRounding.grams(carbs);
+        ExtraNutrients.of(this).rounded().applyTo(this);
     }
 
     @JsonProperty(value = "deleted", access = JsonProperty.Access.READ_ONLY)

@@ -12,6 +12,8 @@ public enum NutritionIssue {
     KCAL_LOOKS_LIKE_KJ(true),
     KCAL_MISMATCH(false),
     INVALID_BAR_CODE(true),
+    SATURATED_FAT_ABOVE_FAT(true),
+    SUGARS_ABOVE_CARBS(true),
     KCAL_DEVIATION(false);
 
     private final boolean error;

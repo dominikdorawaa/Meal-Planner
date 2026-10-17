@@ -99,6 +99,7 @@ public class OffImportService {
                     product.setBarCode(row.code());
                     product.setStatus(ProductStatus.VERIFIED);
                     product.setSource(ProductSource.OPEN_FOOD_FACTS);
+                    row.extras().cleanedFor(row.fat(), row.carbs()).applyTo(product);
                     apply(product, row);
                     toSave.add(product);
                     progress.inserted++;
