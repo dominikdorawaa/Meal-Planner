@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
-import { addDaysToIsoDate, firstDayOfMonth, formatDayMonth, toIsoDate, todayIsoDate } from '../lib/planDates';
+import { addDaysToIsoDate, firstDayOfMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { productDisplayName } from '../lib/productName';
 import { canDeleteProduct } from '../lib/productPermissions';
 
@@ -150,7 +150,7 @@ export function ProductDetails() {
   };
   const mealLabel = availableMealTypes.find((m: any) => m.id === activeMealType)?.name || MEAL_TYPE_LABELS[activeMealType] || activeMealType;
   const todayStr = todayIsoDate();
-  const activeDateDisplay = activeDate === todayStr ? 'Dzisiaj' : formatDayMonth(activeDate || selectDate || '');
+  const activeDateDisplay = formatShortDayLabel(activeDate || selectDate || '');
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">

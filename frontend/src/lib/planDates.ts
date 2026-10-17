@@ -31,6 +31,9 @@ export const formatDayMonth = (isoDate: string) => {
   return date ? `${pad(date.getDate())}.${pad(date.getMonth() + 1)}` : isoDate;
 };
 
+export const formatShortDayLabel = (isoDate: string, today: Date = new Date()) =>
+  isoDate === toIsoDate(today) ? 'Dzisiaj' : formatDayMonth(isoDate);
+
 export const formatDayWithMonthName = (dayName: string, isoDate: string) => {
   const date = parseIsoDate(isoDate);
   return date ? `${dayName}, ${date.getDate()} ${MONTH_NAMES[date.getMonth()]}` : `${dayName} (${isoDate})`;

@@ -17,8 +17,8 @@ resolved AS (
     FROM valid v
     CROSS JOIN LATERAL (
         SELECT make_date(y, v.month_of_year, 1) + (v.day_of_month - 1) AS candidate
-        FROM generate_series(extract(year FROM v.reference_date)::int - 1,
-                             extract(year FROM v.reference_date)::int + 1) AS y
+        FROM generate_series(extract(year FROM v.reference_date)::int - 4,
+                             extract(year FROM v.reference_date)::int + 4) AS y
     ) c
     WHERE extract(month FROM c.candidate) = v.month_of_year
     ORDER BY v.id, abs(c.candidate - v.reference_date), c.candidate DESC

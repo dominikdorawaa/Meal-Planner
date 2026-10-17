@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
-import { addDaysToIsoDate, firstDayOfMonth, formatDayMonth, toIsoDate, todayIsoDate } from '../lib/planDates';
+import { addDaysToIsoDate, firstDayOfMonth, formatDayMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { targetRange } from '../lib/macros';
 
@@ -222,11 +222,11 @@ export function RecipeDetails() {
   const pctC = Math.round((calC / totalCal) * 100);
 
   const todayStr = todayIsoDate();
-  const dateDisplay = selectDate === todayStr ? 'Dzisiaj' : formatDayMonth(selectDate || '');
+  const dateDisplay = formatShortDayLabel(selectDate || '');
 
   const mealLabel = availableMealTypes.find((m: any) => m.id === activeMealType)?.name || activeMealType || selectType || '';
 
-  const activeDateDisplay = activeDate ? (activeDate === todayStr ? 'Dzisiaj' : formatDayMonth(activeDate)) : dateDisplay;
+  const activeDateDisplay = activeDate ? formatShortDayLabel(activeDate) : dateDisplay;
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">

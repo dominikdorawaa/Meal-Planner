@@ -229,6 +229,7 @@ class DatabaseMigrationTest {
                 {"next-year", "02.01", "2025-12-30 12:00:00+01"},
                 {"previous-year", "30.12", "2026-01-02 12:00:00+01"},
                 {"leap-day", "29.02", "2028-02-20 12:00:00+01"},
+                {"leap-day-of-previous-year", "29.02", "2025-03-10 12:00:00+01"},
                 {"late-evening", "01.01", "2025-12-31 23:30:00+00"},
                 {"invalid", "31.02", "2026-05-05 12:00:00+02"},
                 {"no-creation-time", "abc", null}};
@@ -246,6 +247,7 @@ class DatabaseMigrationTest {
                 .containsEntry("next-year", "2026-01-02")
                 .containsEntry("previous-year", "2025-12-30")
                 .containsEntry("leap-day", "2028-02-29")
+                .containsEntry("leap-day-of-previous-year", "2024-02-29")
                 .containsEntry("late-evening", "2026-01-01")
                 .containsEntry("invalid", "2026-05-05");
         assertThat(dates.get("no-creation-time")).isNotNull();

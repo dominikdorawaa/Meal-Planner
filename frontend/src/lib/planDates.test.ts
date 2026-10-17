@@ -1,15 +1,20 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   addDaysToIsoDate,
   firstDayOfMonth,
   formatDayMonth,
   formatDayWithMonthName,
   formatRelativeDayLabel,
+  formatShortDayLabel,
   parseIsoDate,
   planDays,
   toIsoDate,
   todayIsoDate,
 } from './planDates'
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('toIsoDate', () => {
   it('uses the local calendar day with the year', () => {
@@ -22,7 +27,6 @@ describe('todayIsoDate', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 11, 31, 23, 59))
     expect(todayIsoDate()).toBe('2026-12-31')
-    vi.useRealTimers()
   })
 })
 
@@ -65,6 +69,20 @@ describe('formatDayMonth', () => {
   })
 })
 
+describe('formatShortDayLabel', () => {
+  const today = new Date(2026, 11, 31, 18, 0)
+
+  it('names today and shows other days as day and month', () => {
+    expect(formatShortDayLabel('2026-12-31', today)).toBe('Dzisiaj')
+    expect(formatShortDayLabel('2027-01-01', today)).toBe('01.01')
+    expect(formatShortDayLabel('2025-12-31', today)).toBe('31.12')
+  })
+
+  it('compares with the current day by default', () => {
+    expect(formatShortDayLabel(todayIsoDate())).toBe('Dzisiaj')
+  })
+})
+
 describe('formatDayWithMonthName', () => {
   it('shows the day with the Polish month name', () => {
     expect(formatDayWithMonthName('Piątek', '2027-01-01')).toBe('Piątek, 1 stycznia')
@@ -104,8 +122,9 @@ describe('firstDayOfMonth', () => {
   })
 
   it('opens the calendar on the current month without a date', () => {
-    const now = new Date()
-    expect(firstDayOfMonth(null)).toEqual(new Date(now.getFullYear(), now.getMonth(), 1))
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 11, 31, 23, 59))
+    expect(firstDayOfMonth(null)).toEqual(new Date(2026, 11, 1))
   })
 })
 
