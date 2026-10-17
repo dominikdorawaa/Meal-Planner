@@ -7,6 +7,7 @@ import { resolveMealProduct } from '../lib/mealProducts';
 import { useNavigate } from 'react-router-dom';
 import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 import { formatMacrosShort } from '../lib/macros';
+import { DaySummary } from '../components/DaySummary';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, formatRelativeDayLabel, parseIsoDate, planDays } from '../lib/planDates';
 import { PlanConflictDialog } from '../components/PlanConflictDialog';
@@ -692,78 +693,7 @@ export function Plan() {
                         </div>
                         <span className="uppercase text-[8px] font-extrabold tracking-widest text-on-surface-variant font-body line-clamp-1 mt-2 pl-0.5">{day.name}</span>
                       </div>
-                      <div className="flex flex-col gap-2 mt-1.5 w-full">
-                        <div className="flex justify-between items-baseline leading-none gap-1">
-                          <div className="flex items-center gap-0.5 text-primary shrink-0">
-                            <span className="uppercase tracking-normal text-[8px] font-extrabold pb-0.5">Kcal</span>
-                          </div>
-                          <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                            <span className={`text-[10px] font-extrabold ${profile && consumed.kcal > profile.target_kcal ? 'text-error' : 'text-primary'}`}>
-                              {consumed.kcal}
-                            </span>
-                            <span className="mx-0.5 opacity-50">/</span>
-                            {profile?.target_kcal || '···'}
-                          </span>
-                        </div>
-                        <div className="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden -mt-0.5 relative">
-                          <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-1000" style={{ width: profile && profile.target_kcal > 0 ? `${Math.min(100, (consumed.kcal / profile.target_kcal) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-1000" style={{ width: profile && profile.target_kcal > 0 ? `${Math.max(0, Math.min(100, ((consumed.kcal / profile.target_kcal) * 100) - 100))}%` : '0%' }}></div>
-                        </div>
-
-                        {/* Białko */}
-                        <div className="flex justify-between items-baseline leading-none gap-1">
-                          <span className="text-primary uppercase tracking-normal text-[7px] font-bold shrink-0">Białka</span>
-                          <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                            <span className={`text-[9px] font-extrabold ${profile && consumed.protein > (profile.target_protein_max || profile.target_protein * 1.1) ? 'text-error' : 'text-primary'}`}>
-                              {consumed.protein}
-                            </span>
-                            <span className="mx-0.5 opacity-50">/</span>
-                            <span className="text-[7px] opacity-80">
-                              {profile ? `${profile.target_protein_min || Math.round(profile.target_protein * 0.9)}-${profile.target_protein_max || Math.round(profile.target_protein * 1.1)}` : '··'}g
-                            </span>
-                          </span>
-                        </div>
-                        <div className="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden -mt-0.5 relative">
-                          <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_protein_max || profile.target_protein * 1.1) > 0 ? `${Math.min(100, (consumed.protein / (profile.target_protein_max || profile.target_protein * 1.1)) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_protein_max || profile.target_protein * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((consumed.protein / (profile.target_protein_max || profile.target_protein * 1.1)) * 100) - 100))}%` : '0%' }}></div>
-                        </div>
-
-                        {/* Tłuszcz */}
-                        <div className="flex justify-between items-baseline leading-none gap-1">
-                          <span className="text-primary uppercase tracking-normal text-[7px] font-bold shrink-0">Tłuszcz</span>
-                          <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                            <span className={`text-[9px] font-extrabold ${profile && consumed.fat > (profile.target_fat_max || profile.target_fat * 1.1) ? 'text-error' : 'text-primary'}`}>
-                              {consumed.fat}
-                            </span>
-                            <span className="mx-0.5 opacity-50">/</span>
-                            <span className="text-[7px] opacity-80">
-                              {profile ? `${profile.target_fat_min || Math.round(profile.target_fat * 0.9)}-${profile.target_fat_max || Math.round(profile.target_fat * 1.1)}` : '··'}g
-                            </span>
-                          </span>
-                        </div>
-                        <div className="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden -mt-0.5 relative">
-                          <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_fat_max || profile.target_fat * 1.1) > 0 ? `${Math.min(100, (consumed.fat / (profile.target_fat_max || profile.target_fat * 1.1)) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_fat_max || profile.target_fat * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((consumed.fat / (profile.target_fat_max || profile.target_fat * 1.1)) * 100) - 100))}%` : '0%' }}></div>
-                        </div>
-
-                        {/* Węglowodany */}
-                        <div className="flex justify-between items-baseline leading-none gap-1">
-                          <span className="text-primary uppercase tracking-normal text-[7px] font-bold shrink-0">Węgle</span>
-                          <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                            <span className={`text-[9px] font-extrabold ${profile && consumed.carbs > (profile.target_carbs_max || profile.target_carbs * 1.1) ? 'text-error' : 'text-primary'}`}>
-                              {consumed.carbs}
-                            </span>
-                            <span className="mx-0.5 opacity-50">/</span>
-                            <span className="text-[7px] opacity-80">
-                              {profile ? `${profile.target_carbs_min || Math.round(profile.target_carbs * 0.9)}-${profile.target_carbs_max || Math.round(profile.target_carbs * 1.1)}` : '··'}g
-                            </span>
-                          </span>
-                        </div>
-                        <div className="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden -mt-0.5 relative">
-                          <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_carbs_max || profile.target_carbs * 1.1) > 0 ? `${Math.min(100, (consumed.carbs / (profile.target_carbs_max || profile.target_carbs * 1.1)) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-1000" style={{ width: profile && (profile.target_carbs_max || profile.target_carbs * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((consumed.carbs / (profile.target_carbs_max || profile.target_carbs * 1.1)) * 100) - 100))}%` : '0%' }}></div>
-                        </div>
-                      </div>
+                      <DaySummary consumed={consumed} targets={profile} dayLabel={`${day.name}, ${formatDayMonth(day.date)}`} interactive={!shoppingSelectionMode && !isDayCopyMode && !copyModeMeal} />
                     </div>
                   </div>
                 )

@@ -100,5 +100,19 @@
   "plan.meal.copyToOtherDays": "Skopiuj na inne dni",
   "plan.day.copyToOtherDays": "Skopiuj posiłki na inne dni",
   "plan.day.copying": "Kopiowanie dnia",
-  "plan.day.delete": "Usuń posiłki z całego dnia"
+  "plan.day.delete": "Usuń posiłki z całego dnia",
+  "plan.summary.title": "Podsumowanie dnia",
+  "plan.summary.open": "Pokaż podsumowanie dnia: {day}",
+  "plan.summary.close": "Zamknij",
+  "plan.summary.kcal": "Kalorie",
+  "plan.summary.protein": "Białko",
+  "plan.summary.fat": "Tłuszcz",
+  "plan.summary.carbs": "Węglowodany",
+  "plan.summary.kcalShort": "Kcal",
+  "plan.summary.proteinShort": "B",
+  "plan.summary.fatShort": "T",
+  "plan.summary.carbsShort": "W",
+  "plan.summary.missing": "Brakuje {amount}",
+  "plan.summary.onTarget": "W celu",
+  "plan.summary.over": "Za dużo o {amount}"
 }

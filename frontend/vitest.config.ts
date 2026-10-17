@@ -45,6 +45,8 @@ export default defineConfig({
         'src/components/UndoSnackbar.tsx',
         'src/lib/planSelection.ts',
         'src/components/PlanSelectionControls.tsx',
+        'src/lib/daySummary.ts',
+        'src/components/DaySummary.tsx',
       ],
       reporter: ['text', 'html'],
     },
