@@ -40,5 +40,9 @@
   "scanner.aimHint": "Fit the code in the frame, 15 to 20 cm from the camera",
   "scanner.torch": "Flashlight",
   "product.scanBarCode": "Scan barcode",
-  "product.alreadyExists": "This product already exists"
+  "product.alreadyExists": "This product already exists",
+  "addFood.selectItem": "Select: {name}",
+  "addFood.addSelected": "Add ({count})",
+  "addFood.addSelectedFailed": "Could not add the selected items. Please try again.",
+  "planSelection.notAllSaved": "The item was added, but some selected items could not be saved. Check your plan."
 }

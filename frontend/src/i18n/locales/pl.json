@@ -40,5 +40,9 @@
   "scanner.aimHint": "Ustaw kod w ramce, 15 do 20 cm od aparatu",
   "scanner.torch": "Latarka",
   "product.scanBarCode": "Zeskanuj kod kreskowy",
-  "product.alreadyExists": "Ten produkt już istnieje"
+  "product.alreadyExists": "Ten produkt już istnieje",
+  "addFood.selectItem": "Zaznacz: {name}",
+  "addFood.addSelected": "Dodaj ({count})",
+  "addFood.addSelectedFailed": "Nie udało się dodać zaznaczonych pozycji. Spróbuj ponownie.",
+  "planSelection.notAllSaved": "Pozycja została dodana, ale części zaznaczonych nie udało się zapisać. Sprawdź plan."
 }

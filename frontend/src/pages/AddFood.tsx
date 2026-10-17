@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { productDisplayName } from '../lib/productName';
@@ -17,6 +17,21 @@ import { useExistingBarCodeProduct } from '../lib/useExistingBarCodeProduct';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { t } from '../i18n';
 import { firstDayOfMonth, formatRelativeDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
+import {
+  DEFAULT_PRODUCT_GRAMS,
+  DEFAULT_RECIPE_PORTIONS,
+  PlanSelectionSaveError,
+  addSelectionAfterItem,
+  addSelectionToPlan,
+  finishPlanSelection,
+  isSelected,
+  newPlanSelection,
+  planSelectionState,
+  readPlanSelection,
+  toggleSelection,
+} from '../lib/planSelection';
+import type { PlanSelectionKind } from '../lib/planSelection';
+import { AddSelectedBar, SelectionCheckbox } from '../components/PlanSelectionControls';
 
 
 const RECENT_PRODUCTS_LIMIT = 5;
@@ -33,6 +48,7 @@ const MEAL_TYPE_LABELS: Record<string, string> = {
 
 export function AddFood() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { recipes, userMeals, profile, loading: contextLoading, refreshMeals } = useAppData();
 
@@ -59,6 +75,9 @@ export function AddFood() {
   });
 
   const [isAdding, setIsAdding] = useState(false);
+  const [selection, setSelection] = useState(() => readPlanSelection(location.state) ?? newPlanSelection());
+  const toggleItem = (kind: PlanSelectionKind, id: string | number) =>
+    setSelection(current => ({ ...current, items: toggleSelection(current.items, kind, id) }));
 
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [addProductForm, setAddProductForm] = useState(EMPTY_PRODUCT_FORM);
@@ -200,14 +219,33 @@ export function AddFood() {
   const filteredProducts = activeTab === 'recent' ? recentProducts : productSearch.items;
   const isSearchingProducts = activeTab !== 'recent' && productSearch.loading && filteredProducts.length === 0;
 
-  const handleSelectRecipe = (recipe: any) => {
+  const openDetails = (path: string) => {
     if (!activeDate || !activeMealType) return;
-    navigate(`/recipe/${recipe.id}?selectDate=${activeDate}&selectType=${activeMealType}`);
+    const state = planSelectionState(selection);
+    const query = `?selectDate=${activeDate}&selectType=${activeMealType}`;
+    navigate(location.pathname + query, { replace: true, state });
+    navigate(path + query, { state });
   };
 
-  const handleSelectProduct = (product: any) => {
-    if (!activeDate || !activeMealType) return;
-    navigate(`/product/${product.id}?selectDate=${activeDate}&selectType=${activeMealType}`);
+  const handleSelectRecipe = (recipe: any) => openDetails(`/recipe/${recipe.id}`);
+
+  const handleSelectProduct = (product: any) => openDetails(`/product/${product.id}`);
+
+  const handleAddSelected = async () => {
+    if (isAdding || selection.items.length === 0) return;
+    setIsAdding(true);
+    try {
+      await addSelectionToPlan(selection.items, activeDate, activeMealType);
+      finishPlanSelection(selection);
+      await refreshMeals();
+      navigate('/');
+    } catch (err) {
+      console.error("Selected items save error:", err);
+      if (err instanceof PlanSelectionSaveError) setSelection(current => ({ ...current, items: err.remaining }));
+      await refreshMeals();
+      alert(t('addFood.addSelectedFailed'));
+      setIsAdding(false);
+    }
   };
 
 
@@ -229,8 +267,8 @@ export function AddFood() {
     setIsAdding(true);
 
     const payload = {
-      meal_date: selectDate,
-      meal_type: selectType,
+      meal_date: activeDate,
+      meal_type: activeMealType,
       manual_name: quickAddForm.name,
       manual_kcal: parseInt(String(quickAddForm.kcal).replace(',', '.')) || 0,
       manual_protein: parseFloat(String(quickAddForm.protein).replace(',', '.')) || 0,
@@ -243,6 +281,7 @@ export function AddFood() {
         await api.meals.update(mealId, payload);
       } else {
         await api.meals.add(payload);
+        await addSelectionAfterItem(selection, null, activeDate, activeMealType);
       }
       await refreshMeals();
       navigate('/');
@@ -579,13 +618,15 @@ export function AddFood() {
 
                       <div className="flex flex-col items-end justify-center pl-2 pr-3">
                         <span className="text-xs font-black group-hover:text-primary transition-colors">{recipe.kcal} kcal</span>
-                        <span className="text-[9px] font-bold text-on-surface-variant uppercase transition-colors">1 porcja</span>
+                        <span className="text-[9px] font-bold text-on-surface-variant uppercase transition-colors">{DEFAULT_RECIPE_PORTIONS} porcja</span>
                       </div>
 
-                      <div className="flex items-center justify-center pr-2 pl-2 border-l border-outline-variant/10 group-hover:border-primary/20 ml-2">
-                        <button className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant group-hover:text-primary transition-colors">
-                          <span className="material-symbols-outlined text-[20px]">add</span>
-                        </button>
+                      <div className="flex items-center justify-center pl-1 border-l border-outline-variant/10 group-hover:border-primary/20 ml-2">
+                        <SelectionCheckbox
+                          checked={isSelected(selection.items, 'recipe', recipe.id)}
+                          label={recipe.name}
+                          onToggle={() => toggleItem('recipe', recipe.id)}
+                        />
                       </div>
                     </div>
                   ))}
@@ -622,13 +663,15 @@ export function AddFood() {
 
                       <div className="flex flex-col items-end justify-center pl-2 pr-3">
                         <span className="text-xs font-black group-hover:text-surface transition-colors">{prod.kcal} kcal</span>
-                        <span className="text-[9px] font-bold text-on-surface-variant group-hover:text-surface/70 uppercase transition-colors">100g</span>
+                        <span className="text-[9px] font-bold text-on-surface-variant group-hover:text-surface/70 uppercase transition-colors">{DEFAULT_PRODUCT_GRAMS}g</span>
                       </div>
 
-                      <div className="flex items-center justify-center pl-2 border-l border-outline-variant/10 group-hover:border-surface/10 ml-2">
-                        <button className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant group-hover:text-surface transition-colors">
-                          <span className="material-symbols-outlined text-[20px]">add</span>
-                        </button>
+                      <div className="flex items-center justify-center pl-1 border-l border-outline-variant/10 group-hover:border-surface/10 ml-2">
+                        <SelectionCheckbox
+                          checked={isSelected(selection.items, 'product', prod.id)}
+                          label={productDisplayName(prod)}
+                          onToggle={() => toggleItem('product', prod.id)}
+                        />
                       </div>
                     </div>
                   ))}
@@ -935,6 +978,10 @@ export function AddFood() {
             </button>
           </div>
         </div>
+      )}
+
+      {!mealId && !showQuickAdd && !showAddProduct && (
+        <AddSelectedBar count={selection.items.length} adding={isAdding} onAdd={handleAddSelected} />
       )}
 
       {showScanner && <LazyBarcodeScanner onDetected={handleBarCode} onClose={() => setShowScanner(false)} />}

@@ -36,6 +36,8 @@ export default defineConfig({
         'src/lib/AppDataContext.tsx',
         'src/lib/mealSettings.ts',
         'src/components/MealSettingsList.tsx',
+        'src/lib/planSelection.ts',
+        'src/components/PlanSelectionControls.tsx',
       ],
       reporter: ['text', 'html'],
     },
