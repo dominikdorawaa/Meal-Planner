@@ -27,10 +27,7 @@ public class AuthService {
         user.setName(request.getName());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
 
-        User saved = userRepository.save(user);
-
-        String token = jwtService.generateToken(saved.getId(), saved.getEmail());
-        return new AuthResponse(token, saved.getId().toString(), saved.getEmail(), saved.getName(), saved.getRole().name());
+        return issueSession(userRepository.save(user));
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -49,14 +46,18 @@ public class AuthService {
         }
         System.out.println("DEBUG: Login successful for email: " + request.getEmail());
 
-        String token = jwtService.generateToken(user.getId(), user.getEmail());
-        return new AuthResponse(token, user.getId().toString(), user.getEmail(), user.getName(), user.getRole().name());
+        return issueSession(user);
     }
 
-    public AuthResponse refresh(String email) {
+    public AuthResponse refresh(String email, String userId) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AuthenticationCredentialsNotFoundException("User no longer exists"));
+                .filter(found -> found.getId().toString().equals(userId))
+                .orElseThrow(() -> new AuthenticationCredentialsNotFoundException("Token does not match an existing user"));
 
+        return issueSession(user);
+    }
+
+    private AuthResponse issueSession(User user) {
         String token = jwtService.generateToken(user.getId(), user.getEmail());
         return new AuthResponse(token, user.getId().toString(), user.getEmail(), user.getName(), user.getRole().name());
     }

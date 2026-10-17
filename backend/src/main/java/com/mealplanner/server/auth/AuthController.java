@@ -30,7 +30,7 @@ public class AuthController {
         if (auth == null) {
             throw new AuthenticationCredentialsNotFoundException("Authentication required");
         }
-        return ResponseEntity.ok(authService.refresh(auth.getName()));
+        return ResponseEntity.ok(authService.refresh(auth.getName(), String.valueOf(auth.getDetails())));
     }
 
     @GetMapping("/me")

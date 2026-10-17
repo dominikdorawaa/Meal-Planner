@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getStoredUser, getToken } from './apiClient';
+import { api, getStoredUser, getToken } from './apiClient';
 import { RENEWAL_INTERVAL_MS, startSessionRenewal } from './sessionRenewal';
 
 const fetchMock = vi.fn();
@@ -27,6 +27,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  Reflect.deleteProperty(document, 'visibilityState');
   stop?.();
   stop = undefined;
   fetchMock.mockReset();
@@ -96,7 +97,6 @@ describe('startSessionRenewal', () => {
 
     start();
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    await Promise.resolve();
     expect(getToken()).toBe('old-token');
 
     await vi.waitFor(() => {
@@ -104,6 +104,39 @@ describe('startSessionRenewal', () => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
     await vi.waitFor(() => expect(getToken()).toBe('new-token'));
+  });
+
+  it('does not bring back a session that was ended while the renewal was in flight', async () => {
+    localStorage.setItem('mp_auth_token', 'old-token');
+    let respond: (response: Response) => void = () => {};
+    fetchMock.mockReturnValue(new Promise<Response>(resolve => { respond = resolve; }));
+
+    start();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    api.auth.logout();
+    respond(renewedSession('new-token'));
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(getToken()).toBeNull();
+    expect(getStoredUser()).toBeNull();
+  });
+
+  it('keeps the session of a user who signed in while the renewal was in flight', async () => {
+    localStorage.setItem('mp_auth_token', 'old-token');
+    let respond: (response: Response) => void = () => {};
+    fetchMock.mockReturnValueOnce(new Promise<Response>(resolve => { respond = resolve; }));
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+      token: 'bob-token', user_id: 'user-2', email: 'bob@example.com', name: 'Bob', role: 'USER',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    start();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await api.auth.login('bob@example.com', 'secret123');
+    respond(renewedSession('alice-token'));
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(getToken()).toBe('bob-token');
+    expect(getStoredUser()?.name).toBe('Bob');
   });
 
   it('stops listening for the app returning to the foreground', async () => {
