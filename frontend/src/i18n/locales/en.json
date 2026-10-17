@@ -81,5 +81,19 @@
   "plan.meal.copyToOtherDays": "Copy to other days",
   "plan.day.copyToOtherDays": "Copy meals to other days",
   "plan.day.copying": "Copying a day",
-  "plan.day.delete": "Delete all meals of the day"
+  "plan.day.delete": "Delete all meals of the day",
+  "plan.summary.title": "Day summary",
+  "plan.summary.open": "Show day summary: {day}",
+  "plan.summary.close": "Close",
+  "plan.summary.kcal": "Calories",
+  "plan.summary.protein": "Protein",
+  "plan.summary.fat": "Fat",
+  "plan.summary.carbs": "Carbs",
+  "plan.summary.kcalShort": "Kcal",
+  "plan.summary.proteinShort": "P",
+  "plan.summary.fatShort": "F",
+  "plan.summary.carbsShort": "C",
+  "plan.summary.missing": "{amount} to go",
+  "plan.summary.onTarget": "On target",
+  "plan.summary.over": "{amount} over"
 }
