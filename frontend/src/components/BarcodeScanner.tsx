@@ -144,7 +144,7 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
       onClick={onClose}
     >
       <div
-        className="bg-surface-container-lowest rounded-t-[32px] px-4 pt-6 pb-8 w-full max-w-xl mx-auto flex flex-col gap-4"
+        className="bg-surface-container-lowest rounded-t-[32px] px-4 pt-6 pb-8 w-full max-w-xl max-h-[100dvh] overflow-y-auto mx-auto flex flex-col gap-4"
         onClick={event => event.stopPropagation()}
       >
         <div className="flex items-center justify-between px-2">

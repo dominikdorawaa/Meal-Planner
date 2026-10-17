@@ -214,4 +214,26 @@ class ProductAccessIntegrationTest {
         mockMvc.perform(get("/api/products/barcode/" + uniqueBarCode()).header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void existingProductLookupFindsVerifiedAndOwnPendingProductsOnly() throws Exception {
+        String verifiedCode = uniqueBarCode();
+        String ownCode = uniqueBarCode();
+        String otherCode = uniqueBarCode();
+        User author = saveUser(UserRole.USER);
+        saveProduct(verifiedCode, ProductStatus.VERIFIED, "Verified product");
+        savePendingProduct(ownCode, author, "My product");
+        savePendingProduct(otherCode, saveUser(UserRole.USER), "Someone else's product");
+
+        mockMvc.perform(get("/api/products/barcode/" + verifiedCode + "/existing"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Verified product"));
+        mockMvc.perform(get("/api/products/barcode/" + ownCode + "/existing").header(HttpHeaders.AUTHORIZATION, tokenFor(author)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("My product"));
+        mockMvc.perform(get("/api/products/barcode/" + ownCode + "/existing"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/products/barcode/" + otherCode + "/existing").header(HttpHeaders.AUTHORIZATION, tokenFor(author)))
+                .andExpect(status().isNotFound());
+    }
 }

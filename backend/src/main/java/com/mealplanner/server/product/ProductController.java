@@ -74,6 +74,14 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
+    @GetMapping("/barcode/{barCode}/existing")
+    public ResponseEntity<Product> getExistingProductByBarCode(@PathVariable String barCode, Authentication authentication) {
+        String email = authentication == null ? null : authentication.getName();
+        return productService.findByBarCode(barCode, email)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping
     public Product createProduct(@RequestBody Product product, Authentication authentication) {
         return productService.create(product, authentication.getName());

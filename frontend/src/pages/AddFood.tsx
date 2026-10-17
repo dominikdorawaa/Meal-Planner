@@ -105,7 +105,8 @@ export function AddFood() {
   const newProductNutrientsStarted = [addProductForm.kcal, addProductForm.protein, addProductForm.fat, addProductForm.carbs]
     .some(value => value.trim() !== '');
   const newProductHints = formNutritionHints(newProductCheck, newProductNutrientsStarted);
-  const existingBarCodeProduct = useExistingBarCodeProduct(addProductForm.barCode);
+  const existingBarCode = useExistingBarCodeProduct(addProductForm.barCode);
+  const barCodeBlocksSaving = existingBarCode.checking || existingBarCode.product !== null;
 
   const [showScanner, setShowScanner] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
@@ -135,7 +136,7 @@ export function AddFood() {
   };
 
   const handleCreateProduct = async () => {
-    if (!newProductCheck.valid || existingBarCodeProduct) return;
+    if (!newProductCheck.valid || barCodeBlocksSaving) return;
     setIsCreatingProduct(true);
     try {
       await api.products.create({
@@ -862,8 +863,11 @@ export function AddFood() {
               )}
               <BarCodeField
                 value={addProductForm.barCode}
-                onChange={barCode => setAddProductForm(p => ({ ...p, barCode }))}
-                existingProduct={existingBarCodeProduct}
+                onChange={barCode => {
+                  if (barCode !== addProductForm.barCode) setScanMessage(null);
+                  setAddProductForm(p => ({ ...p, barCode }));
+                }}
+                existingProduct={existingBarCode.product}
                 productHref={product => `/product/${product.id}?selectDate=${activeDate}&selectType=${activeMealType}`}
               />
 
@@ -947,7 +951,7 @@ export function AddFood() {
 
             <button
               onClick={handleCreateProduct}
-              disabled={isCreatingProduct || !newProductCheck.valid || !!existingBarCodeProduct}
+              disabled={isCreatingProduct || !newProductCheck.valid || barCodeBlocksSaving}
               className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
             >
               {isCreatingProduct ? (

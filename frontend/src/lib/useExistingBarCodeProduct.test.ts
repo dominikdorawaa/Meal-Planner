@@ -4,7 +4,7 @@ import { useExistingBarCodeProduct } from './useExistingBarCodeProduct';
 
 const mocks = vi.hoisted(() => ({ find: vi.fn() }));
 
-vi.mock('./barcodeLookup', () => ({ findProductByBarCode: mocks.find }));
+vi.mock('./barcodeLookup', () => ({ findExistingProduct: mocks.find }));
 
 const product = { id: 'p1', name: 'Skyr' };
 
@@ -20,50 +20,54 @@ describe('useExistingBarCodeProduct', () => {
     rerender({ code: '590082' });
     rerender({ code: '5900820000319' });
 
-    expect(result.current).toBeNull();
+    expect(result.current).toEqual({ product: null, checking: false });
     expect(mocks.find).not.toHaveBeenCalled();
   });
 
-  it('returns the product that already has the code', async () => {
-    mocks.find.mockResolvedValue({ product, prefill: null });
+  it('is checking until the lookup answers and then returns the product with the code', async () => {
+    let finish: (value: unknown) => void = () => {};
+    mocks.find.mockReturnValue(new Promise(resolve => { finish = resolve; }));
     const { result } = renderHook(() => useExistingBarCodeProduct('5900820000318'));
 
-    await waitFor(() => expect(result.current).toEqual(product));
+    expect(result.current).toEqual({ product: null, checking: true });
+    await act(async () => finish(product));
+
+    expect(result.current).toEqual({ product, checking: false });
     expect(mocks.find).toHaveBeenCalledWith('5900820000318');
   });
 
-  it('returns nothing when no product has the code or the lookup fails', async () => {
-    mocks.find
-      .mockResolvedValueOnce({ product: null, prefill: { name: 'Skyr' } })
-      .mockRejectedValueOnce(new Error('offline'));
+  it('stops checking when no product has the code or the lookup fails', async () => {
+    mocks.find.mockResolvedValueOnce(null).mockRejectedValueOnce(new Error('offline'));
     const { result, rerender } = renderHook(({ code }) => useExistingBarCodeProduct(code), {
       initialProps: { code: '5900820000318' },
     });
-    await act(async () => {});
+    await waitFor(() => expect(result.current.checking).toBe(false));
+    expect(result.current.product).toBeNull();
+
     rerender({ code: '96385074' });
-    await act(async () => {});
+    await waitFor(() => expect(result.current.checking).toBe(false));
 
     expect(mocks.find).toHaveBeenCalledTimes(2);
-    expect(result.current).toBeNull();
+    expect(result.current.product).toBeNull();
   });
 
   it('forgets the product when the code changes and ignores a late answer for an old code', async () => {
     let finishOld: (value: unknown) => void = () => {};
     mocks.find
-      .mockResolvedValueOnce({ product, prefill: null })
+      .mockResolvedValueOnce(product)
       .mockReturnValueOnce(new Promise(resolve => { finishOld = resolve; }))
-      .mockResolvedValueOnce({ product: null, prefill: null });
+      .mockResolvedValueOnce(null);
     const { result, rerender } = renderHook(({ code }) => useExistingBarCodeProduct(code), {
       initialProps: { code: '5900820000318' },
     });
-    await waitFor(() => expect(result.current).toEqual(product));
+    await waitFor(() => expect(result.current.product).toEqual(product));
 
     rerender({ code: '59008200003' });
-    expect(result.current).toBeNull();
+    expect(result.current).toEqual({ product: null, checking: false });
     rerender({ code: '96385074' });
     rerender({ code: '00000000' });
-    await act(async () => finishOld({ product: { id: 'late' }, prefill: null }));
+    await act(async () => finishOld({ id: 'late' }));
 
-    expect(result.current).toBeNull();
+    expect(result.current).toEqual({ product: null, checking: false });
   });
 });
