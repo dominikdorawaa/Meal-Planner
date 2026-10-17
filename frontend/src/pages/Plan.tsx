@@ -36,7 +36,9 @@ type PendingTransfer = {
   successKey: MessageKey;
 };
 
-type Snackbar = { id: number; message: string; result?: TransferResult };
+type Snackbar = { id: number; message: string; result?: TransferResult; durationMs?: number };
+
+const DELETED_MEAL_SNACKBAR_DURATION_MS = 5000;
 
 const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN"; // Tylko marker do logiki poniżej
 
@@ -73,7 +75,6 @@ const getMealTypeName = (type: string, mealConfig?: any[]) => {
 export function Plan() {
   const navigate = useNavigate();
   const { recipes, profile, userMeals, setUserMeals, loading: contextLoading, refreshMeals, getConsumedForDay, refreshShoppingList } = useAppData();
-  const [mealToDelete, setMealToDelete] = useState<any | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeMealMenu, setActiveMealMenu] = useState<any | null>(null);
   const [copyModeMeal, setCopyModeMeal] = useState<any | null>(null);
@@ -135,7 +136,7 @@ export function Plan() {
       if (document.visibilityState !== 'visible' || todayIsoDate() === shownDay) return;
       shownDay = todayIsoDate();
       setBaseDate(startOfToday());
-      scrollRef.current?.scrollTo({ left: 0 });
+      if (scrollRef.current) scrollRef.current.scrollLeft = 0;
     };
     document.addEventListener('visibilitychange', showTodayAfterDayChange);
     window.addEventListener('focus', showTodayAfterDayChange);
@@ -169,16 +170,18 @@ export function Plan() {
     }
   }, []);
 
-  const handleDeleteMeal = async (mealId: string) => {
-    // Optimistic update
-    setUserMeals(prev => prev.filter(m => m.id !== mealId));
+  const handleDeleteMeal = async (meal: PlanMeal) => {
+    setActiveMealMenu(null);
+    setUserMeals(prev => prev.filter(m => m.id !== meal.id));
     try {
-      await api.meals.delete(mealId);
-      await refreshMeals();
+      await api.meals.delete(meal.id);
+      const message = t('plan.snackbar.deleted', { name: mealTitle(meal), meal: getMealTypeName(meal.meal_type, profile?.meal_config) });
+      showSnackbar(message, { created: [], removed: [meal], complete: true }, DELETED_MEAL_SNACKBAR_DURATION_MS);
     } catch (err) {
       console.error("Error deleting meal:", err);
-      refreshMeals(); // Rollback if needed
+      showSnackbar(t('plan.snackbar.failed'));
     }
+    await refreshMeals();
   };
 
   const resetSelectionModes = () => {
@@ -191,8 +194,8 @@ export function Plan() {
 
   const closeSnackbar = useCallback(() => setSnackbar(null), []);
 
-  const showSnackbar = (message: string, result?: TransferResult) => {
-    setSnackbar(previous => ({ id: (previous?.id ?? 0) + 1, message, result }));
+  const showSnackbar = (message: string, result?: TransferResult, durationMs?: number) => {
+    setSnackbar(previous => ({ id: (previous?.id ?? 0) + 1, message, result, durationMs }));
   };
 
   const visibleMeals: PlanMeal[] = userMeals.filter(meal => {
@@ -915,7 +918,7 @@ export function Plan() {
 
               <div className="h-px w-full bg-outline-variant/20 my-2"></div>
 
-              <button onClick={() => { setMealToDelete(activeMealMenu); setActiveMealMenu(null); }} className="w-full py-4 px-5 bg-error/5 rounded-2xl flex items-center gap-4 hover:bg-error/10 transition-colors active:scale-95 text-error">
+              <button onClick={() => handleDeleteMeal(activeMealMenu)} className="w-full py-4 px-5 bg-error/5 rounded-2xl flex items-center gap-4 hover:bg-error/10 transition-colors active:scale-95 text-error">
                 <span className="material-symbols-outlined">delete</span>
                 <span className="font-bold text-sm">Usuń posiłek</span>
               </button>
@@ -1025,70 +1028,9 @@ export function Plan() {
           message={snackbar.message}
           onUndo={snackbar.result ? () => handleUndo(snackbar.result!) : undefined}
           onClose={closeSnackbar}
+          durationMs={snackbar.durationMs}
         />
       )}
-
-      {/* Ostrzeżenie przed usunięciem jednego posiłku */}
-      {mealToDelete && (() => {
-        const rid = mealToDelete.recipe?.id || mealToDelete.recipe;
-        const recipe = recipes.find(r => r.id === rid);
-        const day = days.find(d => d.date === mealToDelete.meal_date);
-
-        return (
-          <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-fade-in pointer-events-none">
-            <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center pointer-events-auto flex flex-col items-center">
-
-              <div className="relative mb-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden shadow-sm">
-                  {recipe && (
-                    <RecipeCoverImage
-                      recipe={recipe}
-                      alt=""
-                      className="w-full h-full"
-                      imgClassName="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-surface-container-lowest rounded-full flex items-center justify-center z-10">
-                  <div className="w-5 h-5 bg-error text-on-error rounded-full flex items-center justify-center shadow-sm">
-                    <span className="material-symbols-outlined text-[12px] font-bold">delete</span>
-                  </div>
-                </div>
-              </div>
-
-              <h3 className="font-headline font-bold text-lg text-on-surface mb-1">Usunąć {recipe?.name}?</h3>
-              <p className="text-on-surface-variant text-xs mb-3">Zniknie z zaplanowanego menu:</p>
-
-              <div className="flex flex-col items-center gap-1.5 bg-error/5 border border-error/10 rounded-2xl p-3 mb-6 w-full">
-                <span className="text-error font-bold text-xs">
-                  {day ? formatDayWithMonthName(day.name, day.date) : ''}
-                </span>
-                <div className="bg-error/10 px-2 py-0.5 rounded-md text-error font-bold text-[10px] tracking-wide uppercase">
-                  {getMealTypeName(mealToDelete.meal_type)}
-                </div>
-              </div>
-
-              <div className="flex gap-2 w-full">
-                <button
-                  onClick={() => setMealToDelete(null)}
-                  className="flex-1 py-3 text-sm font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-xl transition-colors active:scale-95"
-                >
-                  Anuluj
-                </button>
-                <button
-                  onClick={() => {
-                    handleDeleteMeal(mealToDelete.id);
-                    setMealToDelete(null);
-                  }}
-                  className="flex-1 py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
-                >
-                  Usuń
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Ostrzeżenie przed usunięciem całego dnia */}
       {dayToDelete && (() => {
