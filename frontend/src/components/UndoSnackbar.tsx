@@ -7,13 +7,14 @@ type UndoSnackbarProps = {
   message: string;
   onUndo?: () => void;
   onClose: () => void;
+  durationMs?: number;
 };
 
-export function UndoSnackbar({ message, onUndo, onClose }: UndoSnackbarProps) {
+export function UndoSnackbar({ message, onUndo, onClose, durationMs = UNDO_SNACKBAR_DURATION_MS }: UndoSnackbarProps) {
   useEffect(() => {
-    const timer = window.setTimeout(onClose, UNDO_SNACKBAR_DURATION_MS);
+    const timer = window.setTimeout(onClose, durationMs);
     return () => window.clearTimeout(timer);
-  }, [onClose]);
+  }, [onClose, durationMs]);
 
   return (
     <div role="status" className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[90%] max-w-[420px] bg-on-surface text-surface rounded-2xl shadow-lg px-4 py-3 flex items-center justify-between gap-3 z-[240] animate-slide-up">

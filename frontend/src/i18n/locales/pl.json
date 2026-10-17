@@ -78,6 +78,7 @@
   "plan.snackbar.copied": "Skopiowano",
   "plan.snackbar.moved": "Przeniesiono",
   "plan.snackbar.undo": "Cofnij",
+  "plan.snackbar.deleted": "Usunięto {name} z {meal}",
   "plan.snackbar.failed": "Nie udało się zapisać zmian. Spróbuj ponownie.",
   "plan.snackbar.emptyDay": "Ten dzień nie ma jeszcze posiłków",
   "plan.deleteDay.one": "Usunąć {count} pozycję z {day}?",

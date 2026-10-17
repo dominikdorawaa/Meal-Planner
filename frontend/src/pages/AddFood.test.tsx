@@ -256,3 +256,11 @@ describe('AddFood selection', () => {
     expect(mocks.addMeal).not.toHaveBeenCalled();
   });
 });
+
+describe('AddFood search field', () => {
+  it('does not focus the search field when the screen opens', () => {
+    renderAddFood();
+
+    expect(document.activeElement).not.toBe(screen.getByPlaceholderText('Szukaj przepisów, produktów...'));
+  });
+});

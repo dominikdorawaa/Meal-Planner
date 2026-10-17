@@ -9,7 +9,8 @@ import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 import { formatMacrosShort } from '../lib/macros';
 import { DaySummary } from '../components/DaySummary';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
-import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, formatRelativeDayLabel, parseIsoDate, planDays } from '../lib/planDates';
+import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, formatRelativeDayLabel, parseIsoDate, planDays, toIsoDate, todayIsoDate } from '../lib/planDates';
+import { forgetPlanReturnPosition, readPlanReturnPosition, rememberPlanReturnPosition } from '../lib/planPosition';
 import { PlanConflictDialog } from '../components/PlanConflictDialog';
 import { UndoSnackbar } from '../components/UndoSnackbar';
 import { pluralForm, t, type MessageKey } from '../i18n';
@@ -36,7 +37,9 @@ type PendingTransfer = {
   successKey: MessageKey;
 };
 
-type Snackbar = { id: number; message: string; result?: TransferResult };
+type Snackbar = { id: number; message: string; result?: TransferResult; durationMs?: number };
+
+const DELETED_MEAL_SNACKBAR_DURATION_MS = 5000;
 
 const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN"; // Tylko marker do logiki poniżej
 
@@ -56,6 +59,12 @@ const MEAL_TYPES = [
   { id: 'supper', name: 'Kolacja', icon: 'dark_mode' },
 ];
 
+const startOfToday = () => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
 const getMealTypeName = (type: string, mealConfig?: any[]) => {
   if (mealConfig) {
     const config = mealConfig.find(m => m.id === type);
@@ -67,7 +76,6 @@ const getMealTypeName = (type: string, mealConfig?: any[]) => {
 export function Plan() {
   const navigate = useNavigate();
   const { recipes, profile, userMeals, setUserMeals, loading: contextLoading, refreshMeals, getConsumedForDay, refreshShoppingList } = useAppData();
-  const [mealToDelete, setMealToDelete] = useState<any | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeMealMenu, setActiveMealMenu] = useState<any | null>(null);
   const [copyModeMeal, setCopyModeMeal] = useState<any | null>(null);
@@ -90,21 +98,8 @@ export function Plan() {
   const [selectedShoppingMeals, setSelectedShoppingMeals] = useState<string[]>([]);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
-  // Kalendarz dynamiczny - zapamiętaj pozycję między nawigacjami
-  const [baseDate, setBaseDate] = useState<Date>(() => {
-    const saved = sessionStorage.getItem('planBaseDate');
-    if (saved) {
-      const d = new Date(saved);
-      if (!isNaN(d.getTime())) return d;
-    }
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
-
-  useEffect(() => {
-    sessionStorage.setItem('planBaseDate', baseDate.toISOString());
-  }, [baseDate]);
+  const [returnPosition] = useState(readPlanReturnPosition);
+  const [baseDate, setBaseDate] = useState<Date>(() => parseIsoDate(returnPosition?.startDate) ?? startOfToday());
 
   const days = planDays(baseDate);
 
@@ -125,13 +120,46 @@ export function Plan() {
   };
 
   const handleGoToToday = () => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    setBaseDate(d);
+    setBaseDate(startOfToday());
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
     }
   };
+
+  const openPlanItem = (path: string) => {
+    rememberPlanReturnPosition({ startDate: toIsoDate(baseDate), scrollLeft: scrollRef.current?.scrollLeft ?? 0 });
+    navigate(path);
+  };
+
+  useEffect(() => {
+    let shownDay = todayIsoDate();
+    let midnightTimer = 0;
+    const showTodayAfterDayChange = () => {
+      if (todayIsoDate() === shownDay) return;
+      shownDay = todayIsoDate();
+      setBaseDate(startOfToday());
+      if (scrollRef.current) scrollRef.current.scrollLeft = 0;
+    };
+    const showTodayWhenVisible = () => {
+      if (document.visibilityState === 'visible') showTodayAfterDayChange();
+    };
+    const scheduleMidnightCheck = () => {
+      const nextDay = startOfToday();
+      nextDay.setDate(nextDay.getDate() + 1);
+      midnightTimer = window.setTimeout(() => {
+        showTodayAfterDayChange();
+        scheduleMidnightCheck();
+      }, nextDay.getTime() - Date.now() + 1000);
+    };
+    scheduleMidnightCheck();
+    document.addEventListener('visibilitychange', showTodayWhenVisible);
+    window.addEventListener('focus', showTodayWhenVisible);
+    return () => {
+      window.clearTimeout(midnightTimer);
+      document.removeEventListener('visibilitychange', showTodayWhenVisible);
+      window.removeEventListener('focus', showTodayWhenVisible);
+    };
+  }, []);
 
   // Sprawdź onboarding (tylko gdy profil jest załadowany, a cel kaloryczny jest nadal zerowy/null)
   useEffect(() => {
@@ -148,37 +176,29 @@ export function Plan() {
   // Odśwież meals po powrocie na stronę (np. po dodaniu przepisu w /recipes)
   useEffect(() => {
     refreshMeals();
-    // Przywróć pozycję scrolla bez animacji
-    const savedScroll = sessionStorage.getItem('planScrollLeft');
-    if (savedScroll && scrollRef.current) {
+    forgetPlanReturnPosition();
+    if (returnPosition && scrollRef.current) {
       const el = scrollRef.current;
       el.classList.remove('scroll-smooth');
-      el.scrollLeft = parseInt(savedScroll, 10);
+      el.scrollLeft = returnPosition.scrollLeft;
       requestAnimationFrame(() => el.classList.add('scroll-smooth'));
     }
   }, []);
 
-  // Zapamiętaj pozycję scrolla
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      sessionStorage.setItem('planScrollLeft', String(el.scrollLeft));
-    };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
-  }, []);
-
-  const handleDeleteMeal = async (mealId: string) => {
-    // Optimistic update
-    setUserMeals(prev => prev.filter(m => m.id !== mealId));
+  const handleDeleteMeal = async (meal: PlanMeal) => {
+    setActiveMealMenu(null);
+    setUserMeals(prev => prev.filter(m => m.id !== meal.id));
     try {
-      await api.meals.delete(mealId);
-      await refreshMeals();
+      await api.meals.delete(meal.id);
     } catch (err) {
       console.error("Error deleting meal:", err);
-      refreshMeals(); // Rollback if needed
+      showSnackbar(t('plan.snackbar.failed'));
+      await refreshMeals();
+      return;
     }
+    await refreshMeals();
+    const message = t('plan.snackbar.deleted', { name: mealTitle(meal), meal: getMealTypeName(meal.meal_type, profile?.meal_config) });
+    showSnackbar(message, { created: [], removed: [meal], complete: true }, DELETED_MEAL_SNACKBAR_DURATION_MS);
   };
 
   const resetSelectionModes = () => {
@@ -191,8 +211,8 @@ export function Plan() {
 
   const closeSnackbar = useCallback(() => setSnackbar(null), []);
 
-  const showSnackbar = (message: string, result?: TransferResult) => {
-    setSnackbar(previous => ({ id: (previous?.id ?? 0) + 1, message, result }));
+  const showSnackbar = (message: string, result?: TransferResult, durationMs?: number) => {
+    setSnackbar(previous => ({ id: (previous?.id ?? 0) + 1, message, result, durationMs }));
   };
 
   const visibleMeals: PlanMeal[] = userMeals.filter(meal => {
@@ -424,7 +444,7 @@ export function Plan() {
         toggleCopySlot(slotKey);
         return;
       }
-      navigate(`/add-food?selectDate=${date}&selectType=${mealType}`);
+      openPlanItem(`/add-food?selectDate=${date}&selectType=${mealType}`);
     };
 
     if (validMeals.length > 0) {
@@ -452,7 +472,7 @@ export function Plan() {
                     noWrap
                     onClick={() => {
                       if (!shoppingSelectionMode && !copyModeDay && !copyModeMeal) {
-                        navigate(`/recipe/${recipe.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
+                        openPlanItem(`/recipe/${recipe.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
                       }
                     }}
                     onMenuClick={() => {
@@ -499,7 +519,7 @@ export function Plan() {
                     noWrap
                     onClick={() => {
                       if (!shoppingSelectionMode && !copyModeDay && !copyModeMeal) {
-                        navigate(`/product/${product.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
+                        openPlanItem(`/product/${product.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
                       }
                     }}
                     onMenuClick={() => {
@@ -537,7 +557,7 @@ export function Plan() {
                     noWrap
                     onClick={() => {
                       if (!shoppingSelectionMode && !copyModeDay && !copyModeMeal) {
-                        navigate(`/add-food?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
+                        openPlanItem(`/add-food?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
                       }
                     }}
                     onMenuClick={() => {
@@ -586,7 +606,7 @@ export function Plan() {
   }
 
   return (
-    <div className="bg-surface font-body text-on-surface min-h-screen pb-32">
+    <div className="bg-surface font-body text-on-surface min-h-screen">
       {/* Toast Sukcesu */}
       {successToast && (
         <div className="fixed top-[calc(1.25rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 bg-primary/10 backdrop-blur-md border border-primary/20 text-primary px-4 py-2.5 rounded-full shadow-sm z-[60] flex items-center justify-center gap-2 animate-slide-up whitespace-nowrap">
@@ -618,7 +638,7 @@ export function Plan() {
         </div>
       </header>
 
-      <main className="pt-[calc(8rem+env(safe-area-inset-top))] max-w-[600px] mx-auto pb-6 relative">
+      <main className="pt-[calc(8rem+env(safe-area-inset-top))] max-w-[600px] mx-auto pb-bottom-nav relative">
         {/* Navigation Bar */}
         <div className="fixed top-[calc(4rem+env(safe-area-inset-top))] left-0 right-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/5 h-12 flex items-center justify-between px-6 max-w-[600px] mx-auto">
           <button onClick={handlePrevWeek} className="flex items-center text-primary/70 hover:text-primary active:scale-90 transition-all font-bold text-xs gap-1 group">
@@ -707,14 +727,14 @@ export function Plan() {
               })))
               .filter((mt: any) => mt.visible)
               .map((mt: any) => (
-                <div key={mt.id} className="flex flex-col">
+                <div key={mt.id} className="flex flex-col mb-8 last:mb-0">
                   <div className="flex items-center justify-between gap-2 mb-3 px-4 z-20">
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-primary text-xl font-semibold">{mt.icon}</span>
                       <h2 className="font-headline font-bold text-xl text-on-surface tracking-tight">{mt.name}</h2>
                     </div>
                   </div>
-                  <section className="flex mb-8">
+                  <section className="flex">
                     {days.map((day, i) => (
                       <div key={i} className="shrink-0" data-slot={toSlotKey(day.date, mt.id)}>
                         {renderSlot(day.date, mt.id, day.isToday)}
@@ -813,11 +833,11 @@ export function Plan() {
                   const rid = meal.recipe?.id || meal.recipe;
                   const pid = meal.product?.id || meal.product;
                   if (rid) {
-                    navigate(`/recipe/${rid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
+                    openPlanItem(`/recipe/${rid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   } else if (pid) {
-                    navigate(`/product/${pid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
+                    openPlanItem(`/product/${pid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   } else {
-                    navigate(`/add-food?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
+                    openPlanItem(`/add-food?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   }
                   setActiveMealMenu(null);
                 }}
@@ -844,7 +864,7 @@ export function Plan() {
 
               <div className="h-px w-full bg-outline-variant/20 my-2"></div>
 
-              <button onClick={() => { setMealToDelete(activeMealMenu); setActiveMealMenu(null); }} className="w-full py-4 px-5 bg-error/5 rounded-2xl flex items-center gap-4 hover:bg-error/10 transition-colors active:scale-95 text-error">
+              <button onClick={() => handleDeleteMeal(activeMealMenu)} className="w-full py-4 px-5 bg-error/5 rounded-2xl flex items-center gap-4 hover:bg-error/10 transition-colors active:scale-95 text-error">
                 <span className="material-symbols-outlined">delete</span>
                 <span className="font-bold text-sm">Usuń posiłek</span>
               </button>
@@ -954,70 +974,9 @@ export function Plan() {
           message={snackbar.message}
           onUndo={snackbar.result ? () => handleUndo(snackbar.result!) : undefined}
           onClose={closeSnackbar}
+          durationMs={snackbar.durationMs}
         />
       )}
-
-      {/* Ostrzeżenie przed usunięciem jednego posiłku */}
-      {mealToDelete && (() => {
-        const rid = mealToDelete.recipe?.id || mealToDelete.recipe;
-        const recipe = recipes.find(r => r.id === rid);
-        const day = days.find(d => d.date === mealToDelete.meal_date);
-
-        return (
-          <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-fade-in pointer-events-none">
-            <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center pointer-events-auto flex flex-col items-center">
-
-              <div className="relative mb-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden shadow-sm">
-                  {recipe && (
-                    <RecipeCoverImage
-                      recipe={recipe}
-                      alt=""
-                      className="w-full h-full"
-                      imgClassName="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-surface-container-lowest rounded-full flex items-center justify-center z-10">
-                  <div className="w-5 h-5 bg-error text-on-error rounded-full flex items-center justify-center shadow-sm">
-                    <span className="material-symbols-outlined text-[12px] font-bold">delete</span>
-                  </div>
-                </div>
-              </div>
-
-              <h3 className="font-headline font-bold text-lg text-on-surface mb-1">Usunąć {recipe?.name}?</h3>
-              <p className="text-on-surface-variant text-xs mb-3">Zniknie z zaplanowanego menu:</p>
-
-              <div className="flex flex-col items-center gap-1.5 bg-error/5 border border-error/10 rounded-2xl p-3 mb-6 w-full">
-                <span className="text-error font-bold text-xs">
-                  {day ? formatDayWithMonthName(day.name, day.date) : ''}
-                </span>
-                <div className="bg-error/10 px-2 py-0.5 rounded-md text-error font-bold text-[10px] tracking-wide uppercase">
-                  {getMealTypeName(mealToDelete.meal_type)}
-                </div>
-              </div>
-
-              <div className="flex gap-2 w-full">
-                <button
-                  onClick={() => setMealToDelete(null)}
-                  className="flex-1 py-3 text-sm font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-xl transition-colors active:scale-95"
-                >
-                  Anuluj
-                </button>
-                <button
-                  onClick={() => {
-                    handleDeleteMeal(mealToDelete.id);
-                    setMealToDelete(null);
-                  }}
-                  className="flex-1 py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
-                >
-                  Usuń
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Ostrzeżenie przed usunięciem całego dnia */}
       {dayToDelete && (() => {

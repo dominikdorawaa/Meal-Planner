@@ -43,6 +43,10 @@
     --shadow-ambient-opacity: 0.4;
   }
 
+  html {
+    @apply bg-surface;
+  }
+
   body {
     @apply bg-surface text-on-surface-variant font-body antialiased m-0 p-0;
   }
@@ -67,5 +71,9 @@
 
   .pb-safe-6 {
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .pb-bottom-nav {
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
   }
 }
