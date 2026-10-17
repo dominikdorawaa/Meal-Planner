@@ -54,7 +54,7 @@
   "nutrients.protein": "Protein",
   "nutrients.salt": "Salt",
   "nutrients.missing": "n/a",
-  "nutrients.per100g": "100 g",
+  "nutrients.per100": "100 {unit}",
   "nutrients.perPortion": "Portion ({amount})",
   "nutrients.productTitle": "Nutrition facts",
   "nutrients.recipeTitle": "More values per portion",

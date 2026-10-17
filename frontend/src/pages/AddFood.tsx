@@ -14,7 +14,7 @@ import { missingProductMessage } from '../lib/barcodeLookup';
 import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
 import { BarCodeField } from '../components/BarCodeField';
 import { MoreNutrientsFields } from '../components/MoreNutrientsFields';
-import { EXTRA_NUTRIENTS, type ExtraNutrientValues } from '../lib/nutrients';
+import { EXTRA_NUTRIENTS, extraNutrientInputs, type ExtraNutrientValues } from '../lib/nutrients';
 import { useExistingBarCodeProduct } from '../lib/useExistingBarCodeProduct';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { t } from '../i18n';
@@ -39,7 +39,7 @@ import { AddSelectedBar, SelectionCheckbox } from '../components/PlanSelectionCo
 const RECENT_PRODUCTS_LIMIT = 5;
 const EMPTY_PRODUCT_FORM = {
   name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '', barCode: '',
-  extras: { saturated_fat: '', sugars: '', fiber: '', salt: '' },
+  extras: extraNutrientInputs({}),
 };
 
 const MEAL_TYPE_LABELS: Record<string, string> = {
@@ -125,12 +125,7 @@ export function AddFood() {
           fat: text(prefill?.fat),
           carbs: text(prefill?.carbs),
           barCode,
-          extras: {
-            saturated_fat: text(prefill?.saturated_fat),
-            sugars: text(prefill?.sugars),
-            fiber: text(prefill?.fiber),
-            salt: text(prefill?.salt),
-          },
+          extras: extraNutrientInputs(prefill ?? {}),
         });
         setPrefillCount(count => count + 1);
         setScanMessage(t(missingProductMessage(prefill), { code: barCode }));

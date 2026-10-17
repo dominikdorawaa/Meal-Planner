@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatNutritionFact, recipeExtraNutrientsPerPortion, scaleNutritionFacts } from './nutrients';
+import {
+  extraNutrientInputs,
+  formatNutritionFact,
+  measureUnit,
+  recipeExtraNutrientsPerPortion,
+  scaleNutritionFacts,
+} from './nutrients';
 
 const cream = { unit: '100g', saturated_fat: 12, sugars: 3.4, fiber: 0, salt: 0.1 };
 const egg = { unit: 'pc', saturated_fat: 1.5, sugars: 0.2, fiber: 0, salt: 0.2 };
@@ -55,5 +61,21 @@ describe('recipeExtraNutrientsPerPortion', () => {
   it('treats a missing amount as zero', () => {
     expect(recipeExtraNutrientsPerPortion([{ amount: Number.NaN, unit: 'g', product: cream }], 1))
       .toEqual({ saturated_fat: 0, sugars: 0, fiber: 0, salt: 0 });
+  });
+});
+
+describe('measureUnit', () => {
+  it('measures drinks in millilitres and everything else in grams', () => {
+    expect(measureUnit('100ml')).toBe('ml');
+    expect(measureUnit('100g')).toBe('g');
+    expect(measureUnit(null)).toBe('g');
+  });
+});
+
+describe('extraNutrientInputs', () => {
+  it('turns known values into form text and leaves missing ones empty', () => {
+    expect(extraNutrientInputs({ saturated_fat: 12.1, sugars: 0, fiber: null })).toEqual({
+      saturated_fat: '12.1', sugars: '0', fiber: '', salt: '',
+    });
   });
 });

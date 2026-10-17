@@ -22,8 +22,22 @@ export const NUTRITION_FACT_LABELS: Record<NutritionFact, MessageKey> = {
 export const NUTRITION_FACT_PARENTS: Partial<Record<NutritionFact, NutritionFact>> = { saturated_fat: 'fat', sugars: 'carbs' };
 
 const PER_PIECE_UNIT = 'pc';
+const PER_100_ML_UNIT = '100ml';
 const PIECE_INGREDIENT_UNIT = 'szt';
 const MASS_INGREDIENT_UNITS = ['g', 'ml'];
+
+export function measureUnit(productUnit: string | null | undefined): 'g' | 'ml' {
+  return productUnit === PER_100_ML_UNIT ? 'ml' : 'g';
+}
+
+export function extraNutrientInputs(values: ExtraNutrientValues): Record<ExtraNutrient, string> {
+  const inputs = {} as Record<ExtraNutrient, string>;
+  for (const nutrient of EXTRA_NUTRIENTS) {
+    const value = values[nutrient];
+    inputs[nutrient] = value == null ? '' : String(value);
+  }
+  return inputs;
+}
 
 export function scaleNutritionFacts(values: NutritionFactValues, factor: number): NutritionFactValues {
   const scaled: NutritionFactValues = {};

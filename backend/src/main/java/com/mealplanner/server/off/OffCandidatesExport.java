@@ -109,12 +109,11 @@ public final class OffCandidatesExport {
         List<String> reasons = new ArrayList<>(errors);
         check.warnings().forEach(warning -> reasons.add(warning.name()));
         boolean ok = errors.isEmpty();
-        Double fat = NutritionRounding.grams(product.fat());
-        Double carbs = NutritionRounding.grams(product.carbs());
-        ExtraNutrients extras = product.extras().rounded().plausibleFor(fat, carbs);
+        ExtraNutrients extras = product.extras().cleanedFor(product.fat(), product.carbs());
         return List.of(barCodeCell(product.code()), textCell(product.name()), textCell(product.brand()),
                 decimal(NutritionRounding.kcal(product.kcal())), decimal(NutritionRounding.grams(product.protein())),
-                decimal(fat), decimal(carbs), decimal(extras.saturatedFat()), decimal(extras.sugars()),
+                decimal(NutritionRounding.grams(product.fat())), decimal(NutritionRounding.grams(product.carbs())),
+                decimal(extras.saturatedFat()), decimal(extras.sugars()),
                 decimal(extras.fiber()), decimal(extras.salt()), UNIT, textCell(product.quantity()),
                 ok ? "OK" : "REJECTED", String.join(",", reasons), ok ? "yes" : "no", PRODUCT_URL + product.code());
     }

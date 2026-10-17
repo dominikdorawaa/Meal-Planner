@@ -213,7 +213,7 @@ class OffImportIntegrationTest {
     }
 
     @Test
-    void importsMoreNutrientsAndUpdatesThemWhenTheyChange() throws IOException {
+    void importsMoreNutrientsForNewProductsOnly() throws IOException {
         String header = "code;name;brand;kcal;protein;fat;carbs;saturated_fat;sugars;fiber;salt;unit;import";
         Path first = tempDir.resolve("more-first.csv");
         Files.writeString(first, header + "\r\n5900820000318;Skyr;;65;12;0,2;4,2;0,14;4,04;;0,12;100g;yes\r\n",
@@ -231,9 +231,9 @@ class OffImportIntegrationTest {
 
         ImportReport report = importService.importReviewed(second);
 
-        assertThat(report.updated()).isEqualTo(1);
-        Product updated = byBarCode("5900820000318");
-        assertThat(updated.getSugars()).isNull();
-        assertThat(updated.getFiber()).isEqualTo(1.0);
+        assertThat(report.unchanged()).isEqualTo(1);
+        Product unchanged = byBarCode("5900820000318");
+        assertThat(unchanged.getSugars()).isEqualTo(4.0);
+        assertThat(unchanged.getFiber()).isNull();
     }
 }

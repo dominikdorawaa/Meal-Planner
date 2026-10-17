@@ -6,7 +6,7 @@ import { addDaysToIsoDate, firstDayOfMonth, formatShortDayLabel, toIsoDate, toda
 import { productDisplayName } from '../lib/productName';
 import { canDeleteProduct } from '../lib/productPermissions';
 import { NutritionFactsTable } from '../components/NutritionFactsTable';
-import { scaleNutritionFacts } from '../lib/nutrients';
+import { measureUnit, scaleNutritionFacts } from '../lib/nutrients';
 import { t } from '../i18n';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 
@@ -424,9 +424,9 @@ export function ProductDetails() {
         <NutritionFactsTable
           title={t('nutrients.productTitle')}
           columns={[
-            { label: t('nutrients.per100g'), values: product },
+            { label: t('nutrients.per100', { unit: measureUnit(product.unit) }), values: product },
             {
-              label: t('nutrients.perPortion', { amount: `${Math.round(currentWeight)} g` }),
+              label: t('nutrients.perPortion', { amount: `${Math.round(currentWeight)} ${measureUnit(product.unit)}` }),
               values: scaleNutritionFacts(product, currentWeight / 100),
             },
           ]}

@@ -54,7 +54,7 @@
   "nutrients.protein": "Białko",
   "nutrients.salt": "Sól",
   "nutrients.missing": "brak",
-  "nutrients.per100g": "100 g",
+  "nutrients.per100": "100 {unit}",
   "nutrients.perPortion": "Porcja ({amount})",
   "nutrients.productTitle": "Wartości odżywcze",
   "nutrients.recipeTitle": "Więcej wartości w 1 porcji",

@@ -14,9 +14,9 @@ class ExtraNutrientsTest {
 
     @Test
     void leavesOutValuesThatCannotBeTrue() {
-        assertThat(new ExtraNutrients(5.0, 3.0, -1.0, 101.0).plausibleFor(4.0, 3.0))
+        assertThat(new ExtraNutrients(5.0, 3.04, -1.0, 101.0).cleanedFor(4.0, 2.96))
                 .isEqualTo(new ExtraNutrients(null, 3.0, null, null));
-        assertThat(new ExtraNutrients(5.0, 3.0, 2.0, 1.0).plausibleFor(null, null))
+        assertThat(new ExtraNutrients(5.0, 3.0, 2.0, 1.0).cleanedFor(null, null))
                 .isEqualTo(new ExtraNutrients(5.0, 3.0, 2.0, 1.0));
     }
 

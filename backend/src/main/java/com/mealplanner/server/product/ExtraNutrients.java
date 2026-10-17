@@ -14,7 +14,11 @@ public record ExtraNutrients(Double saturatedFat, Double sugars, Double fiber, D
                 NutritionRounding.grams(fiber), NutritionRounding.grams(salt));
     }
 
-    public ExtraNutrients plausibleFor(Double fat, Double carbs) {
+    public ExtraNutrients cleanedFor(Double fat, Double carbs) {
+        return rounded().plausibleFor(NutritionRounding.grams(fat), NutritionRounding.grams(carbs));
+    }
+
+    private ExtraNutrients plausibleFor(Double fat, Double carbs) {
         return new ExtraNutrients(atMost(plausible(saturatedFat), fat), atMost(plausible(sugars), carbs),
                 plausible(fiber), plausible(salt));
     }

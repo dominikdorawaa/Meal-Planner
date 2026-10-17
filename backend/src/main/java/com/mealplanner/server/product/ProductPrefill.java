@@ -6,11 +6,10 @@ public record ProductPrefill(String name, String brand, Double kcal, Double prot
                              Double saturatedFat, Double sugars, Double fiber, Double salt) {
 
     public static ProductPrefill from(OffProduct product) {
-        Double fat = NutritionRounding.grams(product.fat());
-        Double carbs = NutritionRounding.grams(product.carbs());
-        ExtraNutrients extras = product.extras().rounded().plausibleFor(fat, carbs);
+        ExtraNutrients extras = product.extras().cleanedFor(product.fat(), product.carbs());
         return new ProductPrefill(product.name(), product.brand(), NutritionRounding.kcal(product.kcal()),
-                NutritionRounding.grams(product.protein()), fat, carbs, extras.saturatedFat(), extras.sugars(),
-                extras.fiber(), extras.salt());
+                NutritionRounding.grams(product.protein()), NutritionRounding.grams(product.fat()),
+                NutritionRounding.grams(product.carbs()), extras.saturatedFat(), extras.sugars(), extras.fiber(),
+                extras.salt());
     }
 }
