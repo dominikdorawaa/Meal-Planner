@@ -589,7 +589,7 @@ export function Plan() {
   }
 
   return (
-    <div className="bg-surface font-body text-on-surface min-h-screen pb-32">
+    <div className="bg-surface font-body text-on-surface min-h-screen">
       {/* Toast Sukcesu */}
       {successToast && (
         <div className="fixed top-[calc(1.25rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 bg-primary/10 backdrop-blur-md border border-primary/20 text-primary px-4 py-2.5 rounded-full shadow-sm z-[60] flex items-center justify-center gap-2 animate-slide-up whitespace-nowrap">
@@ -621,7 +621,7 @@ export function Plan() {
         </div>
       </header>
 
-      <main className="pt-[calc(8rem+env(safe-area-inset-top))] max-w-[600px] mx-auto pb-6 relative">
+      <main className="pt-[calc(8rem+env(safe-area-inset-top))] max-w-[600px] mx-auto pb-bottom-nav relative">
         {/* Navigation Bar */}
         <div className="fixed top-[calc(4rem+env(safe-area-inset-top))] left-0 right-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/5 h-12 flex items-center justify-between px-6 max-w-[600px] mx-auto">
           <button onClick={handlePrevWeek} className="flex items-center text-primary/70 hover:text-primary active:scale-90 transition-all font-bold text-xs gap-1 group">
@@ -781,14 +781,14 @@ export function Plan() {
               })))
               .filter((mt: any) => mt.visible)
               .map((mt: any) => (
-                <div key={mt.id} className="flex flex-col">
+                <div key={mt.id} className="flex flex-col mb-8 last:mb-0">
                   <div className="flex items-center justify-between gap-2 mb-3 px-4 z-20">
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-primary text-xl font-semibold">{mt.icon}</span>
                       <h2 className="font-headline font-bold text-xl text-on-surface tracking-tight">{mt.name}</h2>
                     </div>
                   </div>
-                  <section className="flex mb-8">
+                  <section className="flex">
                     {days.map((day, i) => (
                       <div key={i} className="shrink-0" data-slot={toSlotKey(day.date, mt.id)}>
                         {renderSlot(day.date, mt.id, day.isToday)}
