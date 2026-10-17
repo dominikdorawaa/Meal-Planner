@@ -12,6 +12,7 @@ interface AppData {
   loading: boolean;
   onLogout: () => void;
   refreshProfile: () => Promise<void>;
+  saveProfile: (changes: Record<string, unknown>) => Promise<unknown>;
   refreshRecipes: () => Promise<void>;
   refreshMeals: () => Promise<void>;
   refreshShoppingList: () => Promise<void>;
@@ -30,6 +31,7 @@ const AppDataContext = createContext<AppData>({
   loading: true,
   onLogout: () => {},
   refreshProfile: async () => {},
+  saveProfile: async () => null,
   refreshRecipes: async () => {},
   refreshMeals: async () => {},
   refreshShoppingList: async () => {},
@@ -37,6 +39,18 @@ const AppDataContext = createContext<AppData>({
   setUserMeals: () => {},
   setShoppingList: () => {},
 });
+
+function parseProfileJSON(data: any) {
+  if (!data) return data;
+  const newData = { ...data };
+  if (typeof newData.meal_config === 'string') {
+    try { newData.meal_config = JSON.parse(newData.meal_config); } catch (e) { console.error("Error parsing meal_config", e); }
+  }
+  if (typeof newData.visible_meals === 'string') {
+    try { newData.visible_meals = JSON.parse(newData.visible_meals); } catch (e) { console.error("Error parsing visible_meals", e); }
+  }
+  return newData;
+}
 
 interface AppDataProviderProps {
   children: React.ReactNode;
@@ -51,17 +65,6 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
   const [shoppingList, setShoppingList] = useState<any[]>([]);
   const [shoppingListRecipes, setShoppingListRecipes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const parseProfileJSON = (data: any) => {
-    if (!data) return data;
-    const newData = { ...data };
-    if (typeof newData.meal_config === 'string') {
-      try { newData.meal_config = JSON.parse(newData.meal_config); } catch (e) { console.error("Error parsing meal_config", e); }
-    }
-    if (typeof newData.visible_meals === 'string') {
-      try { newData.visible_meals = JSON.parse(newData.visible_meals); } catch (e) { console.error("Error parsing visible_meals", e); }
-    }
-    return newData;
-  };
 
   const loadAll = useCallback(async () => {
     if (!user) { 
@@ -119,6 +122,12 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
     const data = await api.profile.get().catch(() => null);
     if (data) setProfile(parseProfileJSON(data));
   }, [user]);
+
+  const saveProfile = useCallback(async (changes: Record<string, unknown>) => {
+    const saved = await api.profile.update(changes);
+    setProfile((prev: Record<string, unknown> | null) => ({ ...prev, ...changes, ...parseProfileJSON(saved) }));
+    return saved;
+  }, []);
 
   const refreshRecipes = useCallback(async () => {
     const data = await api.recipes.getAll().catch(() => []);
@@ -195,7 +204,7 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
   return (
     <AppDataContext.Provider value={{
       user, profile, recipes, userMeals, shoppingList, shoppingListRecipes,
-      loading, onLogout, refreshProfile, refreshRecipes, refreshMeals, refreshShoppingList,
+      loading, onLogout, refreshProfile, saveProfile, refreshRecipes, refreshMeals, refreshShoppingList,
       getConsumedForDay, setUserMeals, setShoppingList
     }}>
       {children}
