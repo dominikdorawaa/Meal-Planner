@@ -13,6 +13,8 @@ import { useBarcodeLookup } from '../lib/useBarcodeLookup';
 import { missingProductMessage } from '../lib/barcodeLookup';
 import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
 import { BarCodeField } from '../components/BarCodeField';
+import { MoreNutrientsFields } from '../components/MoreNutrientsFields';
+import { EXTRA_NUTRIENTS, type ExtraNutrientValues } from '../lib/nutrients';
 import { useExistingBarCodeProduct } from '../lib/useExistingBarCodeProduct';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { t } from '../i18n';
@@ -20,7 +22,10 @@ import { firstDayOfMonth, formatRelativeDayLabel, toIsoDate, todayIsoDate } from
 
 
 const RECENT_PRODUCTS_LIMIT = 5;
-const EMPTY_PRODUCT_FORM = { name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '', barCode: '' };
+const EMPTY_PRODUCT_FORM = {
+  name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '', barCode: '',
+  extras: { saturated_fat: '', sugars: '', fiber: '', salt: '' },
+};
 
 const MEAL_TYPE_LABELS: Record<string, string> = {
   breakfast: 'Śniadanie',
@@ -62,6 +67,7 @@ export function AddFood() {
 
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [addProductForm, setAddProductForm] = useState(EMPTY_PRODUCT_FORM);
+  const [prefillCount, setPrefillCount] = useState(0);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
   const newProductValues = useMemo(() => ({
@@ -71,6 +77,8 @@ export function AddFood() {
     fat: parseNutritionValue(addProductForm.fat),
     carbs: parseNutritionValue(addProductForm.carbs),
     barCode: addProductForm.barCode || null,
+    extras: Object.fromEntries(EXTRA_NUTRIENTS.map(nutrient =>
+      [nutrient, parseNutritionValue(addProductForm.extras[nutrient])])) as ExtraNutrientValues,
   }), [addProductForm]);
   const newProductCheck = useMemo(() => checkNutrition(newProductValues), [newProductValues]);
   const newProductNutrientsStarted = [addProductForm.kcal, addProductForm.protein, addProductForm.fat, addProductForm.carbs]
@@ -98,7 +106,14 @@ export function AddFood() {
           fat: text(prefill?.fat),
           carbs: text(prefill?.carbs),
           barCode,
+          extras: {
+            saturated_fat: text(prefill?.saturated_fat),
+            sugars: text(prefill?.sugars),
+            fiber: text(prefill?.fiber),
+            salt: text(prefill?.salt),
+          },
         });
+        setPrefillCount(count => count + 1);
         setScanMessage(t(missingProductMessage(prefill), { code: barCode }));
         setShowAddProduct(true);
       },
@@ -116,6 +131,7 @@ export function AddFood() {
         protein: newProductValues.protein,
         fat: newProductValues.fat,
         carbs: newProductValues.carbs,
+        ...newProductValues.extras,
         bar_code: newProductValues.barCode,
         brand: addProductForm.brand.trim() || null,
         unit: '100g',
@@ -893,7 +909,7 @@ export function AddFood() {
                       <input
                         type="number" min="0"
                         onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
-                        value={addProductForm[f.key as keyof typeof addProductForm]}
+                        value={addProductForm[f.key as 'protein' | 'carbs' | 'fat']}
                         onChange={e => setAddProductForm(p => ({ ...p, [f.key]: e.target.value }))}
                         className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         placeholder="0"
@@ -903,6 +919,12 @@ export function AddFood() {
                   </div>
                 ))}
               </div>
+
+              <MoreNutrientsFields
+                key={prefillCount}
+                values={addProductForm.extras}
+                onChange={(nutrient, value) => setAddProductForm(p => ({ ...p, extras: { ...p.extras, [nutrient]: value } }))}
+              />
 
               {newProductHints.length > 0 && (
                 <ul className="flex flex-col gap-2" aria-live="polite">

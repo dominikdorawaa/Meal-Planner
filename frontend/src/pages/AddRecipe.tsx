@@ -73,6 +73,7 @@ export default function AddRecipe() {
              // Mock values logic can stay or be removed if data is in DB
              return {
                id: i.id,
+               productId: i.product?.id,
                name: i.name,
                amount: i.amount,
                unit: i.unit,
@@ -152,7 +153,8 @@ export default function AddRecipe() {
         ingredients: ingredients.map(ing => ({
           name: ing.name,
           amount: ing.amount,
-          unit: ing.unit
+          unit: ing.unit,
+          product: ing.productId ? { id: ing.productId } : null
         }))
       };
 

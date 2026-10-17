@@ -5,6 +5,7 @@ import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, firstDayOfMonth, formatDayMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { targetRange } from '../lib/macros';
+import { RecipeMoreNutrients } from '../components/RecipeMoreNutrients';
 
 export function RecipeDetails() {
   const { id } = useParams();
@@ -500,6 +501,8 @@ export function RecipeDetails() {
 
           </div>
         </section>
+
+        <RecipeMoreNutrients ingredients={ingredients} portions={basePortions} />
 
         {/* Składniki */}
         {ingredients && ingredients.length > 0 && (

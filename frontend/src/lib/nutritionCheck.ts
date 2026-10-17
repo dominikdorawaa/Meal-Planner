@@ -1,4 +1,5 @@
 import type { MessageKey } from '../i18n';
+import { EXTRA_NUTRIENTS, type ExtraNutrientValues } from './nutrients';
 
 export type NutritionIssue =
   | 'NAME_MISSING'
@@ -10,6 +11,8 @@ export type NutritionIssue =
   | 'KCAL_LOOKS_LIKE_KJ'
   | 'KCAL_MISMATCH'
   | 'INVALID_BAR_CODE'
+  | 'SATURATED_FAT_ABOVE_FAT'
+  | 'SUGARS_ABOVE_CARBS'
   | 'KCAL_DEVIATION';
 
 export interface NutritionInput {
@@ -20,6 +23,7 @@ export interface NutritionInput {
   carbs?: number | null;
   unit?: string | null;
   barCode?: string | null;
+  extras?: ExtraNutrientValues;
 }
 
 export interface NutritionCheck {
@@ -78,7 +82,7 @@ function split(issues: NutritionIssue[]): NutritionCheck {
   return { errors, warnings: issues.filter(issue => WARNINGS.includes(issue)), valid: errors.length === 0 };
 }
 
-export function checkNutrition({ name, kcal, protein, fat, carbs, unit, barCode }: NutritionInput): NutritionCheck {
+export function checkNutrition({ name, kcal, protein, fat, carbs, unit, barCode, extras = {} }: NutritionInput): NutritionCheck {
   const issues: NutritionIssue[] = [];
   if (!name || name.trim() === '') issues.push('NAME_MISSING');
   if (barCode && barCode.trim() !== '' && !isValidBarCode(barCode.trim())) issues.push('INVALID_BAR_CODE');
@@ -86,12 +90,15 @@ export function checkNutrition({ name, kcal, protein, fat, carbs, unit, barCode 
     issues.push('NUTRIENT_MISSING');
     return split(issues);
   }
-  if ([kcal, protein, fat, carbs].some(value => value < 0)) issues.push('NEGATIVE_VALUE');
+  const extraValues = EXTRA_NUTRIENTS.map(nutrient => extras[nutrient]).filter((value): value is number => value != null);
+  if ([kcal, protein, fat, carbs, ...extraValues].some(value => value < 0)) issues.push('NEGATIVE_VALUE');
   if (unit !== PER_PIECE_UNIT) {
     if (kcal > MAX_KCAL_PER_100G) issues.push('KCAL_ABOVE_900');
-    if ([protein, fat, carbs].some(value => value > MAX_GRAMS_PER_100G)) issues.push('MACRO_ABOVE_100G');
+    if ([protein, fat, carbs, ...extraValues].some(value => value > MAX_GRAMS_PER_100G)) issues.push('MACRO_ABOVE_100G');
     if (protein + fat + carbs > MAX_GRAMS_PER_100G + MACROS_SUM_ROUNDING) issues.push('MACROS_SUM_ABOVE_100G');
   }
+  if (extras.saturated_fat != null && extras.saturated_fat > fat) issues.push('SATURATED_FAT_ABOVE_FAT');
+  if (extras.sugars != null && extras.sugars > carbs) issues.push('SUGARS_ABOVE_CARBS');
   const energy = energyIssue(kcal, protein, fat, carbs);
   if (energy) issues.push(energy);
   return split(issues);

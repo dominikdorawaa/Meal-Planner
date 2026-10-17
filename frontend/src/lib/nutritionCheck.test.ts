@@ -75,6 +75,16 @@ describe('checkNutrition', () => {
     expect(checkNutrition({ ...product, barCode: ' 5900820000318 ' }).errors).toEqual([]);
     expect(checkNutrition({ ...product, barCode: '  ' }).errors).toEqual([]);
   });
+
+  it('checks the optional values from the more values section', () => {
+    const cream = { name: 'Cream', kcal: 186, protein: 2.6, fat: 18, carbs: 3.4, unit: '100g' };
+
+    expect(checkNutrition({ ...cream, extras: { saturated_fat: 12, sugars: 3.4, fiber: null, salt: 0.1 } }).errors).toEqual([]);
+    expect(checkNutrition({ ...cream, extras: { saturated_fat: 18.1, sugars: 3.5 } }).errors)
+      .toEqual(['SATURATED_FAT_ABOVE_FAT', 'SUGARS_ABOVE_CARBS']);
+    expect(checkNutrition({ ...cream, extras: { fiber: -1 } }).errors).toEqual(['NEGATIVE_VALUE']);
+    expect(checkNutrition({ ...cream, extras: { salt: 101 } }).errors).toEqual(['MACRO_ABOVE_100G']);
+  });
 });
 
 describe('isValidBarCode', () => {
