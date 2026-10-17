@@ -14,6 +14,7 @@ import { missingProductMessage } from '../lib/barcodeLookup';
 import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { t } from '../i18n';
+import { firstDayOfMonth, formatRelativeDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 
 
 const RECENT_PRODUCTS_LIMIT = 5;
@@ -26,26 +27,6 @@ const MEAL_TYPE_LABELS: Record<string, string> = {
   snack: 'Przekąska',
   dinner: 'Obiad',
   supper: 'Kolacja',
-};
-
-const MONTHS = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia"];
-
-const formatDateLabel = (dateStr: string) => {
-  const parts = dateStr.split('.');
-  if (parts.length !== 2) return dateStr;
-  const d = parseInt(parts[0], 10);
-  const m = parseInt(parts[1], 10);
-  if (isNaN(d) || isNaN(m) || m < 1 || m > 12) return dateStr;
-  const now = new Date();
-  const year = now.getFullYear();
-  const date = new Date(year, m - 1, d);
-  const today = new Date(year, now.getMonth(), now.getDate());
-  const diffDays = Math.round((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return 'Dzisiaj';
-  if (diffDays === 1) return 'Jutro';
-  if (diffDays === -1) return 'Wczoraj';
-  const dayNames = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota'];
-  return `${dayNames[date.getDay()]}, ${d} ${MONTHS[m - 1]}`;
 };
 
 export function AddFood() {
@@ -61,17 +42,7 @@ export function AddFood() {
   const [activeMealType, setActiveMealType] = useState(selectType || '');
   const [showMealPicker, setShowMealPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [calendarDate, setCalendarDate] = useState(() => {
-    // parse activeDate (DD.MM) to set initial calendar month
-    if (selectDate) {
-      const parts = selectDate.split('.');
-      if (parts.length === 2) {
-        const now = new Date();
-        return new Date(now.getFullYear(), parseInt(parts[1], 10) - 1, 1);
-      }
-    }
-    return new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-  });
+  const [calendarDate, setCalendarDate] = useState(() => firstDayOfMonth(selectDate));
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'recent' | 'all' | 'recipes' | 'products'>(mealId ? 'all' : 'recent');
@@ -254,7 +225,7 @@ export function AddFood() {
     setIsAdding(true);
 
     const payload = {
-      date_str: selectDate,
+      meal_date: selectDate,
       meal_type: selectType,
       manual_name: quickAddForm.name,
       manual_kcal: parseInt(String(quickAddForm.kcal).replace(',', '.')) || 0,
@@ -335,7 +306,7 @@ export function AddFood() {
                     onClick={() => { if (!mealId) { setShowDatePicker(v => !v); setShowMealPicker(false); } }}
                     className={`flex items-center gap-1 text-[10px] font-medium text-on-surface-variant w-fit ${!mealId ? 'active:scale-95 transition-transform' : ''}`}
                   >
-                    <span>{formatDateLabel(activeDate)}</span>
+                    <span>{formatRelativeDayLabel(activeDate)}</span>
                     {!mealId && <span className={`material-symbols-outlined text-[12px] text-primary/70 transition-transform ${showDatePicker ? 'rotate-180' : ''}`}>expand_more</span>}
                   </button>
                   {showDatePicker && (
@@ -373,12 +344,11 @@ export function AddFood() {
                           // Monday-first offset
                           const offset = (firstDay === 0 ? 6 : firstDay - 1);
                           const daysInMonth = new Date(year, month + 1, 0).getDate();
-                          const today = new Date();
-                          const todayStr = `${String(today.getDate()).padStart(2,'0')}.${String(today.getMonth()+1).padStart(2,'0')}`;
+                          const todayStr = todayIsoDate();
                           const cells = [];
                           for (let i = 0; i < offset; i++) cells.push(<span key={`e${i}`} />);
                           for (let d = 1; d <= daysInMonth; d++) {
-                            const dateStr = `${String(d).padStart(2,'0')}.${String(month+1).padStart(2,'0')}`;
+                            const dateStr = toIsoDate(new Date(year, month, d));
                             const isActive = activeDate === dateStr;
                             const isToday = todayStr === dateStr;
                             cells.push(

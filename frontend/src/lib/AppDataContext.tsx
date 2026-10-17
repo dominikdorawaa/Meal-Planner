@@ -153,7 +153,7 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
       ? profile.mealConfig.filter((m: any) => m.visible).map((m: any) => m.id)
       : (profile?.visible_meals || ['breakfast', 'lunch', 'dinner', 'supper', 'snack1', 'snack2']);
 
-    const mealsToday = userMeals.filter(m => m.date_str === date && visibleMealsList.includes(m.meal_type));
+    const mealsToday = userMeals.filter(m => m.meal_date === date && visibleMealsList.includes(m.meal_type));
     let kcal = 0, protein = 0, fat = 0, carbs = 0;
 
     mealsToday.forEach(meal => {

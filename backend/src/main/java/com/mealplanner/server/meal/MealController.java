@@ -1,5 +1,6 @@
 package com.mealplanner.server.meal;
 
+import com.mealplanner.server.handler.ApiException;
 import com.mealplanner.server.product.Product;
 import com.mealplanner.server.product.ProductRepository;
 import com.mealplanner.server.recipe.Recipe;
@@ -7,12 +8,15 @@ import com.mealplanner.server.recipe.RecipeRepository;
 import com.mealplanner.server.user.User;
 import com.mealplanner.server.user.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @RestController
@@ -45,14 +49,15 @@ public class MealController {
         return ResponseEntity.ok(userMealRepository.findByUser(user));
     }
 
-    @GetMapping("/day/{dateStr}")
-    public ResponseEntity<?> getMealsForDay(@PathVariable String dateStr, Authentication authentication) {
+    @GetMapping("/day/{date}")
+    public ResponseEntity<?> getMealsForDay(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated())
             return unauthorized();
         String email = authentication.getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-        return ResponseEntity.ok(userMealRepository.findByUserAndDateStr(user, dateStr));
+        return ResponseEntity.ok(userMealRepository.findByUserAndMealDate(user, date));
     }
 
     @PostMapping
@@ -62,6 +67,8 @@ public class MealController {
         String email = authentication.getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        if (meal.getMealDate() == null)
+            throw new ApiException(HttpStatus.BAD_REQUEST, "error.validation-failed");
         meal.setUser(user);
 
         // Resolve product from DB to avoid detached entity issues
