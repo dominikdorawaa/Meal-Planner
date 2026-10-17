@@ -347,10 +347,10 @@ export function AddFood() {
                 <div className="relative">
                   <button
                     onClick={() => { if (!mealId) { setShowDatePicker(v => !v); setShowMealPicker(false); } }}
-                    className={`flex items-center gap-1 text-[10px] font-medium text-on-surface-variant w-fit ${!mealId ? 'active:scale-95 transition-transform' : ''}`}
+                    className={`flex items-center gap-1 text-sm font-bold text-primary w-fit ${!mealId ? 'active:scale-95 transition-transform' : ''}`}
                   >
                     <span>{formatRelativeDayLabel(activeDate)}</span>
-                    {!mealId && <span className={`material-symbols-outlined text-[12px] text-primary/70 transition-transform ${showDatePicker ? 'rotate-180' : ''}`}>expand_more</span>}
+                    {!mealId && <span className={`material-symbols-outlined text-[16px] text-primary/70 transition-transform ${showDatePicker ? 'rotate-180' : ''}`}>expand_more</span>}
                   </button>
                   {showDatePicker && (
                     <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
@@ -432,7 +432,6 @@ export function AddFood() {
                   className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 pl-12 pr-4 focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50 text-on-surface text-sm font-medium transition-all shadow-inner"
                   placeholder="Szukaj przepisów, produktów..."
                   type="text"
-                  autoFocus
                 />
                 {searchQuery && (
                   <button onClick={() => setSearchQuery('')} className="absolute inset-y-0 right-4 flex items-center text-on-surface-variant/60 hover:text-on-surface active:scale-90 transition-transform">
