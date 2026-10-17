@@ -38,5 +38,8 @@
   "product.barCode": "Kod kreskowy",
   "scanner.engineFailed": "Nie udało się uruchomić skanera. Wpisz kod ręcznie.",
   "scanner.aimHint": "Ustaw kod w ramce, 15 do 20 cm od aparatu",
-  "scanner.torch": "Latarka"
+  "scanner.torch": "Latarka",
+  "addFood.selectItem": "Zaznacz: {name}",
+  "addFood.addSelected": "Dodaj ({count})",
+  "addFood.addSelectedFailed": "Nie udało się dodać zaznaczonych pozycji. Spróbuj ponownie."
 }

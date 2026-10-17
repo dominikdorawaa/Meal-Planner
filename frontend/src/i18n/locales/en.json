@@ -38,5 +38,8 @@
   "product.barCode": "Barcode",
   "scanner.engineFailed": "Could not start the scanner. Enter the code by hand.",
   "scanner.aimHint": "Fit the code in the frame, 15 to 20 cm from the camera",
-  "scanner.torch": "Flashlight"
+  "scanner.torch": "Flashlight",
+  "addFood.selectItem": "Select: {name}",
+  "addFood.addSelected": "Add ({count})",
+  "addFood.addSelectedFailed": "Could not add the selected items. Please try again."
 }

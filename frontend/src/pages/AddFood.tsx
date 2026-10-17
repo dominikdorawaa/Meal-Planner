@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { productDisplayName } from '../lib/productName';
@@ -15,6 +15,8 @@ import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { t } from '../i18n';
 import { firstDayOfMonth, formatRelativeDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
+import { PlanSelectionSaveError, addSelectionToPlan, isSelected, planSelectionState, readPlanSelection, toggleSelection } from '../lib/planSelection';
+import { AddSelectedBar, SelectionCheckbox } from '../components/PlanSelectionControls';
 
 
 const RECENT_PRODUCTS_LIMIT = 5;
@@ -31,6 +33,7 @@ const MEAL_TYPE_LABELS: Record<string, string> = {
 
 export function AddFood() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { recipes, userMeals, profile, loading: contextLoading, refreshMeals } = useAppData();
 
@@ -57,6 +60,7 @@ export function AddFood() {
   });
 
   const [isAdding, setIsAdding] = useState(false);
+  const [selection, setSelection] = useState(() => readPlanSelection(location.state));
 
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [addProductForm, setAddProductForm] = useState(EMPTY_PRODUCT_FORM);
@@ -196,14 +200,31 @@ export function AddFood() {
   const filteredProducts = activeTab === 'recent' ? recentProducts : productSearch.items;
   const isSearchingProducts = activeTab !== 'recent' && productSearch.loading && filteredProducts.length === 0;
 
-  const handleSelectRecipe = (recipe: any) => {
+  const openDetails = (path: string) => {
     if (!activeDate || !activeMealType) return;
-    navigate(`/recipe/${recipe.id}?selectDate=${activeDate}&selectType=${activeMealType}`);
+    const state = planSelectionState(selection);
+    navigate(location.pathname + location.search, { replace: true, state });
+    navigate(`${path}?selectDate=${activeDate}&selectType=${activeMealType}`, { state });
   };
 
-  const handleSelectProduct = (product: any) => {
-    if (!activeDate || !activeMealType) return;
-    navigate(`/product/${product.id}?selectDate=${activeDate}&selectType=${activeMealType}`);
+  const handleSelectRecipe = (recipe: any) => openDetails(`/recipe/${recipe.id}`);
+
+  const handleSelectProduct = (product: any) => openDetails(`/product/${product.id}`);
+
+  const handleAddSelected = async () => {
+    if (isAdding || selection.length === 0) return;
+    setIsAdding(true);
+    try {
+      await addSelectionToPlan(selection, activeDate, activeMealType);
+      await refreshMeals();
+      navigate('/');
+    } catch (err) {
+      console.error("Selected items save error:", err);
+      if (err instanceof PlanSelectionSaveError) setSelection(err.remaining);
+      await refreshMeals();
+      alert(t('addFood.addSelectedFailed'));
+      setIsAdding(false);
+    }
   };
 
 
@@ -225,8 +246,8 @@ export function AddFood() {
     setIsAdding(true);
 
     const payload = {
-      meal_date: selectDate,
-      meal_type: selectType,
+      meal_date: activeDate,
+      meal_type: activeMealType,
       manual_name: quickAddForm.name,
       manual_kcal: parseInt(String(quickAddForm.kcal).replace(',', '.')) || 0,
       manual_protein: parseFloat(String(quickAddForm.protein).replace(',', '.')) || 0,
@@ -239,6 +260,7 @@ export function AddFood() {
         await api.meals.update(mealId, payload);
       } else {
         await api.meals.add(payload);
+        await addSelectionToPlan(selection, activeDate, activeMealType);
       }
       await refreshMeals();
       navigate('/');
@@ -578,10 +600,12 @@ export function AddFood() {
                         <span className="text-[9px] font-bold text-on-surface-variant uppercase transition-colors">1 porcja</span>
                       </div>
 
-                      <div className="flex items-center justify-center pr-2 pl-2 border-l border-outline-variant/10 group-hover:border-primary/20 ml-2">
-                        <button className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant group-hover:text-primary transition-colors">
-                          <span className="material-symbols-outlined text-[20px]">add</span>
-                        </button>
+                      <div className="flex items-center justify-center pl-1 border-l border-outline-variant/10 group-hover:border-primary/20 ml-2">
+                        <SelectionCheckbox
+                          checked={isSelected(selection, 'recipe', recipe.id)}
+                          label={recipe.name}
+                          onToggle={() => setSelection(items => toggleSelection(items, 'recipe', recipe.id))}
+                        />
                       </div>
                     </div>
                   ))}
@@ -621,10 +645,12 @@ export function AddFood() {
                         <span className="text-[9px] font-bold text-on-surface-variant group-hover:text-surface/70 uppercase transition-colors">100g</span>
                       </div>
 
-                      <div className="flex items-center justify-center pl-2 border-l border-outline-variant/10 group-hover:border-surface/10 ml-2">
-                        <button className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant group-hover:text-surface transition-colors">
-                          <span className="material-symbols-outlined text-[20px]">add</span>
-                        </button>
+                      <div className="flex items-center justify-center pl-1 border-l border-outline-variant/10 group-hover:border-surface/10 ml-2">
+                        <SelectionCheckbox
+                          checked={isSelected(selection, 'product', prod.id)}
+                          label={productDisplayName(prod)}
+                          onToggle={() => setSelection(items => toggleSelection(items, 'product', prod.id))}
+                        />
                       </div>
                     </div>
                   ))}
@@ -927,6 +953,10 @@ export function AddFood() {
             </button>
           </div>
         </div>
+      )}
+
+      {!mealId && !showQuickAdd && !showAddProduct && (
+        <AddSelectedBar count={selection.length} adding={isAdding} onAdd={handleAddSelected} />
       )}
 
       {showScanner && <LazyBarcodeScanner onDetected={handleBarCode} onClose={() => setShowScanner(false)} />}
