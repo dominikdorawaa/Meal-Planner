@@ -1,25 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { buildDaySummary, distanceToTarget } from './daySummary'
+import { buildDaySummary } from './daySummary'
 
 const targets = { target_kcal: 2200, target_protein: 150, target_fat: 70, target_carbs: 250 }
+const nothing = { kcal: 0, protein: 0, fat: 0, carbs: 0 }
 
 describe('buildDaySummary', () => {
-  it('derives macro ranges from targets when explicit limits are missing', () => {
-    const [kcal, protein, fat, carbs] = buildDaySummary({ kcal: 0, protein: 0, fat: 0, carbs: 0 }, targets)
+  it('shows the calorie target and macro ranges derived from targets', () => {
+    const [kcal, protein, fat, carbs] = buildDaySummary(nothing, targets)
 
-    expect(kcal).toMatchObject({ key: 'kcal', unit: 'kcal', min: 1980, max: 2200, target: '2200' })
-    expect(protein).toMatchObject({ key: 'protein', unit: 'g', min: 135, max: 165, target: '135-165' })
-    expect(fat).toMatchObject({ min: 63, max: 77, target: '63-77' })
-    expect(carbs).toMatchObject({ min: 225, max: 275, target: '225-275' })
+    expect(kcal).toMatchObject({ key: 'kcal', unit: 'kcal', target: '2200' })
+    expect(protein).toMatchObject({ key: 'protein', unit: 'g', target: '135-165' })
+    expect(fat).toMatchObject({ key: 'fat', target: '63-77' })
+    expect(carbs).toMatchObject({ key: 'carbs', target: '225-275' })
   })
 
   it('prefers explicit macro limits from the profile', () => {
     const [, protein] = buildDaySummary(
-      { kcal: 0, protein: 0, fat: 0, carbs: 0 },
+      { ...nothing, protein: 179 },
       { ...targets, target_protein_min: 120, target_protein_max: 180 },
     )
 
-    expect(protein).toMatchObject({ min: 120, max: 180, target: '120-180' })
+    expect(protein).toMatchObject({ target: '120-180', status: 'ok' })
   })
 
   it('rounds consumed values and marks each metric as under, on or over target', () => {
@@ -31,8 +32,25 @@ describe('buildDaySummary', () => {
     expect(carbs).toMatchObject({ value: 133, status: 'under' })
   })
 
+  it('judges the status on exact values so it matches the bar', () => {
+    const [, protein, , carbs] = buildDaySummary({ ...nothing, protein: 165.4, carbs: 275 }, targets)
+
+    expect(protein).toMatchObject({ value: 165, status: 'over', distance: 1 })
+    expect(protein.overflowPercent).toBeGreaterThan(0)
+    expect(carbs).toMatchObject({ status: 'ok', overflowPercent: 0 })
+  })
+
+  it('measures what is missing to the target range or how much it was exceeded', () => {
+    const [kcal, protein, fat, carbs] = buildDaySummary({ kcal: 1240, protein: 100, fat: 80, carbs: 250 }, targets)
+
+    expect(kcal.distance).toBe(740)
+    expect(protein.distance).toBe(35)
+    expect(fat.distance).toBe(3)
+    expect(carbs.distance).toBe(0)
+  })
+
   it('fills the bar up to the upper limit and shows the excess as overflow', () => {
-    const [kcal, protein] = buildDaySummary({ kcal: 1100, protein: 330, fat: 0, carbs: 0 }, targets)
+    const [kcal, protein] = buildDaySummary({ ...nothing, kcal: 1100, protein: 330 }, targets)
 
     expect(kcal.fillPercent).toBe(50)
     expect(kcal.overflowPercent).toBe(0)
@@ -42,28 +60,11 @@ describe('buildDaySummary', () => {
 
   it('keeps bars empty when targets are missing', () => {
     const [kcal, protein] = buildDaySummary(
-      { kcal: 500, protein: 20, fat: 0, carbs: 0 },
+      { ...nothing, kcal: 500, protein: 20 },
       { target_kcal: 0, target_protein: 0, target_fat: 0, target_carbs: 0 },
     )
 
-    expect(kcal).toMatchObject({ fillPercent: 0, overflowPercent: 0, status: 'over' })
+    expect(kcal).toMatchObject({ fillPercent: 0, overflowPercent: 0 })
     expect(protein).toMatchObject({ fillPercent: 0, overflowPercent: 0 })
-  })
-})
-
-describe('distanceToTarget', () => {
-  it('measures what is missing to the target or how much it was exceeded', () => {
-    const [kcal, protein, fat, carbs] = buildDaySummary({ kcal: 2000, protein: 100, fat: 80, carbs: 250 }, targets)
-
-    expect(distanceToTarget(kcal)).toBe(0)
-    expect(distanceToTarget(protein)).toBe(35)
-    expect(distanceToTarget(fat)).toBe(3)
-    expect(distanceToTarget(carbs)).toBe(0)
-  })
-
-  it('measures missing calories against the full calorie target', () => {
-    const [kcal] = buildDaySummary({ kcal: 1240, protein: 0, fat: 0, carbs: 0 }, targets)
-
-    expect(distanceToTarget(kcal)).toBe(960)
   })
 })

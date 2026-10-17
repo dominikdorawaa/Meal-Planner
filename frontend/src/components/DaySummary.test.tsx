@@ -63,8 +63,13 @@ describe('DaySummary', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('closes the details when tapping outside them but not inside', () => {
-    renderSummary()
+  it('closes the details when tapping outside them without selecting the day', () => {
+    const onParentClick = vi.fn()
+    render(
+      <div onClick={onParentClick}>
+        <DaySummary consumed={consumed} targets={targets} dayLabel="Niedziela, 18.10" interactive />
+      </div>,
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))
     const dialog = screen.getByRole('dialog')
 
@@ -73,6 +78,22 @@ describe('DaySummary', () => {
 
     fireEvent.click(dialog.parentElement!)
     expect(screen.queryByRole('dialog')).toBeNull()
+    expect(onParentClick).not.toHaveBeenCalled()
+  })
+
+  it('moves focus into the details and back to the summary after closing with Escape', () => {
+    renderSummary()
+    const trigger = screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' })
+    fireEvent.click(trigger)
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Zamknij' }))
+
+    fireEvent.keyDown(window, { key: 'Enter' })
+    expect(screen.getByRole('dialog')).toBeTruthy()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
   })
 
   it('stays a plain summary while days or meals are being selected', () => {
