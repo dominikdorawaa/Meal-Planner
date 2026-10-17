@@ -168,11 +168,12 @@ export function ProductDetails() {
           {/* Meal picker */}
           <div className="relative">
             <button
+              disabled={Boolean(mealId)}
               onClick={() => { setShowMealPicker(v => !v); setShowDatePicker(false); }}
               className="flex items-center gap-1 font-headline font-bold text-base text-on-surface leading-tight active:scale-95 transition-transform"
             >
               <span>{mealId ? 'Edytujesz w: ' : 'Dodajesz do: '} <span className="text-primary">{mealLabel}</span></span>
-              <span className={`material-symbols-outlined text-[14px] text-primary transition-transform ${showMealPicker ? 'rotate-180' : ''}`}>expand_more</span>
+              {!mealId && <span className={`material-symbols-outlined text-[14px] text-primary transition-transform ${showMealPicker ? 'rotate-180' : ''}`}>expand_more</span>}
             </button>
             {showMealPicker && (
               <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
@@ -193,11 +194,12 @@ export function ProductDetails() {
           {/* Date picker */}
           <div className="relative">
             <button
+              disabled={Boolean(mealId)}
               onClick={() => { setShowDatePicker(v => !v); setShowMealPicker(false); }}
               className="flex items-center gap-1 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest leading-tight active:scale-95 transition-transform w-fit"
             >
               <span>{activeDateDisplay}</span>
-              <span className={`material-symbols-outlined text-[11px] text-primary/70 transition-transform ${showDatePicker ? 'rotate-180' : ''}`}>expand_more</span>
+              {!mealId && <span className={`material-symbols-outlined text-[11px] text-primary/70 transition-transform ${showDatePicker ? 'rotate-180' : ''}`}>expand_more</span>}
             </button>
             {showDatePicker && (
               <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
