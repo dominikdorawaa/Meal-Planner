@@ -44,9 +44,9 @@ const SELECTION_PAYLOADS = [
   { product: { id: 'p9' }, meal_date: '2026-10-17', meal_type: 'lunch', portions_consumed: 100 },
 ];
 
-function renderDetails(pathname: string, search = SEARCH) {
+function renderDetails(pathname: string, search = SEARCH, items = SELECTION) {
   return render(
-    <MemoryRouter initialEntries={[{ pathname, search, state: planSelectionState(SELECTION) }]}>
+    <MemoryRouter initialEntries={[{ pathname, search, state: planSelectionState({ id: 's1', items }) }]}>
       <Routes>
         <Route path="/" element={<p>plan screen</p>} />
         <Route path="/recipe/:id" element={<RecipeDetails />} />
@@ -85,6 +85,7 @@ afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  sessionStorage.clear();
 });
 
 describe('adding from item details', () => {
@@ -127,6 +128,31 @@ describe('adding from item details', () => {
     ]);
   });
 
+  it('does not save the opened item twice when it is also checked', async () => {
+    renderDetails('/product/p1', SEARCH, [...SELECTION, { kind: 'product', id: 'p1' }]);
+    await screen.findByDisplayValue('100');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+
+    await screen.findByText('plan screen');
+    expect(addedPayloads()).toEqual([
+      { product: { id: 'p1' }, meal_date: '2026-10-17', meal_type: 'lunch', portions_consumed: 100 },
+      ...SELECTION_PAYLOADS,
+    ]);
+  });
+
+  it('returns to the plan without saving the product again when checked items fail', async () => {
+    mocks.addMeal.mockResolvedValueOnce({}).mockRejectedValue(new Error('Server error (500)'));
+    renderDetails('/product/p1');
+    await screen.findByDisplayValue('100');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+
+    await screen.findByText('plan screen');
+    expect(alertMock).toHaveBeenCalledWith(t('planSelection.notAllSaved'));
+    expect(mocks.addMeal).toHaveBeenCalledTimes(2);
+  });
+
   it('still returns to the plan when saving checked items fails', async () => {
     mocks.addMeal.mockResolvedValueOnce({}).mockRejectedValue(new Error('Server error (500)'));
     renderDetails('/recipe/r1');
@@ -135,7 +161,7 @@ describe('adding from item details', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
 
     await screen.findByText('plan screen');
-    expect(alertMock).toHaveBeenCalledWith(t('addFood.addSelectedFailed'));
+    expect(alertMock).toHaveBeenCalledWith(t('planSelection.notAllSaved'));
     expect(mocks.refreshMeals).toHaveBeenCalled();
   });
 });

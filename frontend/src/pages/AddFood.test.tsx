@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AddFood } from './AddFood';
+import { ProductDetails } from './ProductDetails';
 import { t } from '../i18n';
 
 const mocks = vi.hoisted(() => ({
@@ -9,12 +10,13 @@ const mocks = vi.hoisted(() => ({
   updateMeal: vi.fn(),
   getAllMeals: vi.fn(),
   refreshMeals: vi.fn(),
+  getProduct: vi.fn(),
 }));
 
 vi.mock('../lib/apiClient', () => ({
   api: {
     meals: { add: mocks.addMeal, update: mocks.updateMeal, getAll: mocks.getAllMeals },
-    products: { create: vi.fn(), getByBarCode: vi.fn() },
+    products: { create: vi.fn(), getByBarCode: vi.fn(), getById: mocks.getProduct, delete: vi.fn() },
   },
 }));
 
@@ -28,6 +30,8 @@ vi.mock('../lib/AppDataContext', () => ({
     profile: null,
     loading: false,
     refreshMeals: mocks.refreshMeals,
+    user: { userId: 'user-1' },
+    getConsumedForDay: () => ({ kcal: 0, protein: 0, fat: 0, carbs: 0 }),
   }),
 }));
 
@@ -57,14 +61,24 @@ function DetailsStub() {
   );
 }
 
+function PlanStub() {
+  const navigate = useNavigate();
+  return (
+    <div>
+      <p>plan screen</p>
+      <button onClick={() => navigate(-2)}>history back twice</button>
+    </div>
+  );
+}
+
 function renderAddFood(url = ADD_FOOD_URL) {
   return render(
     <MemoryRouter initialEntries={['/', url]} initialIndex={1}>
       <Routes>
-        <Route path="/" element={<p>plan screen</p>} />
+        <Route path="/" element={<PlanStub />} />
         <Route path="/add-food" element={<AddFood />} />
         <Route path="/recipe/:id" element={<DetailsStub />} />
-        <Route path="/product/:id" element={<DetailsStub />} />
+        <Route path="/product/:id" element={<ProductDetails />} />
       </Routes>
     </MemoryRouter>
   );
@@ -86,6 +100,7 @@ beforeEach(() => {
   mocks.updateMeal.mockResolvedValue({});
   mocks.getAllMeals.mockResolvedValue([]);
   mocks.refreshMeals.mockResolvedValue(undefined);
+  mocks.getProduct.mockResolvedValue({ id: 'p1', name: 'Jogurt', kcal: 60, protein: 4, fat: 3, carbs: 5 });
 });
 
 afterEach(() => {
@@ -93,6 +108,7 @@ afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  sessionStorage.clear();
 });
 
 describe('AddFood selection', () => {
@@ -147,9 +163,9 @@ describe('AddFood selection', () => {
     fireEvent.click(screen.getByText('Omlet'));
 
     await screen.findByText('details /recipe/r2?selectDate=2026-10-17&selectType=lunch');
-    expect(JSON.parse(screen.getByTestId('details-state').textContent!)).toEqual({
-      planSelection: [{ kind: 'recipe', id: 'r1' }],
-    });
+    expect(JSON.parse(screen.getByTestId('details-state').textContent!).planSelection.items).toEqual([
+      { kind: 'recipe', id: 'r1' },
+    ]);
 
     fireEvent.click(screen.getByText('back'));
 
@@ -160,6 +176,55 @@ describe('AddFood selection', () => {
     expect(checkbox('Omlet')).toHaveProperty('ariaChecked', 'false');
     expect(addSelectedButton(1)).not.toBeNull();
     expect(mocks.addMeal).not.toHaveBeenCalled();
+  });
+
+  it('keeps the selection after the back arrow on the product details screen', async () => {
+    renderAddFood();
+    fireEvent.click(screen.getByText('Zapisane'));
+    fireEvent.click(checkbox('Owsianka'));
+
+    fireEvent.click(screen.getByText('Jogurt'));
+    await screen.findByDisplayValue('100');
+    fireEvent.click(screen.getByText('arrow_back'));
+
+    expect(await screen.findByRole('checkbox', { name: t('addFood.selectItem', { name: 'Owsianka' }) })).toHaveProperty(
+      'ariaChecked',
+      'true'
+    );
+    expect(mocks.addMeal).not.toHaveBeenCalled();
+  });
+
+  it('keeps the meal picked in the header after coming back from details', async () => {
+    renderAddFood();
+    fireEvent.click(screen.getByText(/Dodaj do:/));
+    fireEvent.click(screen.getByRole('button', { name: 'Obiad' }));
+    fireEvent.click(checkbox('Owsianka'));
+
+    fireEvent.click(screen.getByText('Omlet'));
+    await screen.findByText('details /recipe/r2?selectDate=2026-10-17&selectType=dinner');
+    fireEvent.click(screen.getByText('back'));
+
+    expect(await screen.findByText('Dodaj do: Obiad')).toBeTruthy();
+    expect(checkbox('Owsianka')).toHaveProperty('ariaChecked', 'true');
+  });
+
+  it('does not bring back saved selections when going back in history', async () => {
+    renderAddFood();
+    fireEvent.click(screen.getByText('Zapisane'));
+    fireEvent.click(checkbox('Owsianka'));
+    fireEvent.click(screen.getByText('Jogurt'));
+    await screen.findByDisplayValue('100');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+    await screen.findByText('plan screen');
+    expect(mocks.addMeal).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByText('history back twice'));
+
+    expect(await screen.findByRole('checkbox', { name: t('addFood.selectItem', { name: 'Owsianka' }) })).toHaveProperty(
+      'ariaChecked',
+      'false'
+    );
+    expect(addSelectedButton(1)).toBeNull();
   });
 
   it('saves the quick add entry together with all checked items', async () => {

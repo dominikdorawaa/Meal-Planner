@@ -5,8 +5,7 @@ import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, firstDayOfMonth, formatDayMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { targetRange } from '../lib/macros';
-import { addSelectionToPlan, readPlanSelection } from '../lib/planSelection';
-import { t } from '../i18n';
+import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 
 export function RecipeDetails() {
   const { id } = useParams();
@@ -162,12 +161,7 @@ export function RecipeDetails() {
     }
 
     if (!overrideDate) {
-      try {
-        await addSelectionToPlan(readPlanSelection(location.state), targetDate, targetType);
-      } catch (err) {
-        console.error("Error adding selected meals:", err);
-        alert(t('addFood.addSelectedFailed'));
-      }
+      await addSelectionAfterItem(readPlanSelection(location.state), { kind: 'recipe', id: String(recipe.id) }, targetDate, targetType);
     }
 
     await refreshMeals();

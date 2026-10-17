@@ -43,5 +43,6 @@
   "product.alreadyExists": "This product already exists",
   "addFood.selectItem": "Select: {name}",
   "addFood.addSelected": "Add ({count})",
-  "addFood.addSelectedFailed": "Could not add the selected items. Please try again."
+  "addFood.addSelectedFailed": "Could not add the selected items. Please try again.",
+  "planSelection.notAllSaved": "The item was added, but some selected items could not be saved. Check your plan."
 }

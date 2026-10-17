@@ -5,7 +5,7 @@ import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, firstDayOfMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { productDisplayName } from '../lib/productName';
 import { canDeleteProduct } from '../lib/productPermissions';
-import { addSelectionToPlan, readPlanSelection } from '../lib/planSelection';
+import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 
 export function ProductDetails() {
   const { id } = useParams();
@@ -124,7 +124,7 @@ export function ProductDetails() {
         for (const insert of mealInserts) {
           await api.meals.add(insert);
         }
-        await addSelectionToPlan(readPlanSelection(location.state), targetDate, targetType);
+        await addSelectionAfterItem(readPlanSelection(location.state), { kind: 'product', id: String(product.id) }, targetDate, targetType);
       }
       await refreshMeals();
       navigate('/');
