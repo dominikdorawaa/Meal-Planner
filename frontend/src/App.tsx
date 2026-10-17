@@ -13,6 +13,7 @@ import { AppDataProvider } from './lib/AppDataContext';
 import { useEffect, useState } from 'react';
 import { api, clearSession, type AuthUser } from './lib/apiClient';
 import { BackendLoader } from './components/BackendLoader';
+import { startSessionRenewal } from './lib/sessionRenewal';
 
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -31,7 +32,11 @@ function App() {
     };
 
     window.addEventListener('auth-change', handleAuthChange);
-    return () => window.removeEventListener('auth-change', handleAuthChange);
+    const stopSessionRenewal = startSessionRenewal();
+    return () => {
+      window.removeEventListener('auth-change', handleAuthChange);
+      stopSessionRenewal();
+    };
   }, []);
 
   const handleLogout = () => {

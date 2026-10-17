@@ -192,6 +192,12 @@ export const api = {
       return toAuthUser(data);
     },
 
+    async refresh(): Promise<AuthUser> {
+      const data = await request<AuthResponse>('POST', '/api/auth/refresh');
+      saveSession(data);
+      return toAuthUser(data);
+    },
+
     logout() {
       clearSession();
     },

@@ -5,6 +5,7 @@ import com.mealplanner.server.user.User;
 import com.mealplanner.server.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -47,6 +48,14 @@ public class AuthService {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "auth.invalid-credentials");
         }
         System.out.println("DEBUG: Login successful for email: " + request.getEmail());
+
+        String token = jwtService.generateToken(user.getId(), user.getEmail());
+        return new AuthResponse(token, user.getId().toString(), user.getEmail(), user.getName(), user.getRole().name());
+    }
+
+    public AuthResponse refresh(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AuthenticationCredentialsNotFoundException("User no longer exists"));
 
         String token = jwtService.generateToken(user.getId(), user.getEmail());
         return new AuthResponse(token, user.getId().toString(), user.getEmail(), user.getName(), user.getRole().name());
