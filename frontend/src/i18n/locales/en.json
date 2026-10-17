@@ -47,6 +47,7 @@
   "plan.move.title": "Moving",
   "plan.move.hint": "Choose one target slot",
   "plan.move.confirm": "Move",
+  "plan.move.slot": "Here",
   "plan.conflict.title": "These slots already have meals",
   "plan.conflict.description": "Replace the existing items or add the new ones next to them?",
   "plan.conflict.overwrite": "Replace",

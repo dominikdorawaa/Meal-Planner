@@ -88,7 +88,7 @@ describe('Plan copying', () => {
     const { container } = renderPlan()
 
     openMealMenu(container, '2026-10-12', 'lunch')
-    click(/Kopiuj na następny dzień/)
+    click(/Skopiuj na następny dzień/)
 
     expect(await screen.findByText('Skopiowano')).toBeTruthy()
     expect(mocks.add).toHaveBeenCalledWith(expect.objectContaining({ meal_date: '2026-10-13', meal_type: 'lunch', manual_name: 'Coffee' }))
@@ -101,7 +101,7 @@ describe('Plan copying', () => {
     const { container } = renderPlan()
 
     openMealMenu(container, '2026-10-12', 'breakfast')
-    click(/Kopiuj na następny dzień/)
+    click(/Skopiuj na następny dzień/)
 
     const dialog = screen.getByRole('dialog', { name: 'Te miejsca mają już posiłki' })
     expect(within(dialog).getByText('Yogurt')).toBeTruthy()
@@ -118,7 +118,7 @@ describe('Plan copying', () => {
     const { container } = renderPlan()
 
     openMealMenu(container, '2026-10-12', 'breakfast')
-    click(/Kopiuj na następny dzień/)
+    click(/Skopiuj na następny dzień/)
     click('Nadpisz')
 
     expect(await screen.findByText('Skopiowano')).toBeTruthy()
@@ -135,7 +135,7 @@ describe('Plan copying', () => {
     const { container } = renderPlan()
 
     openMealMenu(container, '2026-10-12', 'breakfast')
-    click(/Kopiuj na następny dzień/)
+    click(/Skopiuj na następny dzień/)
     click('Anuluj')
 
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -147,7 +147,7 @@ describe('Plan copying', () => {
     renderPlan()
 
     openDayMenu(13)
-    click(/Kopiuj na następny dzień/)
+    click(/Skopiuj na następny dzień/)
 
     expect(await screen.findByText('Skopiowano')).toBeTruthy()
     expect(mocks.add).toHaveBeenCalledOnce()
@@ -158,7 +158,7 @@ describe('Plan copying', () => {
     renderPlan()
 
     openDayMenu(3)
-    click(/Kopiuj na następny dzień/)
+    click(/Skopiuj na następny dzień/)
 
     expect(screen.getByText('Ten dzień nie ma jeszcze posiłków')).toBeTruthy()
     expect(mocks.add).not.toHaveBeenCalled()
@@ -213,7 +213,7 @@ describe('Plan copying', () => {
     const { container } = renderPlan()
 
     openMealMenu(container, '2026-10-12', 'lunch')
-    click(/Kopiuj na następny dzień/)
+    click(/Skopiuj na następny dzień/)
 
     expect(await screen.findByText('Nie udało się zapisać zmian. Spróbuj ponownie.')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Cofnij' })).toBeNull()
@@ -223,7 +223,7 @@ describe('Plan copying', () => {
     const { container } = renderPlan()
 
     openMealMenu(container, '2026-10-12', 'lunch')
-    click(/Kopiuj na następny dzień/)
+    click(/Skopiuj na następny dzień/)
     await screen.findByText('Skopiowano')
     mocks.delete.mockRejectedValue(new Error('Server error (500)'))
     click('Cofnij')
@@ -240,8 +240,8 @@ describe('Plan moving', () => {
     click(/Przenieś do\.\.\./)
     expect(screen.getByText('Wybierz jedno miejsce docelowe')).toBeTruthy()
 
-    fireEvent.click(slot(container, '2026-10-14', 'lunch').getByText('Wklej'))
-    fireEvent.click(slot(container, '2026-10-15', 'lunch').getByText('Wklej'))
+    fireEvent.click(slot(container, '2026-10-14', 'lunch').getByText('Tutaj'))
+    fireEvent.click(slot(container, '2026-10-15', 'lunch').getByText('Tutaj'))
     click('Przenieś')
 
     expect(await screen.findByText('Przeniesiono')).toBeTruthy()

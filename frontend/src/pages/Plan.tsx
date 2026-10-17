@@ -398,6 +398,7 @@ export function Plan() {
     const slotKey = `${date}_${mealType}`;
     const isCopyMode = !!copyModeMeal || !!copyModeDay;
     const isSelected = !!copyModeMeal ? selectedCopySlots.includes(slotKey) : selectedCopyDays.includes(date);
+    const copyLabel = mealSelectionAction === 'move' ? t('plan.move.slot') : 'Wklej';
 
     const assignedMeals = userMeals.filter(m => m.meal_date === date && m.meal_type === mealType);
 
@@ -427,7 +428,7 @@ export function Plan() {
 
               if (rid) {
                 const recipe = recipes.find(r => r.id === rid);
-                if (!recipe) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
+                if (!recipe) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} copyLabel={copyLabel} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
 
                 const mult = assignedMeal.portions_consumed || 1;
                 return (
@@ -469,7 +470,7 @@ export function Plan() {
                 );
               } else if (pid) {
                 const product = resolveMealProduct(assignedMeal, userMeals);
-                if (!product) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
+                if (!product) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} copyLabel={copyLabel} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
 
                 const weight = assignedMeal.portions_consumed || 100;
                 const factor = product.unit === 'pc' ? weight : (weight / 100);
@@ -560,7 +561,7 @@ export function Plan() {
         </div>
       );
     }
-    return <PlanCard onClick={onSlotClick} isCopyMode={isCopyMode} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} isToday={isToday} />;
+    return <PlanCard onClick={onSlotClick} isCopyMode={isCopyMode} copyLabel={copyLabel} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} isToday={isToday} />;
   };
 
   if (contextLoading || !profile || profile.target_kcal === 0 || !profile.target_kcal) {
@@ -1192,7 +1193,7 @@ function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick
   return <div className={CARD_WRAPPER}>{content}</div>;
 }
 
-function PlanCard({ onClick, isCopyMode, isSelected, disabled, isToday, noWrap }: { onClick: () => void, isCopyMode?: boolean, isSelected?: boolean, disabled?: boolean, isToday?: boolean, noWrap?: boolean }) {
+function PlanCard({ onClick, isCopyMode, copyLabel, isSelected, disabled, isToday, noWrap }: { onClick: () => void, isCopyMode?: boolean, copyLabel: string, isSelected?: boolean, disabled?: boolean, isToday?: boolean, noWrap?: boolean }) {
   const content = (
     <div onClick={disabled ? undefined : onClick} className={`relative w-full max-w-[130px] h-[120px] sm:h-[135px] rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-300 group overflow-hidden ${disabled ? 'opacity-30 bg-surface-container-highest/10 pointer-events-none' : isCopyMode ? 'bg-surface-container-highest/20 cursor-pointer' : 'bg-transparent border border-dashed border-outline-variant/20 hover:bg-surface-container-highest/30 hover:border-primary/30 cursor-pointer active:scale-95'} ${isSelected ? '!bg-primary/10 border-solid border-primary ring-2 ring-primary' : ''} ${isToday ? 'ring-2 ring-[#ff9800]/25 bg-[#ff9800]/[0.01]' : ''}`}>
 
@@ -1209,7 +1210,7 @@ function PlanCard({ onClick, isCopyMode, isSelected, disabled, isToday, noWrap }
         <span className="text-primary/60 text-[9px] font-bold tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity">Plan</span>
       )}
       {isCopyMode && (
-        <span className="text-primary/70 text-[9px] font-bold tracking-widest uppercase">Wklej</span>
+        <span className="text-primary/70 text-[9px] font-bold tracking-widest uppercase">{copyLabel}</span>
       )}
     </div>
   );
