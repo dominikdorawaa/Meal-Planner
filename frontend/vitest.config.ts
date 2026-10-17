@@ -37,6 +37,7 @@ export default defineConfig({
         'src/lib/mealSettings.ts',
         'src/components/MealSettingsList.tsx',
         'src/lib/planTransfer.ts',
+        'src/lib/planPosition.ts',
         'src/components/PlanConflictDialog.tsx',
         'src/components/UndoSnackbar.tsx',
         'src/lib/planSelection.ts',
