@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
+import { addDaysToIsoDate, firstDayOfMonth, formatDayMonth, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { productDisplayName } from '../lib/productName';
 import { canDeleteProduct } from '../lib/productPermissions';
 
@@ -33,16 +34,7 @@ export function ProductDetails() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [calendarDate, setCalendarDate] = useState(() => {
-    if (selectDate) {
-      const parts = selectDate.split('.');
-      if (parts.length === 2) {
-        const now = new Date();
-        return new Date(now.getFullYear(), parseInt(parts[1], 10) - 1, 1);
-      }
-    }
-    return new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-  });
+  const [calendarDate, setCalendarDate] = useState(() => firstDayOfMonth(selectDate));
 
   const availableMealTypes = useMemo(() => {
     if (profile?.meal_config && profile.meal_config.length > 0) {
@@ -113,19 +105,11 @@ export function ProductDetails() {
     if (!user || !product || !targetDate || !targetType) return;
     setIsAdding(true);
 
-    const getNextDate = (startStr: string, offset: number) => {
-      const [d, m] = startStr.split('.').map(Number);
-      const year = new Date().getFullYear();
-      const date = new Date(year, m - 1, d);
-      date.setDate(date.getDate() + offset);
-      return `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}`;
-    };
-
     const mealInserts = [];
     for (let i = 0; i < daysToAdd; i++) {
       mealInserts.push({
         product: { id: product.id },
-        date_str: getNextDate(targetDate, i),
+        meal_date: addDaysToIsoDate(targetDate, i),
         meal_type: targetType,
         portions_consumed: currentWeight
       });
@@ -165,9 +149,8 @@ export function ProductDetails() {
     breakfast: 'Śniadanie', snack1: '2 Śniadanie', lunch: 'Lunch', snack2: 'Przekąska', dinner: 'Obiad', supper: 'Kolacja',
   };
   const mealLabel = availableMealTypes.find((m: any) => m.id === activeMealType)?.name || MEAL_TYPE_LABELS[activeMealType] || activeMealType;
-  const today = new Date();
-  const todayStr = `${String(today.getDate()).padStart(2,'0')}.${String(today.getMonth()+1).padStart(2,'0')}`;
-  const activeDateDisplay = activeDate === todayStr ? 'Dzisiaj' : (activeDate || selectDate);
+  const todayStr = todayIsoDate();
+  const activeDateDisplay = activeDate === todayStr ? 'Dzisiaj' : formatDayMonth(activeDate || selectDate || '');
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
@@ -239,7 +222,7 @@ export function ProductDetails() {
                     const cells = [];
                     for (let i = 0; i < offset; i++) cells.push(<span key={`e${i}`} />);
                     for (let d = 1; d <= daysInMonth; d++) {
-                      const ds = `${String(d).padStart(2,'0')}.${String(month+1).padStart(2,'0')}`;
+                      const ds = toIsoDate(new Date(year, month, d));
                       const isActive = activeDate === ds;
                       const isTodayDay = todayStr === ds;
                       cells.push(

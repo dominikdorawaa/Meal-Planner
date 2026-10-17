@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -27,8 +28,8 @@ public class UserMeal {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "date_str", nullable = false)
-    private String dateStr;
+    @Column(name = "meal_date", nullable = false)
+    private LocalDate mealDate;
 
     @Column(name = "meal_type", nullable = false)
     private String mealType;

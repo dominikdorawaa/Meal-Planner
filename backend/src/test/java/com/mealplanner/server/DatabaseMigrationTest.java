@@ -21,6 +21,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -62,7 +63,7 @@ class DatabaseMigrationTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "select version, success from flyway_schema_history where version is not null order by installed_rank");
 
-        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7");
+        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
         assertThat(history).allSatisfy(row -> assertThat(row.get("success")).isEqualTo(true));
     }
 
@@ -212,6 +213,46 @@ class DatabaseMigrationTest {
                 .isNull();
         assertThatThrownBy(() -> jdbcTemplate.update("insert into " + schema + ".products (id, name, source) values (?, ?, 'OFF')",
                 UUID.randomUUID(), "Old source"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    @Test
+    void storesExistingMealDatesWithTheYearClosestToTheirCreationTime() {
+        String schema = "meal_date_migration_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("7").load().migrate();
+        UUID userId = UUID.randomUUID();
+        jdbcTemplate.update("insert into " + schema + ".app_users (id, email, password_hash) values (?, ?, ?)",
+                userId, "meals@example.com", "hash");
+        String[][] meals = {
+                {"same-year", "16.10", "2026-10-15 12:00:00+02"},
+                {"next-year", "02.01", "2025-12-30 12:00:00+01"},
+                {"previous-year", "30.12", "2026-01-02 12:00:00+01"},
+                {"leap-day", "29.02", "2028-02-20 12:00:00+01"},
+                {"late-evening", "01.01", "2025-12-31 23:30:00+00"},
+                {"invalid", "31.02", "2026-05-05 12:00:00+02"},
+                {"no-creation-time", "abc", null}};
+        for (String[] meal : meals) {
+            jdbcTemplate.update("insert into " + schema + ".user_meals (id, user_id, date_str, meal_type, manual_name, created_at) "
+                    + "values (?, ?, ?, 'breakfast', ?, ?::timestamptz)", UUID.randomUUID(), userId, meal[1], meal[0], meal[2]);
+        }
+
+        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+
+        Map<String, String> dates = new HashMap<>();
+        jdbcTemplate.queryForList("select manual_name, meal_date::text as meal_date from " + schema + ".user_meals")
+                .forEach(row -> dates.put((String) row.get("manual_name"), (String) row.get("meal_date")));
+        assertThat(dates).containsEntry("same-year", "2026-10-16")
+                .containsEntry("next-year", "2026-01-02")
+                .containsEntry("previous-year", "2025-12-30")
+                .containsEntry("leap-day", "2028-02-29")
+                .containsEntry("late-evening", "2026-01-01")
+                .containsEntry("invalid", "2026-05-05");
+        assertThat(dates.get("no-creation-time")).isNotNull();
+        assertThat(jdbcTemplate.queryForList("select column_name from information_schema.columns where table_schema = ? "
+                + "and table_name = 'user_meals' and column_name = 'date_str'", String.class, schema)).isEmpty();
+        assertThatThrownBy(() -> jdbcTemplate.update("insert into " + schema + ".user_meals (id, user_id, meal_type) "
+                + "values (?, ?, 'breakfast')", UUID.randomUUID(), userId))
                 .isInstanceOf(DataIntegrityViolationException.class);
         jdbcTemplate.execute("drop schema " + schema + " cascade");
     }

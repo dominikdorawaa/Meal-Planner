@@ -18,6 +18,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -76,7 +77,7 @@ class ProductPermissionsIntegrationTest {
     private void saveMealWith(Product product, User user) {
         UserMeal meal = new UserMeal();
         meal.setUser(user);
-        meal.setDateStr("16.10");
+        meal.setMealDate(LocalDate.of(2026, 10, 16));
         meal.setMealType("breakfast");
         meal.setProduct(product);
         userMealRepository.save(meal);

@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 import { formatMacrosShort } from '../lib/macros';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
+import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, planDays } from '../lib/planDates';
 
 const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN"; // Tylko marker do logiki poniżej
 
@@ -17,16 +18,6 @@ const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN"; // Tylko marker do logiki po
 const CARD_WRAPPER = "w-[33.3333vw] sm:w-[150px] shrink-0 px-2 sm:px-3 snap-start flex justify-center";
 
 
-
-const formatFullDate = (dayName: string, dateStr: string) => {
-  const months = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia"];
-  const parts = dateStr.split('.');
-  if (parts.length !== 2) return `${dayName} (${dateStr})`;
-  const d = parseInt(parts[0], 10);
-  const m = parseInt(parts[1], 10);
-  if (isNaN(d) || isNaN(m) || m < 1 || m > 12) return `${dayName} (${dateStr})`;
-  return `${dayName}, ${d} ${months[m - 1]}`;
-};
 
 const MEAL_TYPES = [
   { id: 'breakfast', name: 'Śniadanie', icon: 'light_mode' },
@@ -83,24 +74,7 @@ export function Plan() {
     sessionStorage.setItem('planBaseDate', baseDate.toISOString());
   }, [baseDate]);
 
-  const generateDays = (startDate: Date, count: number = 14) => {
-    const daysList = [];
-    const dayNames = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota'];
-    for (let i = 0; i < count; i++) {
-      const d = new Date(startDate);
-      d.setDate(startDate.getDate() + i);
-      const dayName = dayNames[d.getDay()];
-      const dateStr = `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-      const today = new Date();
-      const isToday = d.getDate() === today.getDate() &&
-        d.getMonth() === today.getMonth() &&
-        d.getFullYear() === today.getFullYear();
-      daysList.push({ name: dayName, date: dateStr, active: true, isToday });
-    }
-    return daysList;
-  };
-
-  const days = generateDays(baseDate);
+  const days = planDays(baseDate);
 
   const handlePrevWeek = () => {
     setBaseDate(prev => {
@@ -176,26 +150,13 @@ export function Plan() {
   };
 
   const handleCopyToNextDay = async (meal: any) => {
-    const todayIdx = days.findIndex(d => d.date === meal.date_str);
-
-    let tomorrowDateStr;
-    if (todayIdx === -1 || todayIdx === days.length - 1) {
-      // Jeśli nie ma jutra w tablicy, obliczamy datę na podstawie meal.date_str
-      const parts = meal.date_str.split('.');
-      const d = new Date();
-      d.setDate(parseInt(parts[0]));
-      d.setMonth(parseInt(parts[1]) - 1);
-      d.setDate(d.getDate() + 1);
-      tomorrowDateStr = `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-    } else {
-      tomorrowDateStr = days[todayIdx + 1].date;
-    }
+    const tomorrowDateStr = addDaysToIsoDate(meal.meal_date, 1);
 
     try {
       await api.meals.add({
         recipe: (meal.recipe?.id || meal.recipe) ? { id: (meal.recipe?.id || meal.recipe) } : null,
         product: (meal.product?.id || meal.product) ? { id: (meal.product?.id || meal.product) } : null,
-        date_str: tomorrowDateStr,
+        meal_date: tomorrowDateStr,
         meal_type: meal.meal_type,
         portions_consumed: meal.portions_consumed,
         manual_name: meal.manual_name,
@@ -215,9 +176,9 @@ export function Plan() {
     let conflicts: any[];
 
     if (copyModeMeal && selectedCopySlots.length > 0) {
-      conflicts = userMeals.filter(m => selectedCopySlots.includes(`${m.date_str}_${m.meal_type}`));
+      conflicts = userMeals.filter(m => selectedCopySlots.includes(`${m.meal_date}_${m.meal_type}`));
     } else if (copyModeDay && selectedCopyDays.length > 0) {
-      conflicts = userMeals.filter(m => selectedCopyDays.includes(m.date_str));
+      conflicts = userMeals.filter(m => selectedCopyDays.includes(m.meal_date));
     } else {
       return;
     }
@@ -240,13 +201,15 @@ export function Plan() {
 
       if (copyModeMeal) {
         selectedCopySlots.forEach(slotStr => {
-          const [dateStr, mealType] = slotStr.split('_');
+          const separatorIndex = slotStr.indexOf('_');
+          const dateStr = slotStr.slice(0, separatorIndex);
+          const mealType = slotStr.slice(separatorIndex + 1);
           const rid = copyModeMeal.recipe?.id || copyModeMeal.recipe;
           const pid = copyModeMeal.product?.id || copyModeMeal.product;
           promises.push(api.meals.add({
             recipe: rid ? { id: rid } : null,
             product: pid ? { id: pid } : null,
-            date_str: dateStr,
+            meal_date: dateStr,
             meal_type: mealType,
             portions_consumed: copyModeMeal.portions_consumed,
             manual_name: copyModeMeal.manual_name,
@@ -257,7 +220,7 @@ export function Plan() {
           }));
         });
       } else if (copyModeDay) {
-        const mealsToCopy = userMeals.filter(m => m.date_str === copyModeDay);
+        const mealsToCopy = userMeals.filter(m => m.meal_date === copyModeDay);
         selectedCopyDays.forEach(targetDate => {
           mealsToCopy.forEach(meal => {
             const rid = meal.recipe?.id || meal.recipe;
@@ -265,7 +228,7 @@ export function Plan() {
             promises.push(api.meals.add({
               recipe: rid ? { id: rid } : null,
               product: pid ? { id: pid } : null,
-              date_str: targetDate,
+              meal_date: targetDate,
               meal_type: meal.meal_type,
               portions_consumed: meal.portions_consumed,
               manual_name: meal.manual_name,
@@ -295,9 +258,9 @@ export function Plan() {
 
   const handleDeleteDay = async (dateStr: string) => {
     // Optimistic update
-    setUserMeals(prev => prev.filter(m => m.date_str !== dateStr));
+    setUserMeals(prev => prev.filter(m => m.meal_date !== dateStr));
     try {
-      const mealsToDelete = userMeals.filter(m => m.date_str === dateStr);
+      const mealsToDelete = userMeals.filter(m => m.meal_date === dateStr);
       await Promise.all(mealsToDelete.map(m => api.meals.delete(m.id)));
       setDayToDelete(null);
       await refreshMeals();
@@ -311,7 +274,7 @@ export function Plan() {
     try {
       let mealsToProcess: any[] = [];
       const explicitMeals = userMeals.filter(m => selectedShoppingMeals.includes(m.id));
-      const dayMeals = userMeals.filter(m => selectedShoppingDays.includes(m.date_str) && !selectedShoppingMeals.includes(m.id));
+      const dayMeals = userMeals.filter(m => selectedShoppingDays.includes(m.meal_date) && !selectedShoppingMeals.includes(m.id));
       mealsToProcess = [...explicitMeals, ...dayMeals];
 
       if (mealsToProcess.length === 0) return;
@@ -401,11 +364,11 @@ export function Plan() {
     }
     const tomorrow = days[todayIdx + 1];
 
-    const mealsToCopy = userMeals.filter(m => m.date_str === dateStr);
+    const mealsToCopy = userMeals.filter(m => m.meal_date === dateStr);
     if (mealsToCopy.length === 0) return;
 
     // Jeżeli jutro ma jakieś posiłki - zrób małą symulację konfliktu by powiadomić usera (tutaj zrobimy bez, ale to miejsce na hot-fix jeśli trzeba)
-    const existingTomorrowMeals = userMeals.filter(m => m.date_str === tomorrow.date);
+    const existingTomorrowMeals = userMeals.filter(m => m.meal_date === tomorrow.date);
     if (existingTomorrowMeals.length > 0) {
       // Dla szybkiej ścieżki po prostu wywołujemy modal:
       setCopyModeDay(dateStr);
@@ -419,7 +382,7 @@ export function Plan() {
       await Promise.all(mealsToCopy.map(m => api.meals.add({
         recipe: (m.recipe?.id || m.recipe) ? { id: (m.recipe?.id || m.recipe) } : null,
         product: (m.product?.id || m.product) ? { id: (m.product?.id || m.product) } : null,
-        date_str: tomorrow.date,
+        meal_date: tomorrow.date,
         meal_type: m.meal_type,
         portions_consumed: m.portions_consumed,
         manual_name: m.manual_name,
@@ -445,7 +408,7 @@ export function Plan() {
     const isCopyMode = !!copyModeMeal || !!copyModeDay;
     const isSelected = !!copyModeMeal ? selectedCopySlots.includes(slotKey) : selectedCopyDays.includes(date);
 
-    const assignedMeals = userMeals.filter(m => m.date_str === date && m.meal_type === mealType);
+    const assignedMeals = userMeals.filter(m => m.meal_date === date && m.meal_type === mealType);
 
     const validMeals = assignedMeals.filter(m => {
       const rid = m.recipe?.id || m.recipe;
@@ -689,11 +652,11 @@ export function Plan() {
                           const isDaySelected = selectedShoppingDays.includes(day.date);
                           if (isDaySelected) {
                             setSelectedShoppingDays(prev => prev.filter(d => d !== day.date));
-                            const dayMealIds = userMeals.filter(m => m.date_str === day.date).map(m => m.id);
+                            const dayMealIds = userMeals.filter(m => m.meal_date === day.date).map(m => m.id);
                             setSelectedShoppingMeals(prev => prev.filter(id => !dayMealIds.includes(id)));
                           } else {
                             setSelectedShoppingDays(prev => [...prev, day.date]);
-                            const dayMealIds = userMeals.filter(m => m.date_str === day.date).map(m => m.id);
+                            const dayMealIds = userMeals.filter(m => m.meal_date === day.date).map(m => m.id);
                             setSelectedShoppingMeals(prev => [...new Set([...prev, ...dayMealIds])]);
                           }
                         } else if (isDayCopyMode) {
@@ -707,7 +670,7 @@ export function Plan() {
                       <div className="flex flex-col w-full">
                         <div className="flex justify-between items-center w-full">
                           <div className={`w-11 h-11 rounded-full text-[13px] font-headline font-extrabold flex items-center justify-center shadow-md transition-all duration-500 ${day.isToday ? 'bg-[#ff9800] text-white ring-4 ring-[#ff9800]/20' : (day.active ? 'bg-primary text-on-primary' : 'bg-primary/10 text-primary')}`}>
-                            {day.date}
+                            {formatDayMonth(day.date)}
                           </div>
 
                           {shoppingSelectionMode ? (
@@ -883,7 +846,7 @@ export function Plan() {
               </div>
               <div className="flex flex-col truncate w-full">
                 <span className="font-bold text-xs text-on-surface truncate pr-2">Kopiowanie dnia</span>
-                <span className="text-[10px] text-on-surface-variant font-medium truncate">Szablon: {copyDay ? formatFullDate(copyDay.name, copyDay.date) : ''}</span>
+                <span className="text-[10px] text-on-surface-variant font-medium truncate">Szablon: {copyDay ? formatDayWithMonthName(copyDay.name, copyDay.date) : ''}</span>
               </div>
             </div>
 
@@ -918,11 +881,11 @@ export function Plan() {
                   const rid = meal.recipe?.id || meal.recipe;
                   const pid = meal.product?.id || meal.product;
                   if (rid) {
-                    navigate(`/recipe/${rid}?selectDate=${meal.date_str}&selectType=${meal.meal_type}&mealId=${meal.id}`);
+                    navigate(`/recipe/${rid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   } else if (pid) {
-                    navigate(`/product/${pid}?selectDate=${meal.date_str}&selectType=${meal.meal_type}&mealId=${meal.id}`);
+                    navigate(`/product/${pid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   } else {
-                    navigate(`/add-food?selectDate=${meal.date_str}&selectType=${meal.meal_type}&mealId=${meal.id}`);
+                    navigate(`/add-food?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   }
                   setActiveMealMenu(null);
                 }}
@@ -961,7 +924,7 @@ export function Plan() {
       {copyModeMeal && (() => {
         const rid = copyModeMeal.recipe?.id || copyModeMeal.recipe;
         const copyRecipe = recipes.find(r => r.id === rid);
-        const copyDay = days.find(d => d.date === copyModeMeal.date_str);
+        const copyDay = days.find(d => d.date === copyModeMeal.meal_date);
         return (
           <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[90%] max-w-[420px] bg-surface-container-lowest shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[2rem] p-3 pl-4 flex items-center justify-between z-[200] animate-slide-up border border-outline-variant/30 overflow-hidden">
 
@@ -978,7 +941,7 @@ export function Plan() {
               )}
               <div className="flex flex-col truncate w-full">
                 <span className="font-bold text-xs text-on-surface truncate pr-2">{copyRecipe?.name || "Kopiowanie"}</span>
-                <span className="text-[10px] text-on-surface-variant font-medium truncate">Z: {copyDay ? formatFullDate(copyDay.name, copyDay.date) : ''}</span>
+                <span className="text-[10px] text-on-surface-variant font-medium truncate">Z: {copyDay ? formatDayWithMonthName(copyDay.name, copyDay.date) : ''}</span>
               </div>
             </div>
 
@@ -1002,7 +965,7 @@ export function Plan() {
       {shoppingSelectionMode && (() => {
         const uniqueMealsCount = new Set([
           ...selectedShoppingMeals,
-          ...userMeals.filter(m => selectedShoppingDays.includes(m.date_str)).map(m => m.id)
+          ...userMeals.filter(m => selectedShoppingDays.includes(m.meal_date)).map(m => m.id)
         ]).size;
 
         return (
@@ -1047,7 +1010,7 @@ export function Plan() {
               {slotsToOverwrite.map((m, idx) => {
                 const rid = m.recipe?.id || m.recipe;
                 const recipe = recipes.find(r => r.id === rid);
-                const day = days.find(d => d.date === m.date_str);
+                const day = days.find(d => d.date === m.meal_date);
                 if (!recipe || !day) return null;
                 return (
                   <div key={idx} className="flex items-center gap-3 p-3 bg-error/5 border border-error/10 rounded-2xl w-full">
@@ -1061,7 +1024,7 @@ export function Plan() {
                     </div>
                     <div className="flex flex-col overflow-hidden text-left w-full">
                       <span className="text-xs font-bold text-on-surface truncate">{recipe.name}</span>
-                      <span className="text-[10px] text-error font-medium truncate mt-0.5 opacity-80">{formatFullDate(day.name, day.date)} • {getMealTypeName(m.meal_type)}</span>
+                      <span className="text-[10px] text-error font-medium truncate mt-0.5 opacity-80">{formatDayWithMonthName(day.name, day.date)} • {getMealTypeName(m.meal_type)}</span>
                     </div>
                   </div>
                 );
@@ -1090,7 +1053,7 @@ export function Plan() {
       {mealToDelete && (() => {
         const rid = mealToDelete.recipe?.id || mealToDelete.recipe;
         const recipe = recipes.find(r => r.id === rid);
-        const day = days.find(d => d.date === mealToDelete.date_str);
+        const day = days.find(d => d.date === mealToDelete.meal_date);
 
         return (
           <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-fade-in pointer-events-none">
@@ -1119,7 +1082,7 @@ export function Plan() {
 
               <div className="flex flex-col items-center gap-1.5 bg-error/5 border border-error/10 rounded-2xl p-3 mb-6 w-full">
                 <span className="text-error font-bold text-xs">
-                  {day ? formatFullDate(day.name, day.date) : ''}
+                  {day ? formatDayWithMonthName(day.name, day.date) : ''}
                 </span>
                 <div className="bg-error/10 px-2 py-0.5 rounded-md text-error font-bold text-[10px] tracking-wide uppercase">
                   {getMealTypeName(mealToDelete.meal_type)}
@@ -1158,7 +1121,7 @@ export function Plan() {
                 <span className="material-symbols-outlined text-3xl">delete_sweep</span>
               </div>
               <h3 className="font-headline font-bold text-lg text-on-surface mb-1">Czyszczenie dnia</h3>
-              <p className="text-on-surface-variant text-xs mb-6">Trwale usuniesz wszystkie posiłki z: <b>{d ? formatFullDate(d.name, d.date) : ''}</b></p>
+              <p className="text-on-surface-variant text-xs mb-6">Trwale usuniesz wszystkie posiłki z: <b>{d ? formatDayWithMonthName(d.name, d.date) : ''}</b></p>
 
               <div className="flex gap-2 w-full">
                 <button

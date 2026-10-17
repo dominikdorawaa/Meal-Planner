@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
+import { addDaysToIsoDate, firstDayOfMonth, formatDayMonth, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { targetRange } from '../lib/macros';
 
@@ -43,16 +44,7 @@ export function RecipeDetails() {
   const [activeMealType, setActiveMealType] = useState(selectType || '');
   const [showMealPicker, setShowMealPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [calendarDate, setCalendarDate] = useState(() => {
-    if (selectDate) {
-      const parts = selectDate.split('.');
-      if (parts.length === 2) {
-        const now = new Date();
-        return new Date(now.getFullYear(), parseInt(parts[1], 10) - 1, 1);
-      }
-    }
-    return new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-  });
+  const [calendarDate, setCalendarDate] = useState(() => firstDayOfMonth(selectDate));
 
   const availableMealTypes = useMemo(() => {
     if (profile?.meal_config && profile.meal_config.length > 0) {
@@ -153,23 +145,11 @@ export function RecipeDetails() {
       return;
     }
 
-    // Funkcja do obliczania daty DD.MM na podstawie offsetu dni
-    const getNextDate = (startStr: string, offset: number) => {
-      const [d, m] = startStr.split('.').map(Number);
-      const year = new Date().getFullYear();
-      const date = new Date(year, m - 1, d);
-      date.setDate(date.getDate() + offset);
-      
-      const resD = String(date.getDate()).padStart(2, '0');
-      const resM = String(date.getMonth() + 1).padStart(2, '0');
-      return `${resD}.${resM}`;
-    };
-
     for (let i = 0; i < daysToAdd; i++) {
       try {
         await api.meals.add({
           recipe: { id: recipe.id },
-          date_str: getNextDate(targetDate, i),
+          meal_date: addDaysToIsoDate(targetDate, i),
           meal_type: targetType,
           portions_consumed: consumedPortions
         });
@@ -241,16 +221,12 @@ export function RecipeDetails() {
   const pctF = Math.round((calF / totalCal) * 100);
   const pctC = Math.round((calC / totalCal) * 100);
 
-  const today = new Date();
-  const todayDateStr = `${today.getDate().toString().padStart(2, '0')}.${(today.getMonth() + 1).toString().padStart(2, '0')}`;
-  const isToday = selectDate === todayDateStr;
-  const dateDisplay = isToday ? 'Dzisiaj' : selectDate;
+  const todayStr = todayIsoDate();
+  const dateDisplay = selectDate === todayStr ? 'Dzisiaj' : formatDayMonth(selectDate || '');
 
   const mealLabel = availableMealTypes.find((m: any) => m.id === activeMealType)?.name || activeMealType || selectType || '';
 
-  const today2 = new Date();
-  const todayStr2 = `${String(today2.getDate()).padStart(2,'0')}.${String(today2.getMonth()+1).padStart(2,'0')}`;
-  const activeDateDisplay = activeDate === todayStr2 ? 'Dzisiaj' : (activeDate || dateDisplay);
+  const activeDateDisplay = activeDate ? (activeDate === todayStr ? 'Dzisiaj' : formatDayMonth(activeDate)) : dateDisplay;
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
@@ -332,9 +308,9 @@ export function RecipeDetails() {
                       const cells = [];
                       for (let i = 0; i < offset; i++) cells.push(<span key={`e${i}`} />);
                       for (let d = 1; d <= daysInMonth; d++) {
-                        const ds = `${String(d).padStart(2,'0')}.${String(month+1).padStart(2,'0')}`;
+                        const ds = toIsoDate(new Date(year, month, d));
                         const isActive = activeDate === ds;
-                        const isTodayDay = todayStr2 === ds;
+                        const isTodayDay = todayStr === ds;
                         cells.push(
                           <button key={d} onClick={() => { setActiveDate(ds); setShowDatePicker(false); }}
                             className={`w-full aspect-square flex items-center justify-center rounded-full text-xs font-bold transition-all active:scale-90 ${isActive ? 'bg-primary text-on-primary' : isTodayDay ? 'border border-primary text-primary' : 'text-on-surface hover:bg-surface-container'}`}>
@@ -808,24 +784,15 @@ export function RecipeDetails() {
             <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">Dzień</p>
             <div className="grid grid-cols-3 gap-2 mb-3">
               {(() => {
-                const fmt = (offset: number) => {
-                  const d = new Date();
-                  d.setDate(d.getDate() + offset);
-                  return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
-                };
-                const fmtISO = (offset: number) => {
-                  const d = new Date();
-                  d.setDate(d.getDate() + offset);
-                  return d.toISOString().slice(0, 10);
-                };
+                const today = todayIsoDate();
                 return [
-                  { label: 'Dziś', val: fmt(0), iso: fmtISO(0) },
-                  { label: 'Jutro', val: fmt(1), iso: fmtISO(1) },
-                  { label: 'Pojutrze', val: fmt(2), iso: fmtISO(2) },
+                  { label: 'Dziś', val: today },
+                  { label: 'Jutro', val: addDaysToIsoDate(today, 1) },
+                  { label: 'Pojutrze', val: addDaysToIsoDate(today, 2) },
                 ].map(opt => (
                   <button
                     key={opt.val}
-                    onClick={() => { setQuickDate(opt.val); setQuickDateInput(opt.iso); }}
+                    onClick={() => { setQuickDate(opt.val); setQuickDateInput(opt.val); }}
                     className={`py-3 rounded-2xl font-bold text-sm border-2 transition-all active:scale-95 ${
                       quickDate === opt.val
                         ? 'border-primary bg-primary/10 text-primary'
@@ -833,7 +800,7 @@ export function RecipeDetails() {
                     }`}
                   >
                     <div>{opt.label}</div>
-                    <div className="text-[10px] font-medium opacity-60">{opt.val}</div>
+                    <div className="text-[10px] font-medium opacity-60">{formatDayMonth(opt.val)}</div>
                   </button>
                 ));
               })()}
@@ -866,9 +833,7 @@ export function RecipeDetails() {
                   const iso = e.target.value;
                   setQuickDateInput(iso);
                   if (iso) {
-                    const d = new Date(iso + 'T00:00:00');
-                    const ds = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
-                    setQuickDate(ds);
+                    setQuickDate(iso);
                   }
                 }}
               />
