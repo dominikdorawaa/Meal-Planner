@@ -1,5 +1,6 @@
 package com.mealplanner.server.off;
 
+import com.mealplanner.server.product.ExtraNutrients;
 import com.mealplanner.server.product.NutritionCheck;
 import com.mealplanner.server.product.NutritionIssue;
 import com.mealplanner.server.product.NutritionRounding;
@@ -34,8 +35,8 @@ public final class OffCandidatesExport {
     static final String DUPLICATE_BAR_CODE = "DUPLICATE_BAR_CODE";
     static final String NAME_NOT_POLISH = "NAME_NOT_POLISH";
     static final String PRODUCT_URL = "https://world.openfoodfacts.org/product/";
-    static final List<String> HEADER = List.of("code", "name", "brand", "kcal", "protein", "fat", "carbs", "unit",
-            "quantity", "validation", "reasons", "import", "url");
+    static final List<String> HEADER = List.of("code", "name", "brand", "kcal", "protein", "fat", "carbs",
+            "saturated_fat", "sugars", "fiber", "salt", "unit", "quantity", "validation", "reasons", "import", "url");
     static final String FORMULA_PREFIXES = "=+-@\t\r";
     static final char TEXT_MARKER = '\'';
 
@@ -108,10 +109,13 @@ public final class OffCandidatesExport {
         List<String> reasons = new ArrayList<>(errors);
         check.warnings().forEach(warning -> reasons.add(warning.name()));
         boolean ok = errors.isEmpty();
+        Double fat = NutritionRounding.grams(product.fat());
+        Double carbs = NutritionRounding.grams(product.carbs());
+        ExtraNutrients extras = product.extras().rounded().plausibleFor(fat, carbs);
         return List.of(barCodeCell(product.code()), textCell(product.name()), textCell(product.brand()),
                 decimal(NutritionRounding.kcal(product.kcal())), decimal(NutritionRounding.grams(product.protein())),
-                decimal(NutritionRounding.grams(product.fat())), decimal(NutritionRounding.grams(product.carbs())),
-                UNIT, textCell(product.quantity()),
+                decimal(fat), decimal(carbs), decimal(extras.saturatedFat()), decimal(extras.sugars()),
+                decimal(extras.fiber()), decimal(extras.salt()), UNIT, textCell(product.quantity()),
                 ok ? "OK" : "REJECTED", String.join(",", reasons), ok ? "yes" : "no", PRODUCT_URL + product.code());
     }
 

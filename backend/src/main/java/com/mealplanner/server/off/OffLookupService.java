@@ -1,6 +1,7 @@
 package com.mealplanner.server.off;
 
 import com.mealplanner.server.product.BarCodes;
+import com.mealplanner.server.product.NutritionRounding;
 import com.mealplanner.server.product.NutritionValidator;
 import com.mealplanner.server.product.Product;
 import com.mealplanner.server.product.ProductRepository;
@@ -67,6 +68,9 @@ public class OffLookupService {
         product.setProtein(offProduct.protein());
         product.setFat(offProduct.fat());
         product.setCarbs(offProduct.carbs());
+        offProduct.extras().rounded()
+                .plausibleFor(NutritionRounding.grams(offProduct.fat()), NutritionRounding.grams(offProduct.carbs()))
+                .applyTo(product);
         product.setUnit(UNIT);
         product.setStatus(ProductStatus.VERIFIED);
         product.setSource(ProductSource.OPEN_FOOD_FACTS);
@@ -80,7 +84,7 @@ public class OffLookupService {
 
     private static OffProduct withCode(OffProduct product, String barCode) {
         return new OffProduct(barCode, product.name(), product.brand(), product.kcal(), product.protein(),
-                product.fat(), product.carbs(), product.quantity(), product.polishName());
+                product.fat(), product.carbs(), product.extras(), product.quantity(), product.polishName());
     }
 
     private static String shorten(String text) {

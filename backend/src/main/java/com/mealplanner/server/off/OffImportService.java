@@ -1,5 +1,6 @@
 package com.mealplanner.server.off;
 
+import com.mealplanner.server.product.ExtraNutrients;
 import com.mealplanner.server.product.NutritionCheck;
 import com.mealplanner.server.product.NutritionIssue;
 import com.mealplanner.server.product.NutritionRounding;
@@ -118,19 +119,24 @@ public class OffImportService {
     private static boolean apply(Product product, ReviewedRow row) {
         String name = shorten(row.name());
         String brand = row.brand().isEmpty() ? null : shorten(row.brand());
+        Double fat = NutritionRounding.grams(row.fat());
+        Double carbs = NutritionRounding.grams(row.carbs());
+        ExtraNutrients extras = row.extras().rounded().plausibleFor(fat, carbs);
         boolean changed = !Objects.equals(product.getName(), name)
                 || !Objects.equals(product.getBrand(), brand)
                 || !Objects.equals(product.getKcal(), NutritionRounding.kcal(row.kcal()))
                 || !Objects.equals(product.getProtein(), NutritionRounding.grams(row.protein()))
-                || !Objects.equals(product.getFat(), NutritionRounding.grams(row.fat()))
-                || !Objects.equals(product.getCarbs(), NutritionRounding.grams(row.carbs()))
+                || !Objects.equals(product.getFat(), fat)
+                || !Objects.equals(product.getCarbs(), carbs)
+                || !ExtraNutrients.of(product).equals(extras)
                 || !Objects.equals(product.getUnit(), row.unit());
         product.setName(name);
         product.setBrand(brand);
         product.setKcal(NutritionRounding.kcal(row.kcal()));
         product.setProtein(NutritionRounding.grams(row.protein()));
-        product.setFat(NutritionRounding.grams(row.fat()));
-        product.setCarbs(NutritionRounding.grams(row.carbs()));
+        product.setFat(fat);
+        product.setCarbs(carbs);
+        extras.applyTo(product);
         product.setUnit(row.unit());
         return changed;
     }

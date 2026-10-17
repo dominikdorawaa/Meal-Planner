@@ -329,4 +329,34 @@ class ProductPermissionsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bar_code").value(barCode));
     }
+
+    @Test
+    void createsProductWithMoreNutrientsRoundedToOneDecimal() throws Exception {
+        User user = saveUser(UserRole.USER);
+
+        mockMvc.perform(post("/api/products")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Smietanka\",\"kcal\":186,\"protein\":2.6,\"fat\":18,\"carbs\":3.4,"
+                                + "\"saturated_fat\":12.04,\"sugars\":3.36,\"fiber\":0,\"salt\":0.149}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.saturated_fat").value(12.0))
+                .andExpect(jsonPath("$.sugars").value(3.4))
+                .andExpect(jsonPath("$.fiber").value(0.0))
+                .andExpect(jsonPath("$.salt").value(0.1));
+    }
+
+    @Test
+    void rejectsSaturatedFatAboveFat() throws Exception {
+        User user = saveUser(UserRole.USER);
+
+        mockMvc.perform(post("/api/products")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Smietanka\",\"kcal\":186,\"protein\":2.6,\"fat\":18,\"carbs\":3.4,"
+                                + "\"saturated_fat\":19}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(messageSource.getMessage(
+                        NutritionIssue.SATURATED_FAT_ABOVE_FAT.messageKey(), null, LocaleConfig.DEFAULT_LOCALE)));
+    }
 }

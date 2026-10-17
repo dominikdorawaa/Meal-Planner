@@ -211,4 +211,29 @@ class OffImportIntegrationTest {
         }
         return twelveDigits + (10 - sum % 10) % 10;
     }
+
+    @Test
+    void importsMoreNutrientsAndUpdatesThemWhenTheyChange() throws IOException {
+        String header = "code;name;brand;kcal;protein;fat;carbs;saturated_fat;sugars;fiber;salt;unit;import";
+        Path first = tempDir.resolve("more-first.csv");
+        Files.writeString(first, header + "\r\n5900820000318;Skyr;;65;12;0,2;4,2;0,14;4,04;;0,12;100g;yes\r\n",
+                StandardCharsets.UTF_8);
+        Path second = tempDir.resolve("more-second.csv");
+        Files.writeString(second, header + "\r\n5900820000318;Skyr;;65;12;0,2;4,2;0,14;9;1;0,12;100g;yes\r\n",
+                StandardCharsets.UTF_8);
+
+        importService.importReviewed(first);
+        Product skyr = byBarCode("5900820000318");
+        assertThat(skyr.getSaturatedFat()).isEqualTo(0.1);
+        assertThat(skyr.getSugars()).isEqualTo(4.0);
+        assertThat(skyr.getFiber()).isNull();
+        assertThat(skyr.getSalt()).isEqualTo(0.1);
+
+        ImportReport report = importService.importReviewed(second);
+
+        assertThat(report.updated()).isEqualTo(1);
+        Product updated = byBarCode("5900820000318");
+        assertThat(updated.getSugars()).isNull();
+        assertThat(updated.getFiber()).isEqualTo(1.0);
+    }
 }
