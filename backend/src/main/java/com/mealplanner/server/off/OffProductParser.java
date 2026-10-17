@@ -1,5 +1,6 @@
 package com.mealplanner.server.off;
 
+import com.mealplanner.server.product.ExtraNutrients;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -41,6 +42,11 @@ public final class OffProductParser {
                 number(nutriments.path("proteins_100g")),
                 number(nutriments.path("fat_100g")),
                 number(nutriments.path("carbohydrates_100g")),
+                new ExtraNutrients(
+                        number(nutriments.path("saturated-fat_100g")),
+                        number(nutriments.path("sugars_100g")),
+                        number(nutriments.path("fiber_100g")),
+                        number(nutriments.path("salt_100g"))),
                 text(node, "quantity"),
                 name.polish());
     }

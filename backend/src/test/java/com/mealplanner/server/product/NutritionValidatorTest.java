@@ -145,4 +145,43 @@ class NutritionValidatorTest {
         assertThat(KCAL_DEVIATION.isError()).isFalse();
         assertThat(KCAL_MISMATCH.isError()).isFalse();
     }
+
+    private static NutritionCheck checkWithExtras(String unit, ExtraNutrients extras) {
+        return NutritionValidator.check("Product", 186.0, 2.6, 18.0, 3.4, unit, null, extras);
+    }
+
+    @Test
+    void acceptsPlausibleMoreNutrientsAndMissingOnes() {
+        assertThat(checkWithExtras("100g", new ExtraNutrients(12.0, 3.4, 0.0, 0.1)).errors()).isEmpty();
+        assertThat(checkWithExtras("100g", ExtraNutrients.NONE).errors()).isEmpty();
+    }
+
+    @Test
+    void rejectsSaturatedFatAboveFatAndSugarsAboveCarbs() {
+        assertThat(checkWithExtras("100g", new ExtraNutrients(18.1, 3.5, null, null)).errors())
+                .containsExactly(SATURATED_FAT_ABOVE_FAT, SUGARS_ABOVE_CARBS);
+    }
+
+    @Test
+    void rejectsNegativeOrTooLargeMoreNutrients() {
+        assertThat(checkWithExtras("100g", new ExtraNutrients(null, null, -1.0, null)).errors())
+                .containsExactly(NEGATIVE_VALUE);
+        assertThat(checkWithExtras("100g", new ExtraNutrients(null, null, null, 101.0)).errors())
+                .containsExactly(MACRO_ABOVE_100G);
+        assertThat(checkWithExtras(NutritionValidator.PER_PIECE_UNIT, new ExtraNutrients(null, null, null, 101.0))
+                .errors()).isEmpty();
+    }
+
+    @Test
+    void checksMoreNutrientsStoredOnTheProduct() {
+        Product product = new Product();
+        product.setName("Product");
+        product.setKcal(186.0);
+        product.setProtein(2.6);
+        product.setFat(18.0);
+        product.setCarbs(3.4);
+        product.setSugars(4.0);
+
+        assertThat(NutritionValidator.check(product).errors()).containsExactly(SUGARS_ABOVE_CARBS);
+    }
 }

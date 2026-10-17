@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class OffCandidatesExportTest {
 
     private static final String HEADER =
-            "code;name;brand;kcal;protein;fat;carbs;unit;quantity;validation;reasons;import;url";
+            "code;name;brand;kcal;protein;fat;carbs;saturated_fat;sugars;fiber;salt;unit;quantity;validation;reasons;import;url";
 
     private static final List<String> SAMPLE = List.of(
             "{\"code\":\"5900820000318\",\"product_name_pl\":\"Skyr naturalny\",\"product_name\":\"Natural skyr\","
@@ -65,9 +65,9 @@ class OffCandidatesExportTest {
         List<String> lines = readCsv(csv);
         assertThat(lines.getFirst()).isEqualTo(HEADER);
         assertThat(lines).hasSize(7);
-        assertThat(lines.get(1)).isEqualTo("\"=\"\"5900820000318\"\"\";Skyr naturalny;Piątnica;65;12;0;4,2;100g;150 g;OK;;yes;"
+        assertThat(lines.get(1)).isEqualTo("\"=\"\"5900820000318\"\"\";Skyr naturalny;Piątnica;65;12;0;4,2;;;;;100g;150 g;OK;;yes;"
                 + "https://world.openfoodfacts.org/product/5900820000318");
-        assertThat(lines.get(2)).startsWith("\"=\"\"5901234123457\"\"\";\"Baton; \"\"Mocny\"\"\";;500;5;25;65;100g;;OK;;yes;");
+        assertThat(lines.get(2)).startsWith("\"=\"\"5901234123457\"\"\";\"Baton; \"\"Mocny\"\"\";;500;5;25;65;;;;;100g;;OK;;yes;");
         assertThat(lines.get(3)).contains(";REJECTED;KCAL_LOOKS_LIKE_KJ;no;");
         assertThat(lines.get(4)).contains(";REJECTED;NUTRIENT_MISSING;no;");
         assertThat(lines.get(5)).startsWith("\"=\"\"5900820000318\"\"\";Skyr duplikat;").contains(";REJECTED;DUPLICATE_BAR_CODE;no;");
@@ -102,7 +102,7 @@ class OffCandidatesExportTest {
 
         List<String> lines = readCsv(csv);
         assertThat(lines.get(1)).contains(";REJECTED;NAME_NOT_POLISH;no;");
-        assertThat(lines.get(2)).contains(";Śmietanka 18%;;186;2,6;18;3,4;100g;;OK;;yes;");
+        assertThat(lines.get(2)).contains(";Śmietanka 18%;;186;2,6;18;3,4;;;;;100g;;OK;;yes;");
         assertThat(summary.rejectedByReason()).containsEntry("NAME_NOT_POLISH", 1L);
     }
 
@@ -157,8 +157,8 @@ class OffCandidatesExportTest {
         OffCandidatesExport.export(dump, csv);
 
         List<String> lines = readCsv(csv);
-        assertThat(lines.get(1)).startsWith("'=1+1;\"'=HYPERLINK(\"\"http://example.com\"\")\";'+48 Foods;;;;;100g;'=1+1;");
-        assertThat(lines.get(2)).startsWith("\"=\"\"5900820000318\"\"\";'@SUM;'-Brand;;;;;100g;''quoted;");
+        assertThat(lines.get(1)).startsWith("'=1+1;\"'=HYPERLINK(\"\"http://example.com\"\")\";'+48 Foods;;;;;;;;;100g;'=1+1;");
+        assertThat(lines.get(2)).startsWith("\"=\"\"5900820000318\"\"\";'@SUM;'-Brand;;;;;;;;;100g;''quoted;");
     }
 
     @Test
@@ -203,5 +203,20 @@ class OffCandidatesExportTest {
         assertThatThrownBy(() -> OffCandidatesExport.main(new String[]{"only-input.jsonl"}))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Usage");
+    }
+
+    @Test
+    void exportsMoreNutrientsAndLeavesOutImplausibleOnes() throws IOException {
+        Path dump = tempDir.resolve("more.jsonl");
+        Files.write(dump, List.of(
+                "{\"code\":\"5901234123457\",\"product_name_pl\":\"Śmietanka\",\"countries_tags\":[\"en:poland\"],"
+                        + "\"nutriments\":{\"energy-kcal_100g\":186,\"proteins_100g\":2.6,\"fat_100g\":18,"
+                        + "\"carbohydrates_100g\":3.4,\"saturated-fat_100g\":12.04,\"sugars_100g\":3.5,"
+                        + "\"fiber_100g\":150,\"salt_100g\":\"0,1\"}}"));
+        Path csv = tempDir.resolve("more.csv");
+
+        OffCandidatesExport.export(dump, csv);
+
+        assertThat(readCsv(csv).get(1)).contains(";Śmietanka;;186;2,6;18;3,4;12;;;0,1;100g;;OK;;yes;");
     }
 }

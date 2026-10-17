@@ -7,6 +7,10 @@ export interface ProductPrefill {
   protein?: number | null;
   fat?: number | null;
   carbs?: number | null;
+  saturated_fat?: number | null;
+  sugars?: number | null;
+  fiber?: number | null;
+  salt?: number | null;
 }
 
 export interface BarCodeLookup {

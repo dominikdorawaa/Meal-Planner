@@ -1,6 +1,7 @@
 package com.mealplanner.server.recipe;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.mealplanner.server.product.Product;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -30,4 +31,8 @@ public class RecipeIngredient {
 
     @Column(nullable = false)
     private String unit;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "product_id")
+    private Product product;
 }

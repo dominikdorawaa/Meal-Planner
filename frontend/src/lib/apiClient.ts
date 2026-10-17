@@ -42,6 +42,10 @@ export interface Product {
   protein: number;
   fat: number;
   carbs: number;
+  saturated_fat?: number | null;
+  sugars?: number | null;
+  fiber?: number | null;
+  salt?: number | null;
   unit?: string | null;
   image_url?: string | null;
   piece_weight?: number | null;
