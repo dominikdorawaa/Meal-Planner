@@ -7,6 +7,7 @@ import { InstallAppCard } from '../components/InstallAppCard';
 import { ThemeCard } from '../components/ThemeCard';
 import { ProductDataAttribution } from '../components/ProductDataAttribution';
 import { MealSettingsList } from '../components/MealSettingsList';
+import type { MealSetting } from '../lib/mealSettings';
 
 const MEAL_TYPES = [
   { id: 'breakfast', name: 'Śniadanie', icon: 'light_mode' },
@@ -19,7 +20,7 @@ const MEAL_TYPES = [
 
 export function Profile() {
   const navigate = useNavigate();
-  const [mealConfig, setMealConfig] = useState<any[]>([]);
+  const [mealConfig, setMealConfig] = useState<MealSetting[]>([]);
   const [isEditingMeals, setIsEditingMeals] = useState<boolean>(false);
   const [isReordering, setIsReordering] = useState<boolean>(false);
   const [editingMealId, setEditingMealId] = useState<string | null>(null);
@@ -71,7 +72,7 @@ export function Profile() {
     return parseFloat(((ft * 30.48) + (inches * 2.54)).toFixed(1));
   };
 
-  const { user, profile: cachedProfile, onLogout, refreshProfile, saveProfile } = useAppData();
+  const { user, profile: cachedProfile, onLogout, saveProfile } = useAppData();
 
   const displayGreetingName =
     (profile?.display_name || cachedProfile?.display_name || user?.name || '').trim() || null;
@@ -193,7 +194,7 @@ export function Profile() {
     setMealConfig(prev => prev.map(m => m.id === id ? { ...m, visible: !m.visible } : m));
   };
 
-  const handleStartRename = (meal: any) => {
+  const handleStartRename = (meal: MealSetting) => {
     setEditingMealId(meal.id);
     setTempName(meal.name);
   };
@@ -329,7 +330,7 @@ export function Profile() {
 
     const oldKcal = profile?.target_kcal || 0;
     const newKcal = dbData.target_kcal;
-    const result = await api.profile.update(dbData).catch((e) => ({ error: e }));
+    const result = await saveProfile(dbData).catch((e) => ({ error: e }));
 
     if (!(result as any).error) {
       if (tempProfile.is_manual_macros) {
@@ -341,7 +342,6 @@ export function Profile() {
 
       setProfile(dbData);
       setTempProfile(dbData);
-      void refreshProfile();
       setIsEditingProfile(false);
       setIsEditingGoals(false);
       setIsEditingMacros(false);

@@ -17,11 +17,13 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { reorderMeals, type MealSetting } from '../lib/mealSettings';
 
+type RenderMeal<T extends MealSetting> = (meal: T, index: number, handle: ReactNode) => ReactNode;
+
 interface MealSettingsListProps<T extends MealSetting> {
   meals: T[];
   isReordering: boolean;
   onReorder: (meals: T[]) => void;
-  renderMeal: (meal: T, index: number, handle: ReactNode) => ReactNode;
+  renderMeal: RenderMeal<T>;
 }
 
 export function MealSettingsList<T extends MealSetting>({ meals, isReordering, onReorder, renderMeal }: MealSettingsListProps<T>) {
@@ -50,7 +52,7 @@ interface SortableMealProps<T extends MealSetting> {
   meal: T;
   index: number;
   isReordering: boolean;
-  renderMeal: (meal: T, index: number, handle: ReactNode) => ReactNode;
+  renderMeal: RenderMeal<T>;
 }
 
 function SortableMeal<T extends MealSetting>({ meal, index, isReordering, renderMeal }: SortableMealProps<T>) {
@@ -66,7 +68,7 @@ function SortableMeal<T extends MealSetting>({ meal, index, isReordering, render
       {...attributes}
       {...listeners}
       aria-label={`Przeciągnij: ${meal.name}`}
-      className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-primary shadow-sm border border-primary/5 touch-none cursor-grab active:cursor-grabbing"
+      className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-primary shadow-sm border border-primary/5 touch-none [-webkit-touch-callout:none] cursor-grab active:cursor-grabbing"
     >
       <span className="material-symbols-outlined text-[18px]">drag_indicator</span>
     </button>
@@ -76,7 +78,7 @@ function SortableMeal<T extends MealSetting>({ meal, index, isReordering, render
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={`p-4 rounded-3xl border border-outline-variant/10 shadow-sm flex flex-col gap-3 ${isReordering ? 'border-dashed bg-surface/50 select-none' : 'bg-surface-container-lowest'} ${isDragging ? 'relative z-10 opacity-80 border-primary bg-primary/5 shadow-lg' : ''}`}
+      className={`p-4 rounded-3xl border border-outline-variant/10 shadow-sm flex flex-col gap-3 transition-colors ${isReordering ? 'border-dashed bg-surface/50 select-none hover:bg-primary/[0.03]' : 'bg-surface-container-lowest'} ${isDragging ? 'relative z-10 opacity-80 border-primary bg-primary/5 shadow-lg' : ''}`}
     >
       {renderMeal(meal, index, handle)}
     </div>
