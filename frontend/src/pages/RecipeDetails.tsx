@@ -1,15 +1,17 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, firstDayOfMonth, formatDayMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { targetRange } from '../lib/macros';
 import { RecipeMoreNutrients } from '../components/RecipeMoreNutrients';
+import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 
 export function RecipeDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user, refreshMeals, recipes, refreshRecipes, getConsumedForDay, profile } = useAppData();
   const [showPreview, setShowPreview] = useState(false);
@@ -157,6 +159,10 @@ export function RecipeDetails() {
       } catch (err) {
         console.error("Error adding meal:", err);
       }
+    }
+
+    if (!overrideDate) {
+      await addSelectionAfterItem(readPlanSelection(location.state), { kind: 'recipe', id: String(recipe.id) }, targetDate, targetType);
     }
 
     await refreshMeals();

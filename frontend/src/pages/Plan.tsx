@@ -1,5 +1,5 @@
 import { BottomNav } from '../components/BottomNav';
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { productDisplayName } from '../lib/productName';
@@ -8,7 +8,34 @@ import { useNavigate } from 'react-router-dom';
 import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 import { formatMacrosShort } from '../lib/macros';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
-import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, planDays } from '../lib/planDates';
+import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, formatRelativeDayLabel, parseIsoDate, planDays } from '../lib/planDates';
+import { PlanConflictDialog } from '../components/PlanConflictDialog';
+import { UndoSnackbar } from '../components/UndoSnackbar';
+import { pluralForm, t, type MessageKey } from '../i18n';
+import {
+  deleteMeals,
+  entityId,
+  findConflicts,
+  mealsOfDay,
+  placeDayOnDates,
+  placeMealInSlots,
+  slotKey as toSlotKey,
+  transferMeals,
+  undoTransfer,
+  type ConflictMode,
+  type Placement,
+  type PlanMeal,
+  type TransferResult,
+} from '../lib/planTransfer';
+
+type PendingTransfer = {
+  placements: Placement[];
+  conflicts: PlanMeal[];
+  removedSources: PlanMeal[];
+  successKey: MessageKey;
+};
+
+type Snackbar = { id: number; message: string; result?: TransferResult };
 
 const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN"; // Tylko marker do logiki poniżej
 
@@ -44,7 +71,11 @@ export function Plan() {
   const [activeMealMenu, setActiveMealMenu] = useState<any | null>(null);
   const [copyModeMeal, setCopyModeMeal] = useState<any | null>(null);
   const [selectedCopySlots, setSelectedCopySlots] = useState<string[]>([]);
-  const [slotsToOverwrite, setSlotsToOverwrite] = useState<any[]>([]);
+  const [mealSelectionAction, setMealSelectionAction] = useState<'copy' | 'move'>('copy');
+  const [pendingTransfer, setPendingTransfer] = useState<PendingTransfer | null>(null);
+  const [transferBusy, setTransferBusy] = useState(false);
+  const [snackbar, setSnackbar] = useState<Snackbar | null>(null);
+  const transferInFlight = useRef(false);
 
   // Stany dla dni
   const [activeDayMenu, setActiveDayMenu] = useState<string | null>(null);
@@ -149,125 +180,132 @@ export function Plan() {
     }
   };
 
-  const handleCopyToNextDay = async (meal: any) => {
-    const tomorrowDateStr = addDaysToIsoDate(meal.meal_date, 1);
+  const resetSelectionModes = () => {
+    setCopyModeMeal(null);
+    setSelectedCopySlots([]);
+    setCopyModeDay(null);
+    setSelectedCopyDays([]);
+    setMealSelectionAction('copy');
+  };
 
+  const closeSnackbar = useCallback(() => setSnackbar(null), []);
+
+  const showSnackbar = (message: string, result?: TransferResult) => {
+    setSnackbar(previous => ({ id: (previous?.id ?? 0) + 1, message, result }));
+  };
+
+  const visibleMeals: PlanMeal[] = userMeals.filter(meal => {
+    const rid = entityId(meal.recipe);
+    return !rid || recipes.some(r => r.id === rid);
+  });
+
+  const copyTransfer = (placements: Placement[]): PendingTransfer => ({
+    placements,
+    conflicts: findConflicts(visibleMeals, placements),
+    removedSources: [],
+    successKey: 'plan.snackbar.copied',
+  });
+
+  const moveTransfer = (meal: PlanMeal, targetSlot: string): PendingTransfer => {
+    const placements = placeMealInSlots(meal, [targetSlot]);
+    return {
+      placements,
+      conflicts: findConflicts(visibleMeals, placements, [meal]),
+      removedSources: [meal],
+      successKey: 'plan.snackbar.moved',
+    };
+  };
+
+  const runTransfer = async (transfer: PendingTransfer, mode: ConflictMode) => {
+    if (transferInFlight.current) return;
+    transferInFlight.current = true;
+    setTransferBusy(true);
     try {
-      await api.meals.add({
-        recipe: (meal.recipe?.id || meal.recipe) ? { id: (meal.recipe?.id || meal.recipe) } : null,
-        product: (meal.product?.id || meal.product) ? { id: (meal.product?.id || meal.product) } : null,
-        meal_date: tomorrowDateStr,
-        meal_type: meal.meal_type,
-        portions_consumed: meal.portions_consumed,
-        manual_name: meal.manual_name,
-        manual_kcal: meal.manual_kcal,
-        manual_protein: meal.manual_protein,
-        manual_fat: meal.manual_fat,
-        manual_carbs: meal.manual_carbs
-      });
-      setActiveMealMenu(null);
-      await refreshMeals();
+      const conflicts = findConflicts(visibleMeals, transfer.placements, transfer.removedSources);
+      const result = await transferMeals(transfer.placements, conflicts, mode, transfer.removedSources);
+      showSnackbar(t(result.complete ? transfer.successKey : 'plan.snackbar.failed'), result);
     } catch (err) {
-      console.error("Error copying meal:", err);
+      console.error("Error transferring meals:", err);
+      showSnackbar(t('plan.snackbar.failed'));
     }
+    setPendingTransfer(null);
+    resetSelectionModes();
+    await refreshMeals();
+    transferInFlight.current = false;
+    setTransferBusy(false);
+  };
+
+  const startTransfer = (transfer: PendingTransfer) => {
+    setActiveMealMenu(null);
+    setActiveDayMenu(null);
+    if (transfer.placements.length === 0) {
+      resetSelectionModes();
+      showSnackbar(t('plan.snackbar.emptyDay'));
+    } else if (transfer.conflicts.length > 0) {
+      setPendingTransfer(transfer);
+    } else {
+      runTransfer(transfer, 'append');
+    }
+  };
+
+  const handleUndo = async (result: TransferResult) => {
+    setSnackbar(null);
+    try {
+      await undoTransfer(result);
+    } catch (err) {
+      console.error("Error undoing meal transfer:", err);
+      showSnackbar(t('plan.snackbar.failed'));
+    }
+    await refreshMeals();
+  };
+
+  const handleCopyToNextDay = (meal: PlanMeal) => {
+    startTransfer(copyTransfer(placeMealInSlots(meal, [toSlotKey(addDaysToIsoDate(meal.meal_date, 1), meal.meal_type)])));
+  };
+
+  const handleCopyDayNext = (dateStr: string) => {
+    startTransfer(copyTransfer(placeDayOnDates(visibleMeals, dateStr, [addDaysToIsoDate(dateStr, 1)])));
   };
 
   const handlePreSubmitCopyMode = () => {
-    let conflicts: any[];
-
     if (copyModeMeal && selectedCopySlots.length > 0) {
-      conflicts = userMeals.filter(m => selectedCopySlots.includes(`${m.meal_date}_${m.meal_type}`));
+      startTransfer(mealSelectionAction === 'move'
+        ? moveTransfer(copyModeMeal, selectedCopySlots[0])
+        : copyTransfer(placeMealInSlots(copyModeMeal, selectedCopySlots)));
     } else if (copyModeDay && selectedCopyDays.length > 0) {
-      conflicts = userMeals.filter(m => selectedCopyDays.includes(m.meal_date));
-    } else {
-      return;
-    }
-
-    if (conflicts.length > 0) {
-      setSlotsToOverwrite(conflicts);
-    } else {
-      executeCopyAction();
-    }
-  };
-
-  const executeCopyAction = async () => {
-    try {
-      if (slotsToOverwrite.length > 0) {
-        const idsToDelete = slotsToOverwrite.map(m => m.id);
-        await Promise.all(idsToDelete.map(id => api.meals.delete(id)));
-      }
-
-      const promises: Promise<any>[] = [];
-
-      if (copyModeMeal) {
-        selectedCopySlots.forEach(slotStr => {
-          const separatorIndex = slotStr.indexOf('_');
-          const dateStr = slotStr.slice(0, separatorIndex);
-          const mealType = slotStr.slice(separatorIndex + 1);
-          const rid = copyModeMeal.recipe?.id || copyModeMeal.recipe;
-          const pid = copyModeMeal.product?.id || copyModeMeal.product;
-          promises.push(api.meals.add({
-            recipe: rid ? { id: rid } : null,
-            product: pid ? { id: pid } : null,
-            meal_date: dateStr,
-            meal_type: mealType,
-            portions_consumed: copyModeMeal.portions_consumed,
-            manual_name: copyModeMeal.manual_name,
-            manual_kcal: copyModeMeal.manual_kcal,
-            manual_protein: copyModeMeal.manual_protein,
-            manual_fat: copyModeMeal.manual_fat,
-            manual_carbs: copyModeMeal.manual_carbs
-          }));
-        });
-      } else if (copyModeDay) {
-        const mealsToCopy = userMeals.filter(m => m.meal_date === copyModeDay);
-        selectedCopyDays.forEach(targetDate => {
-          mealsToCopy.forEach(meal => {
-            const rid = meal.recipe?.id || meal.recipe;
-            const pid = meal.product?.id || meal.product;
-            promises.push(api.meals.add({
-              recipe: rid ? { id: rid } : null,
-              product: pid ? { id: pid } : null,
-              meal_date: targetDate,
-              meal_type: meal.meal_type,
-              portions_consumed: meal.portions_consumed,
-              manual_name: meal.manual_name,
-              manual_kcal: meal.manual_kcal,
-              manual_protein: meal.manual_protein,
-              manual_fat: meal.manual_fat,
-              manual_carbs: meal.manual_carbs
-            }));
-          });
-        });
-      }
-
-      if (promises.length > 0) {
-        await Promise.all(promises);
-      }
-
-      setCopyModeMeal(null);
-      setSelectedCopySlots([]);
-      setCopyModeDay(null);
-      setSelectedCopyDays([]);
-      setSlotsToOverwrite([]);
-      await refreshMeals();
-    } catch (err) {
-      console.error("Error in bulk copy action:", err);
+      startTransfer(copyTransfer(placeDayOnDates(visibleMeals, copyModeDay, selectedCopyDays)));
     }
   };
 
   const handleDeleteDay = async (dateStr: string) => {
-    // Optimistic update
-    setUserMeals(prev => prev.filter(m => m.meal_date !== dateStr));
+    const mealsToDelete = mealsOfDay(visibleMeals, dateStr);
+    setDayToDelete(null);
+    const deletedIds = new Set(mealsToDelete.map(m => m.id));
+    setUserMeals(prev => prev.filter(m => !deletedIds.has(m.id)));
     try {
-      const mealsToDelete = userMeals.filter(m => m.meal_date === dateStr);
-      await Promise.all(mealsToDelete.map(m => api.meals.delete(m.id)));
-      setDayToDelete(null);
-      await refreshMeals();
+      await deleteMeals(mealsToDelete);
     } catch (err) {
       console.error("Error deleting day meals:", err);
-      refreshMeals();
+      showSnackbar(t('plan.snackbar.failed'));
     }
+    await refreshMeals();
+  };
+
+  const requestDeleteDay = (dateStr: string) => {
+    setActiveDayMenu(null);
+    if (mealsOfDay(visibleMeals, dateStr).length === 0) {
+      showSnackbar(t('plan.snackbar.emptyDay'));
+      return;
+    }
+    setDayToDelete(dateStr);
+  };
+
+  const mealTitle = (meal: PlanMeal) => {
+    const rid = entityId(meal.recipe);
+    if (rid) return recipes.find(r => r.id === rid)?.name || '';
+    const product = resolveMealProduct(meal, userMeals);
+    if (product) return productDisplayName(product);
+    return meal.manual_name || t('plan.quickMeal');
   };
 
   const generateShoppingList = async () => {
@@ -356,57 +394,20 @@ export function Plan() {
     }
   };
 
-  const handleCopyDayNext = async (dateStr: string) => {
-    const todayIdx = days.findIndex(d => d.date === dateStr);
-    if (todayIdx === -1 || todayIdx === days.length - 1) {
-      alert("Niestety nie ma następnego dnia w kalendarzu, aby skopiować listę dań.");
-      return;
-    }
-    const tomorrow = days[todayIdx + 1];
-
-    const mealsToCopy = userMeals.filter(m => m.meal_date === dateStr);
-    if (mealsToCopy.length === 0) return;
-
-    // Jeżeli jutro ma jakieś posiłki - zrób małą symulację konfliktu by powiadomić usera (tutaj zrobimy bez, ale to miejsce na hot-fix jeśli trzeba)
-    const existingTomorrowMeals = userMeals.filter(m => m.meal_date === tomorrow.date);
-    if (existingTomorrowMeals.length > 0) {
-      // Dla szybkiej ścieżki po prostu wywołujemy modal:
-      setCopyModeDay(dateStr);
-      setSelectedCopyDays([tomorrow.date]);
-      setActiveDayMenu(null);
-      setSlotsToOverwrite(existingTomorrowMeals);
-      return;
-    }
-
-    try {
-      await Promise.all(mealsToCopy.map(m => api.meals.add({
-        recipe: (m.recipe?.id || m.recipe) ? { id: (m.recipe?.id || m.recipe) } : null,
-        product: (m.product?.id || m.product) ? { id: (m.product?.id || m.product) } : null,
-        meal_date: tomorrow.date,
-        meal_type: m.meal_type,
-        portions_consumed: m.portions_consumed,
-        manual_name: m.manual_name,
-        manual_kcal: m.manual_kcal,
-        manual_protein: m.manual_protein,
-        manual_fat: m.manual_fat,
-        manual_carbs: m.manual_carbs
-      })));
-      setActiveDayMenu(null);
-      await refreshMeals();
-    } catch (err) {
-      console.error("Error copying day to next:", err);
-    }
-  };
-
-
   const toggleCopySlot = (slotKey: string) => {
+    if (mealSelectionAction === 'move') {
+      if (copyModeMeal && slotKey === toSlotKey(copyModeMeal.meal_date, copyModeMeal.meal_type)) return;
+      setSelectedCopySlots(prev => prev.includes(slotKey) ? [] : [slotKey]);
+      return;
+    }
     setSelectedCopySlots(prev => prev.includes(slotKey) ? prev.filter(s => s !== slotKey) : [...prev, slotKey]);
   };
 
   const renderSlot = (date: string, mealType: string, isToday: boolean = false) => {
-    const slotKey = `${date}_${mealType}`;
+    const slotKey = toSlotKey(date, mealType);
     const isCopyMode = !!copyModeMeal || !!copyModeDay;
     const isSelected = !!copyModeMeal ? selectedCopySlots.includes(slotKey) : selectedCopyDays.includes(date);
+    const copyLabel = mealSelectionAction === 'move' ? t('plan.move.slot') : t('plan.paste');
 
     const assignedMeals = userMeals.filter(m => m.meal_date === date && m.meal_type === mealType);
 
@@ -436,7 +437,7 @@ export function Plan() {
 
               if (rid) {
                 const recipe = recipes.find(r => r.id === rid);
-                if (!recipe) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
+                if (!recipe) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} copyLabel={copyLabel} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
 
                 const mult = assignedMeal.portions_consumed || 1;
                 return (
@@ -478,7 +479,7 @@ export function Plan() {
                 );
               } else if (pid) {
                 const product = resolveMealProduct(assignedMeal, userMeals);
-                if (!product) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
+                if (!product) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} copyLabel={copyLabel} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
 
                 const weight = assignedMeal.portions_consumed || 100;
                 const factor = product.unit === 'pc' ? weight : (weight / 100);
@@ -528,7 +529,7 @@ export function Plan() {
                 return (
                   <RecipeCard
                     key={assignedMeal.id}
-                    title={assignedMeal.manual_name || 'Szybki posiłek'}
+                    title={assignedMeal.manual_name || t('plan.quickMeal')}
                     kcal={String(assignedMeal.manual_kcal || 0)}
                     macros={formatMacrosShort(Number(assignedMeal.manual_protein || 0), Number(assignedMeal.manual_fat || 0), Number(assignedMeal.manual_carbs || 0))}
                     imgSrc={PLACEHOLDER_IMAGE}
@@ -539,7 +540,9 @@ export function Plan() {
                       }
                     }}
                     onMenuClick={() => {
-                      if (!shoppingSelectionMode && !copyModeDay && !copyModeMeal) {
+                      if (copyModeMeal) {
+                        toggleCopySlot(slotKey);
+                      } else if (!shoppingSelectionMode && !copyModeDay) {
                         setActiveMealMenu(assignedMeal);
                       }
                     }}
@@ -567,7 +570,7 @@ export function Plan() {
         </div>
       );
     }
-    return <PlanCard onClick={onSlotClick} isCopyMode={isCopyMode} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} isToday={isToday} />;
+    return <PlanCard onClick={onSlotClick} isCopyMode={isCopyMode} copyLabel={copyLabel} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} isToday={isToday} />;
   };
 
   if (contextLoading || !profile || profile.target_kcal === 0 || !profile.target_kcal) {
@@ -602,8 +605,7 @@ export function Plan() {
             onClick={() => {
               setActiveDayMenu(null);
               setActiveMealMenu(null);
-              setCopyModeDay(null);
-              setCopyModeMeal(null);
+              resetSelectionModes();
               setShoppingSelectionMode(prev => !prev);
               setSelectedShoppingDays([]);
               setSelectedShoppingMeals([]);
@@ -659,7 +661,7 @@ export function Plan() {
                             const dayMealIds = userMeals.filter(m => m.meal_date === day.date).map(m => m.id);
                             setSelectedShoppingMeals(prev => [...new Set([...prev, ...dayMealIds])]);
                           }
-                        } else if (isDayCopyMode) {
+                        } else if (isDayCopyMode && day.date !== copyModeDay) {
                           setSelectedCopyDays(prev => prev.includes(day.date) ? prev.filter(d => d !== day.date) : [...prev, day.date]);
                         }
                       }}
@@ -784,7 +786,7 @@ export function Plan() {
                   </div>
                   <section className="flex mb-8">
                     {days.map((day, i) => (
-                      <div key={i} className="shrink-0">
+                      <div key={i} className="shrink-0" data-slot={toSlotKey(day.date, mt.id)}>
                         {renderSlot(day.date, mt.id, day.isToday)}
                       </div>
                     ))}
@@ -811,24 +813,24 @@ export function Plan() {
             <div className="flex flex-col gap-3 mb-6">
               <button onClick={() => handleCopyDayNext(activeDayMenu)} className="w-full py-4 px-5 bg-surface-container-low rounded-2xl flex items-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 text-on-surface">
                 <span className="material-symbols-outlined text-primary">event_upcoming</span>
-                <span className="font-bold text-sm">Skopiuj na następny dzień</span>
+                <span className="font-bold text-sm">{t('plan.copyToNextDay')}</span>
               </button>
 
               <button onClick={() => { setCopyModeDay(activeDayMenu); setSelectedCopyDays([]); setActiveDayMenu(null); }} className="w-full py-4 px-5 bg-surface-container-low rounded-2xl flex items-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 text-on-surface">
                 <span className="material-symbols-outlined text-primary">edit_calendar</span>
-                <span className="font-bold text-sm">Skopiuj posiłki na inne dni</span>
+                <span className="font-bold text-sm">{t('plan.day.copyToOtherDays')}</span>
               </button>
 
               <div className="h-px w-full bg-outline-variant/20 my-2"></div>
 
-              <button onClick={() => { setDayToDelete(activeDayMenu); setActiveDayMenu(null); }} className="w-full py-4 px-5 bg-error/5 rounded-2xl flex items-center gap-4 hover:bg-error/10 transition-colors active:scale-95 text-error">
+              <button onClick={() => requestDeleteDay(activeDayMenu)} className="w-full py-4 px-5 bg-error/5 rounded-2xl flex items-center gap-4 hover:bg-error/10 transition-colors active:scale-95 text-error">
                 <span className="material-symbols-outlined">delete_sweep</span>
-                <span className="font-bold text-sm">Usuń posiłki z całego dnia</span>
+                <span className="font-bold text-sm">{t('plan.day.delete')}</span>
               </button>
             </div>
 
             <button onClick={() => setActiveDayMenu(null)} className="w-full py-4 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-2xl transition-colors tracking-wide active:scale-95">
-              Anuluj
+              {t('plan.cancel')}
             </button>
           </div>
         </div>
@@ -845,21 +847,21 @@ export function Plan() {
                 <span className="material-symbols-outlined text-primary text-xl">event_repeat</span>
               </div>
               <div className="flex flex-col truncate w-full">
-                <span className="font-bold text-xs text-on-surface truncate pr-2">Kopiowanie dnia</span>
+                <span className="font-bold text-xs text-on-surface truncate pr-2">{t('plan.day.copying')}</span>
                 <span className="text-[10px] text-on-surface-variant font-medium truncate">Szablon: {copyDay ? formatDayWithMonthName(copyDay.name, copyDay.date) : ''}</span>
               </div>
             </div>
 
             <div className="flex gap-2 ml-2 flex-shrink-0">
-              <button onClick={() => { setCopyModeDay(null); setSelectedCopyDays([]); }} className="px-3 py-2.5 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-xl transition-colors text-xs active:scale-95">
-                Anuluj
+              <button onClick={resetSelectionModes} className="px-3 py-2.5 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-xl transition-colors text-xs active:scale-95">
+                {t('plan.cancel')}
               </button>
               <button
                 onClick={handlePreSubmitCopyMode}
-                disabled={selectedCopyDays.length === 0}
+                disabled={selectedCopyDays.length === 0 || transferBusy}
                 className="px-4 py-2.5 font-bold text-on-primary bg-primary rounded-xl shadow-sm hover:bg-primary/90 transition-colors text-xs disabled:opacity-50 active:scale-95 whitespace-nowrap"
               >
-                Wklej ({selectedCopyDays.length})
+                {t('plan.pasteCount', { count: selectedCopyDays.length })}
               </button>
             </div>
           </div>
@@ -897,12 +899,17 @@ export function Plan() {
 
               <button onClick={() => handleCopyToNextDay(activeMealMenu)} className="w-full py-4 px-5 bg-surface-container-low rounded-2xl flex items-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 text-on-surface">
                 <span className="material-symbols-outlined text-primary">event_upcoming</span>
-                <span className="font-bold text-sm">Skopiuj na następny dzień</span>
+                <span className="font-bold text-sm">{t('plan.copyToNextDay')}</span>
               </button>
 
-              <button onClick={() => { setCopyModeMeal(activeMealMenu); setSelectedCopySlots([]); setActiveMealMenu(null); }} className="w-full py-4 px-5 bg-surface-container-low rounded-2xl flex items-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 text-on-surface">
+              <button onClick={() => { setCopyModeMeal(activeMealMenu); setMealSelectionAction('copy'); setSelectedCopySlots([]); setActiveMealMenu(null); }} className="w-full py-4 px-5 bg-surface-container-low rounded-2xl flex items-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 text-on-surface">
                 <span className="material-symbols-outlined text-primary">edit_calendar</span>
-                <span className="font-bold text-sm">Skopiuj na inne dni</span>
+                <span className="font-bold text-sm">{t('plan.meal.copyToOtherDays')}</span>
+              </button>
+
+              <button onClick={() => { setCopyModeMeal(activeMealMenu); setMealSelectionAction('move'); setSelectedCopySlots([]); setActiveMealMenu(null); }} className="w-full py-4 px-5 bg-surface-container-low rounded-2xl flex items-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 text-on-surface">
+                <span className="material-symbols-outlined text-primary">drive_file_move</span>
+                <span className="font-bold text-sm">{t('plan.meal.moveTo')}</span>
               </button>
 
               <div className="h-px w-full bg-outline-variant/20 my-2"></div>
@@ -914,7 +921,7 @@ export function Plan() {
             </div>
 
             <button onClick={() => setActiveMealMenu(null)} className="w-full py-4 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-2xl transition-colors tracking-wide active:scale-95">
-              Anuluj
+              {t('plan.cancel')}
             </button>
           </div>
         </div>
@@ -922,9 +929,10 @@ export function Plan() {
 
       {/* Tryb masowego kopiowania - Pływający pasek akcji */}
       {copyModeMeal && (() => {
-        const rid = copyModeMeal.recipe?.id || copyModeMeal.recipe;
+        const rid = entityId(copyModeMeal.recipe);
         const copyRecipe = recipes.find(r => r.id === rid);
         const copyDay = days.find(d => d.date === copyModeMeal.meal_date);
+        const isMove = mealSelectionAction === 'move';
         return (
           <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[90%] max-w-[420px] bg-surface-container-lowest shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[2rem] p-3 pl-4 flex items-center justify-between z-[200] animate-slide-up border border-outline-variant/30 overflow-hidden">
 
@@ -940,21 +948,21 @@ export function Plan() {
                 </div>
               )}
               <div className="flex flex-col truncate w-full">
-                <span className="font-bold text-xs text-on-surface truncate pr-2">{copyRecipe?.name || "Kopiowanie"}</span>
-                <span className="text-[10px] text-on-surface-variant font-medium truncate">Z: {copyDay ? formatDayWithMonthName(copyDay.name, copyDay.date) : ''}</span>
+                <span className="font-bold text-xs text-on-surface truncate pr-2">{isMove ? `${t('plan.move.title')}: ${mealTitle(copyModeMeal)}` : (copyRecipe?.name || t('plan.copying'))}</span>
+                <span className="text-[10px] text-on-surface-variant font-medium truncate">{isMove ? t('plan.move.hint') : t('plan.copyFrom', { day: copyDay ? formatDayWithMonthName(copyDay.name, copyDay.date) : '' })}</span>
               </div>
             </div>
 
             <div className="flex gap-2 ml-2 flex-shrink-0">
-              <button onClick={() => { setCopyModeMeal(null); setSelectedCopySlots([]); }} className="px-3 py-2.5 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-xl transition-colors text-xs active:scale-95">
-                Anuluj
+              <button onClick={resetSelectionModes} className="px-3 py-2.5 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-xl transition-colors text-xs active:scale-95">
+                {t('plan.cancel')}
               </button>
               <button
                 onClick={handlePreSubmitCopyMode}
-                disabled={selectedCopySlots.length === 0}
+                disabled={selectedCopySlots.length === 0 || transferBusy}
                 className="px-4 py-2.5 font-bold text-on-primary bg-primary rounded-xl shadow-sm hover:bg-primary/90 transition-colors text-xs disabled:opacity-50 active:scale-95 whitespace-nowrap"
               >
-                Wklej ({selectedCopySlots.length})
+                {isMove ? t('plan.move.confirm') : t('plan.pasteCount', { count: selectedCopySlots.length })}
               </button>
             </div>
           </div>
@@ -996,57 +1004,27 @@ export function Plan() {
         );
       })()}
 
-      {/* Zastępowanie potraw przy Wklejaniu */}
-      {slotsToOverwrite.length > 0 && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[230] flex items-center justify-center p-4 animate-fade-in" onClick={() => setSlotsToOverwrite([])}>
-          <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[320px] w-full border border-outline-variant/20 text-center flex flex-col max-h-[85vh] animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-4 shrink-0">
-              <span className="material-symbols-outlined text-[28px]">warning</span>
-            </div>
-            <h3 className="font-headline font-bold text-lg text-on-surface mb-2 tracking-tight">Potwierdź podmianę</h3>
-            <p className="text-on-surface-variant text-xs mb-5 leading-relaxed">Poniższe zaplanowane wcześniej posiłki zostaną bezpowrotnie usunięte z kalendarza:</p>
+      {pendingTransfer && (
+        <PlanConflictDialog
+          conflicts={pendingTransfer.conflicts.map(meal => ({
+            id: meal.id,
+            title: mealTitle(meal),
+            detail: `${formatRelativeDayLabel(meal.meal_date)} • ${getMealTypeName(meal.meal_type, profile?.meal_config)}`,
+          }))}
+          busy={transferBusy}
+          onOverwrite={() => runTransfer(pendingTransfer, 'overwrite')}
+          onAppend={() => runTransfer(pendingTransfer, 'append')}
+          onCancel={() => setPendingTransfer(null)}
+        />
+      )}
 
-            <div className="flex flex-col gap-2 overflow-y-auto w-full mb-6 scroll-smooth pr-1">
-              {slotsToOverwrite.map((m, idx) => {
-                const rid = m.recipe?.id || m.recipe;
-                const recipe = recipes.find(r => r.id === rid);
-                const day = days.find(d => d.date === m.meal_date);
-                if (!recipe || !day) return null;
-                return (
-                  <div key={idx} className="flex items-center gap-3 p-3 bg-error/5 border border-error/10 rounded-2xl w-full">
-                    <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm shrink-0">
-                      <RecipeCoverImage
-                        recipe={recipe}
-                        alt=""
-                        className="w-full h-full"
-                        imgClassName="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex flex-col overflow-hidden text-left w-full">
-                      <span className="text-xs font-bold text-on-surface truncate">{recipe.name}</span>
-                      <span className="text-[10px] text-error font-medium truncate mt-0.5 opacity-80">{formatDayWithMonthName(day.name, day.date)} • {getMealTypeName(m.meal_type)}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="flex gap-3 shrink-0">
-              <button
-                onClick={() => setSlotsToOverwrite([])}
-                className="flex-1 py-3.5 text-sm font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-2xl transition-colors active:scale-95 bg-surface-container-low"
-              >
-                Anuluj
-              </button>
-              <button
-                onClick={executeCopyAction}
-                className="flex-[1.5] py-3.5 text-sm font-bold text-on-error bg-error rounded-2xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
-              >
-                Podmień ({slotsToOverwrite.length})
-              </button>
-            </div>
-          </div>
-        </div>
+      {snackbar && (
+        <UndoSnackbar
+          key={snackbar.id}
+          message={snackbar.message}
+          onUndo={snackbar.result ? () => handleUndo(snackbar.result!) : undefined}
+          onClose={closeSnackbar}
+        />
       )}
 
       {/* Ostrzeżenie przed usunięciem jednego posiłku */}
@@ -1113,28 +1091,31 @@ export function Plan() {
 
       {/* Ostrzeżenie przed usunięciem całego dnia */}
       {dayToDelete && (() => {
-        const d = days.find(x => x.date === dayToDelete);
+        const count = mealsOfDay(visibleMeals, dayToDelete).length;
+        const weekday = parseIsoDate(dayToDelete)?.getDay() ?? 0;
         return (
           <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-fade-in pointer-events-none">
-            <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center pointer-events-auto flex flex-col items-center">
+            <div role="alertdialog" aria-modal="true" aria-labelledby="delete-day-title" aria-describedby="delete-day-description" className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center pointer-events-auto flex flex-col items-center">
               <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mb-4">
                 <span className="material-symbols-outlined text-3xl">delete_sweep</span>
               </div>
-              <h3 className="font-headline font-bold text-lg text-on-surface mb-1">Czyszczenie dnia</h3>
-              <p className="text-on-surface-variant text-xs mb-6">Trwale usuniesz wszystkie posiłki z: <b>{d ? formatDayWithMonthName(d.name, d.date) : ''}</b></p>
+              <h3 id="delete-day-title" className="font-headline font-bold text-lg text-on-surface mb-1">
+                {t(`plan.deleteDay.${pluralForm(count)}`, { count, day: t(`plan.weekdayGenitive.${weekday}` as MessageKey) })}
+              </h3>
+              <p id="delete-day-description" className="text-on-surface-variant text-xs mb-6">{formatRelativeDayLabel(dayToDelete)}. {t('plan.deleteDay.description')}</p>
 
               <div className="flex gap-2 w-full">
                 <button
                   onClick={() => setDayToDelete(null)}
                   className="flex-1 py-3 text-sm font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-xl transition-colors active:scale-95"
                 >
-                  Anuluj
+                  {t('plan.cancel')}
                 </button>
                 <button
                   onClick={() => handleDeleteDay(dayToDelete)}
                   className="flex-[1.5] py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
                 >
-                  Wyczyść listę
+                  {t('plan.deleteDay.confirm')}
                 </button>
               </div>
             </div>
@@ -1221,7 +1202,7 @@ function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick
   return <div className={CARD_WRAPPER}>{content}</div>;
 }
 
-function PlanCard({ onClick, isCopyMode, isSelected, disabled, isToday, noWrap }: { onClick: () => void, isCopyMode?: boolean, isSelected?: boolean, disabled?: boolean, isToday?: boolean, noWrap?: boolean }) {
+function PlanCard({ onClick, isCopyMode, copyLabel, isSelected, disabled, isToday, noWrap }: { onClick: () => void, isCopyMode?: boolean, copyLabel: string, isSelected?: boolean, disabled?: boolean, isToday?: boolean, noWrap?: boolean }) {
   const content = (
     <div onClick={disabled ? undefined : onClick} className={`relative w-full max-w-[130px] h-[120px] sm:h-[135px] rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-300 group overflow-hidden ${disabled ? 'opacity-30 bg-surface-container-highest/10 pointer-events-none' : isCopyMode ? 'bg-surface-container-highest/20 cursor-pointer' : 'bg-transparent border border-dashed border-outline-variant/20 hover:bg-surface-container-highest/30 hover:border-primary/30 cursor-pointer active:scale-95'} ${isSelected ? '!bg-primary/10 border-solid border-primary ring-2 ring-primary' : ''} ${isToday ? 'ring-2 ring-[#ff9800]/25 bg-[#ff9800]/[0.01]' : ''}`}>
 
@@ -1238,7 +1219,7 @@ function PlanCard({ onClick, isCopyMode, isSelected, disabled, isToday, noWrap }
         <span className="text-primary/60 text-[9px] font-bold tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity">Plan</span>
       )}
       {isCopyMode && (
-        <span className="text-primary/70 text-[9px] font-bold tracking-widest uppercase">Wklej</span>
+        <span className="text-primary/70 text-[9px] font-bold tracking-widest uppercase">{copyLabel}</span>
       )}
     </div>
   );

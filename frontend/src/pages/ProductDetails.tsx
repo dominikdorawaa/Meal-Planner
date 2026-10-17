@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, firstDayOfMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
@@ -8,10 +8,12 @@ import { canDeleteProduct } from '../lib/productPermissions';
 import { NutritionFactsTable } from '../components/NutritionFactsTable';
 import { scaleNutritionFacts } from '../lib/nutrients';
 import { t } from '../i18n';
+import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 
 export function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user, refreshMeals, getConsumedForDay, profile } = useAppData();
   
@@ -125,6 +127,7 @@ export function ProductDetails() {
         for (const insert of mealInserts) {
           await api.meals.add(insert);
         }
+        await addSelectionAfterItem(readPlanSelection(location.state), { kind: 'product', id: String(product.id) }, targetDate, targetType);
       }
       await refreshMeals();
       navigate('/');

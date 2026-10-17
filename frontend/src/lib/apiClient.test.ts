@@ -43,6 +43,19 @@ describe('apiClient', () => {
     expect(sentHeaders()['Accept-Language']).toBe('en');
   });
 
+  it('accepts a successful response without a body', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+
+    await expect(api.meals.delete('meal-1')).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls[0][1].method).toBe('DELETE');
+  });
+
+  it('accepts a 204 response', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+
+    await expect(api.meals.delete('meal-1')).resolves.toBeUndefined();
+  });
+
   it('shows the message returned by the backend for a bad request without logging out', async () => {
     localStorage.setItem('mp_auth_token', 'token');
     fetchMock.mockResolvedValue(jsonResponse(400, { error: 'Invalid email format' }));
