@@ -441,6 +441,7 @@ describe('Plan item deletion', () => {
     click(/Usuń posiłek/)
 
     expect(await screen.findByText('Usunięto Coffee z Lunch')).toBeTruthy()
+    expect(mocks.refreshMeals).toHaveBeenCalledTimes(2)
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.queryByRole('alertdialog')).toBeNull()
     expect(mocks.delete).toHaveBeenCalledWith('meal-2')
@@ -521,6 +522,19 @@ describe('Plan start date', () => {
 
     expect(mocks.navigate).toHaveBeenCalledWith('/add-food?selectDate=2026-10-12&selectType=lunch&mealId=meal-2')
     expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-12', scrollLeft: 0 })
+  })
+
+  it('jumps to today at midnight while the plan stays open', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    vi.setSystemTime(new Date(2026, 9, 12, 23, 59))
+    const { container } = renderPlan()
+
+    act(() => { vi.advanceTimersByTime(30 * 1000) })
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).not.toBeNull()
+
+    act(() => { vi.advanceTimersByTime(60 * 1000) })
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
+    expect(container.querySelector('[data-slot="2026-10-13_breakfast"]')).not.toBeNull()
   })
 
   it('jumps back to today when the app is shown again on a new day', () => {

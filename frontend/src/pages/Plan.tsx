@@ -132,17 +132,31 @@ export function Plan() {
 
   useEffect(() => {
     let shownDay = todayIsoDate();
+    let midnightTimer = 0;
     const showTodayAfterDayChange = () => {
-      if (document.visibilityState !== 'visible' || todayIsoDate() === shownDay) return;
+      if (todayIsoDate() === shownDay) return;
       shownDay = todayIsoDate();
       setBaseDate(startOfToday());
       if (scrollRef.current) scrollRef.current.scrollLeft = 0;
     };
-    document.addEventListener('visibilitychange', showTodayAfterDayChange);
-    window.addEventListener('focus', showTodayAfterDayChange);
+    const showTodayWhenVisible = () => {
+      if (document.visibilityState === 'visible') showTodayAfterDayChange();
+    };
+    const scheduleMidnightCheck = () => {
+      const nextDay = startOfToday();
+      nextDay.setDate(nextDay.getDate() + 1);
+      midnightTimer = window.setTimeout(() => {
+        showTodayAfterDayChange();
+        scheduleMidnightCheck();
+      }, nextDay.getTime() - Date.now() + 1000);
+    };
+    scheduleMidnightCheck();
+    document.addEventListener('visibilitychange', showTodayWhenVisible);
+    window.addEventListener('focus', showTodayWhenVisible);
     return () => {
-      document.removeEventListener('visibilitychange', showTodayAfterDayChange);
-      window.removeEventListener('focus', showTodayAfterDayChange);
+      window.clearTimeout(midnightTimer);
+      document.removeEventListener('visibilitychange', showTodayWhenVisible);
+      window.removeEventListener('focus', showTodayWhenVisible);
     };
   }, []);
 
@@ -175,13 +189,15 @@ export function Plan() {
     setUserMeals(prev => prev.filter(m => m.id !== meal.id));
     try {
       await api.meals.delete(meal.id);
-      const message = t('plan.snackbar.deleted', { name: mealTitle(meal), meal: getMealTypeName(meal.meal_type, profile?.meal_config) });
-      showSnackbar(message, { created: [], removed: [meal], complete: true }, DELETED_MEAL_SNACKBAR_DURATION_MS);
     } catch (err) {
       console.error("Error deleting meal:", err);
       showSnackbar(t('plan.snackbar.failed'));
+      await refreshMeals();
+      return;
     }
     await refreshMeals();
+    const message = t('plan.snackbar.deleted', { name: mealTitle(meal), meal: getMealTypeName(meal.meal_type, profile?.meal_config) });
+    showSnackbar(message, { created: [], removed: [meal], complete: true }, DELETED_MEAL_SNACKBAR_DURATION_MS);
   };
 
   const resetSelectionModes = () => {
