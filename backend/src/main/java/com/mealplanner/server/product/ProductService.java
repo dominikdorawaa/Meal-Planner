@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -40,6 +41,16 @@ public class ProductService {
         product.setCreatedBy(author.getId());
         product.setStatus(author.getRole() == UserRole.ADMIN ? ProductStatus.VERIFIED : ProductStatus.PENDING);
         return productRepository.save(product);
+    }
+
+    public Optional<Product> findByBarCode(String barCode, String email) {
+        Optional<Product> verified = productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(barCode, ProductStatus.VERIFIED);
+        if (verified.isPresent() || email == null) {
+            return verified;
+        }
+        return userRepository.findByEmail(email)
+                .flatMap(user -> productRepository.findFirstByBarCodeAndStatusAndCreatedByAndDeletedAtIsNullOrderByCreatedAtDesc(
+                        barCode, ProductStatus.PENDING, user.getId()));
     }
 
     @Transactional

@@ -211,4 +211,12 @@ describe('BarcodeScanner', () => {
     fireEvent.click(screen.getByRole('dialog'));
     expect(onClose).toHaveBeenCalledTimes(2);
   });
+
+  it('shows a square camera preview with an aiming frame', async () => {
+    renderScanner();
+    await flush();
+
+    expect(screen.getByTestId('scanner-preview').className).toContain('aspect-square');
+    expect(screen.getByTestId('scanner-aim-frame')).toBeTruthy();
+  });
 });

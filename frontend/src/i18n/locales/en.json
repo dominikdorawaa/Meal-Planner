@@ -38,5 +38,7 @@
   "product.barCode": "Barcode",
   "scanner.engineFailed": "Could not start the scanner. Enter the code by hand.",
   "scanner.aimHint": "Fit the code in the frame, 15 to 20 cm from the camera",
-  "scanner.torch": "Flashlight"
+  "scanner.torch": "Flashlight",
+  "product.scanBarCode": "Scan barcode",
+  "product.alreadyExists": "This product already exists"
 }

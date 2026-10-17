@@ -12,6 +12,8 @@ import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
 import { useBarcodeLookup } from '../lib/useBarcodeLookup';
 import { missingProductMessage } from '../lib/barcodeLookup';
 import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
+import { BarCodeField } from '../components/BarCodeField';
+import { useExistingBarCodeProduct } from '../lib/useExistingBarCodeProduct';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { t } from '../i18n';
 
@@ -103,6 +105,7 @@ export function AddFood() {
   const newProductNutrientsStarted = [addProductForm.kcal, addProductForm.protein, addProductForm.fat, addProductForm.carbs]
     .some(value => value.trim() !== '');
   const newProductHints = formNutritionHints(newProductCheck, newProductNutrientsStarted);
+  const existingBarCodeProduct = useExistingBarCodeProduct(addProductForm.barCode);
 
   const [showScanner, setShowScanner] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
@@ -132,7 +135,7 @@ export function AddFood() {
   };
 
   const handleCreateProduct = async () => {
-    if (!newProductCheck.valid) return;
+    if (!newProductCheck.valid || existingBarCodeProduct) return;
     setIsCreatingProduct(true);
     try {
       await api.products.create({
@@ -857,11 +860,12 @@ export function AddFood() {
               {scanMessage && (
                 <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-primary/10 text-on-surface">{scanMessage}</p>
               )}
-              {addProductForm.barCode && (
-                <p className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">
-                  {t('product.barCode')}: <span className="text-on-surface">{addProductForm.barCode}</span>
-                </p>
-              )}
+              <BarCodeField
+                value={addProductForm.barCode}
+                onChange={barCode => setAddProductForm(p => ({ ...p, barCode }))}
+                existingProduct={existingBarCodeProduct}
+                productHref={product => `/product/${product.id}?selectDate=${activeDate}&selectType=${activeMealType}`}
+              />
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">Nazwa *</label>
@@ -943,7 +947,7 @@ export function AddFood() {
 
             <button
               onClick={handleCreateProduct}
-              disabled={isCreatingProduct || !newProductCheck.valid}
+              disabled={isCreatingProduct || !newProductCheck.valid || !!existingBarCodeProduct}
               className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
             >
               {isCreatingProduct ? (

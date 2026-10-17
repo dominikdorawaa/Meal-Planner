@@ -31,6 +31,8 @@ export default defineConfig({
         'src/components/BottomNav.tsx',
         'src/lib/useInstallPrompt.ts',
         'src/pages/Onboarding.tsx',
+        'src/components/BarCodeField.tsx',
+        'src/lib/useExistingBarCodeProduct.ts',
       ],
       reporter: ['text', 'html'],
     },
