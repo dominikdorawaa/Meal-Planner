@@ -13,6 +13,7 @@ describe('RecipeMoreNutrients', () => {
     expect(screen.getByRole('columnheader', { name: '1 porcja' })).toBeTruthy();
     expect(within(screen.getByRole('row', { name: /Kwasy tłuszczowe nasycone/ })).getByRole('cell').textContent).toBe('12 g');
     expect(screen.queryByText('niepełne dane')).toBeNull();
+    expect(screen.getByRole('rowheader', { name: 'Cukry' }).className).toContain('font-bold');
   });
 
   it('says the data is incomplete when an ingredient misses values', () => {

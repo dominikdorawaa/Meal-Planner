@@ -32,7 +32,7 @@ export function MoreNutrientsFields({ values, onChange }: MoreNutrientsFieldsPro
               <label htmlFor={`${panelId}-${nutrient}`} className="text-xs font-bold text-on-surface-variant pl-1 leading-tight">
                 {t(NUTRITION_FACT_LABELS[nutrient])}
               </label>
-              <div className="relative flex items-center rounded-xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
+              <div className="mt-auto relative flex items-center rounded-xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
                 <input
                   id={`${panelId}-${nutrient}`}
                   type="number"

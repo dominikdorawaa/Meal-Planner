@@ -22,6 +22,7 @@ describe('NutritionFactsTable', () => {
     const salt = screen.getByRole('row', { name: /Sól/ });
     expect(within(salt).getAllByRole('cell').map(cell => cell.textContent)).toEqual(['0.1 g', '0.05 g']);
     expect(screen.getAllByRole('row')).toHaveLength(9);
+    expect(screen.getByRole('rowheader', { name: 'Cukry' }).className).toContain('pl-4');
   });
 
   it('marks missing values and can show only selected nutrients', () => {

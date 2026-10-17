@@ -1,6 +1,6 @@
 import { t } from '../i18n';
 import {
-  NESTED_NUTRITION_FACTS,
+  NUTRITION_FACT_PARENTS,
   NUTRITION_FACT_LABELS,
   NUTRITION_FACTS,
   formatNutritionFact,
@@ -28,13 +28,14 @@ export function NutritionFactsTable({ title, columns, facts = NUTRITION_FACTS }:
           <tr className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
             <th scope="col" className="sr-only">{t('nutrients.name')}</th>
             {columns.map(column => (
-              <th key={column.label} scope="col" className="py-2 pl-2 text-right font-black">{column.label}</th>
+              <th key={column.label} scope="col" className="py-2 pl-2 text-right font-black whitespace-nowrap">{column.label}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {facts.map(fact => {
-            const nested = NESTED_NUTRITION_FACTS.includes(fact);
+            const parent = NUTRITION_FACT_PARENTS[fact];
+            const nested = parent !== undefined && facts.includes(parent);
             return (
               <tr key={fact} className="border-t border-outline-variant/10">
                 <th

@@ -19,7 +19,7 @@ export const NUTRITION_FACT_LABELS: Record<NutritionFact, MessageKey> = {
   salt: 'nutrients.salt',
 };
 
-export const NESTED_NUTRITION_FACTS: readonly NutritionFact[] = ['saturated_fat', 'sugars'];
+export const NUTRITION_FACT_PARENTS: Partial<Record<NutritionFact, NutritionFact>> = { saturated_fat: 'fat', sugars: 'carbs' };
 
 const PER_PIECE_UNIT = 'pc';
 const PIECE_INGREDIENT_UNIT = 'szt';
