@@ -97,7 +97,8 @@ class OffImportRulesTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"Chicken Fingers", "Orange juice", "Coconut Milk", "Cheese And Cranberry Flavoured Chips",
-            "Grill Käse", "Pierogi Mit Sauerkraut", "Cookies with jelly cube & milk cream"})
+            "Grill Käse", "Pierogi Mit Sauerkraut", "Cookies with jelly cube & milk cream",
+            "Арахіс смажений солоний", "Magija Сырок Waniliowy", "Lacta παγωτό", "מלפפונים שלמים", "脾气条"})
     void recognisesForeignNames(String name) {
         assertThat(OffImportRules.isForeignName(name)).isTrue();
         assertThat(new OffImportRules().check(skyr(name)).errors()).containsExactly(OffImportRules.NAME_FOREIGN);
