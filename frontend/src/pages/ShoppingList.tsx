@@ -19,7 +19,7 @@ export function ShoppingList() {
   const [newQuantity, setNewQuantity] = useState('1');
   const [newUnit, setNewUnit] = useState('szt');
   const [addSubmitting, setAddSubmitting] = useState(false);
-  const addSheetRef = useBottomSheet(showAddModal, () => { if (!addSubmitting) setShowAddModal(false); });
+  const addSheetRef = useBottomSheet(showAddModal, () => setShowAddModal(false), addSubmitting);
   useCloseOnBack(showConfirm, () => setShowConfirm(false));
   const [addError, setAddError] = useState<string | null>(null);
 

@@ -14,7 +14,7 @@ function canStartDrag(sheet: HTMLElement, target: EventTarget | null): boolean {
   return true;
 }
 
-export function attachSwipeDownToClose(sheet: HTMLElement, close: () => void): () => void {
+export function attachSwipeDownToClose(sheet: HTMLElement, close: () => void, isLocked: () => boolean = () => false): () => void {
   let start: { x: number; y: number; time: number } | null = null;
   let dragging = false;
   let offset = 0;
@@ -33,7 +33,7 @@ export function attachSwipeDownToClose(sheet: HTMLElement, close: () => void): (
     const touch = event.touches[0];
     dragging = false;
     offset = 0;
-    start = event.touches.length === 1 && canStartDrag(sheet, event.target) ? { x: touch.clientX, y: touch.clientY, time: Date.now() } : null;
+    start = event.touches.length === 1 && !isLocked() && canStartDrag(sheet, event.target) ? { x: touch.clientX, y: touch.clientY, time: Date.now() } : null;
   };
 
   const onTouchMove = (event: TouchEvent) => {
@@ -92,13 +92,13 @@ export function attachSwipeDownToClose(sheet: HTMLElement, close: () => void): (
   };
 }
 
-export function useSwipeDownToClose<T extends HTMLElement = HTMLDivElement>(onClose: () => void) {
-  const onCloseRef = useRef(onClose);
+export function useSwipeDownToClose<T extends HTMLElement = HTMLDivElement>(onClose: () => void, locked = false) {
+  const latest = useRef({ onClose, locked });
   useEffect(() => {
-    onCloseRef.current = onClose;
+    latest.current = { onClose, locked };
   });
   return useCallback((sheet: T | null) => {
     if (!sheet) return;
-    return attachSwipeDownToClose(sheet, () => onCloseRef.current());
+    return attachSwipeDownToClose(sheet, () => latest.current.onClose(), () => latest.current.locked);
   }, []);
 }

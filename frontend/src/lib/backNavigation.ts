@@ -4,11 +4,18 @@ const GUARD_KEY = 'overlayGuard';
 const EDGE_WIDTH_PX = 24;
 const EDGE_SWIPE_DISTANCE_PX = 80;
 
-type Overlay = { close: () => void };
+type Overlay = { close: () => void; isLocked: () => boolean };
 
 const overlays: Overlay[] = [];
 let pendingBack = false;
+let leaving = false;
 let installed = false;
+
+const browserHistory = {
+  pushState: History.prototype.pushState,
+  replaceState: History.prototype.replaceState,
+  go: History.prototype.go,
+};
 
 function isGuard(state: unknown): boolean {
   return typeof state === 'object' && state !== null && (state as Record<string, unknown>)[GUARD_KEY] === true;
@@ -25,7 +32,7 @@ function syncHistory() {
   if (!installed || pendingBack) return;
   const onGuard = isGuard(window.history.state);
   if (overlays.length > 0 && !onGuard) {
-    window.history.pushState({ ...(window.history.state as object | null), [GUARD_KEY]: true }, '');
+    browserHistory.pushState.call(window.history, { ...(window.history.state as object | null), [GUARD_KEY]: true }, '');
   } else if (overlays.length === 0 && onGuard) {
     pendingBack = true;
     window.history.back();
@@ -37,16 +44,53 @@ function scheduleSync() {
 }
 
 function handlePopState() {
+  if (leaving) {
+    leaving = false;
+    return;
+  }
   if (pendingBack) {
     pendingBack = false;
   } else if (!isGuard(window.history.state)) {
-    overlays.pop()?.close();
+    const top = overlays.at(-1);
+    if (top && !top.isLocked()) {
+      overlays.pop();
+      top.close();
+    }
   }
   scheduleSync();
 }
 
-export function registerOverlay(close: () => void): () => void {
-  const overlay: Overlay = { close };
+function leavePage() {
+  overlays.length = 0;
+  pendingBack = false;
+}
+
+function pushState(this: History, data: unknown, unused: string, url?: string | URL | null) {
+  if (!isGuard(window.history.state)) {
+    browserHistory.pushState.call(this, data, unused, url);
+    return;
+  }
+  leavePage();
+  browserHistory.replaceState.call(this, data, unused, url);
+}
+
+function replaceState(this: History, data: unknown, unused: string, url?: string | URL | null) {
+  const keepGuard = isGuard(window.history.state) && overlays.length > 0;
+  browserHistory.replaceState.call(this, keepGuard ? { ...(data as object | null), [GUARD_KEY]: true } : data, unused, url);
+}
+
+function go(this: History, delta = 0) {
+  if (delta >= 0 || !isGuard(window.history.state)) {
+    browserHistory.go.call(this, delta);
+    return;
+  }
+  leavePage();
+  leaving = true;
+  browserHistory.go.call(this, delta - 1);
+}
+
+export function registerOverlay(close: () => void, isLocked: () => boolean = () => false): () => void {
+  const overlay: Overlay = { close, isLocked };
   overlays.push(overlay);
   scheduleSync();
   return () => {
@@ -57,14 +101,14 @@ export function registerOverlay(close: () => void): () => void {
   };
 }
 
-export function useCloseOnBack(open: boolean, onClose: () => void) {
-  const onCloseRef = useRef(onClose);
+export function useCloseOnBack(open: boolean, onClose: () => void, locked = false) {
+  const latest = useRef({ onClose, locked });
   useEffect(() => {
-    onCloseRef.current = onClose;
+    latest.current = { onClose, locked };
   });
   useEffect(() => {
     if (!open) return;
-    return registerOverlay(() => onCloseRef.current());
+    return registerOverlay(() => latest.current.onClose(), () => latest.current.locked);
   }, [open]);
 }
 
@@ -106,13 +150,17 @@ export function installBackNavigation(): () => void {
     window.history.replaceState(withoutGuard(window.history.state), '');
   }
   installed = true;
+  Object.assign(window.history, { pushState, replaceState, go });
   window.addEventListener('popstate', handlePopState);
   const stopEdgeSwipe = isIosStandalone() ? listenForEdgeSwipe() : () => {};
   return () => {
     window.removeEventListener('popstate', handlePopState);
     stopEdgeSwipe();
-    overlays.length = 0;
-    pendingBack = false;
+    Reflect.deleteProperty(window.history, 'pushState');
+    Reflect.deleteProperty(window.history, 'replaceState');
+    Reflect.deleteProperty(window.history, 'go');
+    leavePage();
+    leaving = false;
     installed = false;
   };
 }

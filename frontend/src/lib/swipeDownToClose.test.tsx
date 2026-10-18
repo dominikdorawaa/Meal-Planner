@@ -188,3 +188,25 @@ describe('bottom sheet', () => {
     expect(screen.getByText('closed')).toBeTruthy()
   })
 })
+
+describe('locked sheet', () => {
+  function LockedSheet({ locked, onClose }: { locked: boolean; onClose: () => void }) {
+    const ref = useSwipeDownToClose(onClose, locked)
+    return <div ref={ref} data-testid="sheet">sheet</div>
+  }
+
+  it('does not move while it cannot be closed and moves again once unlocked', () => {
+    const onClose = vi.fn()
+    const view = render(<LockedSheet locked onClose={onClose} />)
+
+    drag(sheet(), 300, 50)
+    act(() => vi.advanceTimersByTime(400))
+    expect(sheet().style.transform).toBe('')
+    expect(onClose).not.toHaveBeenCalled()
+
+    view.rerender(<LockedSheet locked={false} onClose={onClose} />)
+    drag(sheet(), 300, 50)
+    act(() => vi.advanceTimersByTime(200))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+})

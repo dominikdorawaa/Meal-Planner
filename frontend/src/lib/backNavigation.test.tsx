@@ -103,7 +103,7 @@ describe('back navigation', () => {
   })
 
   it('keeps one history entry when an overlay closes and another opens at once', async () => {
-    const pushState = vi.spyOn(window.history, 'pushState')
+    const length = window.history.length
     const unregister = registerOverlay(() => {})
     await settle()
 
@@ -111,14 +111,14 @@ describe('back navigation', () => {
     registerOverlay(() => {})
     await settle()
 
-    expect(pushState).toHaveBeenCalledOnce()
+    expect(window.history.length).toBe(length + 1)
     expect(isOnGuard()).toBe(true)
   })
 
   it('does not close a newly opened overlay while removing the previous entry', async () => {
     const unregister = registerOverlay(() => {})
     await settle()
-    const pushState = vi.spyOn(window.history, 'pushState')
+    const length = window.history.length
     unregister()
     await settle()
     const next = vi.fn()
@@ -130,22 +130,101 @@ describe('back navigation', () => {
     await settle()
 
     expect(next).not.toHaveBeenCalled()
-    expect(pushState).toHaveBeenCalledOnce()
+    expect(window.history.length).toBe(length)
     expect(isOnGuard()).toBe(true)
   })
 
-  it('skips a leftover entry of an overlay closed by navigating to another screen', async () => {
-    const unregister = registerOverlay(() => {})
-    await settle()
-    window.history.pushState({ idx: 4, key: 'next' }, '', '/recipe/1')
-    unregister()
-    await settle()
+  it('skips a leftover overlay entry when going back past it', async () => {
+    History.prototype.pushState.call(window.history, { idx: 3, key: 'base', overlayGuard: true }, '')
+    History.prototype.pushState.call(window.history, { idx: 4, key: 'next' }, '', '/recipe/1')
 
     await goBack()
     await waitFor(() => expect(isOnGuard()).toBe(false))
 
     expect(window.history.state).toMatchObject({ idx: 3, key: 'base' })
     expect(window.location.pathname).toBe('/plan')
+  })
+
+  it('replaces the extra entry when the app opens another screen from an open overlay', async () => {
+    const close = vi.fn()
+    const unregister = registerOverlay(close)
+    await settle()
+    const length = window.history.length
+
+    window.history.pushState({ idx: 4, key: 'next' }, '', '/recipe/1')
+    unregister()
+    await settle()
+
+    expect(window.history.length).toBe(length)
+    expect(window.history.state).toEqual({ idx: 4, key: 'next' })
+    await goBack()
+    await settle()
+    expect(window.location.pathname).toBe('/plan')
+    expect(window.history.state).toMatchObject({ idx: 3, key: 'base' })
+    expect(close).not.toHaveBeenCalled()
+  })
+
+  it('leaves the screen when the app goes back while an overlay is open', async () => {
+    window.history.pushState({ idx: 4, key: 'details' }, '', '/recipe/1')
+    const close = vi.fn()
+    registerOverlay(close)
+    await settle()
+
+    await new Promise<void>(resolve => {
+      window.addEventListener('popstate', () => resolve(), { once: true })
+      window.history.go(-1)
+    })
+    await settle()
+
+    expect(window.location.pathname).toBe('/plan')
+    expect(window.history.state).toMatchObject({ idx: 3, key: 'base' })
+    expect(close).not.toHaveBeenCalled()
+  })
+
+  it('moves forward and replaces entries as usual when no overlay is open', async () => {
+    window.history.pushState({ idx: 4, key: 'details' }, '', '/recipe/1')
+    window.history.replaceState({ idx: 4, key: 'edited' }, '', '/recipe/2')
+    await goBack()
+
+    expect(window.location.pathname).toBe('/plan')
+    await new Promise<void>(resolve => {
+      window.addEventListener('popstate', () => resolve(), { once: true })
+      window.history.go(1)
+    })
+    expect(window.history.state).toEqual({ idx: 4, key: 'edited' })
+  })
+
+  it('keeps the overlay entry when the app replaces the address while an overlay is open', async () => {
+    registerOverlay(() => {})
+    await settle()
+
+    window.history.replaceState({ idx: 3, key: 'filtered' }, '', '/plan?day=2')
+
+    expect(window.history.state).toEqual({ idx: 3, key: 'filtered', overlayGuard: true })
+  })
+
+  it('keeps a locked overlay open and still catches the next back gesture', async () => {
+    let locked = true
+    const close = vi.fn()
+    registerOverlay(close, () => locked)
+    await settle()
+
+    await goBack()
+    await settle()
+    expect(close).not.toHaveBeenCalled()
+    expect(isOnGuard()).toBe(true)
+
+    locked = false
+    await goBack()
+    expect(close).toHaveBeenCalledOnce()
+  })
+
+  it('restores the browser history methods when uninstalled', () => {
+    uninstall()
+
+    expect(Object.prototype.hasOwnProperty.call(window.history, 'pushState')).toBe(false)
+    expect(Object.prototype.hasOwnProperty.call(window.history, 'go')).toBe(false)
+    uninstall = installBackNavigation()
   })
 
   it('ignores unregistering the same overlay twice', async () => {
