@@ -61,7 +61,9 @@ public final class OffImportRules {
         String lowerCase = name.toLowerCase(Locale.ROOT);
         Set<String> words = Set.copyOf(Arrays.asList(lowerCase.split("[^\\p{L}]+")));
         boolean hasPolishLetter = lowerCase.chars().anyMatch(letter -> POLISH_LETTERS.indexOf(letter) >= 0);
-        return words.stream().anyMatch(FOREIGN_WORDS::contains)
+        boolean hasNonLatinLetter = lowerCase.codePoints().filter(Character::isLetter)
+                .anyMatch(letter -> Character.UnicodeScript.of(letter) != Character.UnicodeScript.LATIN);
+        return hasNonLatinLetter || words.stream().anyMatch(FOREIGN_WORDS::contains)
                 && !hasPolishLetter
                 && words.stream().noneMatch(POLISH_WORDS::contains);
     }
