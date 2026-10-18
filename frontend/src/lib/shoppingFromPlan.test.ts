@@ -18,16 +18,16 @@ const OMELETTE = {
   id: 'r1',
   portions: 2,
   ingredients: [
-    { name: 'Jajka', amount: 4, unit: 'szt' },
-    { name: 'Mleko', amount: '100', unit: 'ml' },
+    { name: 'Eggs', amount: 4, unit: 'pcs' },
+    { name: 'Milk', amount: '100', unit: 'ml' },
   ],
 };
 const PANCAKES = {
   id: 'r2',
   portions: null,
   ingredients: [
-    { name: 'mleko', amount: 200, unit: 'ML' },
-    { name: 'Mąka', amount: 150, unit: 'g' },
+    { name: 'milk', amount: 200, unit: 'ML' },
+    { name: 'Flour', amount: 150, unit: 'g' },
   ],
 };
 
@@ -78,9 +78,9 @@ describe('buildShoppingAdditions', () => {
     const { items, recipePortions } = buildShoppingAdditions(meals, [OMELETTE, PANCAKES]);
 
     expect(items).toEqual([
-      { ingredient_name: 'Jajka', quantity: 4, unit: 'szt' },
-      { ingredient_name: 'Mleko', quantity: 200, unit: 'ml' },
-      { ingredient_name: 'Mąka', quantity: 75, unit: 'g' },
+      { ingredient_name: 'Eggs', quantity: 4, unit: 'pcs' },
+      { ingredient_name: 'Milk', quantity: 200, unit: 'ml' },
+      { ingredient_name: 'Flour', quantity: 75, unit: 'g' },
     ]);
     expect([...recipePortions]).toEqual([
       ['r1', 1],
@@ -109,9 +109,9 @@ describe('addPlanMealsToShoppingList', () => {
     expect(result).toBe('added');
     expect(mocks.getRecipe.mock.calls).toEqual([['r1'], ['r2']]);
     expect(mocks.addItem.mock.calls.map(call => call[0])).toEqual([
-      { ingredient_name: 'Jajka', quantity: 8, unit: 'szt' },
-      { ingredient_name: 'Mleko', quantity: 400, unit: 'ml' },
-      { ingredient_name: 'Mąka', quantity: 150, unit: 'g' },
+      { ingredient_name: 'Eggs', quantity: 8, unit: 'pcs' },
+      { ingredient_name: 'Milk', quantity: 400, unit: 'ml' },
+      { ingredient_name: 'Flour', quantity: 150, unit: 'g' },
     ]);
     expect(mocks.addRecipe.mock.calls.map(call => call[0])).toEqual([
       { recipe: { id: 'r1' }, portions: 2 },

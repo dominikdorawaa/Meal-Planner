@@ -16,7 +16,7 @@ vi.mock('../lib/shoppingFromPlan', async importOriginal => ({
 
 const MEALS = [
   { id: 'm1', meal_date: '2026-10-17', meal_type: 'breakfast', recipe: { id: 'r1' } },
-  { id: 'm2', meal_date: '2026-10-17', meal_type: 'dinner', product: 'p1' },
+  { id: 'm2', meal_date: '2026-10-17', meal_type: 'dinner', manual_name: 'Soup' },
 ];
 
 const APP_DATA = {
@@ -25,11 +25,11 @@ const APP_DATA = {
   refreshShoppingList: mocks.refreshShoppingList,
   setShoppingList: vi.fn(),
   userMeals: MEALS,
-  recipes: [{ id: 'r1', name: 'Omlet' }],
+  recipes: [{ id: 'r1', name: 'Omelette' }],
   profile: {
     meal_config: [
-      { id: 'breakfast', name: 'Śniadanie', icon: 'light_mode', visible: true },
-      { id: 'dinner', name: 'Obiad', icon: 'restaurant', visible: true },
+      { id: 'breakfast', name: 'Breakfast', icon: 'light_mode', visible: true },
+      { id: 'dinner', name: 'Dinner', icon: 'restaurant', visible: true },
     ],
   },
 };
@@ -94,6 +94,18 @@ describe('ShoppingList create from plan', () => {
     expect(await screen.findByText(t(message))).toBeTruthy();
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(mocks.refreshShoppingList).not.toHaveBeenCalled();
+  });
+
+  it('keeps the added ingredients and closes the picker when reloading the list fails', async () => {
+    mocks.refreshShoppingList.mockRejectedValue(new Error('offline'));
+    renderPage();
+
+    pickTodayAndConfirm();
+
+    await waitFor(() => expect(screen.getByRole('status')).toBeTruthy());
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(mocks.addPlanMeals).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(console.error).toHaveBeenCalledWith('Error refreshing shopping list:', expect.any(Error)));
   });
 
   it('shows an error when saving fails and lets the user close the picker', async () => {

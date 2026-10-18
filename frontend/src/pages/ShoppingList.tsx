@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
@@ -105,6 +105,8 @@ export function ShoppingList() {
     setShowFromPlan(true);
   };
 
+  const closeFromPlan = useCallback(() => setShowFromPlan(false), []);
+
   const handleAddFromPlan = async (meals: PlanMeal[]) => {
     setFromPlanError(null);
     setFromPlanSubmitting(true);
@@ -114,15 +116,16 @@ export function ShoppingList() {
         setFromPlanError(t(FROM_PLAN_MESSAGES[result]));
         return;
       }
-      await refreshShoppingList();
-      setShowFromPlan(false);
-      setSuccessToast(t('shopping.ingredientsAdded'));
     } catch (err) {
       console.error('Error generating shopping list:', err);
       setFromPlanError(t('shopping.fromPlanFailed'));
+      return;
     } finally {
       setFromPlanSubmitting(false);
     }
+    setShowFromPlan(false);
+    setSuccessToast(t('shopping.ingredientsAdded'));
+    await refreshShoppingList().catch(err => console.error('Error refreshing shopping list:', err));
   };
 
   const clearList = async () => {
@@ -374,7 +377,7 @@ export function ShoppingList() {
           submitting={fromPlanSubmitting}
           error={fromPlanError}
           onConfirm={handleAddFromPlan}
-          onClose={() => setShowFromPlan(false)}
+          onClose={closeFromPlan}
         />
       )}
 

@@ -123,7 +123,6 @@
   "shopping.selectDay": "Select whole day: {day}",
   "shopping.selectMeal": "Select: {name}",
   "shopping.noMeals": "No meals in the plan",
-  "shopping.quickMeal": "Quick meal",
   "shopping.addIngredients": "Add ingredients ({count})",
   "shopping.cancel": "Cancel",
   "shopping.close": "Close",

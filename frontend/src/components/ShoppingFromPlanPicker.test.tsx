@@ -6,20 +6,21 @@ import type { MealType } from '../lib/mealTypes';
 import type { PlanMeal } from '../lib/shoppingFromPlan';
 
 const MEAL_TYPES: MealType[] = [
-  { id: 'breakfast', name: 'Śniadanie', icon: 'light_mode', visible: true },
-  { id: 'snack1', name: '2 Śniadanie', icon: 'bakery_dining', visible: false },
-  { id: 'dinner', name: 'Obiad', icon: 'restaurant', visible: true },
+  { id: 'breakfast', name: 'Breakfast', icon: 'light_mode', visible: true },
+  { id: 'snack1', name: 'Second breakfast', icon: 'bakery_dining', visible: false },
+  { id: 'dinner', name: 'Dinner', icon: 'restaurant', visible: true },
 ];
 
-const RECIPES = [{ id: 'r1', name: 'Omlet' }, { id: 'r2', name: 'Spaghetti' }];
+const RECIPES = [{ id: 'r1', name: 'Omelette' }, { id: 'r2', name: 'Spaghetti' }];
 
 const MEALS: PlanMeal[] = [
   { id: 'm1', meal_date: '2026-10-17', meal_type: 'dinner', recipe: { id: 'r2' } },
   { id: 'm2', meal_date: '2026-10-17', meal_type: 'breakfast', recipe: 'r1' },
   { id: 'm3', meal_date: '2026-10-17', meal_type: 'snack1', recipe: 'r1' },
-  { id: 'm4', meal_date: '2026-10-18', meal_type: 'breakfast', product: { id: 'p1', name: 'Jogurt', brand: 'Bio' } as never },
+  { id: 'm4', meal_date: '2026-10-18', meal_type: 'breakfast', product: { id: 'p1', name: 'Yogurt', brand: 'Bio' } as never },
   { id: 'm5', meal_date: '2026-10-18', meal_type: 'dinner', manual_name: 'Pizza' },
   { id: 'm6', meal_date: '2026-10-18', meal_type: 'dinner' },
+  { id: 'm9', meal_date: '2026-10-18', meal_type: 'breakfast', product: 'unknown-product' },
   { id: 'm7', meal_date: '2026-10-25', meal_type: 'dinner', recipe: 'r1' },
   { id: 'm8', meal_date: '2026-10-25', meal_type: 'breakfast', recipe: 'gone' },
 ];
@@ -69,12 +70,12 @@ describe('ShoppingFromPlanPicker', () => {
       .slice(0, 3);
     expect(todayMeals).toEqual([
       t('shopping.selectDay', { day: 'Dzisiaj' }),
-      t('shopping.selectMeal', { name: 'Śniadanie: Omlet' }),
-      t('shopping.selectMeal', { name: 'Obiad: Spaghetti' }),
+      t('shopping.selectMeal', { name: 'Breakfast: Omelette' }),
+      t('shopping.selectMeal', { name: 'Dinner: Spaghetti' }),
     ]);
-    expect(mealCheckbox('Śniadanie: Jogurt (Bio)')).toBeTruthy();
-    expect(mealCheckbox('Obiad: Pizza')).toBeTruthy();
-    expect(mealCheckbox(`Obiad: ${t('shopping.quickMeal')}`)).toBeTruthy();
+    expect(mealCheckbox('Breakfast: Yogurt (Bio)')).toBeTruthy();
+    expect(mealCheckbox('Dinner: Pizza')).toBeTruthy();
+    expect(mealCheckbox(`Dinner: ${t('plan.quickMeal')}`)).toBeTruthy();
     expect(screen.getAllByText(t('shopping.noMeals'))).toHaveLength(5);
     expect((dayCheckbox('Poniedziałek, 19 października') as HTMLButtonElement).disabled).toBe(true);
   });
@@ -85,7 +86,7 @@ describe('ShoppingFromPlanPicker', () => {
     fireEvent.click(dayCheckbox('Dzisiaj'));
 
     expect(dayCheckbox('Dzisiaj').getAttribute('aria-checked')).toBe('true');
-    expect(mealCheckbox('Śniadanie: Omlet').getAttribute('aria-checked')).toBe('true');
+    expect(mealCheckbox('Breakfast: Omelette').getAttribute('aria-checked')).toBe('true');
     fireEvent.click(addButton(2));
     expect(onConfirm).toHaveBeenCalledWith([MEALS[0], MEALS[1]]);
   });
@@ -93,7 +94,7 @@ describe('ShoppingFromPlanPicker', () => {
   it('marks a partly selected day and clears it with the day checkbox', () => {
     renderPicker();
 
-    fireEvent.click(mealCheckbox('Obiad: Pizza'));
+    fireEvent.click(mealCheckbox('Dinner: Pizza'));
     expect(dayCheckbox('Jutro').getAttribute('aria-checked')).toBe('mixed');
 
     fireEvent.click(dayCheckbox('Jutro'));
@@ -107,27 +108,27 @@ describe('ShoppingFromPlanPicker', () => {
   it('unchecks a single meal', () => {
     renderPicker();
 
-    fireEvent.click(mealCheckbox('Obiad: Spaghetti'));
-    fireEvent.click(mealCheckbox('Obiad: Spaghetti'));
+    fireEvent.click(mealCheckbox('Dinner: Spaghetti'));
+    fireEvent.click(mealCheckbox('Dinner: Spaghetti'));
 
-    expect(mealCheckbox('Obiad: Spaghetti').getAttribute('aria-checked')).toBe('false');
+    expect(mealCheckbox('Dinner: Spaghetti').getAttribute('aria-checked')).toBe('false');
   });
 
   it('keeps selections while moving between weeks', () => {
     renderPicker();
 
-    fireEvent.click(mealCheckbox('Obiad: Spaghetti'));
+    fireEvent.click(mealCheckbox('Dinner: Spaghetti'));
     fireEvent.click(screen.getByRole('button', { name: t('shopping.nextWeek') }));
 
     expect(screen.getByText('24.10 - 30.10')).toBeTruthy();
     expect(screen.getAllByRole('checkbox', { name: /^Zaznacz: / })).toHaveLength(1);
-    fireEvent.click(mealCheckbox('Obiad: Omlet'));
+    fireEvent.click(mealCheckbox('Dinner: Omelette'));
     fireEvent.click(screen.getByRole('button', { name: t('shopping.previousWeek') }));
     fireEvent.click(screen.getByRole('button', { name: t('shopping.previousWeek') }));
     expect(screen.getByText('10.10 - 16.10')).toBeTruthy();
 
     fireEvent.click(addButton(2));
-    expect(onConfirm).toHaveBeenCalledWith([MEALS[0], MEALS[6]]);
+    expect(onConfirm).toHaveBeenCalledWith([MEALS[0], MEALS[7]]);
   });
 
   it('closes from the close button, cancel and the backdrop', () => {
@@ -141,11 +142,38 @@ describe('ShoppingFromPlanPicker', () => {
   });
 
   it('shows the error and blocks closing while saving', () => {
-    const { container } = renderPicker({ submitting: true, error: 'Coś poszło nie tak' });
+    const { container } = renderPicker({ submitting: true, error: 'Something went wrong' });
 
-    expect(screen.getByText('Coś poszło nie tak')).toBeTruthy();
+    expect(screen.getByText('Something went wrong')).toBeTruthy();
     fireEvent.click(container.firstElementChild!.firstElementChild!);
     expect(onClose).not.toHaveBeenCalled();
     expect((screen.getByRole('button', { name: t('shopping.cancel') }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('closes on Escape unless saving', () => {
+    const { rerender } = renderPicker({ submitting: true });
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+
+    rerender(
+      <ShoppingFromPlanPicker meals={MEALS} recipes={RECIPES} mealTypes={MEAL_TYPES} submitting={false} error={null} onConfirm={onConfirm} onClose={onClose} />
+    );
+    fireEvent.keyDown(window, { key: 'Enter' });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves focus into the dialog and gives it back when closed', () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+
+    const { unmount } = renderPicker();
+    expect(document.activeElement).toBe(screen.getByRole('dialog'));
+
+    unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
   });
 });

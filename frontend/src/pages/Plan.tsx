@@ -532,8 +532,8 @@ export function Plan() {
 
             {/* Dynamiczne rzędy posiłków na podstawie preferencji usera (kolejność i nazwy) */}
             {profileMealTypes(profile)
-              .filter((mt: any) => mt.visible)
-              .map((mt: any) => (
+              .filter(mt => mt.visible)
+              .map(mt => (
                 <div key={mt.id} className="flex flex-col">
                   <div className="flex items-center justify-between gap-2 mb-3 px-4 z-20">
                     <div className="flex items-center gap-2">

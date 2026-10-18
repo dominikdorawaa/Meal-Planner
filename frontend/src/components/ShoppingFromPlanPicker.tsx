@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { t } from '../i18n';
 import { resolveMealProduct } from '../lib/mealProducts';
 import type { MealType } from '../lib/mealTypes';
@@ -53,23 +53,36 @@ export function ShoppingFromPlanPicker({
 }: ShoppingFromPlanPickerProps) {
   const [startDate, setStartDate] = useState(startOfToday);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => previousFocus?.focus();
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !submitting) onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [submitting, onClose]);
 
   const days = planDays(startDate, DAYS_PER_PAGE);
   const visibleTypes = mealTypes.filter(type => type.visible);
   const typeOrder = (type: string) => visibleTypes.findIndex(meal => meal.id === type);
 
-  const recipeName = (meal: PlanMeal) => recipes.find(recipe => recipe.id === refId(meal.recipe))?.name;
-
   const mealName = (meal: PlanMeal) => {
-    if (refId(meal.recipe)) return recipeName(meal);
+    if (refId(meal.recipe)) return recipes.find(recipe => recipe.id === refId(meal.recipe))?.name;
     if (refId(meal.product)) return productDisplayName(resolveMealProduct(meal, meals));
-    return meal.manual_name || t('shopping.quickMeal');
+    return meal.manual_name || t('plan.quickMeal');
   };
 
   const mealsForDay = (date: string) =>
     meals
       .filter(meal => meal.meal_date === date && typeOrder(meal.meal_type) >= 0)
-      .filter(meal => !refId(meal.recipe) || recipeName(meal))
+      .filter(meal => mealName(meal))
       .sort((a, b) => typeOrder(a.meal_type) - typeOrder(b.meal_type));
 
   const shiftWeek = (direction: number) =>
@@ -81,10 +94,12 @@ export function ShoppingFromPlanPicker({
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-6">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !submitting && onClose()} />
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="shopping-from-plan-title"
-        className="bg-surface w-full sm:max-w-md sm:rounded-[28px] rounded-t-[28px] overflow-hidden shadow-2xl relative z-10 border border-outline-variant/15 max-h-[90vh] flex flex-col"
+        className="bg-surface w-full sm:max-w-md sm:rounded-[28px] rounded-t-[28px] overflow-hidden shadow-2xl relative z-10 border border-outline-variant/15 max-h-[90vh] flex flex-col outline-none"
       >
         <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mt-3 sm:hidden shrink-0" />
         <div className="px-6 pt-5 pb-2 flex items-center justify-between gap-3 shrink-0">
