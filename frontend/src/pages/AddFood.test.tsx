@@ -11,12 +11,14 @@ const mocks = vi.hoisted(() => ({
   getAllMeals: vi.fn(),
   refreshMeals: vi.fn(),
   getProduct: vi.fn(),
+  createProduct: vi.fn(),
+  findProductByBarCode: vi.fn(),
 }));
 
 vi.mock('../lib/apiClient', () => ({
   api: {
     meals: { add: mocks.addMeal, update: mocks.updateMeal, getAll: mocks.getAllMeals },
-    products: { create: vi.fn(), getByBarCode: vi.fn(), getById: mocks.getProduct, delete: vi.fn() },
+    products: { create: mocks.createProduct, getByBarCode: vi.fn(), getById: mocks.getProduct, delete: vi.fn() },
   },
 }));
 
@@ -44,6 +46,21 @@ vi.mock('../lib/useProductSearch', () => ({
     loadMore: vi.fn(),
     reload: vi.fn(),
   }),
+}));
+
+vi.mock('../lib/barcodeLookup', async importOriginal => ({
+  ...(await importOriginal<typeof import('../lib/barcodeLookup')>()),
+  findProductByBarCode: mocks.findProductByBarCode,
+}));
+
+vi.mock('../lib/useExistingBarCodeProduct', () => ({
+  useExistingBarCodeProduct: () => ({ checking: false, product: null }),
+}));
+
+vi.mock('../components/LazyBarcodeScanner', () => ({
+  LazyBarcodeScanner: ({ onDetected }: { onDetected: (code: string) => void }) => (
+    <button onClick={() => onDetected('5900820000318')}>detect code</button>
+  ),
 }));
 
 const alertMock = vi.fn();
@@ -262,5 +279,70 @@ describe('AddFood search field', () => {
     renderAddFood();
 
     expect(document.activeElement).not.toBe(screen.getByPlaceholderText('Szukaj przepisów, produktów...'));
+  });
+});
+
+describe('AddFood new product form', () => {
+  const SKYR_PREFILL = { name: 'Skyr', brand: 'Piątnica', kcal: 65, protein: 12, fat: 0, carbs: 4.2 };
+
+  function packageWeightField() {
+    return screen.getByLabelText(t('product.packageWeight')) as HTMLInputElement;
+  }
+
+  function addProductButton() {
+    return screen.getByRole('button', { name: /Dodaj produkt/ });
+  }
+
+  beforeEach(() => {
+    mocks.createProduct.mockResolvedValue({ id: 'p2' });
+  });
+
+  it('fills the package weight from Open Food Facts and sends it with the product', async () => {
+    mocks.findProductByBarCode.mockResolvedValue({ product: null, prefill: { ...SKYR_PREFILL, package_weight: 450 } });
+    renderAddFood();
+
+    fireEvent.click(screen.getByTitle('Skanuj kod'));
+    fireEvent.click(screen.getByText('detect code'));
+
+    await waitFor(() => expect(packageWeightField().value).toBe('450'));
+    fireEvent.click(addProductButton());
+
+    await waitFor(() => expect(mocks.createProduct).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Skyr', bar_code: '5900820000318', package_weight: 450 })
+    ));
+  });
+
+  it('saves a product without a package weight when the field is empty', async () => {
+    mocks.findProductByBarCode.mockResolvedValue({ product: null, prefill: SKYR_PREFILL });
+    renderAddFood();
+
+    fireEvent.click(screen.getByTitle('Skanuj kod'));
+    fireEvent.click(screen.getByText('detect code'));
+
+    await waitFor(() => expect(packageWeightField().value).toBe(''));
+    fireEvent.click(addProductButton());
+
+    await waitFor(() => expect(mocks.createProduct).toHaveBeenCalledWith(
+      expect.objectContaining({ package_weight: null })
+    ));
+  });
+
+  it('blocks saving an impossible package weight', async () => {
+    mocks.findProductByBarCode.mockResolvedValue({ product: null, prefill: SKYR_PREFILL });
+    renderAddFood();
+
+    fireEvent.click(screen.getByTitle('Skanuj kod'));
+    fireEvent.click(screen.getByText('detect code'));
+    await waitFor(() => expect(packageWeightField()).toBeTruthy());
+
+    for (const weight of ['0', '50001']) {
+      fireEvent.change(packageWeightField(), { target: { value: weight } });
+      expect(screen.getByText(t('product.packageWeightInvalid'))).toBeTruthy();
+      expect((addProductButton() as HTMLButtonElement).disabled).toBe(true);
+    }
+
+    fireEvent.change(packageWeightField(), { target: { value: '450' } });
+    expect(screen.queryByText(t('product.packageWeightInvalid'))).toBeNull();
+    expect((addProductButton() as HTMLButtonElement).disabled).toBe(false);
   });
 });

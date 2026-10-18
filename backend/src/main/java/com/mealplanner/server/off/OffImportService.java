@@ -100,6 +100,7 @@ public class OffImportService {
                     product.setStatus(ProductStatus.VERIFIED);
                     product.setSource(ProductSource.OPEN_FOOD_FACTS);
                     row.extras().cleanedFor(row.fat(), row.carbs()).applyTo(product);
+                    product.setPackageWeight(row.packageWeight());
                     apply(product, row);
                     toSave.add(product);
                     progress.inserted++;

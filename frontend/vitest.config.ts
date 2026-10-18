@@ -54,6 +54,8 @@ export default defineConfig({
         'src/lib/shoppingFromPlan.ts',
         'src/lib/mealTypes.ts',
         'src/components/ShoppingFromPlanPicker.tsx',
+        'src/components/AmountRow.tsx',
+        'src/lib/packageWeight.ts',
       ],
       reporter: ['text', 'html'],
     },

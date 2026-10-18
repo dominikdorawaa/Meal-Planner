@@ -1,6 +1,7 @@
 package com.mealplanner.server.off;
 
 import com.mealplanner.server.product.ExtraNutrients;
+import com.mealplanner.server.product.PackageWeight;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -55,6 +56,7 @@ public final class ReviewedCsvReader {
 
     private static ReviewedRow toRow(int rowNumber, List<String> record, Map<String, Integer> columns) {
         String unit = value(record, columns, "unit");
+        String productUnit = unit.isEmpty() ? DEFAULT_UNIT : unit;
         return new ReviewedRow(rowNumber,
                 text(record, columns, "code"),
                 text(record, columns, "name"),
@@ -68,7 +70,8 @@ public final class ReviewedCsvReader {
                         number(value(record, columns, "sugars")),
                         number(value(record, columns, "fiber")),
                         number(value(record, columns, "salt"))),
-                unit.isEmpty() ? DEFAULT_UNIT : unit,
+                productUnit,
+                PackageWeight.parse(text(record, columns, "quantity"), productUnit),
                 "yes".equalsIgnoreCase(value(record, columns, "import")));
     }
 

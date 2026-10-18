@@ -68,11 +68,11 @@ class OffLookupIntegrationTest {
                 USER_AGENTS.add(exchange.getRequestHeaders().getFirst("User-Agent"));
                 int status = 200;
                 String body = switch (code) {
-                    case COMPLETE -> "{\"status\":1,\"product\":{\"product_name_pl\":\"Skyr naturalny\",\"brands\":\"Piątnica\","
+                    case COMPLETE -> "{\"status\":1,\"product\":{\"product_name_pl\":\"Skyr naturalny\",\"brands\":\"Piątnica\",\"quantity\":\"4 x 125 g\","
                             + "\"nutriments\":{\"energy-kcal_100g\":64.6,\"proteins_100g\":12.0400009,\"fat_100g\":0,\"carbohydrates_100g\":4.19999980927,"
                             + "\"saturated-fat_100g\":0,\"sugars_100g\":4.04,\"salt_100g\":\"0,12\"}}}";
                     case FOREIGN -> "{\"status\":1,\"product\":{\"lang\":\"de\",\"product_name\":\"Stracciatella Pasta Filata Käse\","
-                            + "\"brands\":\"Lidl\",\"nutriments\":{\"energy-kcal_100g\":250,\"proteins_100g\":13,\"fat_100g\":20,\"carbohydrates_100g\":3,"
+                            + "\"brands\":\"Lidl\",\"quantity\":\"250 g ℮\",\"nutriments\":{\"energy-kcal_100g\":250,\"proteins_100g\":13,\"fat_100g\":20,\"carbohydrates_100g\":3,"
                             + "\"saturated-fat_100g\":13.24,\"sugars_100g\":5,\"fiber_100g\":-1,\"salt_100g\":1.24}}}";
                     case INCOMPLETE -> "{\"status\":1,\"product\":{\"product_name\":\"Baton\",\"brands\":\"Wedel\","
                             + "\"nutriments\":{\"energy-kcal_100g\":480,\"proteins_100g\":5}}}";
@@ -141,7 +141,8 @@ class OffLookupIntegrationTest {
                 .andExpect(jsonPath("$.name").value("Skyr naturalny"))
                 .andExpect(jsonPath("$.brand").value("Piątnica"))
                 .andExpect(jsonPath("$.status").value("VERIFIED"))
-                .andExpect(jsonPath("$.source").value("OPEN_FOOD_FACTS"));
+                .andExpect(jsonPath("$.source").value("OPEN_FOOD_FACTS"))
+                .andExpect(jsonPath("$.package_weight").value(500.0));
 
         Product saved = productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(COMPLETE, ProductStatus.VERIFIED).orElseThrow();
         assertThat(saved.getSource()).isEqualTo(ProductSource.OPEN_FOOD_FACTS);
@@ -153,6 +154,7 @@ class OffLookupIntegrationTest {
         assertThat(saved.getSugars()).isEqualTo(4.0);
         assertThat(saved.getFiber()).isNull();
         assertThat(saved.getSalt()).isEqualTo(0.1);
+        assertThat(saved.getPackageWeight()).isEqualTo(500.0);
         assertThat(USER_AGENTS).containsExactly("MealPlanner-Test/1.0");
 
         mockMvc.perform(get("/api/products/barcode/" + COMPLETE)).andExpect(status().isOk());
@@ -169,7 +171,8 @@ class OffLookupIntegrationTest {
                 .andExpect(jsonPath("$.prefill.saturated_fat").value(13.2))
                 .andExpect(jsonPath("$.prefill.sugars").doesNotExist())
                 .andExpect(jsonPath("$.prefill.fiber").doesNotExist())
-                .andExpect(jsonPath("$.prefill.salt").value(1.2));
+                .andExpect(jsonPath("$.prefill.salt").value(1.2))
+                .andExpect(jsonPath("$.prefill.package_weight").value(250.0));
 
         assertThat(productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(FOREIGN, ProductStatus.VERIFIED)).isEmpty();
     }
@@ -182,7 +185,8 @@ class OffLookupIntegrationTest {
                 .andExpect(jsonPath("$.prefill.name").value("Baton"))
                 .andExpect(jsonPath("$.prefill.brand").value("Wedel"))
                 .andExpect(jsonPath("$.prefill.kcal").value(480.0))
-                .andExpect(jsonPath("$.prefill.fat").doesNotExist());
+                .andExpect(jsonPath("$.prefill.fat").doesNotExist())
+                .andExpect(jsonPath("$.prefill.package_weight").doesNotExist());
 
         assertThat(productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(INCOMPLETE, ProductStatus.VERIFIED)).isEmpty();
     }

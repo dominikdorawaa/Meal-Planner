@@ -44,6 +44,9 @@ public class Product {
 
     private String unit;
 
+    @Column(name = "package_weight")
+    private Double packageWeight;
+
     @Column(name = "bar_code")
     private String barCode;
 

@@ -6,6 +6,7 @@ import { addDaysToIsoDate, firstDayOfMonth, formatShortDayLabel, toIsoDate, toda
 import { productDisplayName } from '../lib/productName';
 import { canDeleteProduct } from '../lib/productPermissions';
 import { NutritionFactsTable } from '../components/NutritionFactsTable';
+import { AmountRow } from '../components/AmountRow';
 import { measureUnit, scaleNutritionFacts } from '../lib/nutrients';
 import { t } from '../i18n';
 import { useCloseOnBack } from '../lib/backNavigation';
@@ -30,9 +31,10 @@ export function ProductDetails() {
   const mealId = searchParams.get('mealId');
 
   // Stany dla kalkulatora (zgodnie ze stylem RecipeDetails)
-  const [inputType, setInputType] = useState<'pieces' | 'grams'>('grams');
+  const [inputType, setInputType] = useState<'pieces' | 'packages' | 'grams'>('grams');
   const [grams, setGrams] = useState<number | ''>(100);
   const [pieces, setPieces] = useState<number | ''>(1);
+  const [packages, setPackages] = useState<number | ''>(1);
 
   const [activeDate, setActiveDate] = useState(selectDate || '');
   const [activeMealType, setActiveMealType] = useState(selectType || '');
@@ -90,8 +92,11 @@ export function ProductDetails() {
   const currentWeight = useMemo(() => {
     if (inputType === 'grams') return Number(grams) || 0;
     if (inputType === 'pieces') return (Number(pieces) || 0) * (product?.piece_weight || 0);
+    if (inputType === 'packages') return (Number(packages) || 0) * (product?.package_weight || 0);
     return 0;
-  }, [inputType, grams, pieces, product]);
+  }, [inputType, grams, pieces, packages, product]);
+
+  const kcalFor = (weight: number) => Math.round((Number(product?.kcal) || 0) * weight / 100);
 
   const currentMacros = useMemo(() => {
     if (!product) return { kcal: 0, protein: 0, fat: 0, carbs: 0 };
@@ -326,53 +331,39 @@ export function ProductDetails() {
 
       {/* Kalkulator - Zgodny ze stylem "pigułek" ze screena */}
       <div className="flex flex-col gap-2 w-full max-w-xl mx-auto px-4 pt-4">
-        {/* Wiersz SZTUKI (jeśli dotyczy) */}
         {product.piece_weight && (
-          <div className={`flex items-center rounded-2xl p-1.5 pr-4 border transition-all gap-3 ${inputType === 'pieces' ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-surface-container-low border-outline-variant/10'}`}>
-            <div className="flex items-center gap-2 pl-0.5">
-              <input 
-                type="number"
-                value={pieces}
-                onFocus={() => setInputType('pieces')}
-                onChange={(e) => {
-                  setInputType('pieces');
-                  setPieces(e.target.value === '' ? '' : Number(e.target.value));
-                }}
-                className={`w-[72px] border rounded-xl py-2 px-2 outline-none transition-all text-on-surface font-bold text-base text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm ${inputType === 'pieces' ? 'bg-surface border-primary/50' : 'bg-surface-container-lowest border-outline-variant/20'}`}
-              />
-              <span className="font-bold text-on-surface-variant text-sm shrink-0 whitespace-nowrap">szt.</span>
-            </div>
-            <div className="flex items-baseline gap-1 ml-auto shrink-0">
-              <span className={`font-black text-xl transition-colors ${inputType === 'pieces' ? 'text-primary' : 'text-on-surface'}`}>
-                {Math.round(product.kcal * (Number(pieces) * product.piece_weight / 100))}
-              </span>
-              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">kcal</span>
-            </div>
-          </div>
+          <AmountRow
+            label={t('amount.pieces')}
+            unit="szt."
+            value={pieces}
+            kcal={kcalFor((Number(pieces) || 0) * product.piece_weight)}
+            active={inputType === 'pieces'}
+            onActivate={() => setInputType('pieces')}
+            onChange={setPieces}
+          />
         )}
 
-        {/* Wiersz GRAMY */}
-        <div className={`flex items-center rounded-2xl p-1.5 pr-4 border transition-all gap-3 ${inputType === 'grams' ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-surface-container-low border-outline-variant/10'}`}>
-          <div className="flex items-center gap-2 pl-0.5">
-            <input 
-              type="number"
-              value={grams}
-              onFocus={() => setInputType('grams')}
-              onChange={(e) => {
-                setInputType('grams');
-                setGrams(e.target.value === '' ? '' : Number(e.target.value));
-              }}
-              className={`w-[72px] border rounded-xl py-2 px-2 outline-none transition-all text-on-surface font-bold text-base text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm ${inputType === 'grams' ? 'bg-surface border-primary/50' : 'bg-surface-container-lowest border-outline-variant/20'}`}
-            />
-            <span className="font-bold text-on-surface-variant text-sm shrink-0 whitespace-nowrap">g</span>
-          </div>
-          <div className="flex items-baseline gap-1 ml-auto shrink-0">
-            <span className={`font-black text-xl transition-colors ${inputType === 'grams' ? 'text-primary' : 'text-on-surface'}`}>
-              {currentMacros.kcal}
-            </span>
-            <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">kcal</span>
-          </div>
-        </div>
+        {product.package_weight && (
+          <AmountRow
+            label={t('amount.packages')}
+            unit={t('amount.packageOf', { amount: `${product.package_weight} ${measureUnit(product.unit)}` })}
+            value={packages}
+            kcal={kcalFor((Number(packages) || 0) * product.package_weight)}
+            active={inputType === 'packages'}
+            onActivate={() => setInputType('packages')}
+            onChange={setPackages}
+          />
+        )}
+
+        <AmountRow
+          label={t('amount.grams')}
+          unit={measureUnit(product.unit)}
+          value={grams}
+          kcal={kcalFor(Number(grams) || 0)}
+          active={inputType === 'grams'}
+          onActivate={() => setInputType('grams')}
+          onChange={setGrams}
+        />
       </div>
 
       <main className="w-full max-w-xl mx-auto px-4 py-8 flex flex-col gap-10">
@@ -381,7 +372,7 @@ export function ProductDetails() {
         {/* Wartości Odżywcze - Zgodnie ze screenem */}
         <section className="flex flex-col gap-6">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-on-surface opacity-40">
-            WARTOŚCI ODŻYWCZE W {inputType === 'pieces' ? `${pieces} SZT.` : `${grams} G`}
+            WARTOŚCI ODŻYWCZE W {inputType === 'pieces' ? `${pieces} SZT.` : inputType === 'packages' ? `${packages} OPAK.` : `${grams} ${measureUnit(product.unit).toUpperCase()}`}
           </h2>
           
           <div className="flex items-center justify-between gap-1 sm:gap-4 px-2">

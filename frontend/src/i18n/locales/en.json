@@ -132,5 +132,11 @@
   "shopping.noIngredients": "The selected recipes have no ingredients.",
   "shopping.fromPlanFailed": "Could not add the ingredients. Please try again.",
   "shopping.addProduct": "Add product",
-  "shopping.emptyHint": "Create a list from the plan or add a product manually."
+  "shopping.emptyHint": "Create a list from the plan or add a product manually.",
+  "amount.grams": "Amount in grams or millilitres",
+  "amount.pieces": "Number of pieces",
+  "amount.packages": "Number of packages",
+  "amount.packageOf": "pkg ({amount})",
+  "product.packageWeight": "Package weight",
+  "product.packageWeightInvalid": "Package weight must be above 0 and at most 50 kg."
 }
