@@ -1,10 +1,12 @@
 import { t } from '../i18n';
+import { useCloseOnBack } from '../lib/backNavigation';
 
 interface BarcodeLookupPendingProps {
   onCancel: () => void;
 }
 
 export function BarcodeLookupPending({ onCancel }: BarcodeLookupPendingProps) {
+  useCloseOnBack(true, onCancel);
   return (
     <div
       role="alertdialog"

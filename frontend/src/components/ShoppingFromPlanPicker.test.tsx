@@ -177,3 +177,32 @@ describe('ShoppingFromPlanPicker', () => {
     opener.remove();
   });
 });
+
+describe('ShoppingFromPlanPicker gestures', () => {
+  function swipeDown() {
+    const sheet = screen.getByRole('dialog');
+    fireEvent.touchStart(sheet, { touches: [{ clientX: 100, clientY: 100 }] });
+    fireEvent.touchMove(sheet, { touches: [{ clientX: 100, clientY: 400 }] });
+    fireEvent.touchEnd(sheet, { changedTouches: [{ clientX: 100, clientY: 400 }] });
+  }
+
+  it('closes when swiped down', () => {
+    vi.useFakeTimers();
+    renderPicker();
+
+    swipeDown();
+    vi.advanceTimersByTime(200);
+
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('stays open when swiped down while the list is being created', () => {
+    vi.useFakeTimers();
+    renderPicker({ submitting: true });
+
+    swipeDown();
+    vi.advanceTimersByTime(400);
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});

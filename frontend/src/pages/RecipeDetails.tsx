@@ -7,6 +7,8 @@ import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { targetRange } from '../lib/macros';
 import { RecipeMoreNutrients } from '../components/RecipeMoreNutrients';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
+import { useCloseOnBack } from '../lib/backNavigation';
+import { useBottomSheet } from '../lib/bottomSheet';
 
 export function RecipeDetails() {
   const { id } = useParams();
@@ -48,6 +50,11 @@ export function RecipeDetails() {
   const [showMealPicker, setShowMealPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => firstDayOfMonth(selectDate));
+
+  useCloseOnBack(showMealPicker || showDatePicker, () => { setShowMealPicker(false); setShowDatePicker(false); });
+  useCloseOnBack(showDeleteConfirm, () => setShowDeleteConfirm(false));
+  const addToPlanSheetRef = useBottomSheet(showAddToPlan, () => setShowAddToPlan(false));
+  const menuSheetRef = useBottomSheet(showMenu, () => setShowMenu(false));
 
   const availableMealTypes = useMemo(() => {
     if (profile?.meal_config && profile.meal_config.length > 0) {
@@ -787,7 +794,7 @@ export function RecipeDetails() {
       {/* Bottom Sheet – Wybierz dzień i porę */}
       {showAddToPlan && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowAddToPlan(false)}>
-          <div className="w-full max-w-xl bg-surface rounded-t-[32px] p-6 pb-8 animate-slide-up shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div ref={addToPlanSheetRef} className="w-full max-w-xl bg-surface rounded-t-[32px] p-6 pb-8 animate-slide-up shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
             <h2 className="font-headline font-bold text-xl text-on-surface mb-5">Wybierz dzień i porę</h2>
 
@@ -891,7 +898,8 @@ export function RecipeDetails() {
       {/* Bottom Sheet Menu */}
       {showMenu && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-surface rounded-t-3xl sm:rounded-3xl p-6 pb-safe-6 flex flex-col gap-2 animate-slide-up sm:animate-fade-in relative shadow-ambient">
+          <div ref={menuSheetRef} className="w-full max-w-md bg-surface rounded-t-3xl sm:rounded-3xl p-6 pb-safe-6 flex flex-col gap-2 animate-slide-up sm:animate-fade-in relative shadow-ambient">
+            <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto -mt-2 sm:hidden" />
             <button
               onClick={() => setShowMenu(false)}
               className="absolute top-4 right-4 w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform"

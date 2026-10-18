@@ -4,6 +4,7 @@ import { isValidBarCode } from '../lib/nutritionCheck';
 import { normalizeBarCode } from '../lib/barcodeLookup';
 import { isCameraSupported, openBarcodeCamera, setTorch, stopCamera, tuneBarcodeCamera } from '../lib/barcodeCamera';
 import { createBarcodeReader, createReadConfirmer } from '../lib/barcodeDetection';
+import { useSwipeDownToClose } from '../lib/swipeDownToClose';
 
 interface BarcodeScannerProps {
   onDetected: (barCode: string) => void;
@@ -28,6 +29,7 @@ function cameraErrorState(error: unknown): CameraState {
 
 export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const sheetRef = useSwipeDownToClose(onClose);
   const trackRef = useRef<MediaStreamTrack | null>(null);
   const onDetectedRef = useRef(onDetected);
   const [cameraState, setCameraState] = useState<CameraState>('starting');
@@ -144,6 +146,7 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
       onClick={onClose}
     >
       <div
+        ref={sheetRef}
         className="bg-surface-container-lowest rounded-t-[32px] px-4 pt-6 pb-8 w-full max-w-xl max-h-[100dvh] overflow-y-auto mx-auto flex flex-col gap-4"
         onClick={event => event.stopPropagation()}
       >

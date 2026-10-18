@@ -8,6 +8,7 @@ import { ThemeCard } from '../components/ThemeCard';
 import { ProductDataAttribution } from '../components/ProductDataAttribution';
 import { MealSettingsList } from '../components/MealSettingsList';
 import type { MealSetting } from '../lib/mealSettings';
+import { useCloseOnBack } from '../lib/backNavigation';
 
 const MEAL_TYPES = [
   { id: 'breakfast', name: 'Śniadanie', icon: 'light_mode' },
@@ -34,6 +35,13 @@ export function Profile() {
   const [isInternalProfileEditing, setIsInternalProfileEditing] = useState(false);
   const [showFormulaInfo, setShowFormulaInfo] = useState(false);
   const [isInternalGoalsEditing, setIsInternalGoalsEditing] = useState(false);
+
+  useCloseOnBack(isEditingProfile, () => { setIsEditingProfile(false); setIsInternalProfileEditing(false); });
+  useCloseOnBack(isEditingGoals, () => { setIsEditingGoals(false); setIsInternalGoalsEditing(false); });
+  useCloseOnBack(isEditingMacros, () => setIsEditingMacros(false));
+  useCloseOnBack(isEditingMeals, () => { setIsEditingMeals(false); setIsReordering(false); });
+  useCloseOnBack(showFormulaInfo, () => setShowFormulaInfo(false));
+  useCloseOnBack(showLogoutConfirm, () => setShowLogoutConfirm(false));
 
   const [profile, setProfile] = useState<any>(null);
   const [tempProfile, setTempProfile] = useState<any>({

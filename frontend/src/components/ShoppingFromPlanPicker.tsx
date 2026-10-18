@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '../i18n';
 import { resolveMealProduct } from '../lib/mealProducts';
 import type { MealType } from '../lib/mealTypes';
 import { formatDayMonth, formatRelativeDayLabel, planDays } from '../lib/planDates';
 import { productDisplayName } from '../lib/productName';
 import { refId, toggleMealIds, type PlanMeal } from '../lib/shoppingFromPlan';
+import { useBottomSheet } from '../lib/bottomSheet';
 
 const DAYS_PER_PAGE = 7;
 
@@ -53,7 +54,12 @@ export function ShoppingFromPlanPicker({
 }: ShoppingFromPlanPickerProps) {
   const [startDate, setStartDate] = useState(startOfToday);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const sheetRef = useBottomSheet(true, onClose, submitting);
+  const setDialogRef = useCallback((node: HTMLDivElement | null) => {
+    dialogRef.current = node;
+    return sheetRef(node);
+  }, [sheetRef]);
 
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null;
@@ -94,7 +100,7 @@ export function ShoppingFromPlanPicker({
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-6">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !submitting && onClose()} />
       <div
-        ref={dialogRef}
+        ref={setDialogRef}
         tabIndex={-1}
         role="dialog"
         aria-modal="true"

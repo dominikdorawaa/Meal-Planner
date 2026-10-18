@@ -8,6 +8,7 @@ import { canDeleteProduct } from '../lib/productPermissions';
 import { NutritionFactsTable } from '../components/NutritionFactsTable';
 import { measureUnit, scaleNutritionFacts } from '../lib/nutrients';
 import { t } from '../i18n';
+import { useCloseOnBack } from '../lib/backNavigation';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 
 export function ProductDetails() {
@@ -40,6 +41,10 @@ export function ProductDetails() {
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => firstDayOfMonth(selectDate));
+
+  useCloseOnBack(showMealPicker || showDatePicker, () => { setShowMealPicker(false); setShowDatePicker(false); });
+  useCloseOnBack(showMenu, () => setShowMenu(false));
+  useCloseOnBack(showDeleteConfirm, () => setShowDeleteConfirm(false));
 
   const availableMealTypes = useMemo(() => {
     if (profile?.meal_config && profile.meal_config.length > 0) {

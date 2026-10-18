@@ -55,3 +55,24 @@ describe('LazyBarcodeScanner', () => {
     expect(await screen.findByText('scanner ready')).toBeTruthy();
   });
 });
+
+describe('LazyBarcodeScanner back gesture', () => {
+  it('closes the scanner when the user goes back', async () => {
+    vi.doMock('./BarcodeScanner', () => ({ BarcodeScanner: () => <p>scanner ready</p> }));
+    const { installBackNavigation } = await import('../lib/backNavigation');
+    const { LazyBarcodeScanner } = await import('./LazyBarcodeScanner');
+    const uninstall = installBackNavigation();
+    const onClose = vi.fn();
+
+    render(<LazyBarcodeScanner onDetected={vi.fn()} onClose={onClose} />);
+    await screen.findByText('scanner ready');
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise<void>(resolve => {
+      window.addEventListener('popstate', () => resolve(), { once: true });
+      window.history.back();
+    });
+
+    expect(onClose).toHaveBeenCalledOnce();
+    uninstall();
+  });
+});

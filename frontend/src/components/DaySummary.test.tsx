@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { DaySummary } from './DaySummary'
 
 afterEach(cleanup)
@@ -101,5 +101,22 @@ describe('DaySummary', () => {
 
     expect(screen.queryByRole('button')).toBeNull()
     expect(screen.getByText('2680')).toBeTruthy()
+  })
+})
+
+describe('DaySummary gestures', () => {
+  it('closes the details when they are swiped down', () => {
+    vi.useFakeTimers()
+    renderSummary()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))
+    const sheet = screen.getByRole('dialog')
+    fireEvent.touchStart(sheet, { touches: [{ clientX: 100, clientY: 100 }] })
+    fireEvent.touchMove(sheet, { touches: [{ clientX: 100, clientY: 400 }] })
+    fireEvent.touchEnd(sheet, { changedTouches: [{ clientX: 100, clientY: 400 }] })
+    act(() => vi.advanceTimersByTime(200))
+    vi.useRealTimers()
+
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
