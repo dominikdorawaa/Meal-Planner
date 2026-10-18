@@ -53,7 +53,7 @@ public class OffLookupService {
             notFound.add(barCode);
             return OffLookupResult.missing();
         }
-        OffProduct offProduct = withCode(found.get(), barCode);
+        OffProduct offProduct = cleaned(found.get(), barCode);
         boolean valid = offProduct.polishName() && NutritionValidator.check(offProduct.name(), offProduct.kcal(),
                 offProduct.protein(), offProduct.fat(), offProduct.carbs(), UNIT, barCode).isValid();
         return valid ? OffLookupResult.found(save(offProduct)) : OffLookupResult.incomplete(offProduct);
@@ -81,8 +81,9 @@ public class OffLookupService {
         }
     }
 
-    private static OffProduct withCode(OffProduct product, String barCode) {
-        return new OffProduct(barCode, product.name(), product.brand(), product.kcal(), product.protein(),
+    private static OffProduct cleaned(OffProduct product, String barCode) {
+        String name = OffImportRules.isJunkName(product.name()) ? "" : product.name();
+        return new OffProduct(barCode, name, product.brand(), product.kcal(), product.protein(),
                 product.fat(), product.carbs(), product.extras(), product.quantity(), product.polishName());
     }
 
