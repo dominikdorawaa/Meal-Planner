@@ -3,6 +3,7 @@ import { BottomNav } from '../components/BottomNav';
 import { useAppData } from '../lib/AppDataContext';
 import { useNavigate } from 'react-router-dom';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
+import { useBottomSheet } from '../lib/bottomSheet';
 
 type QuickPreset = 'quick' | 'highprotein' | 'lowcarb' | 'lowcal' | 'lowfat';
 
@@ -45,6 +46,7 @@ export function Recipes() {
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS });
   const [pendingFilters, setPendingFilters] = useState<Filters>({ ...DEFAULT_FILTERS });
+  const filtersSheetRef = useBottomSheet(showFilters, () => setShowFilters(false));
 
   const activeFilterCount =
     (filters.maxKcal !== '' ? 1 : 0) +
@@ -274,6 +276,7 @@ export function Recipes() {
           onClick={() => setShowFilters(false)}
         >
           <div
+            ref={filtersSheetRef}
             className="w-full max-w-xl bg-surface rounded-t-[32px] animate-slide-up shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
             onClick={e => e.stopPropagation()}
           >

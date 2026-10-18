@@ -4,6 +4,8 @@ import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { BottomNav } from '../components/BottomNav';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
+import { useCloseOnBack } from '../lib/backNavigation';
+import { useBottomSheet } from '../lib/bottomSheet';
 
 export function ShoppingList() {
   const navigate = useNavigate();
@@ -17,6 +19,8 @@ export function ShoppingList() {
   const [newQuantity, setNewQuantity] = useState('1');
   const [newUnit, setNewUnit] = useState('szt');
   const [addSubmitting, setAddSubmitting] = useState(false);
+  const addSheetRef = useBottomSheet(showAddModal, () => { if (!addSubmitting) setShowAddModal(false); });
+  useCloseOnBack(showConfirm, () => setShowConfirm(false));
   const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -309,7 +313,7 @@ export function ShoppingList() {
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => !addSubmitting && setShowAddModal(false)}
           />
-          <div className="bg-surface w-full sm:max-w-md sm:rounded-[28px] rounded-t-[28px] overflow-hidden shadow-2xl relative z-10 border border-outline-variant/15 max-h-[90vh] flex flex-col">
+          <div ref={addSheetRef} className="bg-surface w-full sm:max-w-md sm:rounded-[28px] rounded-t-[28px] overflow-hidden shadow-2xl relative z-10 border border-outline-variant/15 max-h-[90vh] flex flex-col">
             <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mt-3 sm:hidden shrink-0" />
             <div className="p-6 pb-4 flex items-center justify-between gap-3">
               <h3 className="font-headline font-bold text-lg text-on-surface">Dodaj produkt</h3>

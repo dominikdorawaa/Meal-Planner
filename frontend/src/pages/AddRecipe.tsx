@@ -8,6 +8,7 @@ import { ingredientFromProduct, type IngredientDraft } from '../lib/recipeIngred
 import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
 import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
 import { t } from '../i18n';
+import { useCloseOnBack } from '../lib/backNavigation';
 
 interface InstructionStep {
   text: string;
@@ -38,6 +39,10 @@ export default function AddRecipe() {
   // Ingredient Modal Search State
   const [ingredientSearch, setIngredientSearch] = useState('');
   const [showScanner, setShowScanner] = useState(false);
+
+  useCloseOnBack(showIngredientModal, () => setShowIngredientModal(false));
+  useCloseOnBack(stepToDelete !== null, () => setStepToDelete(null));
+  useCloseOnBack(ingredientToDelete !== null, () => setIngredientToDelete(null));
 
   // Dla celów koncepcyjnych - przykładowe sztuczne produkty
   const MOCK_PRODUCTS = [
