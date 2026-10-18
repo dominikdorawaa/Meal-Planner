@@ -16,6 +16,7 @@ import { BarCodeField } from '../components/BarCodeField';
 import { MoreNutrientsFields } from '../components/MoreNutrientsFields';
 import { EXTRA_NUTRIENTS, extraNutrientInputs, type ExtraNutrientValues } from '../lib/nutrients';
 import { useExistingBarCodeProduct } from '../lib/useExistingBarCodeProduct';
+import { isValidPackageWeight } from '../lib/packageWeight';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { t } from '../i18n';
 import { firstDayOfMonth, formatRelativeDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
@@ -38,7 +39,7 @@ import { AddSelectedBar, SelectionCheckbox } from '../components/PlanSelectionCo
 
 const RECENT_PRODUCTS_LIMIT = 5;
 const EMPTY_PRODUCT_FORM = {
-  name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '', barCode: '',
+  name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '', barCode: '', packageWeight: '',
   extras: extraNutrientInputs({}),
 };
 
@@ -96,10 +97,12 @@ export function AddFood() {
     fat: parseNutritionValue(addProductForm.fat),
     carbs: parseNutritionValue(addProductForm.carbs),
     barCode: addProductForm.barCode || null,
+    packageWeight: parseNutritionValue(addProductForm.packageWeight),
     extras: Object.fromEntries(EXTRA_NUTRIENTS.map(nutrient =>
       [nutrient, parseNutritionValue(addProductForm.extras[nutrient])])) as ExtraNutrientValues,
   }), [addProductForm]);
   const newProductCheck = useMemo(() => checkNutrition(newProductValues), [newProductValues]);
+  const packageWeightValid = isValidPackageWeight(newProductValues.packageWeight);
   const newProductNutrientsStarted = [addProductForm.kcal, addProductForm.protein, addProductForm.fat, addProductForm.carbs]
     .some(value => value.trim() !== '');
   const newProductHints = formNutritionHints(newProductCheck, newProductNutrientsStarted);
@@ -125,6 +128,7 @@ export function AddFood() {
           fat: text(prefill?.fat),
           carbs: text(prefill?.carbs),
           barCode,
+          packageWeight: text(prefill?.package_weight),
           extras: extraNutrientInputs(prefill ?? {}),
         });
         setPrefillCount(count => count + 1);
@@ -136,7 +140,7 @@ export function AddFood() {
   };
 
   const handleCreateProduct = async () => {
-    if (!newProductCheck.valid || barCodeBlocksSaving) return;
+    if (!newProductCheck.valid || !packageWeightValid || barCodeBlocksSaving) return;
     setIsCreatingProduct(true);
     try {
       await api.products.create({
@@ -147,6 +151,7 @@ export function AddFood() {
         carbs: newProductValues.carbs,
         ...newProductValues.extras,
         bar_code: newProductValues.barCode,
+        package_weight: newProductValues.packageWeight,
         brand: addProductForm.brand.trim() || null,
         unit: '100g',
       });
@@ -957,6 +962,26 @@ export function AddFood() {
                 ))}
               </div>
 
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="new-product-package-weight" className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('product.packageWeight')}</label>
+                <div className="relative flex items-center rounded-2xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
+                  <input
+                    id="new-product-package-weight"
+                    type="number" min="0" inputMode="decimal"
+                    onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
+                    value={addProductForm.packageWeight}
+                    onChange={e => setAddProductForm(p => ({ ...p, packageWeight: e.target.value }))}
+                    aria-invalid={!packageWeightValid}
+                    className="flex-1 bg-transparent py-3.5 pl-4 pr-12 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:font-medium placeholder:text-on-surface-variant/40"
+                    placeholder="np. 450"
+                  />
+                  <span className="absolute right-4 text-[10px] font-black text-on-surface-variant/50 uppercase">g</span>
+                </div>
+                {!packageWeightValid && (
+                  <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-error/10 text-error">{t('product.packageWeightInvalid')}</p>
+                )}
+              </div>
+
               <MoreNutrientsFields
                 key={prefillCount}
                 values={addProductForm.extras}
@@ -980,7 +1005,7 @@ export function AddFood() {
 
             <button
               onClick={handleCreateProduct}
-              disabled={isCreatingProduct || !newProductCheck.valid || barCodeBlocksSaving}
+              disabled={isCreatingProduct || !newProductCheck.valid || !packageWeightValid || barCodeBlocksSaving}
               className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
             >
               {isCreatingProduct ? (

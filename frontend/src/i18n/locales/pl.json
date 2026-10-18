@@ -132,5 +132,11 @@
   "shopping.noIngredients": "Wybrane przepisy nie posiadają składników.",
   "shopping.fromPlanFailed": "Nie udało się dodać składników. Spróbuj ponownie.",
   "shopping.addProduct": "Dodaj produkt",
-  "shopping.emptyHint": "Utwórz listę z planu lub dodaj produkt ręcznie."
+  "shopping.emptyHint": "Utwórz listę z planu lub dodaj produkt ręcznie.",
+  "amount.grams": "Ilość w gramach lub mililitrach",
+  "amount.pieces": "Liczba sztuk",
+  "amount.packages": "Liczba opakowań",
+  "amount.packageOf": "opak. ({amount})",
+  "product.packageWeight": "Waga opakowania",
+  "product.packageWeightInvalid": "Waga opakowania musi być większa od 0 i nie większa niż 50 kg."
 }

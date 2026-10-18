@@ -11,6 +11,7 @@ export interface ProductPrefill {
   sugars?: number | null;
   fiber?: number | null;
   salt?: number | null;
+  package_weight?: number | null;
 }
 
 export interface BarCodeLookup {

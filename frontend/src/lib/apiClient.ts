@@ -49,6 +49,7 @@ export interface Product {
   unit?: string | null;
   image_url?: string | null;
   piece_weight?: number | null;
+  package_weight?: number | null;
   bar_code?: string | null;
   status?: string;
   source?: string;
