@@ -1,5 +1,6 @@
 package com.mealplanner.server.off;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import tools.jackson.databind.json.JsonMapper;
@@ -46,5 +47,53 @@ class OffProductParserTest {
 
         assertThat(product.name()).isEqualTo(expectedName);
         assertThat(product.polishName()).isEqualTo(expectedPolish);
+    }
+
+    private static OffProduct parseNutrition(String nutriments, String per, String preparation, String nutrients) {
+        return OffProductParser.parse("{\"code\":\"5900820000318\",\"product_name_pl\":\"Skyr\","
+                + "\"countries_tags\":[\"en:poland\"],\"nutriments\":" + nutriments + ","
+                + "\"nutrition\":{\"aggregated_set\":{\"per\":\"" + per + "\",\"preparation\":\"" + preparation + "\","
+                + "\"nutrients\":" + nutrients + "}}}").orElseThrow();
+    }
+
+    private static final String NEW_FORMAT_NUTRIENTS = "{\"energy-kcal\":{\"value\":65,\"unit\":\"kcal\"},"
+            + "\"proteins\":{\"value\":12},\"fat\":{\"value\":0.2},\"carbohydrates\":{\"value\":4.2},"
+            + "\"saturated-fat\":{\"value\":0.1},\"sugars\":{\"value\":4},\"fiber\":{\"value\":0},\"salt\":{\"value\":0.12}}";
+
+    @Test
+    void readsNutritionFromTheAggregatedSetWhenNutrimentsAreEmpty() {
+        OffProduct product = parseNutrition("{}", "100g", "as_sold", NEW_FORMAT_NUTRIENTS);
+
+        assertThat(product.kcal()).isEqualTo(65.0);
+        assertThat(product.protein()).isEqualTo(12.0);
+        assertThat(product.fat()).isEqualTo(0.2);
+        assertThat(product.carbs()).isEqualTo(4.2);
+        assertThat(product.extras().saturatedFat()).isEqualTo(0.1);
+        assertThat(product.extras().sugars()).isEqualTo(4.0);
+        assertThat(product.extras().fiber()).isEqualTo(0.0);
+        assertThat(product.extras().salt()).isEqualTo(0.12);
+    }
+
+    @Test
+    void acceptsValuesPerHundredMillilitresAndConvertsKilojoules() {
+        OffProduct product = parseNutrition("{}", "100ml", "as_sold", "{\"energy-kj\":{\"value\":209.2},\"proteins\":{\"value\":3}}");
+
+        assertThat(product.kcal()).isEqualTo(50.0);
+        assertThat(product.protein()).isEqualTo(3.0);
+        assertThat(product.fat()).isNull();
+    }
+
+    @Test
+    void ignoresAggregatedValuesForPreparedProductsOrPerServing() {
+        assertThat(parseNutrition("{}", "100g", "prepared", NEW_FORMAT_NUTRIENTS).kcal()).isNull();
+        assertThat(parseNutrition("{}", "serving", "as_sold", NEW_FORMAT_NUTRIENTS).kcal()).isNull();
+    }
+
+    @Test
+    void prefersTheOldNutrimentsFieldWhenItHasAValue() {
+        OffProduct product = parseNutrition("{\"energy-kcal_100g\":70}", "100g", "as_sold", NEW_FORMAT_NUTRIENTS);
+
+        assertThat(product.kcal()).isEqualTo(70.0);
+        assertThat(product.protein()).isEqualTo(12.0);
     }
 }
