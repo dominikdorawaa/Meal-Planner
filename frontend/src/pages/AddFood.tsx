@@ -12,12 +12,7 @@ import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
 import { useBarcodeLookup } from '../lib/useBarcodeLookup';
 import { missingProductMessage } from '../lib/barcodeLookup';
 import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
-import { BarCodeField } from '../components/BarCodeField';
-import { MoreNutrientsFields } from '../components/MoreNutrientsFields';
-import { EXTRA_NUTRIENTS, extraNutrientInputs, type ExtraNutrientValues } from '../lib/nutrients';
-import { useExistingBarCodeProduct } from '../lib/useExistingBarCodeProduct';
-import { isValidPackageWeight } from '../lib/packageWeight';
-import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
+import { NewProductSheet, type NewProductDraft } from '../components/NewProductSheet';
 import { t } from '../i18n';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { useBottomSheet } from '../lib/bottomSheet';
@@ -40,11 +35,6 @@ import { AddSelectedBar, SelectionCheckbox } from '../components/PlanSelectionCo
 
 
 const RECENT_PRODUCTS_LIMIT = 5;
-const EMPTY_PRODUCT_FORM = {
-  name: '', brand: '', kcal: '', protein: '', fat: '', carbs: '', barCode: '', packageWeight: '',
-  extras: extraNutrientInputs({}),
-};
-
 const MEAL_TYPE_LABELS: Record<string, string> = {
   breakfast: 'Śniadanie',
   second_breakfast: '2 Śniadanie',
@@ -87,32 +77,9 @@ export function AddFood() {
   const toggleItem = (kind: PlanSelectionKind, id: string | number) =>
     setSelection(current => ({ ...current, items: toggleSelection(current.items, kind, id) }));
 
-  const [showAddProduct, setShowAddProduct] = useState(false);
-  const [addProductForm, setAddProductForm] = useState(EMPTY_PRODUCT_FORM);
-  const [prefillCount, setPrefillCount] = useState(0);
-  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
-
-  const newProductValues = useMemo(() => ({
-    name: addProductForm.name.trim(),
-    kcal: parseNutritionValue(addProductForm.kcal),
-    protein: parseNutritionValue(addProductForm.protein),
-    fat: parseNutritionValue(addProductForm.fat),
-    carbs: parseNutritionValue(addProductForm.carbs),
-    barCode: addProductForm.barCode || null,
-    packageWeight: parseNutritionValue(addProductForm.packageWeight),
-    extras: Object.fromEntries(EXTRA_NUTRIENTS.map(nutrient =>
-      [nutrient, parseNutritionValue(addProductForm.extras[nutrient])])) as ExtraNutrientValues,
-  }), [addProductForm]);
-  const newProductCheck = useMemo(() => checkNutrition(newProductValues), [newProductValues]);
-  const packageWeightValid = isValidPackageWeight(newProductValues.packageWeight);
-  const newProductNutrientsStarted = [addProductForm.kcal, addProductForm.protein, addProductForm.fat, addProductForm.carbs]
-    .some(value => value.trim() !== '');
-  const newProductHints = formNutritionHints(newProductCheck, newProductNutrientsStarted);
-  const existingBarCode = useExistingBarCodeProduct(addProductForm.barCode);
-  const barCodeBlocksSaving = existingBarCode.checking || existingBarCode.product !== null;
+  const [newProduct, setNewProduct] = useState<NewProductDraft | null>(null);
 
   const [showScanner, setShowScanner] = useState(false);
-  const [scanMessage, setScanMessage] = useState<string | null>(null);
 
   const barcodeLookup = useBarcodeLookup();
 
@@ -120,52 +87,9 @@ export function AddFood() {
     setShowScanner(false);
     barcodeLookup.lookUp(barCode, {
       onFound: product => handleSelectProduct(product),
-      onMissing: prefill => {
-        const text = (value: string | number | null | undefined) => (value == null ? '' : String(value));
-        setAddProductForm({
-          name: text(prefill?.name),
-          brand: text(prefill?.brand),
-          kcal: text(prefill?.kcal),
-          protein: text(prefill?.protein),
-          fat: text(prefill?.fat),
-          carbs: text(prefill?.carbs),
-          barCode,
-          packageWeight: text(prefill?.package_weight),
-          extras: extraNutrientInputs(prefill ?? {}),
-        });
-        setPrefillCount(count => count + 1);
-        setScanMessage(t(missingProductMessage(prefill), { code: barCode }));
-        setShowAddProduct(true);
-      },
+      onMissing: prefill => setNewProduct({ barCode, prefill, message: t(missingProductMessage(prefill), { code: barCode }) }),
       onError: () => alert(t('scanner.lookupFailed')),
     });
-  };
-
-  const handleCreateProduct = async () => {
-    if (!newProductCheck.valid || !packageWeightValid || barCodeBlocksSaving) return;
-    setIsCreatingProduct(true);
-    try {
-      await api.products.create({
-        name: newProductValues.name,
-        kcal: newProductValues.kcal,
-        protein: newProductValues.protein,
-        fat: newProductValues.fat,
-        carbs: newProductValues.carbs,
-        ...newProductValues.extras,
-        bar_code: newProductValues.barCode,
-        package_weight: newProductValues.packageWeight,
-        brand: addProductForm.brand.trim() || null,
-        unit: '100g',
-      });
-      setShowAddProduct(false);
-      setAddProductForm(EMPTY_PRODUCT_FORM);
-      setScanMessage(null);
-      productSearch.reload();
-    } catch (err: any) {
-      alert(`Błąd przy tworzeniu produktu: ${err.message}`);
-    } finally {
-      setIsCreatingProduct(false);
-    }
   };
 
   useEffect(() => {
@@ -177,7 +101,6 @@ export function AddFood() {
 
   useCloseOnBack(showMealPicker || showDatePicker, () => { setShowMealPicker(false); setShowDatePicker(false); });
   const quickAddSheetRef = useBottomSheet(showQuickAdd && !mealId, () => setShowQuickAdd(false));
-  const addProductSheetRef = useBottomSheet(showAddProduct, () => setShowAddProduct(false));
 
   useEffect(() => {
     async function loadManualMeal() {
@@ -553,11 +476,7 @@ export function AddFood() {
           {!mealId && (
             <div className="flex items-center justify-between gap-2 pt-1">
               <button
-                onClick={() => {
-                  setAddProductForm(EMPTY_PRODUCT_FORM);
-                  setScanMessage(null);
-                  setShowAddProduct(true);
-                }}
+                onClick={() => setNewProduct({})}
                 className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-none bg-surface-container-low rounded-xl border border-outline-variant/10"
               >
                 <div className="relative flex items-center justify-center">
@@ -871,163 +790,20 @@ export function AddFood() {
       )}
 
       {/* Add Product Modal */}
-      {showAddProduct && (
-        <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowAddProduct(false)}>
-          <div ref={addProductSheetRef} className="bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[92vh] overflow-y-auto animate-slide-up w-full max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative" onClick={e => e.stopPropagation()}>
-            <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
-
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                  <span className="material-symbols-outlined text-xl">grocery</span>
-                </div>
-                <div>
-                  <h2 className="font-headline font-bold text-lg text-on-surface leading-tight">Nowy produkt</h2>
-                  <span className="text-[11px] font-medium text-on-surface-variant">wartości na 100g</span>
-                </div>
-              </div>
-              <button onClick={() => setShowAddProduct(false)} className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors active:scale-90">
-                <span className="material-symbols-outlined text-[18px]">close</span>
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-4 mb-8">
-              {scanMessage && (
-                <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-primary/10 text-on-surface">{scanMessage}</p>
-              )}
-              <BarCodeField
-                value={addProductForm.barCode}
-                onChange={barCode => {
-                  if (barCode !== addProductForm.barCode) setScanMessage(null);
-                  setAddProductForm(p => ({ ...p, barCode }));
-                }}
-                existingProduct={existingBarCode.product}
-                productHref={product => `/product/${product.id}?selectDate=${activeDate}&selectType=${activeMealType}`}
-              />
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">Nazwa *</label>
-                <input
-                  type="text"
-                  value={addProductForm.name}
-                  onChange={e => setAddProductForm(p => ({ ...p, name: e.target.value }))}
-                  className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
-                  placeholder="np. Jogurt naturalny"
-                />
-              </div>
-
-              {/* Marka */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">Marka / producent</label>
-                <input
-                  type="text"
-                  value={addProductForm.brand}
-                  onChange={e => setAddProductForm(p => ({ ...p, brand: e.target.value }))}
-                  className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
-                  placeholder="np. Piątnica"
-                />
-              </div>
-
-              {/* Kcal */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">Kalorie (kcal) *</label>
-                <div className="relative flex items-center rounded-2xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
-                  <input
-                    type="number" min="0"
-                    onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
-                    value={addProductForm.kcal}
-                    onChange={e => setAddProductForm(p => ({ ...p, kcal: e.target.value }))}
-                    className="flex-1 bg-transparent py-4 pl-4 pr-16 outline-none text-on-surface font-bold text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    placeholder="0"
-                  />
-                  <span className="absolute right-4 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest bg-surface-container-highest/60 px-2 py-1.5 rounded-md">kcal</span>
-                </div>
-              </div>
-
-              {/* Makro */}
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { key: 'protein', label: 'Białko *' },
-                  { key: 'carbs', label: 'Węgle *' },
-                  { key: 'fat', label: 'Tłuszcz *' },
-                ].map(f => (
-                  <div key={f.key} className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest leading-none truncate">{f.label}</label>
-                    <div className="relative flex items-center rounded-xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
-                      <input
-                        type="number" min="0"
-                        onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
-                        value={addProductForm[f.key as 'protein' | 'carbs' | 'fat']}
-                        onChange={e => setAddProductForm(p => ({ ...p, [f.key]: e.target.value }))}
-                        className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        placeholder="0"
-                      />
-                      <span className="absolute right-3 text-[10px] font-black text-on-surface-variant/50 uppercase">g</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="new-product-package-weight" className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('product.packageWeight')}</label>
-                <div className="relative flex items-center rounded-2xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
-                  <input
-                    id="new-product-package-weight"
-                    type="number" min="0" inputMode="decimal"
-                    onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
-                    value={addProductForm.packageWeight}
-                    onChange={e => setAddProductForm(p => ({ ...p, packageWeight: e.target.value }))}
-                    aria-invalid={!packageWeightValid}
-                    className="flex-1 bg-transparent py-3.5 pl-4 pr-12 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:font-medium placeholder:text-on-surface-variant/40"
-                    placeholder="np. 450"
-                  />
-                  <span className="absolute right-4 text-[10px] font-black text-on-surface-variant/50 uppercase">g</span>
-                </div>
-                {!packageWeightValid && (
-                  <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-error/10 text-error">{t('product.packageWeightInvalid')}</p>
-                )}
-              </div>
-
-              <MoreNutrientsFields
-                key={prefillCount}
-                values={addProductForm.extras}
-                onChange={(nutrient, value) => setAddProductForm(p => ({ ...p, extras: { ...p.extras, [nutrient]: value } }))}
-              />
-
-              {newProductHints.length > 0 && (
-                <ul className="flex flex-col gap-2" aria-live="polite">
-                  {newProductHints.map(issue => (
-                    <li
-                      key={issue}
-                      className={`flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs font-medium ${newProductCheck.errors.includes(issue) ? 'bg-error/10 text-error' : 'bg-primary/10 text-on-surface'}`}
-                    >
-                      <span className="material-symbols-outlined text-[16px] shrink-0">{newProductCheck.errors.includes(issue) ? 'error' : 'info'}</span>
-                      {t(nutritionIssueMessageKey(issue))}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <button
-              onClick={handleCreateProduct}
-              disabled={isCreatingProduct || !newProductCheck.valid || !packageWeightValid || barCodeBlocksSaving}
-              className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
-            >
-              {isCreatingProduct ? (
-                <div className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span className="material-symbols-outlined text-[18px]">add_circle</span>
-                  Dodaj produkt
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+      {newProduct && (
+        <NewProductSheet
+          key={newProduct.barCode ?? 'manual'}
+          draft={newProduct}
+          onClose={() => setNewProduct(null)}
+          onCreated={() => {
+            setNewProduct(null);
+            productSearch.reload();
+          }}
+          productHref={product => `/product/${product.id}?selectDate=${activeDate}&selectType=${activeMealType}`}
+        />
       )}
 
-      {!mealId && !showQuickAdd && !showAddProduct && (
+      {!mealId && !showQuickAdd && !newProduct && (
         <AddSelectedBar count={selection.items.length} adding={isAdding} onAdd={handleAddSelected} />
       )}
 

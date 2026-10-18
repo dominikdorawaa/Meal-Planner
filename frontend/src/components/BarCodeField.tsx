@@ -10,10 +10,11 @@ interface BarCodeFieldProps {
   value: string;
   onChange: (barCode: string) => void;
   existingProduct: Product | null;
-  productHref: (product: Product) => string;
+  productHref?: (product: Product) => string;
+  onOpenProduct?: (product: Product) => void;
 }
 
-export function BarCodeField({ value, onChange, existingProduct, productHref }: BarCodeFieldProps) {
+export function BarCodeField({ value, onChange, existingProduct, productHref, onOpenProduct }: BarCodeFieldProps) {
   const [scanning, setScanning] = useState(false);
 
   return (
@@ -43,9 +44,15 @@ export function BarCodeField({ value, onChange, existingProduct, productHref }: 
       {existingProduct && (
         <div role="alert" className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-xs font-medium bg-error/10 text-error">
           <span>{t('product.alreadyExists')}</span>
-          <Link to={productHref(existingProduct)} className="font-bold underline underline-offset-2 truncate">
-            {productDisplayName(existingProduct)}
-          </Link>
+          {onOpenProduct ? (
+            <button type="button" onClick={() => onOpenProduct(existingProduct)} className="font-bold underline underline-offset-2 truncate">
+              {productDisplayName(existingProduct)}
+            </button>
+          ) : (
+            <Link to={productHref?.(existingProduct) ?? `/product/${existingProduct.id}`} className="font-bold underline underline-offset-2 truncate">
+              {productDisplayName(existingProduct)}
+            </Link>
+          )}
         </div>
       )}
       {scanning && (
