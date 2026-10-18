@@ -5,6 +5,9 @@ import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, firstDayOfMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { productDisplayName } from '../lib/productName';
 import { canDeleteProduct } from '../lib/productPermissions';
+import { NutritionFactsTable } from '../components/NutritionFactsTable';
+import { measureUnit, scaleNutritionFacts } from '../lib/nutrients';
+import { t } from '../i18n';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 
 export function ProductDetails() {
@@ -417,6 +420,17 @@ export function ProductDetails() {
             </div>
           </div>
         </section>
+
+        <NutritionFactsTable
+          title={t('nutrients.productTitle')}
+          columns={[
+            { label: t('nutrients.per100', { unit: measureUnit(product.unit) }), values: product },
+            {
+              label: t('nutrients.perPortion', { amount: `${Math.round(currentWeight)} ${measureUnit(product.unit)}` }),
+              values: scaleNutritionFacts(product, currentWeight / 100),
+            },
+          ]}
+        />
 
         {/* Podgląd bilansu */}
         {selectDate && (

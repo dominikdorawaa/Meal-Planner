@@ -1,5 +1,6 @@
 package com.mealplanner.server.recipe;
 
+import com.mealplanner.server.product.ProductRepository;
 import com.mealplanner.server.user.User;
 import com.mealplanner.server.user.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,9 @@ public class RecipeController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ProductRepository productRepository;
 
     @GetMapping
     public List<Recipe> getAllRecipes() {
@@ -47,7 +51,7 @@ public class RecipeController {
 
         // Link ingredients back to the recipe for JPA to handle cascading
         if (recipe.getIngredients() != null) {
-            recipe.getIngredients().forEach(ing -> ing.setRecipe(recipe));
+            recipe.getIngredients().forEach(ing -> linkIngredient(recipe, ing));
         }
 
         return ResponseEntity.ok(recipeRepository.save(recipe));
@@ -71,7 +75,7 @@ public class RecipeController {
             recipe.getIngredients().clear();
             if (recipeDetails.getIngredients() != null) {
                 recipeDetails.getIngredients().forEach(ing -> {
-                    ing.setRecipe(recipe);
+                    linkIngredient(recipe, ing);
                     recipe.getIngredients().add(ing);
                 });
             }
@@ -86,5 +90,13 @@ public class RecipeController {
             recipe.setIsArchived(true);
             return ResponseEntity.ok(recipeRepository.save(recipe));
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    private void linkIngredient(Recipe recipe, RecipeIngredient ingredient) {
+        ingredient.setRecipe(recipe);
+        if (ingredient.getProduct() != null) {
+            ingredient.setProduct(ingredient.getProduct().getId() == null ? null
+                    : productRepository.findById(ingredient.getProduct().getId()).orElse(null));
+        }
     }
 }

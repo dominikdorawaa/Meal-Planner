@@ -69,9 +69,11 @@ class OffLookupIntegrationTest {
                 int status = 200;
                 String body = switch (code) {
                     case COMPLETE -> "{\"status\":1,\"product\":{\"product_name_pl\":\"Skyr naturalny\",\"brands\":\"Piątnica\","
-                            + "\"nutriments\":{\"energy-kcal_100g\":64.6,\"proteins_100g\":12.0400009,\"fat_100g\":0,\"carbohydrates_100g\":4.19999980927}}}";
+                            + "\"nutriments\":{\"energy-kcal_100g\":64.6,\"proteins_100g\":12.0400009,\"fat_100g\":0,\"carbohydrates_100g\":4.19999980927,"
+                            + "\"saturated-fat_100g\":0,\"sugars_100g\":4.04,\"salt_100g\":\"0,12\"}}}";
                     case FOREIGN -> "{\"status\":1,\"product\":{\"lang\":\"de\",\"product_name\":\"Stracciatella Pasta Filata Käse\","
-                            + "\"brands\":\"Lidl\",\"nutriments\":{\"energy-kcal_100g\":250,\"proteins_100g\":13,\"fat_100g\":20,\"carbohydrates_100g\":3}}}";
+                            + "\"brands\":\"Lidl\",\"nutriments\":{\"energy-kcal_100g\":250,\"proteins_100g\":13,\"fat_100g\":20,\"carbohydrates_100g\":3,"
+                            + "\"saturated-fat_100g\":13.24,\"sugars_100g\":5,\"fiber_100g\":-1,\"salt_100g\":1.24}}}";
                     case INCOMPLETE -> "{\"status\":1,\"product\":{\"product_name\":\"Baton\",\"brands\":\"Wedel\","
                             + "\"nutriments\":{\"energy-kcal_100g\":480,\"proteins_100g\":5}}}";
                     case BROKEN -> {
@@ -147,6 +149,10 @@ class OffLookupIntegrationTest {
         assertThat(saved.getKcal()).isEqualTo(65.0);
         assertThat(saved.getProtein()).isEqualTo(12.0);
         assertThat(saved.getCarbs()).isEqualTo(4.2);
+        assertThat(saved.getSaturatedFat()).isEqualTo(0.0);
+        assertThat(saved.getSugars()).isEqualTo(4.0);
+        assertThat(saved.getFiber()).isNull();
+        assertThat(saved.getSalt()).isEqualTo(0.1);
         assertThat(USER_AGENTS).containsExactly("MealPlanner-Test/1.0");
 
         mockMvc.perform(get("/api/products/barcode/" + COMPLETE)).andExpect(status().isOk());
@@ -159,7 +165,11 @@ class OffLookupIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.prefill.name").value("Stracciatella Pasta Filata Käse"))
                 .andExpect(jsonPath("$.prefill.brand").value("Lidl"))
-                .andExpect(jsonPath("$.prefill.kcal").value(250.0));
+                .andExpect(jsonPath("$.prefill.kcal").value(250.0))
+                .andExpect(jsonPath("$.prefill.saturated_fat").value(13.2))
+                .andExpect(jsonPath("$.prefill.sugars").doesNotExist())
+                .andExpect(jsonPath("$.prefill.fiber").doesNotExist())
+                .andExpect(jsonPath("$.prefill.salt").value(1.2));
 
         assertThat(productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(FOREIGN, ProductStatus.VERIFIED)).isEmpty();
     }

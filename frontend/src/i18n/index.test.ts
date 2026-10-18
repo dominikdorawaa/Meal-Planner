@@ -7,6 +7,7 @@ import {
   applyLanguage,
   getLanguage,
   isSupportedLanguage,
+  pluralForm,
   setLanguage,
   t,
 } from '.';
@@ -65,6 +66,12 @@ describe('i18n', () => {
   it('fills placeholders and keeps unknown ones', () => {
     expect(t('api.serverError', { status: 503 }, 'en')).toBe('Server error (503)');
     expect(t('api.serverError', {}, 'en')).toBe('Server error ({status})');
+  });
+
+  it('picks the plural form for Polish and English counts', () => {
+    expect([1, 2, 4, 5, 12, 22, 0].map(count => pluralForm(count, 'pl'))).toEqual(['one', 'few', 'few', 'many', 'many', 'few', 'many']);
+    expect([1, 2, 5].map(count => pluralForm(count, 'en'))).toEqual(['one', 'many', 'many']);
+    expect(pluralForm(3)).toBe('few');
   });
 
   it('defines the same keys for every language', () => {

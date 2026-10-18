@@ -42,6 +42,10 @@ export interface Product {
   protein: number;
   fat: number;
   carbs: number;
+  saturated_fat?: number | null;
+  sugars?: number | null;
+  fiber?: number | null;
+  salt?: number | null;
   unit?: string | null;
   image_url?: string | null;
   piece_weight?: number | null;
@@ -164,7 +168,8 @@ async function request<T>(
     // 204 No Content
     if (res.status === 204) return undefined as T;
 
-    return res.json();
+    const text = await res.text();
+    return (text ? JSON.parse(text) : undefined) as T;
   } finally {
     clearTimeout(timeoutId);
     if (isLong) {

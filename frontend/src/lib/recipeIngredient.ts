@@ -2,6 +2,7 @@ import type { Product } from './apiClient';
 
 export interface IngredientDraft {
   id?: string;
+  productId?: string;
   name: string;
   amount: number;
   unit: string;
@@ -24,6 +25,7 @@ export function ingredientFromProduct(product: Product): IngredientDraft {
   const factor = perPiece ? 1 : amount / 100;
   return {
     id: product.id,
+    productId: product.id,
     name: product.name,
     amount,
     unit: perPiece ? 'szt' : product.unit === '100ml' ? 'ml' : 'g',
