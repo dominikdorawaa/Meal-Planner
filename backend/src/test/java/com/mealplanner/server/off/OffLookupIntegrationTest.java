@@ -48,6 +48,7 @@ class OffLookupIntegrationTest {
     private static final String MISSING = "5900000000046";
     private static final String FOREIGN = "5900000000053";
     private static final String NOT_ASKED = "5900000000060";
+    private static final String JUNK_NAME = "5900000000077";
 
     private static final Map<String, Integer> REQUESTS = new ConcurrentHashMap<>();
     private static final List<String> USER_AGENTS = new CopyOnWriteArrayList<>();
@@ -74,6 +75,8 @@ class OffLookupIntegrationTest {
                     case FOREIGN -> "{\"status\":1,\"product\":{\"lang\":\"de\",\"product_name\":\"Stracciatella Pasta Filata Käse\","
                             + "\"brands\":\"Lidl\",\"quantity\":\"250 g ℮\",\"nutriments\":{\"energy-kcal_100g\":250,\"proteins_100g\":13,\"fat_100g\":20,\"carbohydrates_100g\":3,"
                             + "\"saturated-fat_100g\":13.24,\"sugars_100g\":5,\"fiber_100g\":-1,\"salt_100g\":1.24}}}";
+                    case JUNK_NAME -> "{\"status\":1,\"product\":{\"product_name_pl\":\"???\",\"brands\":\"Piątnica\","
+                            + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}}";
                     case INCOMPLETE -> "{\"status\":1,\"product\":{\"product_name\":\"Baton\",\"brands\":\"Wedel\","
                             + "\"nutriments\":{\"energy-kcal_100g\":480,\"proteins_100g\":5}}}";
                     case BROKEN -> {
@@ -189,6 +192,17 @@ class OffLookupIntegrationTest {
                 .andExpect(jsonPath("$.prefill.package_weight").doesNotExist());
 
         assertThat(productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(INCOMPLETE, ProductStatus.VERIFIED)).isEmpty();
+    }
+
+    @Test
+    void leavesOutJunkNamesAndDoesNotSaveTheProduct() throws Exception {
+        mockMvc.perform(get("/api/products/barcode/" + JUNK_NAME))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.prefill.name").value(""))
+                .andExpect(jsonPath("$.prefill.brand").value("Piątnica"))
+                .andExpect(jsonPath("$.prefill.kcal").value(65.0));
+
+        assertThat(productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(JUNK_NAME, ProductStatus.VERIFIED)).isEmpty();
     }
 
     @Test
