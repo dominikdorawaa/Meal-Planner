@@ -49,6 +49,7 @@ class OffLookupIntegrationTest {
     private static final String FOREIGN = "5900000000053";
     private static final String NOT_ASKED = "5900000000060";
     private static final String JUNK_NAME = "5900000000077";
+    private static final String ENGLISH_NAME = "5900000000084";
 
     private static final Map<String, Integer> REQUESTS = new ConcurrentHashMap<>();
     private static final List<String> USER_AGENTS = new CopyOnWriteArrayList<>();
@@ -77,6 +78,8 @@ class OffLookupIntegrationTest {
                             + "\"saturated-fat_100g\":13.24,\"sugars_100g\":5,\"fiber_100g\":-1,\"salt_100g\":1.24}}}";
                     case JUNK_NAME -> "{\"status\":1,\"product\":{\"product_name_pl\":\"???\",\"brands\":\"Piątnica\","
                             + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}}";
+                    case ENGLISH_NAME -> "{\"status\":1,\"product\":{\"product_name_pl\":\"Chicken Fingers\","
+                            + "\"nutriments\":{\"energy-kcal_100g\":250,\"proteins_100g\":15,\"fat_100g\":14,\"carbohydrates_100g\":16}}}";
                     case INCOMPLETE -> "{\"status\":1,\"product\":{\"product_name\":\"Baton\",\"brands\":\"Wedel\","
                             + "\"nutriments\":{\"energy-kcal_100g\":480,\"proteins_100g\":5}}}";
                     case BROKEN -> {
@@ -203,6 +206,16 @@ class OffLookupIntegrationTest {
                 .andExpect(jsonPath("$.prefill.kcal").value(65.0));
 
         assertThat(productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(JUNK_NAME, ProductStatus.VERIFIED)).isEmpty();
+    }
+
+    @Test
+    void offersEnglishNamesForCorrectionInsteadOfSavingThem() throws Exception {
+        mockMvc.perform(get("/api/products/barcode/" + ENGLISH_NAME))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.prefill.name").value("Chicken Fingers"))
+                .andExpect(jsonPath("$.prefill.kcal").value(250.0));
+
+        assertThat(productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(ENGLISH_NAME, ProductStatus.VERIFIED)).isEmpty();
     }
 
     @Test

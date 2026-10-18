@@ -54,8 +54,9 @@ public class OffLookupService {
             return OffLookupResult.missing();
         }
         OffProduct offProduct = cleaned(found.get(), barCode);
-        boolean valid = offProduct.polishName() && NutritionValidator.check(offProduct.name(), offProduct.kcal(),
-                offProduct.protein(), offProduct.fat(), offProduct.carbs(), UNIT, barCode).isValid();
+        boolean valid = offProduct.polishName() && !OffImportRules.isForeignName(offProduct.name())
+                && NutritionValidator.check(offProduct.name(), offProduct.kcal(), offProduct.protein(),
+                offProduct.fat(), offProduct.carbs(), UNIT, barCode).isValid();
         return valid ? OffLookupResult.found(save(offProduct)) : OffLookupResult.incomplete(offProduct);
     }
 
