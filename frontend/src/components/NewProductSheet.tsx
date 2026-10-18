@@ -7,7 +7,7 @@ import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutr
 import { isValidPackageWeight } from '../lib/packageWeight';
 import { useExistingBarCodeProduct } from '../lib/useExistingBarCodeProduct';
 import { t } from '../i18n';
-import { BarCodeField } from './BarCodeField';
+import { BarCodeField, type ExistingProductAction } from './BarCodeField';
 import { MoreNutrientsFields } from './MoreNutrientsFields';
 
 export interface NewProductDraft {
@@ -21,29 +21,28 @@ interface NewProductSheetProps {
   draft: NewProductDraft;
   onClose: () => void;
   onCreated: (product: Product) => void;
-  productHref?: (product: Product) => string;
-  onOpenProduct?: (product: Product) => void;
+  existingProductAction: ExistingProductAction;
 }
 
-function text(value: string | number | null | undefined): string {
+function inputValue(value: string | number | null | undefined): string {
   return value == null ? '' : String(value);
 }
 
 function formFrom({ name, barCode, prefill }: NewProductDraft) {
   return {
-    name: text(prefill?.name ?? name),
-    brand: text(prefill?.brand),
-    kcal: text(prefill?.kcal),
-    protein: text(prefill?.protein),
-    fat: text(prefill?.fat),
-    carbs: text(prefill?.carbs),
+    name: inputValue(prefill?.name ?? name),
+    brand: inputValue(prefill?.brand),
+    kcal: inputValue(prefill?.kcal),
+    protein: inputValue(prefill?.protein),
+    fat: inputValue(prefill?.fat),
+    carbs: inputValue(prefill?.carbs),
     barCode: barCode ?? '',
-    packageWeight: text(prefill?.package_weight),
+    packageWeight: inputValue(prefill?.package_weight),
     extras: extraNutrientInputs(prefill ?? {}),
   };
 }
 
-export function NewProductSheet({ draft, onClose, onCreated, productHref, onOpenProduct }: NewProductSheetProps) {
+export function NewProductSheet({ draft, onClose, onCreated, existingProductAction }: NewProductSheetProps) {
   const [form, setForm] = useState(() => formFrom(draft));
   const [scanMessage, setScanMessage] = useState(draft.message ?? null);
   const [creating, setCreating] = useState(false);
@@ -121,8 +120,7 @@ export function NewProductSheet({ draft, onClose, onCreated, productHref, onOpen
               setForm(p => ({ ...p, barCode }));
             }}
             existingProduct={existingBarCode.product}
-            productHref={productHref}
-            onOpenProduct={onOpenProduct}
+            existingProductAction={existingProductAction}
           />
 
           <div className="flex flex-col gap-1.5">

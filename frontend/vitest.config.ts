@@ -59,6 +59,7 @@ export default defineConfig({
         'src/components/NewProductSheet.tsx',
         'src/components/IngredientSearch.tsx',
         'src/components/IngredientAmountScreen.tsx',
+        'src/pages/AddRecipe.tsx',
       ],
       reporter: ['text', 'html'],
     },

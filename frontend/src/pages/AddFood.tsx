@@ -799,7 +799,7 @@ export function AddFood() {
             setNewProduct(null);
             productSearch.reload();
           }}
-          productHref={product => `/product/${product.id}?selectDate=${activeDate}&selectType=${activeMealType}`}
+          existingProductAction={{ href: product => `/product/${product.id}?selectDate=${activeDate}&selectType=${activeMealType}` }}
         />
       )}
 

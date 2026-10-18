@@ -9,6 +9,11 @@ export interface ScalableProduct {
   package_weight?: number | null;
 }
 
+export interface IngredientQuantity {
+  amount: number;
+  unit: IngredientUnit;
+}
+
 export interface IngredientAmount<P extends ScalableProduct = ScalableProduct> {
   amount: number;
   unit: string;
@@ -46,7 +51,11 @@ export function ingredientUnits(product: ScalableProduct): IngredientUnit[] {
   return units;
 }
 
-export function defaultIngredientAmount(product: ScalableProduct): { amount: number; unit: IngredientUnit } {
+export function supportedIngredientUnit(product: ScalableProduct, unit: string): IngredientUnit | null {
+  return ingredientUnits(product).find(supported => supported === unit) ?? null;
+}
+
+export function defaultIngredientAmount(product: ScalableProduct): IngredientQuantity {
   const unit = baseUnit(product);
   return { amount: unit === 'szt' ? 1 : DEFAULT_AMOUNT, unit };
 }

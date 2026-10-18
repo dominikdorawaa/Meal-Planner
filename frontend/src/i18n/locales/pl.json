@@ -147,7 +147,6 @@
   "recipe.leaveText": "Przepis nie został zapisany. Jeśli wyjdziesz, zmiany przepadną.",
   "recipe.leaveStay": "Zostań",
   "recipe.leaveDiscard": "Odrzuć",
-  "recipeIngredients.title": "Dodaj składnik",
   "recipeIngredients.close": "Zamknij wyszukiwanie",
   "recipeIngredients.searchPlaceholder": "Wyszukaj produkt...",
   "recipeIngredients.minChars": "Wpisz co najmniej 3 znaki",
@@ -162,5 +161,6 @@
   "recipeIngredients.add": "Dodaj do przepisu",
   "recipeIngredients.save": "Zapisz zmiany",
   "recipeIngredients.edit": "Zmień ilość: {name}",
-  "recipeIngredients.per100": "na {unit}"
+  "recipeIngredients.unitUnavailable": "Zapisana ilość ({amount}) nie jest już dostępna dla tego produktu. Ustaw ją ponownie.",
+  "recipeIngredients.perAmount": "na {amount}"
 }

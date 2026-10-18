@@ -8,6 +8,8 @@ import {
   ingredientFactor,
   ingredientMacros,
   ingredientUnits,
+  supportedIngredientUnit,
+  type IngredientQuantity,
   type IngredientUnit,
 } from '../lib/recipeIngredient';
 import { t } from '../i18n';
@@ -18,17 +20,23 @@ interface IngredientAmountScreenProps {
   product: Product;
   initial?: { amount: number; unit: string };
   submitLabel: string;
-  onSubmit: (amount: { amount: number; unit: IngredientUnit }) => void;
+  onSubmit: (quantity: IngredientQuantity) => void;
   onBack: () => void;
 }
 
 type AmountValues = Partial<Record<IngredientUnit, number | ''>>;
 
-function initialValues(product: Product, units: IngredientUnit[], initial?: { amount: number; unit: string }): AmountValues {
+function initialValues(product: Product, units: IngredientUnit[], saved: IngredientQuantity | null): AmountValues {
+  const fallback = defaultIngredientAmount(product);
   const values: AmountValues = {};
-  for (const unit of units) values[unit] = unit === defaultIngredientAmount(product).unit ? defaultIngredientAmount(product).amount : 1;
-  if (initial && units.includes(initial.unit as IngredientUnit)) values[initial.unit as IngredientUnit] = initial.amount;
+  for (const unit of units) values[unit] = unit === fallback.unit ? fallback.amount : 1;
+  if (saved) values[saved.unit] = saved.amount;
   return values;
+}
+
+function savedQuantity(product: Product, initial?: { amount: number; unit: string }): IngredientQuantity | null {
+  const unit = initial ? supportedIngredientUnit(product, initial.unit) : null;
+  return initial && unit ? { amount: initial.amount, unit } : null;
 }
 
 function rowLabel(unit: IngredientUnit, product: Product): { label: string; unit: string } {
@@ -45,9 +53,9 @@ function rowLabel(unit: IngredientUnit, product: Product): { label: string; unit
 
 export function IngredientAmountScreen({ product, initial, submitLabel, onSubmit, onBack }: IngredientAmountScreenProps) {
   const units = ingredientUnits(product);
-  const [values, setValues] = useState(() => initialValues(product, units, initial));
-  const [activeUnit, setActiveUnit] = useState<IngredientUnit>(() =>
-    initial && units.includes(initial.unit as IngredientUnit) ? (initial.unit as IngredientUnit) : defaultIngredientAmount(product).unit);
+  const saved = savedQuantity(product, initial);
+  const [values, setValues] = useState(() => initialValues(product, units, saved));
+  const [activeUnit, setActiveUnit] = useState<IngredientUnit>(() => saved?.unit ?? defaultIngredientAmount(product).unit);
   const amount = Number(values[activeUnit]) || 0;
   const current = { amount, unit: activeUnit, product };
   const perPiece = product.unit === 'pc';
@@ -67,6 +75,11 @@ export function IngredientAmountScreen({ product, initial, submitLabel, onSubmit
 
       <main className="flex-1 overflow-y-auto w-full max-w-xl mx-auto px-4 py-6 flex flex-col gap-8">
         <div className="flex flex-col gap-2">
+          {initial && !saved && (
+            <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-primary/10 text-on-surface">
+              {t('recipeIngredients.unitUnavailable', { amount: ingredientAmountLabel({ amount: initial.amount, unit: initial.unit }) })}
+            </p>
+          )}
           {units.map(unit => {
             const row = rowLabel(unit, product);
             const value = values[unit] ?? '';

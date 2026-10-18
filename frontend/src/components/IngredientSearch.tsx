@@ -8,6 +8,11 @@ import { LoadMoreTrigger } from './LoadMoreTrigger';
 
 export const MIN_SEARCH_LENGTH = 3;
 const NO_FILTERS = {};
+const PER_PIECE_UNIT = 'pc';
+
+function nutritionBasis(product: Product): string {
+  return product.unit === PER_PIECE_UNIT ? `1 ${t('units.szt')}` : `100 ${measureUnit(product.unit)}`;
+}
 
 interface IngredientSearchProps {
   onClose: () => void;
@@ -20,8 +25,8 @@ export function IngredientSearch({ onClose, onSelect, onAddProduct, onScan }: In
   const [query, setQuery] = useState('');
   const longEnough = query.trim().length >= MIN_SEARCH_LENGTH;
   const search = useProductSearch({ query: query.trim(), filters: NO_FILTERS, enabled: longEnough });
-  const items = longEnough && search.current ? search.items : [];
-  const settled = longEnough && search.current && !search.loading;
+  const items = longEnough && search.resultsMatchQuery ? search.items : [];
+  const searchFinished = longEnough && search.resultsMatchQuery && !search.loading;
 
   return (
     <div className="fixed inset-0 z-[100] bg-surface flex flex-col animate-fade-in">
@@ -76,7 +81,7 @@ export function IngredientSearch({ onClose, onSelect, onAddProduct, onScan }: In
                 <span className="flex flex-col items-end shrink-0 pr-1">
                   <span className="text-xs font-black">{product.kcal} kcal</span>
                   <span className="text-[9px] font-bold text-on-surface-variant uppercase">
-                    {t('recipeIngredients.per100', { unit: `100 ${measureUnit(product.unit)}` })}
+                    {t('recipeIngredients.perAmount', { amount: nutritionBasis(product) })}
                   </span>
                 </span>
               </button>
@@ -88,7 +93,7 @@ export function IngredientSearch({ onClose, onSelect, onAddProduct, onScan }: In
           </div>
         )}
 
-        {longEnough && items.length === 0 && !settled && !search.error && (
+        {longEnough && items.length === 0 && !searchFinished && !search.error && (
           <p className="py-8 text-center text-sm font-medium text-on-surface-variant/60">{t('recipeIngredients.searching')}</p>
         )}
 
@@ -105,7 +110,7 @@ export function IngredientSearch({ onClose, onSelect, onAddProduct, onScan }: In
           </div>
         )}
 
-        {settled && items.length === 0 && !search.error && (
+        {searchFinished && items.length === 0 && !search.error && (
           <div className="py-8 flex flex-col items-center gap-4 text-center">
             <span className="material-symbols-outlined text-4xl text-on-surface-variant/40">search_off</span>
             <p className="font-bold text-on-surface-variant text-sm">{t('recipeIngredients.noResults')}</p>

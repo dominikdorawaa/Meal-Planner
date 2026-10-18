@@ -9,7 +9,7 @@ import {
   ingredientMacros,
   recipeMacros,
   type IngredientDraft,
-  type IngredientUnit,
+  type IngredientQuantity,
 } from '../lib/recipeIngredient';
 import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
 import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
@@ -132,7 +132,12 @@ export default function AddRecipe() {
 
   const openAmount = (product: Product) => setAmountTarget({ product, index: null });
 
-  const handleAmountSubmit = ({ amount, unit }: { amount: number; unit: IngredientUnit }) => {
+  const chooseCreatedOrExistingProduct = (product: Product) => {
+    setNewProduct(null);
+    openAmount(product);
+  };
+
+  const handleAmountSubmit = ({ amount, unit }: IngredientQuantity) => {
     if (!amountTarget) return;
     const { product, index } = amountTarget;
     if (index === null) {
@@ -426,14 +431,8 @@ export default function AddRecipe() {
           key={newProduct.barCode ?? newProduct.name ?? 'manual'}
           draft={newProduct}
           onClose={() => setNewProduct(null)}
-          onCreated={product => {
-            setNewProduct(null);
-            openAmount(product);
-          }}
-          onOpenProduct={product => {
-            setNewProduct(null);
-            openAmount(product);
-          }}
+          onCreated={chooseCreatedOrExistingProduct}
+          existingProductAction={{ onOpen: chooseCreatedOrExistingProduct }}
         />
       )}
 

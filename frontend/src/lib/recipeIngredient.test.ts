@@ -6,6 +6,7 @@ import {
   ingredientAmountLabel,
   ingredientMacros,
   ingredientUnits,
+  supportedIngredientUnit,
   recipeMacros,
 } from './recipeIngredient';
 
@@ -113,5 +114,17 @@ describe('ingredientAmountLabel', () => {
     expect(ingredientAmountLabel({ amount: 150, unit: 'g', product: skyr })).toBe('150 g');
     expect(ingredientAmountLabel({ amount: 2, unit: 'szt', product: egg })).toBe('2 szt.');
     expect(ingredientAmountLabel({ amount: 1, unit: 'łyżka', product: null })).toBe('1 łyżka');
+  });
+});
+
+describe('supportedIngredientUnit', () => {
+  it('accepts units the product can be measured in', () => {
+    expect(supportedIngredientUnit(juice, 'opak')).toBe('opak');
+    expect(supportedIngredientUnit(skyr, 'g')).toBe('g');
+  });
+
+  it('rejects units the product cannot be measured in', () => {
+    expect(supportedIngredientUnit(skyr, 'opak')).toBeNull();
+    expect(supportedIngredientUnit(skyr, 'łyżka')).toBeNull();
   });
 });

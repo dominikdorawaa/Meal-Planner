@@ -147,7 +147,6 @@
   "recipe.leaveText": "The recipe has not been saved. If you leave, your changes will be lost.",
   "recipe.leaveStay": "Stay",
   "recipe.leaveDiscard": "Discard",
-  "recipeIngredients.title": "Add ingredient",
   "recipeIngredients.close": "Close search",
   "recipeIngredients.searchPlaceholder": "Search for a product...",
   "recipeIngredients.minChars": "Type at least 3 characters",
@@ -162,5 +161,6 @@
   "recipeIngredients.add": "Add to recipe",
   "recipeIngredients.save": "Save changes",
   "recipeIngredients.edit": "Change amount: {name}",
-  "recipeIngredients.per100": "per {unit}"
+  "recipeIngredients.unitUnavailable": "The saved amount ({amount}) is no longer available for this product. Set it again.",
+  "recipeIngredients.perAmount": "per {amount}"
 }

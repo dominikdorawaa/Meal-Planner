@@ -24,7 +24,13 @@ function renderSheet(draft: NewProductDraft, props: Partial<Parameters<typeof Ne
   const handlers = { onClose: vi.fn(), onCreated: vi.fn(), onOpenProduct: vi.fn() };
   render(
     <MemoryRouter>
-      <NewProductSheet draft={draft} {...handlers} {...props} />
+      <NewProductSheet
+        draft={draft}
+        onClose={handlers.onClose}
+        onCreated={handlers.onCreated}
+        existingProductAction={{ onOpen: handlers.onOpenProduct }}
+        {...props}
+      />
     </MemoryRouter>
   );
   return handlers;
@@ -101,7 +107,7 @@ describe('NewProductSheet', () => {
 
   it('links to the product that already has this code when no handler is given', () => {
     mocks.existing = { checking: false, product: { id: 'p9', name: 'Skyr naturalny' } };
-    renderSheet({ barCode: '5900820000318', prefill: SKYR }, { onOpenProduct: undefined, productHref: product => `/product/${product.id}?x=1` });
+    renderSheet({ barCode: '5900820000318', prefill: SKYR }, { existingProductAction: { href: product => `/product/${product.id}?x=1` } });
 
     expect(within(screen.getByRole('alert')).getByRole('link').getAttribute('href')).toBe('/product/p9?x=1');
   });

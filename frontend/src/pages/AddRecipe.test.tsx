@@ -41,6 +41,7 @@ vi.mock('../components/LazyBarcodeScanner', () => ({
 }));
 
 const SKYR = { id: 'p1', name: 'Skyr', brand: 'Piątnica', kcal: 65, protein: 12, fat: 0, carbs: 4, unit: '100g', package_weight: 450 };
+const EGG = { id: 'p3', name: 'Jajko', kcal: 75, protein: 6, fat: 5, carbs: 0, unit: 'pc' };
 const OATS = { id: 'p2', name: 'Płatki owsiane', kcal: 370, protein: 13, fat: 7, carbs: 60, unit: '100g' };
 const alertMock = vi.fn();
 
@@ -78,7 +79,7 @@ beforeEach(() => {
   vi.stubGlobal('alert', alertMock);
   vi.spyOn(console, 'error').mockImplementation(() => {});
   mocks.searchProducts.mockImplementation(async ({ query }: { query: string }) => ({
-    items: [SKYR, OATS].filter(product => product.name.toLowerCase().includes(query.toLowerCase())),
+    items: [SKYR, OATS, EGG].filter(product => product.name.toLowerCase().includes(query.toLowerCase())),
     page: 0,
     size: 20,
     has_next: false,
@@ -125,6 +126,15 @@ describe('AddRecipe ingredient search', () => {
     expect(within(row).getByText('2 opak. (900 g)')).toBeTruthy();
     expect(within(row).getByText('585 kcal')).toBeTruthy();
     expect(screen.queryByPlaceholderText(t('recipeIngredients.searchPlaceholder'))).toBeNull();
+  });
+
+  it('shows nutrition per piece for products counted per piece', async () => {
+    renderAddRecipe();
+    fireEvent.change(openSearch(), { target: { value: 'jaj' } });
+
+    const egg = await screen.findByRole('button', { name: /Jajko/ });
+    expect(within(egg).getByText(t('recipeIngredients.perAmount', { amount: '1 szt.' }))).toBeTruthy();
+    expect(screen.queryByText(t('recipeIngredients.perAmount', { amount: '100 g' }))).toBeNull();
   });
 
   it('adds 100 g by default', async () => {
@@ -273,6 +283,21 @@ describe('AddRecipe saving', () => {
         { name: 'Skyr', amount: 100, unit: 'g', product: { id: 'p1' } },
       ],
     }));
+  });
+});
+
+describe('AddRecipe editing an ingredient', () => {
+  it('keeps the saved amount visible when its unit is no longer available', async () => {
+    mocks.getRecipe.mockResolvedValue({
+      id: 'r1', name: 'Owsianka', kcal: 500, protein: 20, fat: 10, carbs: 80, portions: 1,
+      ingredients: [{ id: 'i1', name: 'Płatki owsiane', amount: 1, unit: 'opak', product: OATS }],
+    });
+    renderAddRecipe('/edit-recipe/r1');
+
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(t('recipeIngredients.edit', { name: 'Płatki owsiane' })) }));
+
+    expect(screen.getByText(t('recipeIngredients.unitUnavailable', { amount: '1 opak.' }))).toBeTruthy();
+    expect((screen.getByLabelText(t('amount.grams')) as HTMLInputElement).value).toBe('100');
   });
 });
 

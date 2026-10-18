@@ -53,13 +53,13 @@ describe('useProductSearch', () => {
       ({ query }) => useProductSearch({ query, filters: noFilters, enabled: true }),
       { initialProps: { query: 'ser' } },
     );
-    expect(result.current.current).toBe(false);
+    expect(result.current.resultsMatchQuery).toBe(false);
 
     await flushDebounce();
-    expect(result.current.current).toBe(true);
+    expect(result.current.resultsMatchQuery).toBe(true);
 
     rerender({ query: 'serek' });
-    expect(result.current.current).toBe(false);
+    expect(result.current.resultsMatchQuery).toBe(false);
   });
 
   it('does not search while disabled', async () => {
