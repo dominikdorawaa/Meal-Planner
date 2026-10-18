@@ -236,4 +236,22 @@ class OffImportIntegrationTest {
         assertThat(unchanged.getSugars()).isEqualTo(4.0);
         assertThat(unchanged.getFiber()).isNull();
     }
+
+    @Test
+    void importsPackageWeightForNewProductsOnly() throws IOException {
+        importService.importReviewed(csv(
+                "5900820000318;Skyr naturalny;Piątnica;65;12;0;4,2;100g;4 x 125 g;OK;;yes;",
+                "5900820000325;Sok jabłkowy;Tymbark;45;0;0;11;100g;1 l;OK;;yes;",
+                "5900820000332;Twaróg;Piątnica;98;18;1;3;100g;duże opakowanie;OK;;yes;"));
+
+        assertThat(byBarCode("5900820000318").getPackageWeight()).isEqualTo(500.0);
+        assertThat(byBarCode("5900820000325").getPackageWeight()).isNull();
+        assertThat(byBarCode("5900820000332").getPackageWeight()).isNull();
+
+        ImportReport report = importService.importReviewed(
+                csv("5900820000332;Twaróg;Piątnica;98;18;1;3;100g;250 g;OK;;yes;"));
+
+        assertThat(report.unchanged()).isEqualTo(1);
+        assertThat(byBarCode("5900820000332").getPackageWeight()).isNull();
+    }
 }

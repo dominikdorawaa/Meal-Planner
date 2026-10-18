@@ -2,6 +2,7 @@ package com.mealplanner.server.off;
 
 import com.mealplanner.server.product.BarCodes;
 import com.mealplanner.server.product.NutritionValidator;
+import com.mealplanner.server.product.PackageWeight;
 import com.mealplanner.server.product.Product;
 import com.mealplanner.server.product.ProductRepository;
 import com.mealplanner.server.product.ProductSource;
@@ -19,7 +20,7 @@ import java.util.Optional;
 @Service
 public class OffLookupService {
 
-    static final String UNIT = "100g";
+    public static final String UNIT = "100g";
     static final int MAX_TEXT_LENGTH = 255;
     static final int NOT_FOUND_CACHE_SIZE = 10_000;
 
@@ -69,6 +70,7 @@ public class OffLookupService {
         product.setCarbs(offProduct.carbs());
         offProduct.extras().cleanedFor(offProduct.fat(), offProduct.carbs()).applyTo(product);
         product.setUnit(UNIT);
+        product.setPackageWeight(PackageWeight.parse(offProduct.quantity(), UNIT));
         product.setStatus(ProductStatus.VERIFIED);
         product.setSource(ProductSource.OPEN_FOOD_FACTS);
         try {

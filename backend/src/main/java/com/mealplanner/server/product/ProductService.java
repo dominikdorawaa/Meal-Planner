@@ -25,6 +25,7 @@ public class ProductService {
     static final int MIN_PAGE_SIZE = 1;
     static final int MAX_PAGE_SIZE = 50;
     static final String BAR_CODE_EXISTS = "product.bar-code-exists";
+    static final String PACKAGE_WEIGHT_INVALID = "product.package-weight-invalid";
 
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
@@ -35,6 +36,9 @@ public class ProductService {
         NutritionCheck check = NutritionValidator.check(product);
         if (!check.isValid()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, check.errors().getFirst().messageKey());
+        }
+        if (!PackageWeight.isValid(product.getPackageWeight())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, PACKAGE_WEIGHT_INVALID);
         }
         if (product.getBarCode() != null && findByBarCode(product.getBarCode(), author).isPresent()) {
             throw new ApiException(HttpStatus.CONFLICT, BAR_CODE_EXISTS);

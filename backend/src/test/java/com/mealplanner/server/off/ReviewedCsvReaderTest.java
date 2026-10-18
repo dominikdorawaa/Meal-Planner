@@ -35,10 +35,10 @@ class ReviewedCsvReaderTest {
                 + "96385074;Napój;;180;0;0;11;100g;;REJECTED;KCAL_LOOKS_LIKE_KJ;no;\r\n");
 
         assertThat(rows).containsExactly(
-                new ReviewedRow(2, "5900820000318", "Skyr naturalny", "Piątnica", 65.0, 12.0, 0.0, 4.2, ExtraNutrients.NONE, "100g", true),
+                new ReviewedRow(2, "5900820000318", "Skyr naturalny", "Piątnica", 65.0, 12.0, 0.0, 4.2, ExtraNutrients.NONE, "100g", 150.0, true),
                 new ReviewedRow(3, "5901234123457", "Baton; \"Mocny\"\nwielolinijkowy", "", 500.0, 5.0, 25.0, 65.0,
-                        ExtraNutrients.NONE, "100g", true),
-                new ReviewedRow(4, "96385074", "Napój", "", 180.0, 0.0, 0.0, 11.0, ExtraNutrients.NONE, "100g", false));
+                        ExtraNutrients.NONE, "100g", null, true),
+                new ReviewedRow(4, "96385074", "Napój", "", 180.0, 0.0, 0.0, 11.0, ExtraNutrients.NONE, "100g", null, false));
     }
 
     @Test
@@ -56,8 +56,8 @@ class ReviewedCsvReaderTest {
         ReviewedCsvReader.read(csv, rows::add);
 
         assertThat(rows).containsExactly(
-                new ReviewedRow(2, "036000291452", "=Skyr", "+Brand", 65.0, 12.0, 0.0, 4.2, ExtraNutrients.NONE, "100g", true),
-                new ReviewedRow(3, "5900820000318", "'Ser", "", 65.0, 12.0, 0.0, 4.2, ExtraNutrients.NONE, "100g", true));
+                new ReviewedRow(2, "036000291452", "=Skyr", "+Brand", 65.0, 12.0, 0.0, 4.2, ExtraNutrients.NONE, "100g", null, true),
+                new ReviewedRow(3, "5900820000318", "'Ser", "", 65.0, 12.0, 0.0, 4.2, ExtraNutrients.NONE, "100g", null, true));
     }
 
     @Test
@@ -65,7 +65,7 @@ class ReviewedCsvReaderTest {
         List<ReviewedRow> rows = read("import;kcal;protein;fat;carbs;name;code\n yes ;65;12;;x;Skyr;5900820000318\n");
 
         assertThat(rows).containsExactly(
-                new ReviewedRow(2, "5900820000318", "Skyr", "", 65.0, 12.0, null, null, ExtraNutrients.NONE, "100g", true));
+                new ReviewedRow(2, "5900820000318", "Skyr", "", 65.0, 12.0, null, null, ExtraNutrients.NONE, "100g", null, true));
     }
 
     @Test
@@ -79,7 +79,7 @@ class ReviewedCsvReaderTest {
                 + "\"5900820000318\";\"Skyr\";65;12;0;4,2;yes\n");
 
         assertThat(rows).containsExactly(
-                new ReviewedRow(2, "5900820000318", "Skyr", "", 65.0, 12.0, 0.0, 4.2, ExtraNutrients.NONE, "100g", true));
+                new ReviewedRow(2, "5900820000318", "Skyr", "", 65.0, 12.0, 0.0, 4.2, ExtraNutrients.NONE, "100g", null, true));
     }
 
     @Test
@@ -97,7 +97,7 @@ class ReviewedCsvReaderTest {
                 + "5900820000318;Skyr;NaN;Infinity;1e400;-Infinity;yes\n");
 
         assertThat(rows).containsExactly(
-                new ReviewedRow(2, "5900820000318", "Skyr", "", null, null, null, null, ExtraNutrients.NONE, "100g", true));
+                new ReviewedRow(2, "5900820000318", "Skyr", "", null, null, null, null, ExtraNutrients.NONE, "100g", null, true));
     }
 
     @Test
