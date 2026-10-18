@@ -45,6 +45,8 @@ export default defineConfig({
         'src/components/UndoSnackbar.tsx',
         'src/lib/planSelection.ts',
         'src/components/PlanSelectionControls.tsx',
+        'src/lib/daySummary.ts',
+        'src/components/DaySummary.tsx',
         'src/lib/shoppingFromPlan.ts',
         'src/lib/mealTypes.ts',
         'src/components/ShoppingFromPlanPicker.tsx',
