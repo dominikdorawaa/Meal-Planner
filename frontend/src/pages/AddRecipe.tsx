@@ -1,18 +1,54 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppData } from '../lib/AppDataContext';
-import { productDisplayName } from '../lib/productName';
-import { api } from '../lib/apiClient';
+import { api, type Product } from '../lib/apiClient';
 import { useBarcodeLookup } from '../lib/useBarcodeLookup';
-import { ingredientFromProduct, type IngredientDraft } from '../lib/recipeIngredient';
+import { missingProductMessage } from '../lib/barcodeLookup';
+import {
+  ingredientAmountLabel,
+  ingredientMacros,
+  recipeMacros,
+  type IngredientDraft,
+  type IngredientQuantity,
+} from '../lib/recipeIngredient';
 import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
 import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
+import { IngredientSearch } from '../components/IngredientSearch';
+import { IngredientAmountScreen } from '../components/IngredientAmountScreen';
+import { NewProductSheet, type NewProductDraft } from '../components/NewProductSheet';
 import { t } from '../i18n';
 import { useCloseOnBack } from '../lib/backNavigation';
 
 interface InstructionStep {
   text: string;
 }
+
+interface AmountTarget {
+  product: Product;
+  index: number | null;
+}
+
+interface RecipeDraft {
+  name: string;
+  prepTime: string;
+  portions: string;
+  imageUrl: string;
+  ingredients: IngredientDraft[];
+  instructions: InstructionStep[];
+}
+
+function draftSnapshot(draft: RecipeDraft): string {
+  return JSON.stringify([
+    draft.name,
+    draft.prepTime,
+    draft.portions,
+    draft.imageUrl,
+    draft.ingredients.map(({ name, amount, unit, product }) => [name, amount, unit, product?.id ?? null]),
+    draft.instructions.map(step => step.text),
+  ]);
+}
+
+const EMPTY_DRAFT: RecipeDraft = { name: '', prepTime: '', portions: '', imageUrl: '', ingredients: [], instructions: [] };
 
 export default function AddRecipe() {
   const { id } = useParams();
@@ -26,36 +62,35 @@ export default function AddRecipe() {
   const [imageUrl, setImageUrl] = useState('');
 
   const [baseMacros, setBaseMacros] = useState({ kcal: 0, p: 0, f: 0, c: 0 });
-  
+
   const [ingredients, setIngredients] = useState<IngredientDraft[]>([]);
   const [instructions, setInstructions] = useState<InstructionStep[]>([]);
-  
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(() => (isEditMode ? null : draftSnapshot(EMPTY_DRAFT)));
+
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
-  const [showIngredientModal, setShowIngredientModal] = useState(false);
+  const [showIngredientSearch, setShowIngredientSearch] = useState(false);
+  const [amountTarget, setAmountTarget] = useState<AmountTarget | null>(null);
+  const [newProduct, setNewProduct] = useState<NewProductDraft | null>(null);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [stepToDelete, setStepToDelete] = useState<number | null>(null);
   const [ingredientToDelete, setIngredientToDelete] = useState<number | null>(null);
-
-  // Ingredient Modal Search State
-  const [ingredientSearch, setIngredientSearch] = useState('');
   const [showScanner, setShowScanner] = useState(false);
 
-  useCloseOnBack(showIngredientModal, () => setShowIngredientModal(false));
+  const hasUnsavedChanges = savedSnapshot !== null
+    && draftSnapshot({ name, prepTime, portions, imageUrl, ingredients, instructions }) !== savedSnapshot;
+
+  useCloseOnBack(hasUnsavedChanges && !showLeaveConfirm && !isSaving, () => setShowLeaveConfirm(true));
+  useCloseOnBack(showLeaveConfirm, () => setShowLeaveConfirm(false));
+  useCloseOnBack(showIngredientSearch, () => setShowIngredientSearch(false));
+  useCloseOnBack(amountTarget !== null, () => setAmountTarget(null));
   useCloseOnBack(stepToDelete !== null, () => setStepToDelete(null));
   useCloseOnBack(ingredientToDelete !== null, () => setIngredientToDelete(null));
-
-  // Dla celów koncepcyjnych - przykładowe sztuczne produkty
-  const MOCK_PRODUCTS = [
-    { id: 'p1', name: 'Banan', brand: 'Świeże', kcal: 89, protein: 1.1, fat: 0.3, carbs: 22.8, serving: '100g' },
-    { id: 'p2', name: 'Mleko 2%', brand: 'Mlekovita', kcal: 50, protein: 3.3, fat: 2.0, carbs: 4.8, serving: '100ml' },
-    { id: 'p3', name: 'Płatki Owsiane', brand: 'Górskie', kcal: 366, protein: 11.9, fat: 7.2, carbs: 69.3, serving: '100g' },
-    { id: 'p4', name: 'Jajko (L)', brand: 'Farma', kcal: 138, protein: 12.5, fat: 9.7, carbs: 0.6, serving: '100g' },
-  ];
 
   useEffect(() => {
     async function loadEditData() {
       if (!isEditMode || !id) return;
-      
+
       try {
         const recipe = await api.recipes.getById(id);
         if (!recipe) {
@@ -63,29 +98,28 @@ export default function AddRecipe() {
            return;
         }
 
-        setName(recipe.name);
-        setPrepTime(recipe.prep_time ? recipe.prep_time.toString() : '');
-        setPortions(recipe.portions ? recipe.portions.toString() : '1');
-        setImageUrl(recipe.image_url || '');
+        const loaded: RecipeDraft = {
+          name: recipe.name,
+          prepTime: recipe.prep_time ? recipe.prep_time.toString() : '',
+          portions: recipe.portions ? recipe.portions.toString() : '1',
+          imageUrl: recipe.image_url || '',
+          instructions: Array.isArray(recipe.instructions) ? recipe.instructions.map((step: string) => ({ text: step })) : [],
+          ingredients: (recipe.ingredients ?? []).map((ingredient: IngredientDraft) => ({
+            id: ingredient.id,
+            name: ingredient.name,
+            amount: Number(ingredient.amount),
+            unit: ingredient.unit,
+            product: ingredient.product ?? null,
+          })),
+        };
+        setName(loaded.name);
+        setPrepTime(loaded.prepTime);
+        setPortions(loaded.portions);
+        setImageUrl(loaded.imageUrl);
+        setInstructions(loaded.instructions);
+        setIngredients(loaded.ingredients);
         setBaseMacros({ kcal: recipe.kcal, p: recipe.protein, f: recipe.fat, c: recipe.carbs });
-
-        if (recipe.instructions && Array.isArray(recipe.instructions)) {
-           setInstructions(recipe.instructions.map((step: string) => ({ text: step })));
-        }
-
-        if (recipe.ingredients) {
-           setIngredients(recipe.ingredients.map((i: any) => {
-             // Mock values logic can stay or be removed if data is in DB
-             return {
-               id: i.id,
-               productId: i.product?.id,
-               name: i.name,
-               amount: i.amount,
-               unit: i.unit,
-               kcal: 0, protein: 0, fat: 0, carbs: 0 // Will be recalculated or fetched
-             };
-           }));
-        }
+        setSavedSnapshot(draftSnapshot(loaded));
       } catch (err) {
         console.error("Error loading recipe:", err);
         navigate(-1);
@@ -96,27 +130,23 @@ export default function AddRecipe() {
     loadEditData();
   }, [id, isEditMode, navigate]);
 
-  const filteredProducts = MOCK_PRODUCTS.filter(p => p.name.toLowerCase().includes(ingredientSearch.toLowerCase()));
+  const openAmount = (product: Product) => setAmountTarget({ product, index: null });
 
-  const addIngredient = (ingredient: IngredientDraft) => {
-    setIngredients(previous => [...previous, ingredient]);
-    setShowIngredientModal(false);
-    setIngredientSearch('');
+  const chooseCreatedOrExistingProduct = (product: Product) => {
+    setNewProduct(null);
+    openAmount(product);
   };
 
-  const handleAddIngredient = (product: typeof MOCK_PRODUCTS[0], amount: number) => {
-    // In a real app, amount should be prompted or edited later. For now, defaulting to 100
-    setIngredients(previous => [...previous, {
-      name: productDisplayName(product),
-      amount: amount,
-      unit: product.serving === '100ml' ? 'ml' : 'g',
-      kcal: Math.round((product.kcal * amount) / 100),
-      protein: parseFloat(((product.protein * amount) / 100).toFixed(1)),
-      fat: parseFloat(((product.fat * amount) / 100).toFixed(1)),
-      carbs: parseFloat(((product.carbs * amount) / 100).toFixed(1))
-    }]);
-    setShowIngredientModal(false);
-    setIngredientSearch('');
+  const handleAmountSubmit = ({ amount, unit }: IngredientQuantity) => {
+    if (!amountTarget) return;
+    const { product, index } = amountTarget;
+    if (index === null) {
+      setIngredients(previous => [...previous, { product, name: product.name, amount, unit }]);
+    } else {
+      setIngredients(previous => previous.map((ingredient, i) => (i === index ? { ...ingredient, amount, unit } : ingredient)));
+    }
+    setAmountTarget(null);
+    setShowIngredientSearch(false);
   };
 
   const barcodeLookup = useBarcodeLookup();
@@ -124,33 +154,30 @@ export default function AddRecipe() {
   const handleBarCode = (barCode: string) => {
     setShowScanner(false);
     barcodeLookup.lookUp(barCode, {
-      onFound: product => addIngredient(ingredientFromProduct(product)),
-      onMissing: () => alert(t('scanner.notFound', { code: barCode })),
+      onFound: openAmount,
+      onMissing: prefill => setNewProduct({ barCode, prefill, message: t(missingProductMessage(prefill), { code: barCode }) }),
       onError: () => alert(t('scanner.lookupFailed')),
     });
+  };
+
+  const handleClose = () => {
+    if (hasUnsavedChanges) setShowLeaveConfirm(true);
+    else navigate(-1);
   };
 
   const handleSaveRecipe = async () => {
     if (!user || !name) return;
     setIsSaving(true);
-    
-    try {
-      const calculatedKcal = Math.round(ingredients.reduce((sum, i) => sum + i.kcal, 0));
-      const calculatedP = Math.round(ingredients.reduce((sum, i) => sum + i.protein, 0));
-      const calculatedF = Math.round(ingredients.reduce((sum, i) => sum + i.fat, 0));
-      const calculatedC = Math.round(ingredients.reduce((sum, i) => sum + i.carbs, 0));
 
-      const totalKcal = calculatedKcal > 0 ? calculatedKcal : baseMacros.kcal;
-      const totalProtein = calculatedP > 0 ? calculatedP : baseMacros.p;
-      const totalFat = calculatedF > 0 ? calculatedF : baseMacros.f;
-      const totalCarbs = calculatedC > 0 ? calculatedC : baseMacros.c;
-      
+    try {
+      const calculated = recipeMacros(ingredients);
+
       const recipePayload = {
         name,
-        kcal: totalKcal,
-        protein: totalProtein,
-        fat: totalFat,
-        carbs: totalCarbs,
+        kcal: calculated.kcal > 0 ? calculated.kcal : baseMacros.kcal,
+        protein: calculated.protein > 0 ? calculated.protein : baseMacros.p,
+        fat: calculated.fat > 0 ? calculated.fat : baseMacros.f,
+        carbs: calculated.carbs > 0 ? calculated.carbs : baseMacros.c,
         image_url: imageUrl.trim() || null,
         prep_time: parseInt(prepTime) || 0,
         portions: parseFloat(portions) || 1,
@@ -159,7 +186,7 @@ export default function AddRecipe() {
           name: ing.name,
           amount: ing.amount,
           unit: ing.unit,
-          product: ing.productId ? { id: ing.productId } : null
+          product: ing.product ? { id: ing.product.id } : null
         }))
       };
 
@@ -168,12 +195,11 @@ export default function AddRecipe() {
       } else {
         await api.recipes.create(recipePayload);
       }
-      
+
       await refreshRecipes();
       navigate(-1);
     } catch (err: any) {
       alert("Błąd zapisu przepisu: " + err.message);
-    } finally {
       setIsSaving(false);
     }
   };
@@ -183,9 +209,7 @@ export default function AddRecipe() {
   };
 
   const handleUpdateStep = (index: number, text: string) => {
-    const newInst = [...instructions];
-    newInst[index].text = text;
-    setInstructions(newInst);
+    setInstructions(instructions.map((step, i) => (i === index ? { text } : step)));
   };
 
   const handleDeleteStepConfirm = (index: number) => {
@@ -201,7 +225,7 @@ export default function AddRecipe() {
       {/* HEADER */}
       <header className="sticky top-0 w-full z-40 bg-surface/90 backdrop-blur-xl border-b border-outline-variant/10 px-4 py-3 pt-safe-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform">
+          <button onClick={handleClose} aria-label={t('recipe.close')} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform">
             <span className="material-symbols-outlined">close</span>
           </button>
           <h1 className="font-headline font-bold text-lg text-on-surface">{isEditMode ? 'Edycja przepisu' : 'Nowy Przepis'}</h1>
@@ -299,28 +323,39 @@ export default function AddRecipe() {
               <p className="text-sm font-medium text-on-surface-variant/50 pl-1">Brak składników. Przynajmniej jeden jest wymagany.</p>
             )}
 
-            {ingredients.map((ing, idx) => (
-              <div key={idx} className="flex items-center gap-3 bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/10 shadow-sm">
-                <div className="flex flex-col flex-1 truncate pr-2">
-                   <span className="font-bold text-sm text-on-surface truncate capitalize">{ing.name}</span>
-                   {ing.kcal > 0 && <span className="text-[10px] font-bold text-primary mt-0.5">{Math.round(ing.kcal)} kcal</span>}
+            {ingredients.map((ing, idx) => {
+              const kcal = ingredientMacros(ing).kcal;
+              const product = ing.product;
+              return (
+                <div key={ing.id ?? idx} className="flex items-center gap-1 bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/10 shadow-sm">
+                  <button
+                    type="button"
+                    disabled={!product}
+                    onClick={() => product && setAmountTarget({ product, index: idx })}
+                    aria-label={t('recipeIngredients.edit', { name: ing.name })}
+                    className="flex flex-1 min-w-0 items-center gap-3 text-left disabled:cursor-default"
+                  >
+                    <span className="flex flex-col flex-1 min-w-0 pr-2">
+                      <span className="font-bold text-sm text-on-surface truncate">{ing.name}</span>
+                      {kcal > 0 && <span className="text-[10px] font-bold text-primary mt-0.5">{kcal} kcal</span>}
+                    </span>
+                    <span className="text-xs font-bold text-on-surface-variant bg-surface-container-highest px-3 py-1 rounded-lg shrink-0">
+                      {ingredientAmountLabel(ing)}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setIngredientToDelete(idx)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors shrink-0"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">close</span>
+                  </button>
                 </div>
-                <span className="text-xs font-bold text-on-surface-variant bg-surface-container-highest px-3 py-1 rounded-lg shrink-0">
-                   {ing.amount} {ing.unit}
-                </span>
-                
-                <button 
-                  onClick={() => setIngredientToDelete(idx)}
-                   className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors shrink-0"
-                >
-                   <span className="material-symbols-outlined text-[18px]">close</span>
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <button 
-            onClick={() => setShowIngredientModal(true)}
+            onClick={() => setShowIngredientSearch(true)}
             className="w-full py-4 bg-surface-container-low text-on-surface font-bold text-sm rounded-2xl hover:bg-surface-container transition-colors active:scale-[0.98] border border-outline-variant/20 flex items-center justify-center gap-2 shadow-sm"
           >
             <span className="material-symbols-outlined text-[20px]">add</span>
@@ -371,72 +406,58 @@ export default function AddRecipe() {
         </section>
       </main>
 
-      {/* FULLSCREEN INGREDIENT MODAL */}
-      <div className={`fixed inset-0 z-[100] bg-surface flex flex-col transition-transform duration-300 ${showIngredientModal ? 'translate-y-0' : 'translate-y-full pointer-events-none'}`}>
-        <header className="px-4 py-4 flex items-center gap-3 bg-surface border-b border-outline-variant/10">
-          <button onClick={() => setShowIngredientModal(false)} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform shrink-0">
-            <span className="material-symbols-outlined">close</span>
-          </button>
-          
-          <div className="flex-1 relative">
-            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-              <span className="material-symbols-outlined text-on-surface-variant/60">search</span>
+      {showIngredientSearch && (
+        <IngredientSearch
+          onClose={() => setShowIngredientSearch(false)}
+          onSelect={openAmount}
+          onAddProduct={productName => setNewProduct({ name: productName })}
+          onScan={() => setShowScanner(true)}
+        />
+      )}
+
+      {amountTarget && (
+        <IngredientAmountScreen
+          key={`${amountTarget.product.id}-${amountTarget.index}`}
+          product={amountTarget.product}
+          initial={amountTarget.index === null ? undefined : ingredients[amountTarget.index]}
+          submitLabel={t(amountTarget.index === null ? 'recipeIngredients.add' : 'recipeIngredients.save')}
+          onSubmit={handleAmountSubmit}
+          onBack={() => setAmountTarget(null)}
+        />
+      )}
+
+      {newProduct && (
+        <NewProductSheet
+          key={newProduct.barCode ?? newProduct.name ?? 'manual'}
+          draft={newProduct}
+          onClose={() => setNewProduct(null)}
+          onCreated={chooseCreatedOrExistingProduct}
+          existingProductAction={{ onOpen: chooseCreatedOrExistingProduct }}
+        />
+      )}
+
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowLeaveConfirm(false)}>
+          <div role="alertdialog" aria-labelledby="leave-recipe-title" className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[320px] w-full border border-outline-variant/20 text-center animate-slide-up" onClick={e => e.stopPropagation()}>
+            <h3 id="leave-recipe-title" className="font-headline font-bold text-lg text-on-surface mb-2">{t('recipe.leaveTitle')}</h3>
+            <p className="text-on-surface-variant text-sm font-medium mb-6">{t('recipe.leaveText')}</p>
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                className="flex-1 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-highest rounded-xl transition-colors active:scale-95"
+              >
+                {t('recipe.leaveStay')}
+              </button>
+              <button
+                onClick={() => navigate(-1)}
+                className="flex-[1.5] py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
+              >
+                {t('recipe.leaveDiscard')}
+              </button>
             </div>
-            <input
-              value={ingredientSearch}
-              onChange={(e) => setIngredientSearch(e.target.value)}
-              className="w-full bg-surface-container-low border-none rounded-2xl py-3 pl-12 pr-4 focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50 text-on-surface text-sm font-medium transition-all"
-              placeholder="Wyszukaj składnik..."
-              type="text"
-            />
           </div>
-
-          <button
-            onClick={() => setShowScanner(true)}
-            aria-label={t('scanner.title')}
-            className="bg-primary/10 w-12 h-12 rounded-2xl flex items-center justify-center text-primary hover:bg-primary/20 transition-colors active:scale-95 shrink-0"
-          >
-            <span className="material-symbols-outlined text-xl">barcode_scanner</span>
-          </button>
-        </header>
-
-        <main className="flex-1 overflow-y-auto p-4 flex flex-col">
-          {filteredProducts.length > 0 ? (
-            <div className="flex flex-col gap-3">
-              {filteredProducts.map((prod) => (
-                <div
-                  key={prod.id}
-                  onClick={() => handleAddIngredient(prod, 100)} // Dodaj domyślnie 100g/ml
-                  className="flex bg-surface-container-lowest p-3 rounded-[20px] shadow-sm border border-outline-variant/10 active:scale-[0.98] transition-all cursor-pointer group hover:bg-on-surface hover:text-surface"
-                >
-                  <div className="w-12 h-12 bg-surface-container-highest rounded-full flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-on-surface-variant">grocery</span>
-                  </div>
-
-                  <div className="flex flex-col justify-center px-4 flex-1 overflow-hidden">
-                    <div className="flex items-center justify-between gap-2">
-                       <h3 className="font-bold text-sm leading-tight group-hover:text-surface transition-colors truncate">{prod.name}</h3>
-                       <span className="text-[10px] font-bold text-primary group-hover:text-surface truncate shrink-0">{prod.kcal} kcal</span>
-                    </div>
-                    <span className="text-[10px] text-on-surface-variant group-hover:text-surface/70 truncate">{prod.brand} • na {prod.serving}</span>
-                  </div>
-
-                  <div className="flex items-center justify-center pl-2 border-l border-outline-variant/10 group-hover:border-surface/10 ml-2">
-                     <button className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant group-hover:text-surface transition-colors">
-                       <span className="material-symbols-outlined text-[20px]">add</span>
-                     </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center opacity-50 pb-20">
-              <span className="material-symbols-outlined text-4xl mb-4 text-on-surface-variant">search_off</span>
-              <p className="font-bold text-on-surface-variant text-sm">Brak składników</p>
-            </div>
-          )}
-        </main>
-      </div>
+        </div>
+      )}
 
       {/* DELETE STEP CONFIRMATION MODAL */}
       {stepToDelete !== null && (

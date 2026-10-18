@@ -9,6 +9,7 @@ import { RecipeMoreNutrients } from '../components/RecipeMoreNutrients';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { useBottomSheet } from '../lib/bottomSheet';
+import { ingredientGrams } from '../lib/recipeIngredient';
 
 export function RecipeDetails() {
   const { id } = useParams();
@@ -88,7 +89,7 @@ export function RecipeDetails() {
           setIngredients(data.ingredients);
           let weight = 0;
           data.ingredients.forEach((i: any) => {
-            if (i.unit === 'g' || i.unit === 'ml') weight += Number(i.amount);
+            weight += ingredientGrams(i) ?? 0;
           });
           setTotalWeight(weight || 300);
         } else {

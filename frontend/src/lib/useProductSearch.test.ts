@@ -47,6 +47,21 @@ describe('useProductSearch', () => {
     expect(result.current.loading).toBe(false);
   });
 
+  it('tells whether the results belong to the current query', async () => {
+    mocks.search.mockResolvedValue(page(['a'], 0, false));
+    const { result, rerender } = renderHook(
+      ({ query }) => useProductSearch({ query, filters: noFilters, enabled: true }),
+      { initialProps: { query: 'ser' } },
+    );
+    expect(result.current.resultsMatchQuery).toBe(false);
+
+    await flushDebounce();
+    expect(result.current.resultsMatchQuery).toBe(true);
+
+    rerender({ query: 'serek' });
+    expect(result.current.resultsMatchQuery).toBe(false);
+  });
+
   it('does not search while disabled', async () => {
     renderHook(() => useProductSearch({ query: 'ser', filters: noFilters, enabled: false }));
     await flushDebounce();

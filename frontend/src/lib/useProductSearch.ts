@@ -65,5 +65,5 @@ export function useProductSearch({ query, filters, enabled }: ProductSearchOptio
 
   const reload = useCallback(() => setReloadKey(key => key + 1), []);
 
-  return { items, hasNext: canLoadMore, loading, error, loadMore, reload };
+  return { items, hasNext: canLoadMore, loading, error, loadMore, reload, resultsMatchQuery: loadedKey === searchKey };
 }

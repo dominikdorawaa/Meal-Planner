@@ -1,4 +1,5 @@
 import type { MessageKey } from '../i18n';
+import { ingredientFactor, type ScalableProduct } from './recipeIngredient';
 
 export const EXTRA_NUTRIENTS = ['saturated_fat', 'sugars', 'fiber', 'salt'] as const;
 export type ExtraNutrient = (typeof EXTRA_NUTRIENTS)[number];
@@ -21,10 +22,7 @@ export const NUTRITION_FACT_LABELS: Record<NutritionFact, MessageKey> = {
 
 export const NUTRITION_FACT_PARENTS: Partial<Record<NutritionFact, NutritionFact>> = { saturated_fat: 'fat', sugars: 'carbs' };
 
-const PER_PIECE_UNIT = 'pc';
 const PER_100_ML_UNIT = '100ml';
-const PIECE_INGREDIENT_UNIT = 'szt';
-const MASS_INGREDIENT_UNITS = ['g', 'ml'];
 
 export function measureUnit(productUnit: string | null | undefined): 'g' | 'ml' {
   return productUnit === PER_100_ML_UNIT ? 'ml' : 'g';
@@ -57,16 +55,7 @@ export function formatNutritionFact(fact: NutritionFact, value: number | null | 
 export interface IngredientWithProduct {
   amount: number;
   unit: string;
-  product?: (ExtraNutrientValues & { unit?: string | null }) | null;
-}
-
-function ingredientFactor(ingredient: IngredientWithProduct): number | null {
-  const product = ingredient.product;
-  if (!product) return null;
-  const perPiece = product.unit === PER_PIECE_UNIT;
-  if (perPiece && ingredient.unit === PIECE_INGREDIENT_UNIT) return Number(ingredient.amount) || 0;
-  if (!perPiece && MASS_INGREDIENT_UNITS.includes(ingredient.unit)) return (Number(ingredient.amount) || 0) / 100;
-  return null;
+  product?: (ExtraNutrientValues & ScalableProduct) | null;
 }
 
 export function recipeExtraNutrientsPerPortion(

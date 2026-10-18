@@ -23,7 +23,7 @@ function renderField(existingProduct: Product | null = null, value = '') {
         value={value}
         onChange={onChange}
         existingProduct={existingProduct}
-        productHref={product => `/product/${product.id}`}
+        existingProductAction={{ href: product => `/product/${product.id}` }}
       />
     </MemoryRouter>
   );
