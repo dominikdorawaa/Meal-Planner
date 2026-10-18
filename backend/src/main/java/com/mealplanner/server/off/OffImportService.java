@@ -56,7 +56,7 @@ public class OffImportService {
                     if (decision.accepted()) {
                         batch.add(product);
                     } else {
-                        decision.errors().forEach(progress::skip);
+                        progress.skip(decision.errors());
                     }
                 });
                 if (batch.size() == BATCH_SIZE) {
@@ -71,7 +71,7 @@ public class OffImportService {
 
         Long tableBytes = jdbcTemplate.queryForObject("SELECT pg_total_relation_size('products')", Long.class);
         return new ImportReport(progress.read, progress.soldInPoland, progress.inserted, progress.updated,
-                progress.unchanged, progress.skippedByReason, productRepository.count(),
+                progress.unchanged, progress.skipped, progress.skippedByReason, productRepository.count(),
                 tableBytes == null ? 0 : tableBytes);
     }
 
@@ -82,7 +82,7 @@ public class OffImportService {
         try {
             return OffProductParser.parse(line);
         } catch (JacksonException exception) {
-            progress.skip(UNREADABLE_LINE);
+            progress.skip(List.of(UNREADABLE_LINE));
             return Optional.empty();
         }
     }
@@ -101,9 +101,9 @@ public class OffImportService {
                     toSave.add(newProduct(offProduct));
                     progress.inserted++;
                 } else if (product.getDeletedAt() != null) {
-                    progress.skip(DELETED_IN_APP);
+                    progress.skip(List.of(DELETED_IN_APP));
                 } else if (product.getSource() != ProductSource.OPEN_FOOD_FACTS) {
-                    progress.skip(ADDED_BY_USER);
+                    progress.skip(List.of(ADDED_BY_USER));
                 } else if (apply(product, offProduct)) {
                     toSave.add(product);
                     progress.updated++;
@@ -158,10 +158,12 @@ public class OffImportService {
         long inserted;
         long updated;
         long unchanged;
+        long skipped;
         final Map<String, Long> skippedByReason = new TreeMap<>();
 
-        void skip(String reason) {
-            skippedByReason.merge(reason, 1L, Long::sum);
+        void skip(List<String> reasons) {
+            skipped++;
+            reasons.forEach(reason -> skippedByReason.merge(reason, 1L, Long::sum));
         }
     }
 }

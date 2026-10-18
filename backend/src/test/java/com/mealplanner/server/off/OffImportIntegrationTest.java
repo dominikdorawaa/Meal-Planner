@@ -102,7 +102,7 @@ class OffImportIntegrationTest {
                 product("5901234123457", "Jogurt naturalny", "Bakoma", "400 g", 61, 4.3, 3, 4.5),
                 product("5900512000015", "Mleko 2%", "Mlekovita", "1 l", 50, 3.2, 2, 4.8),
                 product("96385074", "Napój w kJ", "", "", 180, 0, 0, 11),
-                product("5900820000325", "???", "", "", 65, 12, 0, 4.2),
+                product("5900820000325", "???", "", "", 950, 12, 0, 4.2),
                 "{\"code\":\"4000000000000\",\"product_name\":\"German only\",\"countries_tags\":[\"en:germany\"]}",
                 "not json mentioning en:poland",
                 ""));
@@ -126,8 +126,10 @@ class OffImportIntegrationTest {
         assertThat(report.skippedByReason())
                 .containsEntry("KCAL_LOOKS_LIKE_KJ", 1L)
                 .containsEntry(OffImportRules.NAME_JUNK, 1L)
+                .containsEntry("KCAL_ABOVE_900", 1L)
                 .containsEntry(OffImportService.UNREADABLE_LINE, 1L);
         assertThat(report.skipped()).isEqualTo(3);
+        assertThat(report.describe()).contains("Skipped: 3 ");
         assertThat(report.tableRows()).isEqualTo(3);
         assertThat(report.tableBytes()).isPositive();
 
