@@ -165,3 +165,32 @@ describe('adding from item details', () => {
     expect(mocks.refreshMeals).toHaveBeenCalled();
   });
 });
+
+describe('meal and day in item details', () => {
+  it.each(['/product/p1', '/recipe/r1'])('lets the user pick them when adding from %s', async (pathname) => {
+    renderDetails(pathname);
+    const mealButton = (await screen.findByText(/Dodajesz do:/)).closest('button') as HTMLButtonElement;
+
+    expect(mealButton.disabled).toBe(false);
+    fireEvent.click(mealButton);
+
+    expect(screen.getByRole('button', { name: /^Śniadanie/ })).toBeTruthy();
+  });
+
+  it.each(['/product/p1', '/recipe/r1'])('shows them only as information when editing from %s', async (pathname) => {
+    renderDetails(pathname, `${SEARCH}&mealId=m1`);
+    const mealButton = (await screen.findByText(/Edytujesz w:/)).closest('button') as HTMLButtonElement;
+    const dayButton = mealButton.parentElement?.nextElementSibling?.querySelector('button') as HTMLButtonElement;
+
+    expect(mealButton.disabled).toBe(true);
+    expect(dayButton.disabled).toBe(true);
+    expect(mealButton.textContent).not.toContain('expand_more');
+    expect(dayButton.textContent).not.toContain('expand_more');
+
+    fireEvent.click(mealButton);
+    fireEvent.click(dayButton);
+
+    expect(screen.queryByRole('button', { name: /^Śniadanie/ })).toBeNull();
+    expect(screen.queryByText('chevron_left')).toBeNull();
+  });
+});

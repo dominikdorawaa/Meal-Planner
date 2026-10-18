@@ -41,6 +41,7 @@ export default defineConfig({
         'src/components/MoreNutrientsFields.tsx',
         'src/components/RecipeMoreNutrients.tsx',
         'src/lib/planTransfer.ts',
+        'src/lib/planPosition.ts',
         'src/components/PlanConflictDialog.tsx',
         'src/components/UndoSnackbar.tsx',
         'src/lib/planSelection.ts',

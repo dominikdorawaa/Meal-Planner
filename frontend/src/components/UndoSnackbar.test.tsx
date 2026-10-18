@@ -36,3 +36,17 @@ describe('UndoSnackbar', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 })
+
+describe('UndoSnackbar duration', () => {
+  it('closes itself after a custom time', () => {
+    vi.useFakeTimers()
+    const onClose = vi.fn()
+    render(<UndoSnackbar message="Usunięto" onClose={onClose} durationMs={5000} />)
+
+    act(() => { vi.advanceTimersByTime(4999) })
+    expect(onClose).not.toHaveBeenCalled()
+
+    act(() => { vi.advanceTimersByTime(1) })
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+})
