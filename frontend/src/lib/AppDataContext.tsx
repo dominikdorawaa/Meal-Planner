@@ -1,16 +1,22 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { type AuthUser, api } from './apiClient';
+import { type AuthUser, ApiError, api } from './apiClient';
 import { resolveMealProduct } from './mealProducts';
+
+export type ProfileStatus = 'loading' | 'failed' | 'needsOnboarding' | 'ready';
+
+type ProfileFetch = 'loading' | 'failed' | 'loaded';
 
 interface AppData {
   user: AuthUser | null;
   profile: any;
+  profileStatus: ProfileStatus;
   recipes: any[];
   userMeals: any[];
   shoppingList: any[];
   shoppingListRecipes: any[];
   loading: boolean;
   onLogout: () => void;
+  reload: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   saveProfile: (changes: Record<string, unknown>) => Promise<unknown>;
   refreshRecipes: () => Promise<void>;
@@ -24,12 +30,14 @@ interface AppData {
 const AppDataContext = createContext<AppData>({
   user: null,
   profile: null,
+  profileStatus: 'loading',
   recipes: [],
   userMeals: [],
   shoppingList: [],
   shoppingListRecipes: [],
   loading: true,
   onLogout: () => {},
+  reload: async () => {},
   refreshProfile: async () => {},
   saveProfile: async () => null,
   refreshRecipes: async () => {},
@@ -52,6 +60,23 @@ function parseProfileJSON(data: any) {
   return newData;
 }
 
+function isMissingProfile(error: unknown) {
+  return error instanceof ApiError && error.status === 404;
+}
+
+async function fetchProfile(): Promise<{ fetch: ProfileFetch, data: unknown }> {
+  try {
+    return { fetch: 'loaded', data: await api.profile.get() };
+  } catch (error) {
+    return isMissingProfile(error) ? { fetch: 'loaded', data: null } : { fetch: 'failed', data: null };
+  }
+}
+
+function resolveProfileStatus(fetch: ProfileFetch, profile: { target_kcal?: number } | null): ProfileStatus {
+  if (fetch !== 'loaded') return fetch;
+  return (profile?.target_kcal ?? 0) > 0 ? 'ready' : 'needsOnboarding';
+}
+
 interface AppDataProviderProps {
   children: React.ReactNode;
   user: AuthUser | null;
@@ -60,6 +85,7 @@ interface AppDataProviderProps {
 
 export function AppDataProvider({ children, user, onLogout }: AppDataProviderProps) {
   const [profile, setProfile] = useState<any>(null);
+  const [profileFetch, setProfileFetch] = useState<ProfileFetch>('loading');
   const [recipes, setRecipes] = useState<any[]>([]);
   const [userMeals, setUserMeals] = useState<any[]>([]);
   const [shoppingList, setShoppingList] = useState<any[]>([]);
@@ -70,6 +96,7 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
     if (!user) { 
       setLoading(false); 
       setProfile(null);
+      setProfileFetch('loading');
       setRecipes([]);
       setUserMeals([]);
       setShoppingList([]);
@@ -77,26 +104,26 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
     }
 
     setLoading(true);
+    setProfileFetch('loading');
     try {
       const [
-        profileResData,
+        profileResult,
         recipesRes,
         mealsRes,
         slRes,
         slrRes
       ] = await Promise.all([
-        api.profile.get().catch(() => null),
+        fetchProfile(),
         api.recipes.getAll().catch(() => []),
         api.meals.getAll().catch(() => []),
         api.shoppingList.getItems().catch(() => []),
         api.shoppingList.getRecipes().catch(() => []),
       ]);
 
-      if (profileResData) {
-        setProfile(parseProfileJSON(profileResData));
-      } else {
-        setProfile(null);
+      if (profileResult.fetch === 'loaded') {
+        setProfile(parseProfileJSON(profileResult.data) ?? null);
       }
+      setProfileFetch(profileResult.fetch);
       setRecipes(recipesRes);
       setUserMeals(mealsRes);
       setShoppingList(slRes);
@@ -119,13 +146,16 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
 
   const refreshProfile = useCallback(async () => {
     if (!user) return;
-    const data = await api.profile.get().catch(() => null);
-    if (data) setProfile(parseProfileJSON(data));
+    const result = await fetchProfile();
+    if (result.fetch === 'failed') return;
+    setProfile(parseProfileJSON(result.data) ?? null);
+    setProfileFetch('loaded');
   }, [user]);
 
   const saveProfile = useCallback(async (changes: Record<string, unknown>) => {
     const saved = await api.profile.update(changes);
     setProfile((prev: Record<string, unknown> | null) => ({ ...prev, ...changes, ...parseProfileJSON(saved) }));
+    setProfileFetch('loaded');
     return saved;
   }, []);
 
@@ -201,10 +231,12 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
     };
   }, [userMeals, recipes, profile]);
 
+  const profileStatus = resolveProfileStatus(profileFetch, profile);
+
   return (
     <AppDataContext.Provider value={{
-      user, profile, recipes, userMeals, shoppingList, shoppingListRecipes,
-      loading, onLogout, refreshProfile, saveProfile, refreshRecipes, refreshMeals, refreshShoppingList,
+      user, profile, profileStatus, recipes, userMeals, shoppingList, shoppingListRecipes,
+      loading, onLogout, reload: loadAll, refreshProfile, saveProfile, refreshRecipes, refreshMeals, refreshShoppingList,
       getConsumedForDay, setUserMeals, setShoppingList
     }}>
       {children}

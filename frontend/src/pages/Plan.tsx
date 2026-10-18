@@ -69,7 +69,7 @@ const getMealTypeName = (type: string, mealConfig?: any[]) => {
 
 export function Plan() {
   const navigate = useNavigate();
-  const { recipes, profile, userMeals, setUserMeals, loading: contextLoading, refreshMeals, getConsumedForDay } = useAppData();
+  const { recipes, profile, profileStatus, userMeals, setUserMeals, loading: contextLoading, refreshMeals, getConsumedForDay, reload } = useAppData();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeMealMenu, setActiveMealMenu] = useState<any | null>(null);
   const [copyModeMeal, setCopyModeMeal] = useState<any | null>(null);
@@ -149,17 +149,9 @@ export function Plan() {
     };
   }, []);
 
-  // Sprawdź onboarding (tylko gdy profil jest załadowany, a cel kaloryczny jest nadal zerowy/null)
   useEffect(() => {
-    const checkOnboarding = async () => {
-      if (!contextLoading) {
-        if (!profile || !profile.target_kcal || profile.target_kcal === 0) {
-           navigate('/onboarding');
-        }
-      }
-    };
-    checkOnboarding();
-  }, [contextLoading, profile, navigate]);
+    if (!contextLoading && profileStatus === 'needsOnboarding') navigate('/onboarding');
+  }, [contextLoading, profileStatus, navigate]);
 
   // Odśwież meals po powrocie na stronę (np. po dodaniu przepisu w /recipes)
   useEffect(() => {
@@ -476,13 +468,32 @@ export function Plan() {
     return <PlanCard onClick={onSlotClick} isCopyMode={isCopyMode} copyLabel={copyLabel} isSelected={isSelected} disabled={!!copyModeDay} isToday={isToday} />;
   };
 
-  if (contextLoading || !profile || profile.target_kcal === 0 || !profile.target_kcal) {
+  if (!contextLoading && profileStatus === 'failed') {
+    return (
+      <div className="min-h-screen bg-surface flex flex-col items-center justify-center px-8 text-center">
+        <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mb-4">
+          <span className="material-symbols-outlined text-error text-3xl">cloud_off</span>
+        </div>
+        <h1 className="font-headline text-lg font-bold text-on-surface mb-2">{t('plan.profileLoadFailed.title')}</h1>
+        <p className="text-sm text-on-surface-variant mb-6 max-w-xs">{t('plan.profileLoadFailed.description')}</p>
+        <button
+          type="button"
+          onClick={reload}
+          className="px-6 py-3 rounded-2xl bg-primary text-on-primary font-bold text-sm active:scale-95 transition-all"
+        >
+          {t('plan.profileLoadFailed.retry')}
+        </button>
+      </div>
+    );
+  }
+
+  if (contextLoading || profileStatus !== 'ready') {
     return (
       <div className="min-h-screen bg-surface flex flex-col items-center justify-center">
         <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 animate-pulse">
           <span className="material-symbols-outlined text-primary text-3xl">restaurant</span>
         </div>
-        <p className="text-primary font-bold tracking-widest uppercase text-xs animate-pulse">Przygotowujemy Twój profil...</p>
+        <p className="text-primary font-bold tracking-widest uppercase text-xs animate-pulse">{t('plan.preparingProfile')}</p>
       </div>
     );
   }

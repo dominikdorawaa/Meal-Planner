@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { AppDataProvider, useAppData } from './AppDataContext'
+import { ApiError } from './apiClient'
 
 const mocks = vi.hoisted(() => ({
   getProfile: vi.fn(),
@@ -11,7 +12,8 @@ const mocks = vi.hoisted(() => ({
   getShoppingRecipes: vi.fn(),
 }))
 
-vi.mock('./apiClient', () => ({
+vi.mock('./apiClient', async (importOriginal) => ({
+  ApiError: (await importOriginal<typeof import('./apiClient')>()).ApiError,
   api: {
     profile: { get: mocks.getProfile, update: mocks.updateProfile },
     recipes: { getAll: mocks.getRecipes },
@@ -34,11 +36,13 @@ function AppDataProbe({ changes = {}, date = '2026-10-17', onError = () => {} }:
     <>
       <p data-testid="loading">{String(data.loading)}</p>
       <p data-testid="meal-names">{meals.map((meal: { name: string }) => meal.name).join(', ')}</p>
+      <p data-testid="status">{data.profileStatus}</p>
       <p data-testid="profile">{JSON.stringify(data.profile)}</p>
       <p data-testid="counts">{`recipes ${data.recipes.length}, meals ${data.userMeals.length}, items ${data.shoppingList.length}, list recipes ${data.shoppingListRecipes.map(recipe => `${recipe.id}x${recipe.portions}`).join(' ')}`}</p>
       <p data-testid="consumed">{JSON.stringify(data.getConsumedForDay(date))}</p>
       <button onClick={() => data.saveProfile(changes).catch(onError)}>Save</button>
       <button onClick={() => data.refreshProfile()}>Refresh profile</button>
+      <button onClick={() => data.reload()}>Reload</button>
       <button onClick={() => data.refreshRecipes()}>Refresh recipes</button>
       <button onClick={() => data.refreshMeals()}>Refresh meals</button>
       <button onClick={() => data.refreshShoppingList()}>Refresh shopping list</button>
@@ -107,12 +111,51 @@ describe('AppDataProvider loading', () => {
     expect(text('counts')).toBe('recipes 0, meals 0, items 0, list recipes ')
   })
 
-  it('has no profile when the server returns none', async () => {
-    mocks.getProfile.mockRejectedValue(new Error('not found'))
+  it('is ready when the profile has a calorie goal', async () => {
+    renderProvider()
+    await waitForLoad()
+
+    expect(text('status')).toBe('ready')
+  })
+
+  it('needs onboarding when the server has no profile for the user', async () => {
+    mocks.getProfile.mockRejectedValue(new ApiError('Not found', 404))
     renderProvider()
     await waitForLoad()
 
     expect(text('profile')).toBe('null')
+    expect(text('status')).toBe('needsOnboarding')
+  })
+
+  it('needs onboarding when the profile has no calorie goal', async () => {
+    mocks.getProfile.mockResolvedValue({ target_kcal: 0 })
+    renderProvider()
+    await waitForLoad()
+
+    expect(text('status')).toBe('needsOnboarding')
+  })
+
+  it('reports a failed profile fetch instead of a missing profile and recovers on reload', async () => {
+    mocks.getProfile.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    renderProvider()
+    await waitForLoad()
+
+    expect(text('status')).toBe('failed')
+    expect(text('profile')).toBe('null')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
+
+    await waitFor(() => expect(text('status')).toBe('ready'))
+    expect(text('meal-names')).toBe('Breakfast, Lunch')
+    expect(mocks.getProfile).toHaveBeenCalledTimes(2)
+  })
+
+  it('treats server errors other than a missing profile as a failed fetch', async () => {
+    mocks.getProfile.mockRejectedValue(new ApiError('Server error', 503))
+    renderProvider()
+    await waitForLoad()
+
+    expect(text('status')).toBe('failed')
   })
 
   it('loads nothing without a signed in user', async () => {
@@ -124,6 +167,7 @@ describe('AppDataProvider loading', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Refresh shopping list' }))
 
     expect(text('profile')).toBe('null')
+    expect(text('status')).toBe('loading')
     expect(mocks.getProfile).not.toHaveBeenCalled()
     expect(mocks.getMeals).not.toHaveBeenCalled()
     expect(mocks.getShoppingItems).not.toHaveBeenCalled()
@@ -161,6 +205,29 @@ describe('AppDataProvider refresh', () => {
 
     await waitFor(() => expect(text('counts')).toBe('recipes 0, meals 0, items 0, list recipes '))
     expect(text('meal-names')).toBe('Breakfast, Lunch')
+    expect(text('status')).toBe('ready')
+  })
+
+  it('becomes ready when refreshing the profile succeeds after a failed start', async () => {
+    mocks.getProfile.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    renderProvider()
+    await waitForLoad()
+    expect(text('status')).toBe('failed')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh profile' }))
+
+    await waitFor(() => expect(text('status')).toBe('ready'))
+  })
+
+  it('needs onboarding when refreshing finds no profile', async () => {
+    renderProvider()
+    await waitForLoad()
+    mocks.getProfile.mockRejectedValue(new ApiError('Not found', 404))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh profile' }))
+
+    await waitFor(() => expect(text('status')).toBe('needsOnboarding'))
+    expect(text('profile')).toBe('null')
   })
 })
 
@@ -181,6 +248,18 @@ describe('AppDataProvider saveProfile', () => {
     expect(JSON.parse(text('profile') ?? '')).toEqual({ target_kcal: 2000, meal_config: newConfig, visible_meals: ['lunch', 'breakfast'] })
     expect(mocks.updateProfile).toHaveBeenCalledWith(changes)
     expect(mocks.getProfile).toHaveBeenCalledTimes(1)
+  })
+
+  it('becomes ready once a calorie goal is saved after a failed start', async () => {
+    mocks.getProfile.mockRejectedValue(new TypeError('Failed to fetch'))
+    mocks.updateProfile.mockResolvedValue({ target_kcal: 1800 })
+    renderProvider({ changes: { target_kcal: 1800 } })
+    await waitForLoad()
+    expect(text('status')).toBe('failed')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(text('status')).toBe('ready'))
   })
 
   it('keeps the previous profile when saving fails', async () => {
