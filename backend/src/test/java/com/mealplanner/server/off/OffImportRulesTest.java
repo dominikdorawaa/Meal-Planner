@@ -94,4 +94,19 @@ class OffImportRulesTest {
     void keepsRealNames(String name) {
         assertThat(OffImportRules.isJunkName(name)).isFalse();
     }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"Chicken Fingers", "Orange juice", "Coconut Milk", "Cheese And Cranberry Flavoured Chips",
+            "Grill Käse", "Pierogi Mit Sauerkraut", "Cookies with jelly cube & milk cream"})
+    void recognisesForeignNames(String name) {
+        assertThat(OffImportRules.isForeignName(name)).isTrue();
+        assertThat(new OffImportRules().check(skyr(name)).errors()).containsExactly(OffImportRules.NAME_FOREIGN);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"Lech free limonka mięta", "ŁACIATE UHT MILK 2.0%", "Protein Drink O Smaku Waniliowym",
+            "Lody Czekoladowe Z Sosem Czekoladowym", "Lech free yuzu i pomelo", "Milky Way", "Cheetos", "Jogurt naturalny"})
+    void keepsPolishNamesWithSingleForeignWords(String name) {
+        assertThat(OffImportRules.isForeignName(name)).isFalse();
+    }
 }
