@@ -115,5 +115,22 @@
   "plan.summary.carbsShort": "C",
   "plan.summary.missing": "{amount} to go",
   "plan.summary.onTarget": "On target",
-  "plan.summary.over": "{amount} over"
+  "plan.summary.over": "{amount} over",
+  "shopping.fromPlan": "Create from plan",
+  "shopping.fromPlanTitle": "Create list from plan",
+  "shopping.fromPlanHint": "Select days or meals whose ingredients should be added to the list.",
+  "shopping.previousWeek": "Previous week",
+  "shopping.nextWeek": "Next week",
+  "shopping.selectDay": "Select whole day: {day}",
+  "shopping.selectMeal": "Select: {name}",
+  "shopping.noMeals": "No meals in the plan",
+  "shopping.addIngredients": "Add ingredients ({count})",
+  "shopping.cancel": "Cancel",
+  "shopping.close": "Close",
+  "shopping.ingredientsAdded": "Ingredients added to the shopping list",
+  "shopping.noRecipesSelected": "The selected meals are not recipes, so there are no ingredients to add.",
+  "shopping.noIngredients": "The selected recipes have no ingredients.",
+  "shopping.fromPlanFailed": "Could not add the ingredients. Please try again.",
+  "shopping.addProduct": "Add product",
+  "shopping.emptyHint": "Create a list from the plan or add a product manually."
 }

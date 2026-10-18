@@ -9,6 +9,7 @@ import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 import { formatMacrosShort } from '../lib/macros';
 import { DaySummary } from '../components/DaySummary';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
+import { MEAL_TYPES, profileMealTypes } from '../lib/mealTypes';
 import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, formatRelativeDayLabel, parseIsoDate, planDays, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { forgetPlanReturnPosition, readPlanReturnPosition, rememberPlanReturnPosition } from '../lib/planPosition';
 import { PlanConflictDialog } from '../components/PlanConflictDialog';
@@ -50,15 +51,6 @@ const CARD_WRAPPER = "w-[33.3333vw] sm:w-[150px] shrink-0 px-2 sm:px-3 snap-star
 
 
 
-const MEAL_TYPES = [
-  { id: 'breakfast', name: 'Śniadanie', icon: 'light_mode' },
-  { id: 'snack1', name: '2 Śniadanie', icon: 'bakery_dining' },
-  { id: 'lunch', name: 'Lunch', icon: 'lunch_dining' },
-  { id: 'snack2', name: 'Przekąska', icon: 'nutrition' },
-  { id: 'dinner', name: 'Obiad', icon: 'restaurant' },
-  { id: 'supper', name: 'Kolacja', icon: 'dark_mode' },
-];
-
 const startOfToday = () => {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
@@ -75,7 +67,7 @@ const getMealTypeName = (type: string, mealConfig?: any[]) => {
 
 export function Plan() {
   const navigate = useNavigate();
-  const { recipes, profile, userMeals, setUserMeals, loading: contextLoading, refreshMeals, getConsumedForDay, refreshShoppingList } = useAppData();
+  const { recipes, profile, userMeals, setUserMeals, loading: contextLoading, refreshMeals, getConsumedForDay } = useAppData();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeMealMenu, setActiveMealMenu] = useState<any | null>(null);
   const [copyModeMeal, setCopyModeMeal] = useState<any | null>(null);
@@ -91,12 +83,6 @@ export function Plan() {
   const [dayToDelete, setDayToDelete] = useState<string | null>(null);
   const [copyModeDay, setCopyModeDay] = useState<string | null>(null);
   const [selectedCopyDays, setSelectedCopyDays] = useState<string[]>([]);
-
-  // Stany dla zakupów
-  const [shoppingSelectionMode, setShoppingSelectionMode] = useState<boolean>(false);
-  const [selectedShoppingDays, setSelectedShoppingDays] = useState<string[]>([]);
-  const [selectedShoppingMeals, setSelectedShoppingMeals] = useState<string[]>([]);
-  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const [returnPosition] = useState(readPlanReturnPosition);
   const [baseDate, setBaseDate] = useState<Date>(() => parseIsoDate(returnPosition?.startDate) ?? startOfToday());
@@ -329,92 +315,6 @@ export function Plan() {
     return meal.manual_name || t('plan.quickMeal');
   };
 
-  const generateShoppingList = async () => {
-    try {
-      let mealsToProcess: any[] = [];
-      const explicitMeals = userMeals.filter(m => selectedShoppingMeals.includes(m.id));
-      const dayMeals = userMeals.filter(m => selectedShoppingDays.includes(m.meal_date) && !selectedShoppingMeals.includes(m.id));
-      mealsToProcess = [...explicitMeals, ...dayMeals];
-
-      if (mealsToProcess.length === 0) return;
-
-      const recipeIds = Array.from(new Set(mealsToProcess.map(m => (m.recipe?.id || m.recipe)).filter(Boolean)));
-      if (recipeIds.length === 0) {
-        alert("Wybrane posiłki nie są przepisami, nie można wygenerować listy składników.");
-        return;
-      }
-
-      // Fetch ingredients for these recipes
-      const recipesWithIngs = await Promise.all(recipeIds.map(rid => api.recipes.getById(rid.toString())));
-      
-      const ingredients: any[] = [];
-      recipesWithIngs.forEach(r => {
-        if (r.ingredients) {
-          r.ingredients.forEach((ing: any) => ingredients.push({ ...ing, recipe_id: r.id }));
-        }
-      });
-
-      if (ingredients.length === 0) {
-        alert("Wybrane przepisy nie posiadają składników.");
-        return;
-      }
-
-      const localAccumulator = new Map<string, any>();
-      const recipePortions = new Map<string, number>();
-
-      mealsToProcess.forEach(meal => {
-        const rid = meal.recipe?.id || meal.recipe;
-        if (!rid) return;
-        const recipe = recipesWithIngs.find(r => r.id === rid);
-        if (!recipe) return;
-
-        const basePortions = recipe.portions || 1.0;
-        const consumedPortions = meal.portions_consumed || 1.0;
-        const ratio = consumedPortions / basePortions;
-
-        // Sumujemy całkowitą proporcję dla przepisu z wszystkich dni (na potrzeby widoku ShoppingList wg przepisów)
-        recipePortions.set(rid, (recipePortions.get(rid) || 0) + ratio);
-
-        const mealIngredients = ingredients.filter(i => i.recipe_id === rid);
-        mealIngredients.forEach(ing => {
-          const key = `${ing.name.toLowerCase()}_${ing.unit.toLowerCase()}`;
-          const scaledAmount = Number(ing.amount) * ratio;
-
-          if (localAccumulator.has(key)) {
-            const existing = localAccumulator.get(key);
-            existing.quantity = Number(existing.quantity) + scaledAmount;
-          } else {
-            localAccumulator.set(key, {
-              ingredient_name: ing.name,
-              quantity: scaledAmount,
-              unit: ing.unit
-            });
-          }
-        });
-      });
-
-      const promises: Promise<any>[] = [];
-      localAccumulator.forEach(item => {
-        promises.push(api.shoppingList.addItem(item));
-      });
-
-      recipePortions.forEach((ratioAccumulated, rid) => {
-        promises.push(api.shoppingList.addRecipe({ recipe: { id: rid }, portions: ratioAccumulated }));
-      });
-
-      await Promise.all(promises);
-      await refreshShoppingList();
-
-      setShoppingSelectionMode(false);
-      setSelectedShoppingDays([]);
-      setSelectedShoppingMeals([]);
-      setSuccessToast("Składniki dodano pomyślnie do listy zakupów");
-      setTimeout(() => setSuccessToast(null), 3500);
-    } catch (err) {
-      console.error("Error generating shopping list:", err);
-    }
-  };
-
   const toggleCopySlot = (slotKey: string) => {
     if (mealSelectionAction === 'move') {
       if (copyModeMeal && slotKey === toSlotKey(copyModeMeal.meal_date, copyModeMeal.meal_type)) return;
@@ -438,7 +338,6 @@ export function Plan() {
     });
 
     const onSlotClick = () => {
-      if (shoppingSelectionMode) return;
       if (!!copyModeDay) return;
       if (copyModeMeal) {
         toggleCopySlot(slotKey);
@@ -452,13 +351,12 @@ export function Plan() {
         <div className={CARD_WRAPPER}>
           <div className={`flex flex-col gap-3 w-full max-w-[130px] h-full transition-all duration-300 ${isToday ? 'ring-2 ring-[#ff9800]/30 bg-[#ff9800]/[0.05] p-2 -mx-2 -my-2 rounded-3xl shadow-[0_0_15px_rgba(255,152,0,0.05)]' : ''}`}>
             {validMeals.map(assignedMeal => {
-              const isSelectedShopping = selectedShoppingMeals.includes(assignedMeal.id);
               const rid = assignedMeal.recipe?.id || assignedMeal.recipe;
               const pid = assignedMeal.product?.id || assignedMeal.product;
 
               if (rid) {
                 const recipe = recipes.find(r => r.id === rid);
-                if (!recipe) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} copyLabel={copyLabel} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
+                if (!recipe) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} copyLabel={copyLabel} isSelected={isSelected} disabled={!!copyModeDay} noWrap />;
 
                 const mult = assignedMeal.portions_consumed || 1;
                 return (
@@ -471,21 +369,12 @@ export function Plan() {
                     imageFallbackSrc={DEFAULT_RECIPE_IMAGE_URL}
                     noWrap
                     onClick={() => {
-                      if (!shoppingSelectionMode && !copyModeDay && !copyModeMeal) {
+                      if (!copyModeDay && !copyModeMeal) {
                         openPlanItem(`/recipe/${recipe.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
                       }
                     }}
                     onMenuClick={() => {
-                      if (shoppingSelectionMode) {
-                        setSelectedShoppingMeals(prev => {
-                          if (prev.includes(assignedMeal.id)) {
-                            setSelectedShoppingDays(dPrev => dPrev.filter(d => d !== date));
-                            return prev.filter(id => id !== assignedMeal.id);
-                          } else {
-                            return [...prev, assignedMeal.id];
-                          }
-                        });
-                      } else if (copyModeMeal) {
+                      if (copyModeMeal) {
                         toggleCopySlot(slotKey);
                       } else {
                         setActiveMealMenu(assignedMeal);
@@ -493,14 +382,12 @@ export function Plan() {
                     }}
                     isCopyMode={isCopyMode}
                     isSelected={isSelected}
-                    isShoppingMode={shoppingSelectionMode}
-                    isSelectedShopping={isSelectedShopping}
                     isProduct={false}
                   />
                 );
               } else if (pid) {
                 const product = resolveMealProduct(assignedMeal, userMeals);
-                if (!product) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} copyLabel={copyLabel} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} noWrap />;
+                if (!product) return <PlanCard key={assignedMeal.id} onClick={onSlotClick} isCopyMode={isCopyMode} copyLabel={copyLabel} isSelected={isSelected} disabled={!!copyModeDay} noWrap />;
 
                 const weight = assignedMeal.portions_consumed || 100;
                 const factor = product.unit === 'pc' ? weight : (weight / 100);
@@ -518,21 +405,12 @@ export function Plan() {
                     imgSrc={product.image_url || PLACEHOLDER_IMAGE}
                     noWrap
                     onClick={() => {
-                      if (!shoppingSelectionMode && !copyModeDay && !copyModeMeal) {
+                      if (!copyModeDay && !copyModeMeal) {
                         openPlanItem(`/product/${product.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
                       }
                     }}
                     onMenuClick={() => {
-                      if (shoppingSelectionMode) {
-                        setSelectedShoppingMeals(prev => {
-                          if (prev.includes(assignedMeal.id)) {
-                            setSelectedShoppingDays(dPrev => dPrev.filter(d => d !== date));
-                            return prev.filter(item => item !== assignedMeal.id);
-                          } else {
-                            return [...prev, assignedMeal.id];
-                          }
-                        });
-                      } else if (copyModeMeal) {
+                      if (copyModeMeal) {
                         toggleCopySlot(slotKey);
                       } else {
                         setActiveMealMenu(assignedMeal);
@@ -540,8 +418,6 @@ export function Plan() {
                     }}
                     isCopyMode={isCopyMode}
                     isSelected={isSelected}
-                    isShoppingMode={shoppingSelectionMode}
-                    isSelectedShopping={isSelectedShopping}
                     isProduct={true}
                   />
                 );
@@ -556,21 +432,19 @@ export function Plan() {
                     imgSrc={PLACEHOLDER_IMAGE}
                     noWrap
                     onClick={() => {
-                      if (!shoppingSelectionMode && !copyModeDay && !copyModeMeal) {
+                      if (!copyModeDay && !copyModeMeal) {
                         openPlanItem(`/add-food?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
                       }
                     }}
                     onMenuClick={() => {
                       if (copyModeMeal) {
                         toggleCopySlot(slotKey);
-                      } else if (!shoppingSelectionMode && !copyModeDay) {
+                      } else if (!copyModeDay) {
                         setActiveMealMenu(assignedMeal);
                       }
                     }}
                     isCopyMode={isCopyMode}
                     isSelected={isSelected}
-                    isShoppingMode={shoppingSelectionMode}
-                    isSelectedShopping={isSelectedShopping}
                     isManual={true}
                   />
                 );
@@ -578,7 +452,7 @@ export function Plan() {
             })}
 
             {/* Przycisk dodaj kolejny posiłek (Przywrócony na dół) */}
-            {!shoppingSelectionMode && !copyModeDay && !copyModeMeal && (
+            {!copyModeDay && !copyModeMeal && (
               <div 
                 onClick={onSlotClick} 
                 className="w-full py-2 bg-primary/5 hover:bg-primary/10 border border-dashed border-primary/20 rounded-xl flex items-center justify-center gap-1 text-primary cursor-pointer transition-all active:scale-95 mt-1"
@@ -591,7 +465,7 @@ export function Plan() {
         </div>
       );
     }
-    return <PlanCard onClick={onSlotClick} isCopyMode={isCopyMode} copyLabel={copyLabel} isSelected={isSelected} disabled={shoppingSelectionMode || !!copyModeDay} isToday={isToday} />;
+    return <PlanCard onClick={onSlotClick} isCopyMode={isCopyMode} copyLabel={copyLabel} isSelected={isSelected} disabled={!!copyModeDay} isToday={isToday} />;
   };
 
   if (contextLoading || !profile || profile.target_kcal === 0 || !profile.target_kcal) {
@@ -607,40 +481,10 @@ export function Plan() {
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen">
-      {/* Toast Sukcesu */}
-      {successToast && (
-        <div className="fixed top-[calc(1.25rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 bg-primary/10 backdrop-blur-md border border-primary/20 text-primary px-4 py-2.5 rounded-full shadow-sm z-[60] flex items-center justify-center gap-2 animate-slide-up whitespace-nowrap">
-          <span className="material-symbols-outlined text-[16px] font-bold">check_circle</span>
-          <span className="font-headline font-bold text-xs tracking-wide">{successToast}</span>
-        </div>
-      )}
-
-      {/* TopAppBar */}
-      <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm pt-safe">
-        <div className="flex justify-between items-center px-6 h-16 w-full max-w-screen-xl mx-auto">
-          <button className="text-primary focus:outline-none">
-            <span className="material-symbols-outlined text-[28px]">calendar_month</span>
-          </button>
-          <h1 className="font-headline font-bold text-xl tracking-tight text-primary">Twój Plan</h1>
-          <button
-            onClick={() => {
-              setActiveDayMenu(null);
-              setActiveMealMenu(null);
-              resetSelectionModes();
-              setShoppingSelectionMode(prev => !prev);
-              setSelectedShoppingDays([]);
-              setSelectedShoppingMeals([]);
-            }}
-            className={`focus:outline-none transition-colors ${shoppingSelectionMode ? 'text-on-primary bg-primary p-1.5 rounded-xl shadow-sm' : 'text-primary p-1.5 rounded-xl hover:bg-surface-container-highest'}`}
-          >
-            <span className="material-symbols-outlined text-[28px]">shopping_cart_checkout</span>
-          </button>
-        </div>
-      </header>
-
-      <main className="pt-[calc(8rem+env(safe-area-inset-top))] max-w-[600px] mx-auto pb-bottom-nav relative">
+      <main className="pt-[calc(4rem+env(safe-area-inset-top))] max-w-[600px] mx-auto pb-bottom-nav relative">
         {/* Navigation Bar */}
-        <div className="fixed top-[calc(4rem+env(safe-area-inset-top))] left-0 right-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/5 h-12 flex items-center justify-between px-6 max-w-[600px] mx-auto">
+        <div className="fixed top-0 left-0 right-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant/5 pt-safe max-w-[600px] mx-auto">
+          <div className="h-12 flex items-center justify-between px-6">
           <button onClick={handlePrevWeek} className="flex items-center text-primary/70 hover:text-primary active:scale-90 transition-all font-bold text-xs gap-1 group">
             <div className="w-8 h-8 rounded-full bg-primary/5 flex items-center justify-center group-hover:bg-primary/10">
               <span className="material-symbols-outlined text-[18px]">chevron_left</span>
@@ -656,6 +500,7 @@ export function Plan() {
               <span className="material-symbols-outlined text-[18px]">chevron_right</span>
             </div>
           </button>
+          </div>
         </div>
         <div ref={scrollRef} className="w-full overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth">
           <div className="w-max flex flex-col">
@@ -671,22 +516,11 @@ export function Plan() {
                   <div key={i} className={CARD_WRAPPER}>
                     <div
                       onClick={() => {
-                        if (shoppingSelectionMode) {
-                          const isDaySelected = selectedShoppingDays.includes(day.date);
-                          if (isDaySelected) {
-                            setSelectedShoppingDays(prev => prev.filter(d => d !== day.date));
-                            const dayMealIds = userMeals.filter(m => m.meal_date === day.date).map(m => m.id);
-                            setSelectedShoppingMeals(prev => prev.filter(id => !dayMealIds.includes(id)));
-                          } else {
-                            setSelectedShoppingDays(prev => [...prev, day.date]);
-                            const dayMealIds = userMeals.filter(m => m.meal_date === day.date).map(m => m.id);
-                            setSelectedShoppingMeals(prev => [...new Set([...prev, ...dayMealIds])]);
-                          }
-                        } else if (isDayCopyMode && day.date !== copyModeDay) {
+                        if (isDayCopyMode && day.date !== copyModeDay) {
                           setSelectedCopyDays(prev => prev.includes(day.date) ? prev.filter(d => d !== day.date) : [...prev, day.date]);
                         }
                       }}
-                      className={`w-full max-w-[130px] bg-surface-container-lowest rounded-3xl p-2.5 sm:p-3 shadow-ambient flex flex-col gap-2 relative transition-all duration-300 ${day.isToday ? 'ring-2 ring-[#ff9800] bg-[#ff9800]/[0.04] shadow-lg shadow-[#ff9800]/10' : ''} ${!day.active ? 'opacity-80 scale-[0.98]' : ''} ${copyModeMeal ? 'opacity-40 grayscale-[30%]' : ''} ${(isDayCopyMode || shoppingSelectionMode) ? 'cursor-pointer hover:bg-primary/5 ring-inset' : ''} ${(isSelectedCopyDay || selectedShoppingDays.includes(day.date)) ? 'bg-primary/10 ring-2 ring-primary' : ''}`}
+                      className={`w-full max-w-[130px] bg-surface-container-lowest rounded-3xl p-2.5 sm:p-3 shadow-ambient flex flex-col gap-2 relative transition-all duration-300 ${day.isToday ? 'ring-2 ring-[#ff9800] bg-[#ff9800]/[0.04] shadow-lg shadow-[#ff9800]/10' : ''} ${!day.active ? 'opacity-80 scale-[0.98]' : ''} ${copyModeMeal ? 'opacity-40 grayscale-[30%]' : ''} ${isDayCopyMode ? 'cursor-pointer hover:bg-primary/5 ring-inset' : ''} ${isSelectedCopyDay ? 'bg-primary/10 ring-2 ring-primary' : ''}`}
                     >
                       {!day.active && <div className="absolute inset-0 bg-surface/30 rounded-3xl pointer-events-none z-10 transition-all"></div>}
 
@@ -696,11 +530,7 @@ export function Plan() {
                             {formatDayMonth(day.date)}
                           </div>
 
-                          {shoppingSelectionMode ? (
-                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors shrink-0 border ${selectedShoppingDays.includes(day.date) ? 'bg-primary border-primary text-on-primary' : 'bg-surface-container-lowest border-outline-variant/40 text-transparent hover:border-primary/50'}`}>
-                              <span className="material-symbols-outlined text-[14px] font-bold">check</span>
-                            </div>
-                          ) : isDayCopyMode ? (
+                          {isDayCopyMode ? (
                             <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors shrink-0 border ${isSelectedCopyDay ? 'bg-primary border-primary text-on-primary' : 'bg-surface-container-lowest border-outline-variant/40 text-transparent hover:border-primary/50'}`}>
                               <span className="material-symbols-outlined text-[14px] font-bold">check</span>
                             </div>
@@ -713,7 +543,7 @@ export function Plan() {
                         </div>
                         <span className="uppercase text-[8px] font-extrabold tracking-widest text-on-surface-variant font-body line-clamp-1 mt-2 pl-0.5">{day.name}</span>
                       </div>
-                      <DaySummary consumed={consumed} targets={profile} dayLabel={`${day.name}, ${formatDayMonth(day.date)}`} interactive={!shoppingSelectionMode && !isDayCopyMode && !copyModeMeal} />
+                      <DaySummary consumed={consumed} targets={profile} dayLabel={`${day.name}, ${formatDayMonth(day.date)}`} interactive={!isDayCopyMode && !copyModeMeal} />
                     </div>
                   </div>
                 )
@@ -721,12 +551,9 @@ export function Plan() {
             </section>
 
             {/* Dynamiczne rzędy posiłków na podstawie preferencji usera (kolejność i nazwy) */}
-            {((Array.isArray(profile?.meal_config) ? profile.meal_config : null) || MEAL_TYPES.map(m => ({ 
-                ...m, 
-                visible: !Array.isArray(profile?.visible_meals) || profile.visible_meals.includes(m.id) 
-              })))
-              .filter((mt: any) => mt.visible)
-              .map((mt: any) => (
+            {profileMealTypes(profile)
+              .filter(mt => mt.visible)
+              .map(mt => (
                 <div key={mt.id} className="flex flex-col mb-8 last:mb-0">
                   <div className="flex items-center justify-between gap-2 mb-3 px-4 z-20">
                     <div className="flex items-center gap-2">
@@ -919,41 +746,6 @@ export function Plan() {
         );
       })()}
 
-      {/* Pasek Wyboru do Listy Zakupów */}
-      {shoppingSelectionMode && (() => {
-        const uniqueMealsCount = new Set([
-          ...selectedShoppingMeals,
-          ...userMeals.filter(m => selectedShoppingDays.includes(m.meal_date)).map(m => m.id)
-        ]).size;
-
-        return (
-          <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[95%] max-w-[460px] bg-surface-container-lowest shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[2rem] p-3 flex items-center justify-between z-[200] animate-slide-up border border-outline-variant/30">
-            <div className="flex items-center w-[60%] gap-2.5 pl-1">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-primary text-[18px] sm:text-xl">shopping_cart_checkout</span>
-              </div>
-              <div className="flex flex-col w-full">
-                <span className="font-bold text-[11px] sm:text-xs text-on-surface leading-tight">Generator Zakupów</span>
-                <span className="text-[9px] sm:text-[10px] text-on-surface-variant font-medium leading-[1.25] mt-0.5">Zaznacz dni lub potrawy, z których zliczymy składniki na listę</span>
-              </div>
-            </div>
-
-            <div className="flex gap-1.5 sm:gap-2 mr-1 flex-shrink-0">
-              <button onClick={() => { setShoppingSelectionMode(false); setSelectedShoppingDays([]); setSelectedShoppingMeals([]); }} className="px-2.5 sm:px-3 py-2 sm:py-2.5 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-xl transition-colors text-[11px] sm:text-xs active:scale-95">
-                Anuluj
-              </button>
-              <button
-                onClick={generateShoppingList}
-                disabled={uniqueMealsCount === 0}
-                className="px-3 sm:px-4 py-2 sm:py-2.5 font-bold text-on-primary bg-primary rounded-xl shadow-sm hover:bg-primary/90 transition-colors text-[11px] sm:text-xs disabled:opacity-50 active:scale-95 whitespace-nowrap"
-              >
-                Dalej ({uniqueMealsCount})
-              </button>
-            </div>
-          </div>
-        );
-      })()}
-
       {pendingTransfer && (
         <PlanConflictDialog
           conflicts={pendingTransfer.conflicts.map(meal => ({
@@ -1015,10 +807,7 @@ export function Plan() {
   );
 }
 
-function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick, onClick, isCopyMode, isSelected, isShoppingMode, isSelectedShopping, noWrap, isProduct, isManual }: { title: string, kcal: string, macros: string, imgSrc: string, imageFallbackSrc?: string, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, isShoppingMode?: boolean, isSelectedShopping?: boolean, noWrap?: boolean, isProduct?: boolean, isManual?: boolean }) {
-
-  const isSelectionMode = isCopyMode || isShoppingMode;
-  const isSelectedState = isSelected || isSelectedShopping;
+function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick, onClick, isCopyMode, isSelected, noWrap, isProduct, isManual }: { title: string, kcal: string, macros: string, imgSrc: string, imageFallbackSrc?: string, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, noWrap?: boolean, isProduct?: boolean, isManual?: boolean }) {
 
   const imageUrls = useMemo(() => {
     if (isProduct) {
@@ -1044,7 +833,7 @@ function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick
           src={imageUrls[imageUrlIdx]}
           alt={title}
           onError={() => setFailedImages({ key: imageUrlsKey, count: imageUrlIdx + 1 })}
-          className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ${isSelectionMode && !isSelectedState ? 'grayscale opacity-70' : 'group-hover:scale-105'}`}
+          className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ${isCopyMode && !isSelected ? 'grayscale opacity-70' : 'group-hover:scale-105'}`}
         />
       );
     }
@@ -1060,17 +849,17 @@ function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick
   };
 
   const content = (
-    <div onClick={isSelectionMode ? onMenuClick : onClick} className={`w-full max-w-[130px] flex flex-col gap-1.5 group relative transition-all duration-300 ${isSelectionMode || onClick ? 'cursor-pointer hover:scale-105' : ''}`}>
+    <div onClick={isCopyMode ? onMenuClick : onClick} className={`w-full max-w-[130px] flex flex-col gap-1.5 group relative transition-all duration-300 ${isCopyMode || onClick ? 'cursor-pointer hover:scale-105' : ''}`}>
 
-      <div className={`${isManual ? 'h-[85px]' : 'h-[120px] sm:h-[135px]'} w-full rounded-2xl overflow-hidden bg-surface-container-lowest relative shadow-sm border transition-all ${isSelectedState ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface border-transparent' : 'border-outline-variant/10'}`}>
+      <div className={`${isManual ? 'h-[85px]' : 'h-[120px] sm:h-[135px]'} w-full rounded-2xl overflow-hidden bg-surface-container-lowest relative shadow-sm border transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface border-transparent' : 'border-outline-variant/10'}`}>
         {renderImage()}
 
         <div className={`absolute ${isManual ? 'bottom-1.5 left-1.5' : 'bottom-2 left-2'} z-10 bg-surface/90 backdrop-blur-xl px-1.5 h-[14px] flex items-center justify-center gap-0.5 rounded-md shadow-sm`}>
           <span className="text-[9px] font-bold text-primary tracking-wide leading-none translate-y-[0.5px]">{kcal} kcal</span>
         </div>
 
-        {isSelectionMode ? (
-          <div className={`absolute ${isManual ? 'top-1.5 right-1.5' : 'top-2 right-2'} w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors ${isSelectedState ? 'bg-primary border-primary text-on-primary' : 'bg-surface/50 backdrop-blur-md border-white/80 text-transparent'}`}>
+        {isCopyMode ? (
+          <div className={`absolute ${isManual ? 'top-1.5 right-1.5' : 'top-2 right-2'} w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors ${isSelected ? 'bg-primary border-primary text-on-primary' : 'bg-surface/50 backdrop-blur-md border-white/80 text-transparent'}`}>
             <span className="material-symbols-outlined text-[14px] font-bold">check</span>
           </div>
         ) : (

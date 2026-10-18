@@ -555,3 +555,20 @@ describe('Plan start date', () => {
     expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
   })
 })
+
+describe('Plan screen top', () => {
+  it('has no title bar or shopping list button', () => {
+    const { container } = renderPlan()
+
+    expect(screen.queryByText('Twój Plan')).toBeNull()
+    expect(container.querySelector('header')).toBeNull()
+    expect(screen.queryByText('shopping_cart_checkout')).toBeNull()
+  })
+
+  it('starts the screen with the week navigation', () => {
+    renderPlan()
+
+    const weekBar = screen.getByRole('button', { name: 'Dzisiaj' }).closest('.fixed')
+    expect(weekBar?.className.split(' ')).toContain('top-0')
+  })
+})
