@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { t, type MessageKey } from '../i18n';
+import { useBottomSheet } from '../lib/bottomSheet';
 import {
   buildDaySummary,
   type DayConsumed,
@@ -85,6 +86,7 @@ function statusLabel(metric: SummaryMetric) {
 
 function SummaryDetails({ metrics, dayLabel, onClose }: { metrics: SummaryMetric[]; dayLabel: string; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useBottomSheet(true, onClose);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -97,7 +99,7 @@ function SummaryDetails({ metrics, dayLabel, onClose }: { metrics: SummaryMetric
 
   return (
     <div className="fixed inset-0 bg-black/10 z-[200] flex flex-col justify-end sm:justify-center items-center p-0 sm:p-6 animate-fade-in" onClick={e => { e.stopPropagation(); onClose(); }}>
-      <div role="dialog" aria-modal="true" aria-label={t('plan.summary.title')} className="bg-surface-container-lowest rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-ambient w-full max-w-sm border-t sm:border border-outline-variant/10 animate-slide-up" onClick={e => e.stopPropagation()}>
+      <div ref={sheetRef} role="dialog" aria-modal="true" aria-label={t('plan.summary.title')} className="bg-surface-container-lowest rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-ambient w-full max-w-sm border-t sm:border border-outline-variant/10 animate-slide-up" onClick={e => e.stopPropagation()}>
         <div className="w-12 h-1.5 bg-surface-container-highest rounded-full mx-auto mb-6 sm:hidden"></div>
         <h3 className="font-headline font-bold text-xl text-on-surface tracking-tight text-center">{t('plan.summary.title')}</h3>
         <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant text-center mt-1 mb-6">{dayLabel}</p>

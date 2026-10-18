@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { MemoryRouter } from 'react-router-dom'
 import { Plan } from './Plan'
 import { readPlanReturnPosition, rememberPlanReturnPosition } from '../lib/planPosition'
+import { installBackNavigation } from '../lib/backNavigation'
 
 const mocks = vi.hoisted(() => ({
   add: vi.fn(),
@@ -553,6 +554,63 @@ describe('Plan start date', () => {
     act(() => { window.dispatchEvent(new Event('focus')) })
     expect(container.querySelector('[data-slot="2026-10-13_breakfast"]')).not.toBeNull()
     expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
+  })
+})
+
+describe('Plan mobile gestures', () => {
+  let uninstall: () => void
+
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/')
+    uninstall = installBackNavigation()
+  })
+
+  afterEach(() => {
+    uninstall()
+  })
+
+  async function goBack() {
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise<void>(resolve => {
+        window.addEventListener('popstate', () => resolve(), { once: true })
+        window.history.back()
+      })
+    })
+  }
+
+  it('closes the item menu with the back gesture', async () => {
+    const { container } = renderPlan()
+
+    openMealMenu(container, '2026-10-12', 'breakfast')
+    expect(screen.getByText('Zarządzaj posiłkiem')).toBeTruthy()
+    await goBack()
+
+    expect(screen.queryByText('Zarządzaj posiłkiem')).toBeNull()
+  })
+
+  it('cancels copying with the back gesture', async () => {
+    const { container } = renderPlan()
+
+    openMealMenu(container, '2026-10-12', 'lunch')
+    click(/Przenieś do\.\.\./)
+    await goBack()
+
+    expect(screen.queryByText('Wybierz jedno miejsce docelowe')).toBeNull()
+  })
+
+  it('closes the day menu when it is swiped down', async () => {
+    vi.useFakeTimers()
+    renderPlan()
+
+    openDayMenu(0)
+    const sheet = screen.getByText('Zarządzaj całym dniem').parentElement as HTMLElement
+    fireEvent.touchStart(sheet, { touches: [{ clientX: 100, clientY: 100 }] })
+    fireEvent.touchMove(sheet, { touches: [{ clientX: 100, clientY: 400 }] })
+    fireEvent.touchEnd(sheet, { changedTouches: [{ clientX: 100, clientY: 400 }] })
+    act(() => vi.advanceTimersByTime(200))
+
+    expect(screen.queryByText('Zarządzaj całym dniem')).toBeNull()
   })
 })
 

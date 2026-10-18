@@ -19,6 +19,8 @@ import { useExistingBarCodeProduct } from '../lib/useExistingBarCodeProduct';
 import { isValidPackageWeight } from '../lib/packageWeight';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { t } from '../i18n';
+import { useCloseOnBack } from '../lib/backNavigation';
+import { useBottomSheet } from '../lib/bottomSheet';
 import { firstDayOfMonth, formatRelativeDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 import {
   DEFAULT_PRODUCT_GRAMS,
@@ -172,6 +174,10 @@ export function AddFood() {
 
   const [showQuickAdd, setShowQuickAdd] = useState(!!mealId);
   const [quickAddForm, setQuickAddForm] = useState({ name: '', kcal: '', protein: '', fat: '', carbs: '' });
+
+  useCloseOnBack(showMealPicker || showDatePicker, () => { setShowMealPicker(false); setShowDatePicker(false); });
+  const quickAddSheetRef = useBottomSheet(showQuickAdd && !mealId, () => setShowQuickAdd(false));
+  const addProductSheetRef = useBottomSheet(showAddProduct, () => setShowAddProduct(false));
 
   useEffect(() => {
     async function loadManualMeal() {
@@ -725,7 +731,7 @@ export function AddFood() {
       {/* Quick Add Form - Modal for new, Page Content for edit */}
       {showQuickAdd && (
         <div className={mealId ? "flex-1 w-full max-w-xl mx-auto px-4 py-6" : "fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-fade-in"} onClick={!mealId ? () => setShowQuickAdd(false) : undefined}>
-          <div className={mealId ? "bg-transparent" : "bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[90vh] overflow-y-auto animate-slide-up w-full max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative"} onClick={e => e.stopPropagation()}>
+          <div ref={mealId ? undefined : quickAddSheetRef} className={mealId ? "bg-transparent" : "bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[90vh] overflow-y-auto animate-slide-up w-full max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative"} onClick={e => e.stopPropagation()}>
             {!mealId && <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6"></div>}
 
             {!mealId && (
@@ -867,7 +873,7 @@ export function AddFood() {
       {/* Add Product Modal */}
       {showAddProduct && (
         <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowAddProduct(false)}>
-          <div className="bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[92vh] overflow-y-auto animate-slide-up w-full max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative" onClick={e => e.stopPropagation()}>
+          <div ref={addProductSheetRef} className="bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[92vh] overflow-y-auto animate-slide-up w-full max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
 
             <div className="flex items-center justify-between mb-6">
