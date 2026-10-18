@@ -162,18 +162,6 @@ class OffCandidatesExportTest {
     }
 
     @Test
-    void readsCellsBackToTheOriginalText() {
-        assertThat(OffCandidatesExport.readCell("=\"036000291452\"")).isEqualTo("036000291452");
-        assertThat(OffCandidatesExport.readCell("036000291452")).isEqualTo("036000291452");
-        assertThat(OffCandidatesExport.readCell("'=1+1")).isEqualTo("=1+1");
-        assertThat(OffCandidatesExport.readCell("''quoted")).isEqualTo("'quoted");
-        assertThat(OffCandidatesExport.readCell("'plain")).isEqualTo("'plain");
-        assertThat(OffCandidatesExport.readCell("'")).isEqualTo("'");
-        assertThat(OffCandidatesExport.readCell("Skyr")).isEqualTo("Skyr");
-        assertThat(OffCandidatesExport.readCell("")).isEmpty();
-    }
-
-    @Test
     void treatsNonFiniteNumbersAsMissingAndKeepsExporting() throws IOException {
         Path dump = tempDir.resolve("numbers.jsonl");
         Files.write(dump, List.of(

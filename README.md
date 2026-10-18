@@ -54,18 +54,25 @@ UPDATE app_users SET role = 'ADMIN' WHERE email = 'admin@example.com';
 
 Dane produktów pochodzą z [Open Food Facts](https://world.openfoodfacts.org) i są dostępne na licencji [ODbL](https://opendatacommons.org/licenses/odbl/1-0/). Aplikacja pokazuje tę informację na ekranie profilu.
 
-Przed importem eksportujemy kandydatów do CSV i przeglądamy go ręcznie. Pobierz zrzut JSONL z [Open Food Facts](https://world.openfoodfacts.org/data) (`openfoodfacts-products.jsonl.gz`) i w katalogu `backend` uruchom:
+Import czyta zrzut JSONL z [Open Food Facts](https://world.openfoodfacts.org/data) (`openfoodfacts-products.jsonl.gz`) i sam odfiltrowuje produkty: zostają tylko sprzedawane w Polsce, z polską nazwą, poprawnymi wartościami odżywczymi i unikalnym kodem kreskowym. Reguły są w `OffImportRules`. Import można powtarzać: nie tworzy duplikatów, nie nadpisuje produktów dodanych przez użytkowników i nie przywraca produktów usuniętych w aplikacji. Na końcu wypisuje raport z liczbą produktów, powodami pominięcia i rozmiarem tabeli.
+
+Lokalnie (baza z `docker compose`, dane z `.env`) w katalogu `backend`:
+
+```bash
+./mvnw -q spring-boot:run "-Dspring-boot.run.arguments=--off.import.file=/sciezka/openfoodfacts-products.jsonl.gz --spring.main.web-application-type=none --spring.jpa.show-sql=false"
+```
+
+Na Supabase ustaw zmienne bazy przed tym samym poleceniem (wartości z panelu Supabase, Connect, Session pooler):
+
+```bash
+export DB_URL="jdbc:postgresql://aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require"
+export DB_USERNAME="postgres.twoj-projekt"
+export DB_PASSWORD="twoje-haslo"
+export JWT_SECRET="dowolny-tekst-na-czas-importu"
+```
+
+Podgląd wyniku filtrowania bez bazy (CSV z powodem odrzucenia każdego produktu):
 
 ```bash
 ./mvnw -q compile exec:java "-Dexec.args=/sciezka/openfoodfacts-products.jsonl.gz candidates.csv"
 ```
-
-Plik zawiera wszystkie produkty sprzedawane w Polsce z wynikiem walidacji. W kolumnie `import` zostaw `yes` tylko przy produktach, które mają trafić do bazy. Podsumowanie z szacowanym rozmiarem tabeli trafia do `candidates.csv.summary.txt`. Kody kreskowe są zapisane jako `="036000291452"`, żeby arkusz nie gubił zer na początku, a tekst z Open Food Facts zaczynający się od `=`, `+`, `-` lub `@` dostaje na początku `'`, żeby nie był liczony jako formuła.
-
-Przejrzany plik importujesz do bazy wskazanej w `DB_URL` (w katalogu `backend`):
-
-```bash
-./mvnw -q spring-boot:run "-Dspring-boot.run.arguments=--off.import.file=/sciezka/candidates.csv --spring.main.web-application-type=none --spring.jpa.show-sql=false"
-```
-
-Import odczytuje kody i teksty w tym zapisie z powrotem w oryginalnej postaci. Import można powtarzać. Aktualizuje tylko produkty pochodzące z Open Food Facts i nie nadpisuje produktów dodanych przez użytkowników. Na końcu wypisuje raport z rozmiarem tabeli produktów.
