@@ -27,7 +27,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Optional<Product> findFirstByBarCodeAndStatusAndCreatedByAndDeletedAtIsNullOrderByCreatedAtDesc(
             String barCode, ProductStatus status, UUID createdBy);
 
-    List<Product> findByBarCodeInAndStatusAndDeletedAtIsNull(Collection<String> barCodes, ProductStatus status);
+    List<Product> findByBarCodeInAndStatus(Collection<String> barCodes, ProductStatus status);
 
     String CONTAINS_EVERY_WORD =
             "p.search_text LIKE ALL (SELECT CONCAT('%', word, '%') FROM unnest(string_to_array(:query, ' ')) AS word)";

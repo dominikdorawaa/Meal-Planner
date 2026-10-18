@@ -18,10 +18,10 @@ class OffImportRunnerTest {
     @Test
     void importsTheConfiguredFileAndPrintsTheReport() throws Exception {
         OffImportService service = mock(OffImportService.class);
-        when(service.importReviewed(Path.of("reviewed.csv")))
-                .thenReturn(new ImportReport(3, 2, 1, 0, 0, 1, 0, Map.of("KCAL_MISMATCH", 1L), 2_500_000));
+        when(service.importDump(Path.of("dump.jsonl.gz")))
+                .thenReturn(new ImportReport(3, 2, 1, 0, 0, Map.of("KCAL_LOOKS_LIKE_KJ", 1L), 40, 2_500_000));
         OffImportRunner runner = new OffImportRunner(service);
-        ReflectionTestUtils.setField(runner, "file", "reviewed.csv");
+        ReflectionTestUtils.setField(runner, "file", "dump.jsonl.gz");
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrintStream original = System.out;
         System.setOut(new PrintStream(output, true, StandardCharsets.UTF_8));
@@ -34,8 +34,10 @@ class OffImportRunnerTest {
         assertThat(output.toString(StandardCharsets.UTF_8))
                 .contains("Rows read: 3")
                 .contains("Inserted: 1")
-                .contains("  KCAL_MISMATCH: 1")
-                .contains("Skipped, added by users: 0")
+                .contains("Sold in Poland: 2")
+                .contains("Skipped: 1")
+                .contains("  KCAL_LOOKS_LIKE_KJ: 1")
+                .contains("Products in table: 40")
                 .contains("Products table size: 2.5 MB");
     }
 }

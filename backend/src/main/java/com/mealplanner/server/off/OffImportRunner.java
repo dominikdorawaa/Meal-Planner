@@ -23,6 +23,6 @@ public class OffImportRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws IOException {
-        System.out.print(importService.importReviewed(Path.of(file)).describe());
+        System.out.print(importService.importDump(Path.of(file)).describe());
     }
 }
