@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
@@ -6,10 +6,21 @@ import { BottomNav } from '../components/BottomNav';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { useBottomSheet } from '../lib/bottomSheet';
+import { ShoppingFromPlanPicker } from '../components/ShoppingFromPlanPicker';
+import { t } from '../i18n';
+import { profileMealTypes } from '../lib/mealTypes';
+import { addPlanMealsToShoppingList, type PlanMeal, type ShoppingFromPlanResult } from '../lib/shoppingFromPlan';
+
+const SUCCESS_TOAST_MS = 3500;
+
+const FROM_PLAN_MESSAGES: Record<Exclude<ShoppingFromPlanResult, 'added'>, Parameters<typeof t>[0]> = {
+  'no-recipes': 'shopping.noRecipesSelected',
+  'no-ingredients': 'shopping.noIngredients',
+};
 
 export function ShoppingList() {
   const navigate = useNavigate();
-  const { shoppingList, shoppingListRecipes, refreshShoppingList, setShoppingList } = useAppData();
+  const { shoppingList, shoppingListRecipes, refreshShoppingList, setShoppingList, userMeals, recipes, profile } = useAppData();
   const [items, setItems] = useState<any[]>(shoppingList || []);
   const [sourceRecipes, setSourceRecipes] = useState<any[]>(shoppingListRecipes || []);
   const [activeTab, setActiveTab] = useState<'categories' | 'recipes'>('categories');
@@ -22,6 +33,10 @@ export function ShoppingList() {
   const addSheetRef = useBottomSheet(showAddModal, () => setShowAddModal(false), addSubmitting);
   useCloseOnBack(showConfirm, () => setShowConfirm(false));
   const [addError, setAddError] = useState<string | null>(null);
+  const [showFromPlan, setShowFromPlan] = useState(false);
+  const [fromPlanSubmitting, setFromPlanSubmitting] = useState(false);
+  const [fromPlanError, setFromPlanError] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   useEffect(() => {
     setItems(shoppingList || []);
@@ -81,6 +96,40 @@ export function ShoppingList() {
     } finally {
       setAddSubmitting(false);
     }
+  };
+
+  useEffect(() => {
+    if (!successToast) return;
+    const timer = setTimeout(() => setSuccessToast(null), SUCCESS_TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [successToast]);
+
+  const openFromPlan = () => {
+    setFromPlanError(null);
+    setShowFromPlan(true);
+  };
+
+  const closeFromPlan = useCallback(() => setShowFromPlan(false), []);
+
+  const handleAddFromPlan = async (meals: PlanMeal[]) => {
+    setFromPlanError(null);
+    setFromPlanSubmitting(true);
+    try {
+      const result = await addPlanMealsToShoppingList(meals);
+      if (result !== 'added') {
+        setFromPlanError(t(FROM_PLAN_MESSAGES[result]));
+        return;
+      }
+    } catch (err) {
+      console.error('Error generating shopping list:', err);
+      setFromPlanError(t('shopping.fromPlanFailed'));
+      return;
+    } finally {
+      setFromPlanSubmitting(false);
+    }
+    setShowFromPlan(false);
+    setSuccessToast(t('shopping.ingredientsAdded'));
+    await refreshShoppingList().catch(err => console.error('Error refreshing shopping list:', err));
   };
 
   const clearList = async () => {
@@ -165,18 +214,29 @@ export function ShoppingList() {
       </nav>
 
       <main className="pt-[calc(6rem+env(safe-area-inset-top))] px-6 max-w-screen-md mx-auto">
-        <div className="flex justify-between items-end mb-8">
+        <div className="mb-5">
           <div>
             <p className="text-on-surface-variant font-medium text-sm mb-1 uppercase tracking-widest">Twoja Kolekcja</p>
             <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Koszyk</h2>
           </div>
+        </div>
+
+        <div className="flex gap-2 mb-6">
+          <button
+            type="button"
+            onClick={openFromPlan}
+            className="flex-1 bg-primary-gradient text-on-primary px-3 py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-ambient active:scale-95 transition-transform font-semibold text-[13px] sm:text-sm whitespace-nowrap"
+          >
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">event_note</span>
+            {t('shopping.fromPlan')}
+          </button>
           <button
             type="button"
             onClick={openAddModal}
-            className="bg-primary-gradient text-on-primary px-3 py-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-1.5 shadow-ambient active:scale-95 transition-transform font-semibold text-[13px] sm:text-sm whitespace-nowrap shrink-0"
+            className="flex-1 bg-primary/10 text-primary px-3 py-3 rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-transform font-semibold text-[13px] sm:text-sm whitespace-nowrap"
           >
-            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>add</span>
-            Dodaj produkt
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>add</span>
+            {t('shopping.addProduct')}
           </button>
         </div>
 
@@ -189,7 +249,7 @@ export function ShoppingList() {
            <div className="flex flex-col items-center justify-center text-center mt-20 opacity-60">
               <span className="material-symbols-outlined text-[64px] text-on-surface-variant mb-4">shopping_cart</span>
               <p className="text-on-surface-variant font-medium">Twój koszyk jest pusty.</p>
-              <p className="text-xs text-on-surface-variant mt-2">Wygeneruj listę z kalendarza lub dodaj manualnie.</p>
+              <p className="text-xs text-on-surface-variant mt-2">{t('shopping.emptyHint')}</p>
            </div>
         ) : (
           <div className="space-y-10">
@@ -305,6 +365,25 @@ export function ShoppingList() {
       </main>
       
       <BottomNav />
+
+      {successToast && (
+        <div role="status" className="fixed top-[calc(1.25rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 bg-primary/10 backdrop-blur-md border border-primary/20 text-primary px-4 py-2.5 rounded-full shadow-sm z-[110] flex items-center justify-center gap-2 animate-slide-up whitespace-nowrap">
+          <span className="material-symbols-outlined text-[16px] font-bold">check_circle</span>
+          <span className="font-headline font-bold text-xs tracking-wide">{successToast}</span>
+        </div>
+      )}
+
+      {showFromPlan && (
+        <ShoppingFromPlanPicker
+          meals={userMeals}
+          recipes={recipes}
+          mealTypes={profileMealTypes(profile)}
+          submitting={fromPlanSubmitting}
+          error={fromPlanError}
+          onConfirm={handleAddFromPlan}
+          onClose={closeFromPlan}
+        />
+      )}
 
       {/* Dodaj produkt */}
       {showAddModal && (

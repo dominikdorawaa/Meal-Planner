@@ -115,5 +115,22 @@
   "plan.summary.carbsShort": "W",
   "plan.summary.missing": "Brakuje {amount}",
   "plan.summary.onTarget": "W celu",
-  "plan.summary.over": "Za dużo o {amount}"
+  "plan.summary.over": "Za dużo o {amount}",
+  "shopping.fromPlan": "Utwórz z planu",
+  "shopping.fromPlanTitle": "Utwórz listę z planu",
+  "shopping.fromPlanHint": "Zaznacz dni lub posiłki, z których dodamy składniki na listę.",
+  "shopping.previousWeek": "Poprzedni tydzień",
+  "shopping.nextWeek": "Następny tydzień",
+  "shopping.selectDay": "Zaznacz cały dzień: {day}",
+  "shopping.selectMeal": "Zaznacz: {name}",
+  "shopping.noMeals": "Brak posiłków w planie",
+  "shopping.addIngredients": "Dodaj składniki ({count})",
+  "shopping.cancel": "Anuluj",
+  "shopping.close": "Zamknij",
+  "shopping.ingredientsAdded": "Składniki dodano do listy zakupów",
+  "shopping.noRecipesSelected": "Wybrane posiłki nie są przepisami, nie można wygenerować listy składników.",
+  "shopping.noIngredients": "Wybrane przepisy nie posiadają składników.",
+  "shopping.fromPlanFailed": "Nie udało się dodać składników. Spróbuj ponownie.",
+  "shopping.addProduct": "Dodaj produkt",
+  "shopping.emptyHint": "Utwórz listę z planu lub dodaj produkt ręcznie."
 }
