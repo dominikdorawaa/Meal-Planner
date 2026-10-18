@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => ({
   setUserMeals: vi.fn(),
   navigate: vi.fn(),
   userMeals: [] as Record<string, unknown>[],
+  reload: vi.fn(),
+  profileStatus: 'ready',
+  loading: false,
 }))
 
 vi.mock('../lib/apiClient', () => ({
@@ -24,7 +27,9 @@ vi.mock('../lib/AppDataContext', () => ({
     profile: { target_kcal: 2000, target_protein: 100, target_fat: 70, target_carbs: 250, visible_meals: ['breakfast', 'lunch'] },
     userMeals: mocks.userMeals,
     setUserMeals: mocks.setUserMeals,
-    loading: false,
+    profileStatus: mocks.profileStatus,
+    loading: mocks.loading,
+    reload: mocks.reload,
     refreshMeals: mocks.refreshMeals,
     getConsumedForDay: () => ({ kcal: 0, protein: 0, fat: 0, carbs: 0 }),
     refreshShoppingList: vi.fn(),
@@ -73,6 +78,9 @@ beforeEach(() => {
   mocks.add.mockImplementation(async (payload: Record<string, unknown>) => ({ ...payload, id: `copy-${mocks.add.mock.calls.length}` }))
   mocks.delete.mockResolvedValue(undefined)
   mocks.refreshMeals.mockResolvedValue(undefined)
+  mocks.reload.mockResolvedValue(undefined)
+  mocks.profileStatus = 'ready'
+  mocks.loading = false
 })
 
 afterEach(() => {
@@ -628,5 +636,42 @@ describe('Plan screen top', () => {
 
     const weekBar = screen.getByRole('button', { name: 'Dzisiaj' }).closest('.fixed')
     expect(weekBar?.className.split(' ')).toContain('top-0')
+  })
+})
+
+describe('Plan profile loading', () => {
+  it('shows the plan without onboarding for a user with a calorie goal', () => {
+    const { container } = renderPlan()
+
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).not.toBeNull()
+    expect(mocks.navigate).not.toHaveBeenCalledWith('/onboarding')
+  })
+
+  it('opens onboarding when the loaded profile has no calorie goal', () => {
+    mocks.profileStatus = 'needsOnboarding'
+    renderPlan()
+
+    expect(mocks.navigate).toHaveBeenCalledWith('/onboarding')
+  })
+
+  it('waits on the loading screen while the profile is loading', () => {
+    mocks.profileStatus = 'loading'
+    mocks.loading = true
+    renderPlan()
+
+    expect(screen.getByText('Przygotowujemy Twój profil...')).toBeTruthy()
+    expect(mocks.navigate).not.toHaveBeenCalledWith('/onboarding')
+  })
+
+  it('offers a retry instead of onboarding when the profile could not be fetched', () => {
+    mocks.profileStatus = 'failed'
+    renderPlan()
+
+    expect(screen.getByText('Nie udało się wczytać profilu')).toBeTruthy()
+    expect(mocks.navigate).not.toHaveBeenCalledWith('/onboarding')
+
+    click('Spróbuj ponownie')
+
+    expect(mocks.reload).toHaveBeenCalledOnce()
   })
 })
