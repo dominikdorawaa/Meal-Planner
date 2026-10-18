@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { Plan } from './Plan'
+import { readPlanReturnPosition, rememberPlanReturnPosition } from '../lib/planPosition'
 
 const mocks = vi.hoisted(() => ({
   add: vi.fn(),
@@ -66,7 +67,6 @@ function click(name: string | RegExp) {
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(2026, 9, 12, 12))
-  sessionStorage.setItem('planBaseDate', new Date(2026, 9, 12).toISOString())
   vi.spyOn(console, 'error').mockImplementation(() => {})
   mocks.userMeals.splice(0, mocks.userMeals.length, omelette, coffee, yogurt, soup)
   mocks.add.mockImplementation(async (payload: Record<string, unknown>) => ({ ...payload, id: `copy-${mocks.add.mock.calls.length}` }))
@@ -430,6 +430,129 @@ describe('Plan day deletion', () => {
     click('Usuń')
 
     expect(await screen.findByText('Nie udało się zapisać zmian. Spróbuj ponownie.')).toBeTruthy()
+  })
+})
+
+describe('Plan item deletion', () => {
+  it('deletes an item at once and offers undo', async () => {
+    const { container } = renderPlan()
+
+    openMealMenu(container, '2026-10-12', 'lunch')
+    click(/Usuń posiłek/)
+
+    expect(await screen.findByText('Usunięto Coffee z Lunch')).toBeTruthy()
+    expect(mocks.refreshMeals).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(mocks.delete).toHaveBeenCalledWith('meal-2')
+    expect(mocks.setUserMeals).toHaveBeenCalledOnce()
+
+    click('Cofnij')
+
+    await waitFor(() => expect(mocks.add).toHaveBeenCalledWith(expect.objectContaining({ meal_date: '2026-10-12', meal_type: 'lunch', manual_name: 'Coffee' })))
+    expect(screen.queryByText('Usunięto Coffee z Lunch')).toBeNull()
+  })
+
+  it('hides the deletion message after five seconds', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    vi.setSystemTime(new Date(2026, 9, 12, 12))
+    const { container } = renderPlan()
+
+    openMealMenu(container, '2026-10-12', 'lunch')
+    click(/Usuń posiłek/)
+    await act(async () => {})
+
+    act(() => { vi.advanceTimersByTime(4999) })
+    expect(screen.getByText('Usunięto Coffee z Lunch')).toBeTruthy()
+
+    act(() => { vi.advanceTimersByTime(1) })
+    expect(screen.queryByText('Usunięto Coffee z Lunch')).toBeNull()
+  })
+
+  it('shows an error without undo when deleting an item fails', async () => {
+    mocks.delete.mockRejectedValue(new Error('Server error (500)'))
+    const { container } = renderPlan()
+
+    openMealMenu(container, '2026-10-12', 'lunch')
+    click(/Usuń posiłek/)
+
+    expect(await screen.findByText('Nie udało się zapisać zmian. Spróbuj ponownie.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Cofnij' })).toBeNull()
+  })
+})
+
+describe('Plan start date', () => {
+  it('starts from today when there is no position to return to', () => {
+    const { container } = renderPlan()
+
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).not.toBeNull()
+  })
+
+  it('keeps the week when returning from the add screen on the same day', () => {
+    rememberPlanReturnPosition({ startDate: '2026-10-19', scrollLeft: 0 })
+    const { container } = renderPlan()
+
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
+    expect(container.querySelector('[data-slot="2026-10-19_breakfast"]')).not.toBeNull()
+    expect(readPlanReturnPosition()).toBeNull()
+  })
+
+  it('ignores a week remembered on an earlier day', () => {
+    rememberPlanReturnPosition({ startDate: '2026-10-19', scrollLeft: 0 }, '2026-10-11')
+    const { container } = renderPlan()
+
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).not.toBeNull()
+  })
+
+  it('remembers the shown week when opening the add screen', () => {
+    const { container } = renderPlan()
+
+    click(/Następny/)
+    fireEvent.click(slot(container, '2026-10-19', 'lunch').getByText('add'))
+
+    expect(mocks.navigate).toHaveBeenCalledWith('/add-food?selectDate=2026-10-19&selectType=lunch')
+    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-19', scrollLeft: 0 })
+  })
+
+  it('remembers the shown week when opening an item to edit', () => {
+    const { container } = renderPlan()
+
+    openMealMenu(container, '2026-10-12', 'lunch')
+    click(/Edytuj posiłek/)
+
+    expect(mocks.navigate).toHaveBeenCalledWith('/add-food?selectDate=2026-10-12&selectType=lunch&mealId=meal-2')
+    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-12', scrollLeft: 0 })
+  })
+
+  it('jumps to today at midnight while the plan stays open', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    vi.setSystemTime(new Date(2026, 9, 12, 23, 59))
+    const { container } = renderPlan()
+
+    act(() => { vi.advanceTimersByTime(30 * 1000) })
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).not.toBeNull()
+
+    act(() => { vi.advanceTimersByTime(60 * 1000) })
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
+    expect(container.querySelector('[data-slot="2026-10-13_breakfast"]')).not.toBeNull()
+  })
+
+  it('jumps back to today when the app is shown again on a new day', () => {
+    const { container } = renderPlan()
+    click(/Następny/)
+
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
+
+    vi.setSystemTime(new Date(2026, 9, 13, 8))
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    expect(container.querySelector('[data-slot="2026-10-13_breakfast"]')).toBeNull()
+
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    act(() => { window.dispatchEvent(new Event('focus')) })
+    expect(container.querySelector('[data-slot="2026-10-13_breakfast"]')).not.toBeNull()
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
   })
 })
 
