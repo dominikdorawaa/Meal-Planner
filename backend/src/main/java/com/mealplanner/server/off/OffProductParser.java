@@ -6,6 +6,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 public final class OffProductParser {
 
@@ -13,6 +14,8 @@ public final class OffProductParser {
     static final String POLISH = "pl";
     static final String POLISH_BARCODE_PREFIX = "590";
     static final double KJ_PER_KCAL = 4.184;
+    static final Set<String> PER_HUNDRED = Set.of("100g", "100ml");
+    static final String AS_SOLD = "as_sold";
 
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
@@ -32,21 +35,20 @@ public final class OffProductParser {
     }
 
     public static OffProduct fromNode(JsonNode node) {
-        JsonNode nutriments = node.path("nutriments");
         PolishName name = polishName(node);
         return new OffProduct(
                 text(node, "code"),
                 name.text(),
                 firstBrand(text(node, "brands")),
-                kcal(nutriments),
-                number(nutriments.path("proteins_100g")),
-                number(nutriments.path("fat_100g")),
-                number(nutriments.path("carbohydrates_100g")),
+                kcal(node),
+                nutrient(node, "proteins"),
+                nutrient(node, "fat"),
+                nutrient(node, "carbohydrates"),
                 new ExtraNutrients(
-                        number(nutriments.path("saturated-fat_100g")),
-                        number(nutriments.path("sugars_100g")),
-                        number(nutriments.path("fiber_100g")),
-                        number(nutriments.path("salt_100g"))),
+                        nutrient(node, "saturated-fat"),
+                        nutrient(node, "sugars"),
+                        nutrient(node, "fiber"),
+                        nutrient(node, "salt")),
                 text(node, "quantity"),
                 name.polish());
     }
@@ -103,13 +105,25 @@ public final class OffProductParser {
         return false;
     }
 
-    private static Double kcal(JsonNode nutriments) {
-        Double kcal = number(nutriments.path("energy-kcal_100g"));
+    private static Double kcal(JsonNode node) {
+        Double kcal = nutrient(node, "energy-kcal");
         if (kcal != null) {
             return kcal;
         }
-        Double kj = number(nutriments.path("energy-kj_100g"));
+        Double kj = nutrient(node, "energy-kj");
         return kj == null ? null : Math.round(kj / KJ_PER_KCAL * 10) / 10.0;
+    }
+
+    private static Double nutrient(JsonNode node, String name) {
+        Double value = number(node.path("nutriments").path(name + "_100g"));
+        if (value != null) {
+            return value;
+        }
+        JsonNode aggregated = node.path("nutrition").path("aggregated_set");
+        if (!PER_HUNDRED.contains(text(aggregated, "per")) || !AS_SOLD.equals(text(aggregated, "preparation"))) {
+            return null;
+        }
+        return number(aggregated.path("nutrients").path(name).path("value"));
     }
 
     private static Double number(JsonNode value) {
