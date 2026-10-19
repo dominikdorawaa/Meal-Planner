@@ -1,11 +1,14 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { api } from '../lib/apiClient';
+import { api, type Product } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, firstDayOfMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { productDisplayName } from '../lib/productName';
-import { canDeleteProduct } from '../lib/productPermissions';
-import { NutritionFactsTable } from '../components/NutritionFactsTable';
+import { canEditProduct, isOwnItem, isUnverified } from '../lib/productPermissions';
+import { ProductNutritionTable } from '../components/ProductNutritionTable';
+import { ItemBadges, SaveHeartButton } from '../components/FoodRows';
+import { NewProductSheet, type ProductFormMode } from '../components/NewProductSheet';
+import { draftFromProduct } from '../lib/productDraft';
 import { AmountRow } from '../components/AmountRow';
 import { measureUnit, scaleNutritionFacts } from '../lib/nutrients';
 import { t } from '../i18n';
@@ -42,6 +45,8 @@ export function ProductDetails() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [formMode, setFormMode] = useState<ProductFormMode | null>(null);
   const [calendarDate, setCalendarDate] = useState(() => firstDayOfMonth(selectDate));
 
   useCloseOnBack(showMealPicker || showDatePicker, () => { setShowMealPicker(false); setShowDatePicker(false); });
@@ -71,6 +76,15 @@ export function ProductDetails() {
     }
     loadProduct();
   }, [id]);
+
+  useEffect(() => {
+    if (!id || !user) return;
+    let current = true;
+    api.products.saved()
+      .then(list => { if (current) setSaved(list.some(item => item.id === id)); })
+      .catch(() => {});
+    return () => { current = false; };
+  }, [id, user]);
 
   useEffect(() => {
     async function loadMeal() {
@@ -153,7 +167,28 @@ export function ProductDetails() {
       await api.products.delete(product.id);
       navigate('/?refresh=true');
     } catch (e: any) {
-      alert('Błąd podczas usuwania produktu: ' + e.message);
+      alert(t('product.deleteFailed', { message: e.message }));
+    }
+  };
+
+  const toggleSaved = async () => {
+    if (!product) return;
+    const wasSaved = saved;
+    setSaved(!wasSaved);
+    try {
+      await (wasSaved ? api.products.unsave(product.id) : api.products.save(product.id));
+    } catch {
+      setSaved(wasSaved);
+    }
+  };
+
+  const handleFormSaved = (result: Product) => {
+    const mode = formMode;
+    setFormMode(null);
+    if (mode === 'ownVersion') {
+      navigate(`/product/${result.id}${location.search}`, { state: location.state });
+    } else {
+      setProduct(result);
     }
   };
 
@@ -164,6 +199,8 @@ export function ProductDetails() {
   const MEAL_TYPE_LABELS: Record<string, string> = {
     breakfast: 'Śniadanie', snack1: '2 Śniadanie', lunch: 'Lunch', snack2: 'Przekąska', dinner: 'Obiad', supper: 'Kolacja',
   };
+  const own = isOwnItem(product, user);
+  const editable = canEditProduct(product, user);
   const mealLabel = availableMealTypes.find((m: any) => m.id === activeMealType)?.name || MEAL_TYPE_LABELS[activeMealType] || activeMealType;
   const todayStr = todayIsoDate();
   const activeDateDisplay = formatShortDayLabel(activeDate || selectDate || '');
@@ -262,32 +299,66 @@ export function ProductDetails() {
           )}
         </div>
 
-        {canDeleteProduct(product, user) && (
-        <div className="relative ml-auto">
-          <button 
-            onClick={() => setShowMenu(!showMenu)} 
+        {user && !product.deleted && (
+        <div className="relative ml-auto flex items-center">
+          {!own && <SaveHeartButton saved={saved} name={productDisplayName(product)} onToggle={toggleSaved} className="w-10 h-10" />}
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            aria-label={t('product.menu')}
+            aria-expanded={showMenu}
             className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 shrink-0"
           >
             <span className="material-symbols-outlined">more_vert</span>
           </button>
-          
+
           {showMenu && (
             <>
-              <div 
-                className="fixed inset-0 z-40" 
-                onClick={() => setShowMenu(false)} 
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowMenu(false)}
               />
-              <div className="absolute right-0 top-12 w-48 bg-surface-container border border-outline-variant/10 rounded-xl shadow-lg z-50 overflow-hidden text-sm py-1 animate-fade-in">
-                <button
-                  onClick={() => {
-                    setShowMenu(false);
-                    setShowDeleteConfirm(true);
-                  }}
-                  className="w-full flex items-center px-4 py-3 text-left font-medium text-error hover:bg-surface-container-highest transition-colors font-body"
-                >
-                  <span className="material-symbols-outlined mr-3 text-[18px]">delete</span>
-                  Usuń z bazy
-                </button>
+              <div role="menu" className="absolute right-0 top-12 w-56 bg-surface-container border border-outline-variant/10 rounded-xl shadow-lg z-50 overflow-hidden text-sm py-1 animate-fade-in">
+                {editable ? (
+                  <>
+                    <button
+                      role="menuitem"
+                      onClick={() => { setShowMenu(false); setFormMode('edit'); }}
+                      className="w-full flex items-center px-4 py-3 text-left font-medium text-on-surface hover:bg-surface-container-highest transition-colors font-body"
+                    >
+                      <span className="material-symbols-outlined mr-3 text-[18px]">edit</span>
+                      {t('product.edit')}
+                    </button>
+                    <button
+                      role="menuitem"
+                      onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }}
+                      className="w-full flex items-center px-4 py-3 text-left font-medium text-error hover:bg-surface-container-highest transition-colors font-body"
+                    >
+                      <span className="material-symbols-outlined mr-3 text-[18px]">delete</span>
+                      {t('product.delete')}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      role="menuitem"
+                      onClick={() => { setShowMenu(false); setFormMode('ownVersion'); }}
+                      className="w-full flex items-center px-4 py-3 text-left font-medium text-on-surface hover:bg-surface-container-highest transition-colors font-body"
+                    >
+                      <span className="material-symbols-outlined mr-3 text-[18px]">content_copy</span>
+                      {t('product.makeOwnVersion')}
+                    </button>
+                    {saved && (
+                      <button
+                        role="menuitem"
+                        onClick={() => { setShowMenu(false); toggleSaved(); }}
+                        className="w-full flex items-center px-4 py-3 text-left font-medium text-error hover:bg-surface-container-highest transition-colors font-body"
+                      >
+                        <span className="material-symbols-outlined mr-3 text-[18px]">heart_minus</span>
+                        {t('product.unsave')}
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
             </>
           )}
@@ -302,22 +373,22 @@ export function ProductDetails() {
             <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mb-4 text-error">
               <span className="material-symbols-outlined text-[32px]">warning</span>
             </div>
-            <h3 className="font-headline font-bold text-xl text-on-surface mb-2">Usunąć trwale?</h3>
+            <h3 className="font-headline font-bold text-xl text-on-surface mb-2">{t('product.deleteTitle')}</h3>
             <p className="text-on-surface-variant mb-8 text-sm leading-relaxed px-2">
-              Produkt <strong className="text-on-surface">{productDisplayName(product)}</strong> zostanie usunięty z bazy produktów. Posiłki, w których go użyto, pozostaną w planie.
+              {t('product.deleteText', { name: productDisplayName(product) })}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 w-full">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 className="flex-1 py-3.5 bg-surface-container-highest text-on-surface hover:bg-surface-container-highest/80 rounded-xl font-bold font-headline transition-colors active:scale-95 text-sm"
               >
-                Anuluj
+                {t('product.cancel')}
               </button>
               <button
                 onClick={handleDeleteProduct}
                 className="flex-1 py-3.5 bg-error text-on-error hover:bg-error/90 rounded-xl font-bold font-headline shadow-sm transition-colors active:scale-95 text-sm"
               >
-                Usuń produkt
+                {t('product.deleteConfirm')}
               </button>
             </div>
           </div>
@@ -327,6 +398,9 @@ export function ProductDetails() {
       {/* Produkt Title - Zgodny ze screenem (pod nagłówkiem, bez zdjęcia) */}
       <div className="max-w-xl mx-auto w-full px-4 pt-6">
         <h1 className="font-headline font-bold text-2xl text-on-surface tracking-tight leading-tight">{productDisplayName(product)}</h1>
+        <div className="mt-2 empty:hidden">
+          <ItemBadges own={own} unverified={isUnverified(product)} />
+        </div>
       </div>
 
       {/* Kalkulator - Zgodny ze stylem "pigułek" ze screena */}
@@ -419,8 +493,10 @@ export function ProductDetails() {
           </div>
         </section>
 
-        <NutritionFactsTable
+        <ProductNutritionTable
           title={t('nutrients.productTitle')}
+          unit={measureUnit(product.unit)}
+          per100={product}
           columns={[
             { label: t('nutrients.per100', { unit: measureUnit(product.unit) }), values: product },
             {
@@ -550,6 +626,17 @@ export function ProductDetails() {
           </div>
         )}
       </main>
+
+      {formMode && (
+        <NewProductSheet
+          draft={draftFromProduct(product)}
+          mode={formMode}
+          source={product}
+          onClose={() => setFormMode(null)}
+          onCreated={handleFormSaved}
+          existingProductAction={{ href: existing => `/product/${existing.id}${location.search}` }}
+        />
+      )}
 
       {/* Floating Add to Plan Bar - Zgodnie ze screenem */}
       {selectDate && selectType && (

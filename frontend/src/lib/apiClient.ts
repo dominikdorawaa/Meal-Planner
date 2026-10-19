@@ -61,12 +61,14 @@ export interface RecipeSummary {
   id: string;
   name: string;
   image_url?: string | null;
-  kcal: number;
-  protein: number;
-  fat: number;
-  carbs: number;
+  kcal?: number | null;
+  protein?: number | null;
+  fat?: number | null;
+  carbs?: number | null;
   prep_time?: number | null;
   portions?: number | null;
+  created_by?: string | null;
+  status?: string;
   own?: boolean;
   saved?: boolean;
 }
@@ -264,8 +266,26 @@ export const api = {
     async create(data: any): Promise<any> {
       return request<any>('POST', '/api/products', data);
     },
+    async update(id: string, data: Record<string, unknown>): Promise<Product> {
+      return request<Product>('PUT', `/api/products/${id}`, data);
+    },
+    async createOwnVersion(id: string, data: Record<string, unknown>): Promise<Product> {
+      return request<Product>('POST', `/api/products/${id}/own-version`, data);
+    },
     async delete(id: string): Promise<void> {
       return request<void>('DELETE', `/api/products/${id}`);
+    },
+    async saved(): Promise<Product[]> {
+      return request<Product[]>('GET', '/api/products/saved');
+    },
+    async own(): Promise<Product[]> {
+      return request<Product[]>('GET', '/api/products/own');
+    },
+    async save(id: string): Promise<void> {
+      return request<void>('POST', `/api/products/${id}/saved`);
+    },
+    async unsave(id: string): Promise<void> {
+      return request<void>('DELETE', `/api/products/${id}/saved`);
     }
   },
 
@@ -289,7 +309,7 @@ export const api = {
     async restore(id: string): Promise<RecipeSummary> {
       return request<RecipeSummary>('PATCH', `/api/recipes/${id}/restore`);
     },
-    async getSaved(): Promise<RecipeSummary[]> {
+    async saved(): Promise<RecipeSummary[]> {
       return request<RecipeSummary[]>('GET', '/api/recipes/saved');
     },
     async save(id: string): Promise<void> {

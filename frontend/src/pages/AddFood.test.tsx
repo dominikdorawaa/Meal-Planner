@@ -13,22 +13,43 @@ const mocks = vi.hoisted(() => ({
   getProduct: vi.fn(),
   createProduct: vi.fn(),
   findProductByBarCode: vi.fn(),
+  savedProducts: vi.fn(),
+  ownProducts: vi.fn(),
+  saveProduct: vi.fn(),
+  unsaveProduct: vi.fn(),
+  savedRecipes: vi.fn(),
+  saveRecipe: vi.fn(),
+  unsaveRecipe: vi.fn(),
+  searchArgs: [] as { query: string; enabled: boolean }[],
+  searchItems: [] as object[],
+  recipes: [] as object[],
 }));
 
 vi.mock('../lib/apiClient', () => ({
   api: {
     meals: { add: mocks.addMeal, update: mocks.updateMeal, getAll: mocks.getAllMeals },
-    products: { create: mocks.createProduct, getByBarCode: vi.fn(), getById: mocks.getProduct, delete: vi.fn() },
+    products: {
+      create: mocks.createProduct,
+      getByBarCode: vi.fn(),
+      getById: mocks.getProduct,
+      delete: vi.fn(),
+      saved: mocks.savedProducts,
+      own: mocks.ownProducts,
+      save: mocks.saveProduct,
+      unsave: mocks.unsaveProduct,
+    },
+    recipes: { saved: mocks.savedRecipes, save: mocks.saveRecipe, unsave: mocks.unsaveRecipe },
   },
 }));
 
 vi.mock('../lib/AppDataContext', () => ({
   useAppData: () => ({
-    recipes: [
-      { id: 'r1', name: 'Owsianka', kcal: 350 },
-      { id: 'r2', name: 'Omlet', kcal: 420 },
+    recipes: mocks.recipes,
+    userMeals: [
+      { recipe: { id: 'r1' }, created_at: '2026-10-16T10:00:00Z' },
+      { product: { id: 'p1', name: 'Jogurt', kcal: 60 }, created_at: '2026-10-15T10:00:00Z' },
+      { recipe: { id: 'r2' }, created_at: '2026-10-14T10:00:00Z' },
     ],
-    userMeals: [],
     profile: null,
     loading: false,
     refreshMeals: mocks.refreshMeals,
@@ -38,14 +59,17 @@ vi.mock('../lib/AppDataContext', () => ({
 }));
 
 vi.mock('../lib/useProductSearch', () => ({
-  useProductSearch: () => ({
-    items: [{ id: 'p1', name: 'Jogurt', kcal: 60 }],
+  useProductSearch: (args: { query: string; enabled: boolean }) => {
+    mocks.searchArgs.push(args);
+    return {
+    items: mocks.searchItems,
     hasNext: false,
     loading: false,
     error: null,
     loadMore: vi.fn(),
     reload: vi.fn(),
-  }),
+    };
+  },
 }));
 
 vi.mock('../lib/barcodeLookup', async importOriginal => ({
@@ -105,6 +129,15 @@ function checkbox(name: string) {
   return screen.getByRole('checkbox', { name: t('addFood.selectItem', { name }) });
 }
 
+function tab(name: string) {
+  return screen.getByRole('tab', { name: new RegExp(name) });
+}
+
+async function openSavedTab() {
+  fireEvent.click(tab('Zapisane'));
+  await screen.findByRole('checkbox', { name: t('addFood.selectItem', { name: 'Jogurt' }) });
+}
+
 function addSelectedButton(count: number) {
   return screen.queryByRole('button', { name: new RegExp(`Dodaj \\(${count}\\)`) });
 }
@@ -118,6 +151,23 @@ beforeEach(() => {
   mocks.getAllMeals.mockResolvedValue([]);
   mocks.refreshMeals.mockResolvedValue(undefined);
   mocks.getProduct.mockResolvedValue({ id: 'p1', name: 'Jogurt', kcal: 60, protein: 4, fat: 3, carbs: 5 });
+  mocks.recipes = [
+    { id: 'r1', name: 'Owsianka', kcal: 350, protein: 12, fat: 6, carbs: 60 },
+    { id: 'r2', name: 'Omlet', kcal: 420, protein: 25, fat: 30, carbs: 4 },
+    { id: 'r3', name: 'Moja sałatka', kcal: 210, protein: 5, fat: 15, carbs: 12, created_by: 'user-1' },
+  ];
+  mocks.searchArgs = [];
+  mocks.searchItems = [
+    { id: 'p1', name: 'Jogurt', kcal: 60 },
+    { id: 'p4', name: 'Kefir', kcal: 50, status: 'VERIFIED' },
+  ];
+  mocks.savedProducts.mockResolvedValue([{ id: 'p1', name: 'Jogurt', kcal: 60 }]);
+  mocks.ownProducts.mockResolvedValue([{ id: 'p3', name: 'Mój baton', kcal: 200, status: 'PENDING', created_by: 'user-1' }]);
+  mocks.saveProduct.mockResolvedValue(undefined);
+  mocks.unsaveProduct.mockResolvedValue(undefined);
+  mocks.savedRecipes.mockResolvedValue([{ id: 'r1', name: 'Owsianka', kcal: 350 }]);
+  mocks.saveRecipe.mockResolvedValue(undefined);
+  mocks.unsaveRecipe.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -131,7 +181,7 @@ afterEach(() => {
 describe('AddFood selection', () => {
   it('adds all checked items with default portions and returns to the plan', async () => {
     renderAddFood();
-    fireEvent.click(screen.getByText('Zapisane'));
+    await openSavedTab();
 
     expect(addSelectedButton(1)).toBeNull();
     fireEvent.click(checkbox('Owsianka'));
@@ -197,7 +247,7 @@ describe('AddFood selection', () => {
 
   it('keeps the selection after the back arrow on the product details screen', async () => {
     renderAddFood();
-    fireEvent.click(screen.getByText('Zapisane'));
+    await openSavedTab();
     fireEvent.click(checkbox('Owsianka'));
 
     fireEvent.click(screen.getByText('Jogurt'));
@@ -227,7 +277,7 @@ describe('AddFood selection', () => {
 
   it('does not bring back saved selections when going back in history', async () => {
     renderAddFood();
-    fireEvent.click(screen.getByText('Zapisane'));
+    await openSavedTab();
     fireEvent.click(checkbox('Owsianka'));
     fireEvent.click(screen.getByText('Jogurt'));
     await screen.findByDisplayValue('100');
@@ -271,6 +321,183 @@ describe('AddFood selection', () => {
     await screen.findByText('plan screen');
     expect(mocks.updateMeal).toHaveBeenCalledWith('m1', expect.objectContaining({ manual_name: 'Pizza' }));
     expect(mocks.addMeal).not.toHaveBeenCalled();
+  });
+});
+
+describe('AddFood tabs', () => {
+  it('shows only Ostatnie, Zapisane and Własne tabs', () => {
+    renderAddFood();
+
+    expect(screen.getAllByRole('tab').map(item => item.textContent)).toEqual(['historyOstatnie', 'favoriteZapisane', 'personWłasne']);
+  });
+
+  it('lists what was added to the plan, newest first, in Ostatnie', () => {
+    renderAddFood();
+
+    const names = screen.getAllByRole('checkbox').map(item => item.getAttribute('aria-label'));
+    expect(names).toEqual(['Owsianka', 'Jogurt', 'Omlet'].map(name => t('addFood.selectItem', { name })));
+    expect(mocks.searchArgs.at(-1)?.enabled).toBe(false);
+  });
+
+  it('shows saved recipes and products in Zapisane', async () => {
+    renderAddFood();
+    await openSavedTab();
+
+    expect(screen.getByText('Owsianka')).toBeTruthy();
+    expect(screen.queryByText('Omlet')).toBeNull();
+  });
+
+  it('hides the empty section when only recipes are saved', async () => {
+    mocks.savedProducts.mockResolvedValue([]);
+    renderAddFood();
+    fireEvent.click(tab('Zapisane'));
+
+    expect(await screen.findByText('Owsianka')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Przepisy' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Produkty' })).toBeNull();
+  });
+
+  it('explains how to save items when nothing is saved', async () => {
+    mocks.savedProducts.mockResolvedValue([]);
+    mocks.savedRecipes.mockResolvedValue([]);
+    renderAddFood();
+    fireEvent.click(tab('Zapisane'));
+
+    expect(await screen.findByText(t('food.savedEmpty'))).toBeTruthy();
+  });
+
+  it('shows own products and own recipes with their labels in Własne', async () => {
+    renderAddFood();
+    fireEvent.click(tab('Własne'));
+
+    expect(await screen.findByText('Mój baton')).toBeTruthy();
+    expect(screen.getByText('Moja sałatka')).toBeTruthy();
+    expect(screen.queryByText('Owsianka')).toBeNull();
+    expect(screen.getAllByText('Twój')).toHaveLength(2);
+    expect(screen.getAllByText('niezweryfikowany')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: t('food.save', { name: 'Mój baton' }) })).toBeNull();
+  });
+
+  it('shows empty own sections when the user has nothing of their own', async () => {
+    mocks.ownProducts.mockResolvedValue([]);
+    mocks.recipes = [{ id: 'r1', name: 'Owsianka', kcal: 350, own: false, created_by: 'user-1' }];
+    renderAddFood();
+    fireEvent.click(tab('Własne'));
+
+    expect(await screen.findByText(t('food.ownProductsEmpty'))).toBeTruthy();
+    expect(screen.getByText(t('food.ownRecipesEmpty'))).toBeTruthy();
+  });
+
+  it('searches the whole product base and visible recipes whatever tab is open', () => {
+    renderAddFood();
+    fireEvent.click(tab('Własne'));
+    fireEvent.change(screen.getByPlaceholderText('Szukaj przepisów, produktów...'), { target: { value: 'om' } });
+
+    expect(mocks.searchArgs.at(-1)).toEqual(expect.objectContaining({ query: 'om', enabled: true }));
+    expect(screen.getByText('Omlet')).toBeTruthy();
+    expect(screen.queryByText('Owsianka')).toBeNull();
+    expect(screen.getByText('Kefir')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Własne/ }).getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('filters recipes by nutrition in search results', () => {
+    renderAddFood();
+    fireEvent.click(screen.getByTitle('Filtruj wyniki'));
+    fireEvent.change(screen.getByPlaceholderText('np. 500'), { target: { value: '400' } });
+
+    expect(screen.getByText('Owsianka')).toBeTruthy();
+    expect(screen.queryByText('Omlet')).toBeNull();
+  });
+
+  it('applies every nutrition filter to recipes', () => {
+    renderAddFood();
+    fireEvent.click(screen.getByTitle('Filtruj wyniki'));
+    const field = (placeholder: string) => screen.getByPlaceholderText(placeholder);
+
+    fireEvent.change(field('np. 20'), { target: { value: '10' } });
+    expect(screen.queryByText('Moja sałatka')).toBeNull();
+    expect(screen.getByText('Owsianka')).toBeTruthy();
+
+    fireEvent.change(field('np. 15'), { target: { value: '20' } });
+    expect(screen.queryByText('Omlet')).toBeNull();
+
+    fireEvent.change(field('np. 50'), { target: { value: '50' } });
+    expect(screen.queryByText('Owsianka')).toBeNull();
+    expect(screen.getByText(t('food.noRecipes'))).toBeTruthy();
+  });
+
+  it('tells when the search finds nothing', () => {
+    mocks.searchItems = [];
+    renderAddFood();
+    fireEvent.change(screen.getByPlaceholderText('Szukaj przepisów, produktów...'), { target: { value: 'zzz' } });
+
+    expect(screen.getByText(t('food.noRecipes'))).toBeTruthy();
+    expect(screen.getByText(t('food.noProducts'))).toBeTruthy();
+  });
+
+  it('saves and unsaves a product with the heart', async () => {
+    renderAddFood();
+    await openSavedTab();
+    fireEvent.change(screen.getByPlaceholderText('Szukaj przepisów, produktów...'), { target: { value: 'kef' } });
+
+    fireEvent.click(screen.getByRole('button', { name: t('food.save', { name: 'Kefir' }) }));
+    await waitFor(() => expect(mocks.saveProduct).toHaveBeenCalledWith('p4'));
+    expect(screen.getByRole('button', { name: t('food.unsave', { name: 'Kefir' }) }).getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(screen.getByRole('button', { name: t('food.unsave', { name: 'Kefir' }) }));
+    await waitFor(() => expect(mocks.unsaveProduct).toHaveBeenCalledWith('p4'));
+    expect(mocks.addMeal).not.toHaveBeenCalled();
+  });
+
+  it('brings the heart back when saving fails', async () => {
+    mocks.unsaveProduct.mockRejectedValue(new Error('offline'));
+    renderAddFood();
+    await openSavedTab();
+
+    fireEvent.click(screen.getByRole('button', { name: t('food.unsave', { name: 'Jogurt' }) }));
+
+    expect(await screen.findByRole('button', { name: t('food.unsave', { name: 'Jogurt' }) })).toBeTruthy();
+  });
+
+  it('saves and unsaves a recipe with the heart', async () => {
+    renderAddFood();
+    await openSavedTab();
+
+    fireEvent.click(screen.getByRole('button', { name: t('food.unsave', { name: 'Owsianka' }) }));
+    await waitFor(() => expect(mocks.unsaveRecipe).toHaveBeenCalledWith('r1'));
+    expect(screen.queryByText('Owsianka')).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText('Szukaj przepisów, produktów...'), { target: { value: 'owsi' } });
+    fireEvent.click(screen.getByRole('button', { name: t('food.save', { name: 'Owsianka' }) }));
+    await waitFor(() => expect(mocks.saveRecipe).toHaveBeenCalledWith('r1'));
+  });
+
+  it('restores the recipe heart when the server rejects the change', async () => {
+    mocks.saveRecipe.mockRejectedValue(new Error('offline'));
+    mocks.unsaveRecipe.mockRejectedValue(new Error('offline'));
+    renderAddFood();
+    await openSavedTab();
+    fireEvent.change(screen.getByPlaceholderText('Szukaj przepisów, produktów...'), { target: { value: 'o' } });
+
+    fireEvent.click(screen.getByRole('button', { name: t('food.save', { name: 'Omlet' }) }));
+    expect(await screen.findByRole('button', { name: t('food.save', { name: 'Omlet' }) })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: t('food.unsave', { name: 'Owsianka' }) }));
+    expect(await screen.findByRole('button', { name: t('food.unsave', { name: 'Owsianka' }) })).toBeTruthy();
+  });
+
+  it('hides recipe hearts and uses saved flags when the saved recipes service is not available yet', async () => {
+    mocks.savedRecipes.mockRejectedValue(new Error('Not found'));
+    mocks.recipes = [
+      { id: 'r1', name: 'Owsianka', kcal: 350, saved: true },
+      { id: 'r2', name: 'Omlet', kcal: 420 },
+    ];
+    renderAddFood();
+    await openSavedTab();
+
+    expect(screen.getByText('Owsianka')).toBeTruthy();
+    expect(screen.queryByText('Omlet')).toBeNull();
+    expect(screen.queryByRole('button', { name: t('food.unsave', { name: 'Owsianka' }) })).toBeNull();
   });
 });
 

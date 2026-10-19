@@ -6,7 +6,7 @@ import { EXTRA_NUTRIENTS, extraNutrientInputs, type ExtraNutrientValues } from '
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { isValidPackageWeight } from '../lib/packageWeight';
 import { useExistingBarCodeProduct } from '../lib/useExistingBarCodeProduct';
-import { t } from '../i18n';
+import { t, type MessageKey } from '../i18n';
 import { BarCodeField, type ExistingProductAction } from './BarCodeField';
 import { MoreNutrientsFields } from './MoreNutrientsFields';
 
@@ -17,15 +17,31 @@ export interface NewProductDraft {
   message?: string | null;
 }
 
+export type ProductFormMode = 'create' | 'edit' | 'ownVersion';
+
 interface NewProductSheetProps {
   draft: NewProductDraft;
   onClose: () => void;
   onCreated: (product: Product) => void;
   existingProductAction: ExistingProductAction;
+  mode?: ProductFormMode;
+  source?: Product | null;
 }
+
+const MODE_TEXTS: Record<ProductFormMode, { title: MessageKey; submit: MessageKey; icon: string }> = {
+  create: { title: 'productForm.newTitle', submit: 'productForm.create', icon: 'add_circle' },
+  edit: { title: 'productForm.editTitle', submit: 'productForm.saveChanges', icon: 'save' },
+  ownVersion: { title: 'productForm.ownVersionTitle', submit: 'productForm.saveOwnVersion', icon: 'content_copy' },
+};
 
 function inputValue(value: string | number | null | undefined): string {
   return value == null ? '' : String(value);
+}
+
+function saveProduct(mode: ProductFormMode, source: Product | null | undefined, data: Record<string, unknown>): Promise<Product> {
+  if (mode === 'edit' && source) return api.products.update(source.id, data);
+  if (mode === 'ownVersion' && source) return api.products.createOwnVersion(source.id, data);
+  return api.products.create(data);
 }
 
 function formFrom({ name, barCode, prefill }: NewProductDraft) {
@@ -42,7 +58,7 @@ function formFrom({ name, barCode, prefill }: NewProductDraft) {
   };
 }
 
-export function NewProductSheet({ draft, onClose, onCreated, existingProductAction }: NewProductSheetProps) {
+export function NewProductSheet({ draft, onClose, onCreated, existingProductAction, mode = 'create', source = null }: NewProductSheetProps) {
   const [form, setForm] = useState(() => formFrom(draft));
   const [scanMessage, setScanMessage] = useState(draft.message ?? null);
   const [creating, setCreating] = useState(false);
@@ -58,19 +74,23 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
     extras: Object.fromEntries(EXTRA_NUTRIENTS.map(nutrient =>
       [nutrient, parseNutritionValue(form.extras[nutrient])])) as ExtraNutrientValues,
   }), [form]);
-  const check = useMemo(() => checkNutrition(values), [values]);
+  const keepsSourceBarCode = source !== null && mode !== 'create' && form.barCode === (source.bar_code ?? '');
+  const inheritsBarCode = keepsSourceBarCode && mode === 'ownVersion';
+  const check = useMemo(() => checkNutrition(inheritsBarCode ? { ...values, barCode: null } : values), [values, inheritsBarCode]);
   const packageWeightValid = isValidPackageWeight(values.packageWeight);
   const nutrientsStarted = [form.kcal, form.protein, form.fat, form.carbs].some(value => value.trim() !== '');
   const hints = formNutritionHints(check, nutrientsStarted);
   const existingBarCode = useExistingBarCodeProduct(form.barCode);
-  const barCodeBlocksSaving = existingBarCode.checking || existingBarCode.product !== null;
+  const existingProduct = keepsSourceBarCode || existingBarCode.product?.id === source?.id ? null : existingBarCode.product;
+  const barCodeBlocksSaving = !keepsSourceBarCode && (existingBarCode.checking || existingProduct !== null);
+  const texts = MODE_TEXTS[mode];
   const sheetRef = useBottomSheet(true, onClose);
 
   const handleCreate = async () => {
     if (!check.valid || !packageWeightValid || barCodeBlocksSaving) return;
     setCreating(true);
     try {
-      const product = await api.products.create({
+      const product = await saveProduct(mode, source, {
         name: values.name,
         kcal: values.kcal,
         protein: values.protein,
@@ -80,11 +100,11 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
         bar_code: values.barCode,
         package_weight: values.packageWeight,
         brand: form.brand.trim() || null,
-        unit: '100g',
+        unit: source?.unit ?? '100g',
       });
       onCreated(product);
     } catch (err) {
-      alert(`Błąd przy tworzeniu produktu: ${err instanceof Error ? err.message : String(err)}`);
+      alert(t('productForm.saveFailed', { message: err instanceof Error ? err.message : String(err) }));
       setCreating(false);
     }
   };
@@ -100,11 +120,11 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
               <span className="material-symbols-outlined text-xl">grocery</span>
             </div>
             <div>
-              <h2 className="font-headline font-bold text-lg text-on-surface leading-tight">Nowy produkt</h2>
-              <span className="text-[11px] font-medium text-on-surface-variant">wartości na 100g</span>
+              <h2 className="font-headline font-bold text-lg text-on-surface leading-tight">{t(texts.title)}</h2>
+              <span className="text-[11px] font-medium text-on-surface-variant">{t('productForm.per100')}</span>
             </div>
           </div>
-          <button onClick={() => onClose()} className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors active:scale-90">
+          <button onClick={() => onClose()} aria-label={t('productForm.close')} className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors active:scale-90">
             <span className="material-symbols-outlined text-[18px]">close</span>
           </button>
         </div>
@@ -113,38 +133,33 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
           {scanMessage && (
             <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-primary/10 text-on-surface">{scanMessage}</p>
           )}
-          <BarCodeField
-            value={form.barCode}
-            onChange={barCode => {
-              if (barCode !== form.barCode) setScanMessage(null);
-              setForm(p => ({ ...p, barCode }));
-            }}
-            existingProduct={existingBarCode.product}
-            existingProductAction={existingProductAction}
-          />
+          {mode === 'ownVersion' && (
+            <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-primary/10 text-on-surface">{t('productForm.ownVersionHint')}</p>
+          )}
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">Nazwa *</label>
+            <label htmlFor="product-form-name" className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('productForm.name')}</label>
             <input
+              id="product-form-name"
               type="text"
               value={form.name}
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
               className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
-              placeholder="np. Jogurt naturalny"
+              placeholder={t('productForm.namePlaceholder')}
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">Marka / producent</label>
+            <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('productForm.brand')}</label>
             <input
               type="text"
               value={form.brand}
               onChange={e => setForm(p => ({ ...p, brand: e.target.value }))}
               className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
-              placeholder="np. Piątnica"
+              placeholder={t('productForm.brandPlaceholder')}
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">Kalorie (kcal) *</label>
+            <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('productForm.kcal')}</label>
             <div className="relative flex items-center rounded-2xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
               <input
                 type="number" min="0"
@@ -159,9 +174,9 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
           </div>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { key: 'protein', label: 'Białko *' },
-              { key: 'carbs', label: 'Węgle *' },
-              { key: 'fat', label: 'Tłuszcz *' },
+              { key: 'protein', label: t('productForm.protein') },
+              { key: 'carbs', label: t('productForm.carbs') },
+              { key: 'fat', label: t('productForm.fat') },
             ].map(f => (
               <div key={f.key} className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest leading-none truncate">{f.label}</label>
@@ -191,7 +206,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
                 onChange={e => setForm(p => ({ ...p, packageWeight: e.target.value }))}
                 aria-invalid={!packageWeightValid}
                 className="flex-1 bg-transparent py-3.5 pl-4 pr-12 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:font-medium placeholder:text-on-surface-variant/40"
-                placeholder="np. 450"
+                placeholder={t('productForm.packageWeightPlaceholder')}
               />
               <span className="absolute right-4 text-[10px] font-black text-on-surface-variant/50 uppercase">g</span>
             </div>
@@ -203,6 +218,16 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
           <MoreNutrientsFields
             values={form.extras}
             onChange={(nutrient, value) => setForm(p => ({ ...p, extras: { ...p.extras, [nutrient]: value } }))}
+          />
+
+          <BarCodeField
+            value={form.barCode}
+            onChange={barCode => {
+              if (barCode !== form.barCode) setScanMessage(null);
+              setForm(p => ({ ...p, barCode }));
+            }}
+            existingProduct={existingProduct}
+            existingProductAction={existingProductAction}
           />
 
           {hints.length > 0 && (
@@ -229,8 +254,8 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
             <div className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
           ) : (
             <>
-              <span className="material-symbols-outlined text-[18px]">add_circle</span>
-              Dodaj produkt
+              <span className="material-symbols-outlined text-[18px]">{texts.icon}</span>
+              {t(texts.submit)}
             </>
           )}
         </button>

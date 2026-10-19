@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../lib/apiClient', () => ({
   api: {
     meals: { add: mocks.addMeal, update: mocks.updateMeal, getAll: mocks.getAllMeals },
-    products: { getById: mocks.getProduct, delete: vi.fn() },
+    products: { getById: mocks.getProduct, delete: vi.fn(), saved: vi.fn().mockResolvedValue([]) },
     recipes: { getById: mocks.getRecipe, archive: vi.fn() },
   },
 }));

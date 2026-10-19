@@ -4,8 +4,17 @@ type SavedProduct = Omit<Partial<Product>, 'kcal'> & { kcal?: number | null };
 
 interface MealWithProduct {
   product?: SavedProduct | string | null;
+  recipe?: { id?: string } | string | null;
   created_at?: string;
 }
+
+interface KnownRecipe {
+  id: string;
+}
+
+export type RecentItem<R extends KnownRecipe> =
+  | { kind: 'product'; item: Product }
+  | { kind: 'recipe'; item: R };
 
 function productId(meal: MealWithProduct | null | undefined): string | undefined {
   const product = meal?.product;
@@ -34,15 +43,31 @@ export function resolveMealProduct(meal: MealWithProduct | null, meals: MealWith
   return known ? withDetails(known) : null;
 }
 
-export function recentMealProducts(meals: MealWithProduct[], limit: number): Product[] {
-  const sorted = [...meals].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+function newestFirst(meals: MealWithProduct[]): MealWithProduct[] {
+  return [...meals].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+}
+
+function recipeId(meal: MealWithProduct): string | undefined {
+  const recipe = meal.recipe;
+  if (typeof recipe === 'string') return recipe;
+  return recipe?.id;
+}
+
+export function recentMealItems<R extends KnownRecipe>(meals: MealWithProduct[], recipes: R[], limit: number): RecentItem<R>[] {
   const seen = new Set<string>();
-  const result: Product[] = [];
-  for (const meal of sorted) {
+  const result: RecentItem<R>[] = [];
+  for (const meal of newestFirst(meals)) {
     const product = withNutrition(meal);
-    if (!product || product.deleted || seen.has(product.id)) continue;
-    seen.add(product.id);
-    result.push(product);
+    const id = recipeId(meal);
+    const recipe = id ? recipes.find(known => known.id === id) : undefined;
+    const entry: RecentItem<R> | null = product && !product.deleted
+      ? { kind: 'product', item: product }
+      : recipe ? { kind: 'recipe', item: recipe } : null;
+    if (!entry) continue;
+    const key = `${entry.kind}:${entry.item.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(entry);
     if (result.length === limit) break;
   }
   return result;

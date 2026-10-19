@@ -2,7 +2,18 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { t, type MessageKey } from '../i18n';
 import { isValidBarCode } from '../lib/nutritionCheck';
 import { normalizeBarCode } from '../lib/barcodeLookup';
-import { isCameraSupported, openBarcodeCamera, setTorch, stopCamera, tuneBarcodeCamera } from '../lib/barcodeCamera';
+import {
+  CLOSE_UP_ZOOM,
+  DEFAULT_ZOOM,
+  clampZoom,
+  isCameraSupported,
+  openBarcodeCamera,
+  setTorch,
+  setZoom,
+  stopCamera,
+  tuneBarcodeCamera,
+  type ZoomRange,
+} from '../lib/barcodeCamera';
 import { createBarcodeReader, createReadConfirmer } from '../lib/barcodeDetection';
 import { useSwipeDownToClose } from '../lib/swipeDownToClose';
 
@@ -35,6 +46,8 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
   const [cameraState, setCameraState] = useState<CameraState>('starting');
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  const [zoomRange, setZoomRange] = useState<ZoomRange | null>(null);
+  const [closeUp, setCloseUp] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [manualError, setManualError] = useState(false);
 
@@ -75,7 +88,10 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
       }
       if (track) {
         const tuning = await tuneBarcodeCamera(track);
-        if (!finished) setTorchSupported(tuning.torchSupported);
+        if (!finished) {
+          setTorchSupported(tuning.torchSupported);
+          setZoomRange(tuning.zoom);
+        }
       }
 
       let reader;
@@ -125,6 +141,13 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
     if (await setTorch(track, !torchOn)) setTorchOn(!torchOn);
   };
 
+  const toggleZoom = async () => {
+    const track = trackRef.current;
+    if (!track || !zoomRange) return;
+    const target = clampZoom(zoomRange, closeUp ? DEFAULT_ZOOM : CLOSE_UP_ZOOM);
+    if (await setZoom(track, target)) setCloseUp(!closeUp);
+  };
+
   const submitManualCode = (event: FormEvent) => {
     event.preventDefault();
     const code = normalizeBarCode(manualCode);
@@ -171,6 +194,17 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
               <p className="absolute inset-x-0 bottom-3 text-center text-xs font-medium text-white/90 px-4">
                 {t('scanner.aimHint')}
               </p>
+              {zoomRange && (
+                <button
+                  type="button"
+                  onClick={toggleZoom}
+                  aria-pressed={closeUp}
+                  aria-label={t(closeUp ? 'scanner.zoomOut' : 'scanner.zoomIn')}
+                  className="absolute top-3 left-3 h-10 min-w-10 px-3 rounded-full bg-black/50 text-white text-sm font-bold flex items-center justify-center active:scale-90"
+                >
+                  {`${clampZoom(zoomRange, closeUp ? CLOSE_UP_ZOOM : DEFAULT_ZOOM)}x`}
+                </button>
+              )}
               {torchSupported && (
                 <button
                   type="button"

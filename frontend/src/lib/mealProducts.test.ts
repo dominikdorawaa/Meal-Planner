@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recentMealProducts, resolveMealProduct } from './mealProducts';
+import { recentMealItems, resolveMealProduct } from './mealProducts';
 
 const skyr = { id: 'skyr', name: 'Skyr', kcal: 65 };
 const oats = { id: 'oats', name: 'Oats', kcal: 370 };
@@ -32,24 +32,32 @@ describe('resolveMealProduct with incomplete nutrition', () => {
   });
 });
 
-describe('recentMealProducts', () => {
+describe('recentMealItems', () => {
+  const omelette = { id: 'omelette', name: 'Omelette' };
+  const recipes = [omelette];
+
   it('does not offer products without calories for new meals', () => {
     const noCalories = { id: 'old', name: 'Old product', kcal: null };
 
-    expect(recentMealProducts([{ product: noCalories }, { product: skyr }], 5)).toEqual([skyr]);
+    expect(recentMealItems([{ product: noCalories }, { product: skyr }], recipes, 5)).toEqual([{ kind: 'product', item: skyr }]);
   });
 
-
-  it('returns unique products from the newest meals first', () => {
+  it('returns unique products and recipes from the newest meals first', () => {
     const meals = [
       { created_at: '2026-10-01T08:00:00Z', product: oats },
       { created_at: '2026-10-03T08:00:00Z', product: skyr },
       { created_at: '2026-10-02T08:00:00Z', product: oats },
-      { created_at: '2026-10-04T08:00:00Z', recipe: { id: 'recipe' } },
+      { created_at: '2026-10-04T08:00:00Z', recipe: { id: 'omelette' } },
+      { created_at: '2026-10-05T08:00:00Z', recipe: 'omelette' },
+      { created_at: '2026-10-06T08:00:00Z', recipe: { id: 'archived' } },
       { product: { id: 'no-data' } },
     ];
 
-    expect(recentMealProducts(meals, 5)).toEqual([skyr, oats]);
+    expect(recentMealItems(meals, recipes, 5)).toEqual([
+      { kind: 'recipe', item: omelette },
+      { kind: 'product', item: skyr },
+      { kind: 'product', item: oats },
+    ]);
   });
 
   it('skips products that were deleted', () => {
@@ -59,12 +67,12 @@ describe('recentMealProducts', () => {
       { created_at: '2026-10-01T08:00:00Z', product: skyr },
     ];
 
-    expect(recentMealProducts(meals, 5)).toEqual([skyr]);
+    expect(recentMealItems(meals, recipes, 5)).toEqual([{ kind: 'product', item: skyr }]);
   });
 
   it('stops at the limit', () => {
     const meals = [{ product: skyr }, { product: oats }];
 
-    expect(recentMealProducts(meals, 1)).toHaveLength(1);
+    expect(recentMealItems(meals, recipes, 1)).toHaveLength(1);
   });
 });
