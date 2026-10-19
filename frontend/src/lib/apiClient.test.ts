@@ -151,3 +151,35 @@ describe('apiClient', () => {
     expect(error.body).toEqual({ error: 'Nie znaleziono zasobu.' });
   });
 });
+
+describe('apiClient recipes', () => {
+  it('uploads a recipe photo as a form without a JSON content type', async () => {
+    localStorage.setItem('mp_auth_token', 'token');
+    fetchMock.mockResolvedValue(jsonResponse(200, { url: 'https://storage.example.com/photo.jpg' }));
+    const photo = new Blob(['jpeg'], { type: 'image/jpeg' });
+
+    await expect(api.recipes.uploadImage(photo)).resolves.toBe('https://storage.example.com/photo.jpg');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toMatch(/\/api\/recipes\/images$/);
+    expect(init.method).toBe('POST');
+    expect(init.headers['Content-Type']).toBeUndefined();
+    expect(init.headers.Authorization).toBe('Bearer token');
+    expect(init.body).toBeInstanceOf(FormData);
+    expect((init.body as FormData).get('file')).toBeInstanceOf(Blob);
+  });
+
+  it.each([
+    ['restore', () => api.recipes.restore('r1'), 'PATCH', '/api/recipes/r1/restore'],
+    ['saved list', () => api.recipes.getSaved(), 'GET', '/api/recipes/saved'],
+    ['save', () => api.recipes.save('r1'), 'POST', '/api/recipes/r1/saved'],
+    ['unsave', () => api.recipes.unsave('r1'), 'DELETE', '/api/recipes/r1/saved'],
+  ])('calls the %s endpoint', async (_name, call, method, path) => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+
+    await call();
+
+    expect(fetchMock.mock.calls[0][0]).toMatch(new RegExp(`${path}$`));
+    expect(fetchMock.mock.calls[0][1].method).toBe(method);
+  });
+});

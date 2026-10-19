@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppData } from '../lib/AppDataContext';
-import { api, type Product } from '../lib/apiClient';
+import { api, ApiError, type Product } from '../lib/apiClient';
 import { useBarcodeLookup } from '../lib/useBarcodeLookup';
 import { missingProductMessage } from '../lib/barcodeLookup';
 import {
   ingredientAmountLabel,
   ingredientMacros,
-  recipeMacros,
+  recipeMacrosPerPortion,
   type IngredientDraft,
   type IngredientQuantity,
 } from '../lib/recipeIngredient';
@@ -18,6 +18,8 @@ import { IngredientAmountScreen } from '../components/IngredientAmountScreen';
 import { NewProductSheet, type NewProductDraft } from '../components/NewProductSheet';
 import { t } from '../i18n';
 import { useCloseOnBack } from '../lib/backNavigation';
+import { RecipePhotoSheet } from '../components/RecipePhotoSheet';
+import { resizeRecipePhoto } from '../lib/recipePhoto';
 
 interface InstructionStep {
   text: string;
@@ -76,11 +78,15 @@ export default function AddRecipe() {
   const [stepToDelete, setStepToDelete] = useState<number | null>(null);
   const [ingredientToDelete, setIngredientToDelete] = useState<number | null>(null);
   const [showScanner, setShowScanner] = useState(false);
+  const [showPhotoSheet, setShowPhotoSheet] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const hasUnsavedChanges = savedSnapshot !== null
     && draftSnapshot({ name, prepTime, portions, imageUrl, ingredients, instructions }) !== savedSnapshot;
 
-  useCloseOnBack(hasUnsavedChanges && !showLeaveConfirm && !isSaving, () => setShowLeaveConfirm(true));
+  useCloseOnBack(hasUnsavedChanges && !showLeaveConfirm && !isSaving && !isUploadingPhoto, () => setShowLeaveConfirm(true));
   useCloseOnBack(showLeaveConfirm, () => setShowLeaveConfirm(false));
   useCloseOnBack(showIngredientSearch, () => setShowIngredientSearch(false));
   useCloseOnBack(amountTarget !== null, () => setAmountTarget(null));
@@ -93,9 +99,9 @@ export default function AddRecipe() {
 
       try {
         const recipe = await api.recipes.getById(id);
-        if (!recipe) {
-           navigate(-1);
-           return;
+        if (!recipe || recipe.own === false) {
+          navigate(recipe ? `/recipe/${id}` : '/recipes', { replace: true });
+          return;
         }
 
         const loaded: RecipeDraft = {
@@ -121,8 +127,8 @@ export default function AddRecipe() {
         setBaseMacros({ kcal: recipe.kcal, p: recipe.protein, f: recipe.fat, c: recipe.carbs });
         setSavedSnapshot(draftSnapshot(loaded));
       } catch (err) {
-        console.error("Error loading recipe:", err);
-        navigate(-1);
+        console.error('Error loading recipe:', err);
+        navigate('/recipes', { replace: true });
       } finally {
         setIsLoading(false);
       }
@@ -160,27 +166,50 @@ export default function AddRecipe() {
     });
   };
 
+  const handlePhotoPicked = async (file: File) => {
+    setShowPhotoSheet(false);
+    setPhotoError(null);
+    setIsUploadingPhoto(true);
+    try {
+      const photo = await resizeRecipePhoto(file);
+      setImageUrl(await api.recipes.uploadImage(photo));
+    } catch (err) {
+      console.error('Error uploading recipe photo:', err);
+      setPhotoError(err instanceof ApiError ? err.message : t('recipeForm.photoFailed'));
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handlePhotoRemoved = () => {
+    setShowPhotoSheet(false);
+    setPhotoError(null);
+    setImageUrl('');
+  };
+
   const handleClose = () => {
     if (hasUnsavedChanges) setShowLeaveConfirm(true);
     else navigate(-1);
   };
 
   const handleSaveRecipe = async () => {
-    if (!user || !name) return;
+    if (!user || !name.trim() || isUploadingPhoto) return;
     setIsSaving(true);
+    setSaveError(null);
 
     try {
-      const calculated = recipeMacros(ingredients);
+      const portionCount = parseFloat(portions) || 1;
+      const calculated = recipeMacrosPerPortion(ingredients, portionCount);
 
       const recipePayload = {
-        name,
+        name: name.trim(),
         kcal: calculated.kcal > 0 ? calculated.kcal : baseMacros.kcal,
         protein: calculated.protein > 0 ? calculated.protein : baseMacros.p,
         fat: calculated.fat > 0 ? calculated.fat : baseMacros.f,
         carbs: calculated.carbs > 0 ? calculated.carbs : baseMacros.c,
         image_url: imageUrl.trim() || null,
         prep_time: parseInt(prepTime) || 0,
-        portions: parseFloat(portions) || 1,
+        portions: portionCount,
         instructions: instructions.map(i => i.text),
         ingredients: ingredients.map(ing => ({
           name: ing.name,
@@ -198,8 +227,8 @@ export default function AddRecipe() {
 
       await refreshRecipes();
       navigate(-1);
-    } catch (err: any) {
-      alert("Błąd zapisu przepisu: " + err.message);
+    } catch (err) {
+      setSaveError(t('recipeForm.saveFailed', { message: err instanceof Error ? err.message : '' }));
       setIsSaving(false);
     }
   };
@@ -221,66 +250,87 @@ export default function AddRecipe() {
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col">
-      
-      {/* HEADER */}
       <header className="sticky top-0 w-full z-40 bg-surface/90 backdrop-blur-xl border-b border-outline-variant/10 px-4 py-3 pt-safe-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button onClick={handleClose} aria-label={t('recipe.close')} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform">
             <span className="material-symbols-outlined">close</span>
           </button>
-          <h1 className="font-headline font-bold text-lg text-on-surface">{isEditMode ? 'Edycja przepisu' : 'Nowy Przepis'}</h1>
+          <h1 className="font-headline font-bold text-lg text-on-surface">{t(isEditMode ? 'recipeForm.editTitle' : 'recipeForm.newTitle')}</h1>
         </div>
-        <button 
+        <button
           onClick={handleSaveRecipe}
-          disabled={!name || isSaving}
+          disabled={!name.trim() || isSaving || isUploadingPhoto}
           className="px-5 py-2 bg-primary text-on-primary font-bold text-sm rounded-xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm"
         >
-          {isSaving ? 'Zapisywanie...' : 'Zapisz'}
+          {isSaving ? t('recipeForm.saving') : t('recipeForm.save')}
         </button>
       </header>
 
       <main className="flex-1 w-full max-w-xl mx-auto px-4 py-6 flex flex-col gap-8">
-        
+        {saveError && (
+          <p role="alert" className="text-sm font-bold text-error bg-error/10 rounded-2xl px-4 py-3">{saveError}</p>
+        )}
+
         {isLoading && (
           <div className="absolute inset-0 bg-surface/80 backdrop-blur-sm z-50 flex items-center justify-center">
             <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
           </div>
         )}
-        
-        {/* IMAGE SECTION */}
-        <section className="w-full aspect-[4/3] bg-surface-container-low rounded-[32px] border border-outline-variant/20 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-surface-container-lowest transition-colors active:scale-[0.98] group overflow-hidden relative">
-          {imageUrl ? (
-             <img src={imageUrl} alt="Podgląd" className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <>
-              <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
-                <span className="material-symbols-outlined text-3xl">add_photo_alternate</span>
-              </div>
-              <p className="font-bold text-sm text-on-surface-variant">Prześlij z urządzenia</p>
-            </>
-          )}
+        <section className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPhotoSheet(true)}
+            disabled={isUploadingPhoto}
+            aria-label={t(imageUrl ? 'recipeForm.photoChange' : 'recipeForm.photoAdd')}
+            className="w-full aspect-[4/3] bg-surface-container-low rounded-[32px] border border-outline-variant/20 border-dashed flex flex-col items-center justify-center hover:bg-surface-container-lowest transition-colors active:scale-[0.98] group overflow-hidden relative"
+          >
+            {imageUrl ? (
+              <>
+                <img src={imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                <span className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/55 backdrop-blur-md text-white text-xs font-bold px-3 py-2 rounded-full">
+                  <span className="material-symbols-outlined text-[16px]">photo_camera</span>
+                  {t('recipeForm.photoChange')}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
+                  <span className="material-symbols-outlined text-3xl">add_photo_alternate</span>
+                </span>
+                <span className="font-bold text-sm text-on-surface-variant">{t('recipeForm.photoAdd')}</span>
+              </>
+            )}
+            {isUploadingPhoto && (
+              <span className="absolute inset-0 bg-surface/70 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+                <span className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+                <span className="text-xs font-bold text-on-surface">{t('recipeForm.photoUploading')}</span>
+              </span>
+            )}
+          </button>
+          {photoError && <p role="alert" className="text-sm font-bold text-error pl-1">{photoError}</p>}
         </section>
 
-        {/* BASIC INFO */}
         <section className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant pl-1">Nazwa Przepisu</label>
-            <input 
-              type="text" 
-              value={name} 
-              onChange={e => setName(e.target.value)} 
+            <label htmlFor="recipe-name" className="text-xs font-bold uppercase tracking-widest text-on-surface-variant pl-1">{t('recipeForm.name')}</label>
+            <input
+              id="recipe-name"
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
               className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-2xl py-4 px-5 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-headline font-bold text-xl transition-shadow placeholder:font-medium placeholder:text-on-surface-variant/40"
-              placeholder="np. Owsianka z malinami"
+              placeholder={t('recipeForm.namePlaceholder')}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* Czas przygotowania */}
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant pl-1">Czas przygotowania</label>
+              <label htmlFor="recipe-prep-time" className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant pl-1">{t('recipeForm.prepTime')}</label>
               <div className="relative flex items-center bg-surface-container-lowest border border-outline-variant/20 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-primary/30 transition-shadow">
                 <input
+                  id="recipe-prep-time"
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   value={prepTime}
                   onChange={e => setPrepTime(e.target.value)}
@@ -291,19 +341,20 @@ export default function AddRecipe() {
               </div>
             </div>
 
-            {/* Porcje */}
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant pl-1">Ilość porcji</label>
+              <label htmlFor="recipe-portions" className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant pl-1">{t('recipeForm.portions')}</label>
               <div className="relative flex items-center bg-surface-container-lowest border border-outline-variant/20 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-primary/30 transition-shadow">
                 <input
+                  id="recipe-portions"
                   type="number"
+                  inputMode="decimal"
                   min="1"
                   value={portions}
                   onChange={e => setPortions(e.target.value)}
-                  className="w-full bg-transparent py-3.5 pl-4 pr-20 outline-none text-on-surface font-bold text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-full bg-transparent py-3.5 pl-4 pr-16 outline-none text-on-surface font-bold text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   placeholder="1"
                 />
-                <span className="absolute right-4 text-xs font-bold text-on-surface-variant whitespace-nowrap">x porcja</span>
+                <span className="absolute right-4 text-xs font-bold text-on-surface-variant whitespace-nowrap">{t('recipeForm.portionsUnit')}</span>
               </div>
             </div>
           </div>
@@ -311,16 +362,15 @@ export default function AddRecipe() {
 
         <hr className="border-t border-outline-variant/10" />
 
-        {/* INGREDIENTS */}
         <section className="flex flex-col gap-4">
           <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface pl-1 flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-[16px]">kitchen</span>
-            Składniki
+            {t('recipeForm.ingredients')}
           </h2>
-          
+
           <div className="flex flex-col gap-3">
             {ingredients.length === 0 && (
-              <p className="text-sm font-medium text-on-surface-variant/50 pl-1">Brak składników. Przynajmniej jeden jest wymagany.</p>
+              <p className="text-sm font-medium text-on-surface-variant/70 pl-1">{t('recipeForm.noIngredients')}</p>
             )}
 
             {ingredients.map((ing, idx) => {
@@ -344,7 +394,9 @@ export default function AddRecipe() {
                     </span>
                   </button>
                   <button
+                    type="button"
                     onClick={() => setIngredientToDelete(idx)}
+                    aria-label={t('recipeForm.removeIngredient', { name: ing.name })}
                     className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors shrink-0"
                   >
                     <span className="material-symbols-outlined text-[18px]">close</span>
@@ -354,22 +406,22 @@ export default function AddRecipe() {
             })}
           </div>
 
-          <button 
+          <button
+            type="button"
             onClick={() => setShowIngredientSearch(true)}
             className="w-full py-4 bg-surface-container-low text-on-surface font-bold text-sm rounded-2xl hover:bg-surface-container transition-colors active:scale-[0.98] border border-outline-variant/20 flex items-center justify-center gap-2 shadow-sm"
           >
             <span className="material-symbols-outlined text-[20px]">add</span>
-            Dodaj składnik
+            {t('recipeForm.addIngredient')}
           </button>
         </section>
 
         <hr className="border-t border-outline-variant/10" />
 
-        {/* INSTRUCTIONS */}
         <section className="flex flex-col gap-4">
           <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface pl-1 flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-[16px]">format_list_numbered</span>
-            Instrukcje
+            {t('recipeForm.steps')}
           </h2>
 
           <div className="flex flex-col gap-4">
@@ -382,11 +434,14 @@ export default function AddRecipe() {
                   <textarea
                     value={step.text}
                     onChange={(e) => handleUpdateStep(idx, e.target.value)}
-                    placeholder={`Krok ${idx + 1}...`}
+                    placeholder={t('recipeForm.stepPlaceholder', { number: idx + 1 })}
+                    aria-label={t('recipeForm.step', { number: idx + 1 })}
                     className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-4 pr-12 min-h-[100px] outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-medium text-sm transition-shadow resize-y"
                   />
-                  <button 
+                  <button
+                    type="button"
                     onClick={() => setStepToDelete(idx)}
+                    aria-label={t('recipeForm.removeStep', { number: idx + 1 })}
                     className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant/50 hover:text-error hover:bg-error/10 transition-colors"
                   >
                     <span className="material-symbols-outlined text-[18px]">delete</span>
@@ -396,12 +451,13 @@ export default function AddRecipe() {
             ))}
           </div>
 
-          <button 
+          <button
+            type="button"
             onClick={handleAddStep}
             className="w-full py-4 bg-surface-container-low text-on-surface font-bold text-sm rounded-2xl hover:bg-surface-container transition-colors active:scale-[0.98] border border-outline-variant/20 flex items-center justify-center gap-2 shadow-sm"
           >
             <span className="material-symbols-outlined text-[20px]">add</span>
-            Dodaj krok
+            {t('recipeForm.addStep')}
           </button>
         </section>
       </main>
@@ -459,50 +515,48 @@ export default function AddRecipe() {
         </div>
       )}
 
-      {/* DELETE STEP CONFIRMATION MODAL */}
       {stepToDelete !== null && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setStepToDelete(null)}>
           <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-outlined text-3xl">delete</span>
             </div>
-            <h3 className="font-headline font-bold text-lg text-on-surface mb-2">Usunąć krok?</h3>
-            <p className="text-on-surface-variant text-sm font-medium mb-6">Czy na pewno chcesz usunąć krok {stepToDelete + 1} ze swojego przepisu?</p>
+            <h3 className="font-headline font-bold text-lg text-on-surface mb-2">{t('recipeForm.removeStepTitle')}</h3>
+            <p className="text-on-surface-variant text-sm font-medium mb-6">{t('recipeForm.removeStepText', { number: stepToDelete + 1 })}</p>
 
             <div className="flex gap-3 w-full">
               <button
                 onClick={() => setStepToDelete(null)}
                 className="flex-1 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-highest rounded-xl transition-colors active:scale-95"
               >
-                Anuluj
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => handleDeleteStepConfirm(stepToDelete)}
                 className="flex-[1.5] py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
               >
-                Usuń
+                {t('common.delete')}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* DELETE INGREDIENT CONFIRMATION MODAL */}
       {ingredientToDelete !== null && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setIngredientToDelete(null)}>
           <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-outlined text-3xl">delete</span>
             </div>
-            <h3 className="font-headline font-bold text-lg text-on-surface mb-2">Usunąć składnik?</h3>
-            <p className="text-on-surface-variant text-sm font-medium mb-6">Czy na pewno chcesz wyrzucić <br/><b className="text-on-surface">{ingredients[ingredientToDelete]?.name}</b><br/>z tego przepisu?</p>
+            <h3 className="font-headline font-bold text-lg text-on-surface mb-2">{t('recipeForm.removeIngredientTitle')}</h3>
+            <p className="text-on-surface-variant text-sm font-medium mb-6">{t('recipeForm.removeIngredientText', { name: ingredients[ingredientToDelete]?.name ?? '' })}</p>
 
             <div className="flex gap-3 w-full">
               <button
                 onClick={() => setIngredientToDelete(null)}
                 className="flex-1 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-highest rounded-xl transition-colors active:scale-95"
               >
-                Anuluj
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => {
@@ -511,11 +565,20 @@ export default function AddRecipe() {
                 }}
                 className="flex-[1.5] py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
               >
-                Usuń
+                {t('common.delete')}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {showPhotoSheet && (
+        <RecipePhotoSheet
+          hasPhoto={Boolean(imageUrl)}
+          onPick={handlePhotoPicked}
+          onRemove={handlePhotoRemoved}
+          onClose={() => setShowPhotoSheet(false)}
+        />
       )}
 
       {showScanner && <LazyBarcodeScanner onDetected={handleBarCode} onClose={() => setShowScanner(false)} />}

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import AddRecipe from './AddRecipe';
 import { t } from '../i18n';
+import { ApiError } from '../lib/apiClient';
 
 const mocks = vi.hoisted(() => ({
   getRecipe: vi.fn(),
@@ -12,13 +13,20 @@ const mocks = vi.hoisted(() => ({
   createProduct: vi.fn(),
   findProductByBarCode: vi.fn(),
   refreshRecipes: vi.fn(),
+  uploadImage: vi.fn(),
+  resizeRecipePhoto: vi.fn(),
 }));
 
-vi.mock('../lib/apiClient', () => ({
+vi.mock('../lib/apiClient', async importOriginal => ({
+  ...(await importOriginal<typeof import('../lib/apiClient')>()),
   api: {
-    recipes: { getById: mocks.getRecipe, create: mocks.createRecipe, update: mocks.updateRecipe },
+    recipes: { getById: mocks.getRecipe, create: mocks.createRecipe, update: mocks.updateRecipe, uploadImage: mocks.uploadImage },
     products: { search: mocks.searchProducts, create: mocks.createProduct },
   },
+}));
+
+vi.mock('../lib/recipePhoto', () => ({
+  resizeRecipePhoto: mocks.resizeRecipePhoto,
 }));
 
 vi.mock('../lib/AppDataContext', () => ({
@@ -52,6 +60,7 @@ function renderAddRecipe(path = '/add-recipe') {
         <Route path="/recipes" element={<p>recipes screen</p>} />
         <Route path="/add-recipe" element={<AddRecipe />} />
         <Route path="/edit-recipe/:id" element={<AddRecipe />} />
+        <Route path="/recipe/:id" element={<p>details screen</p>} />
       </Routes>
     </MemoryRouter>
   );
@@ -87,6 +96,8 @@ beforeEach(() => {
   mocks.createRecipe.mockResolvedValue({ id: 'r1' });
   mocks.updateRecipe.mockResolvedValue({ id: 'r1' });
   mocks.refreshRecipes.mockResolvedValue(undefined);
+  mocks.resizeRecipePhoto.mockResolvedValue(new Blob(['small'], { type: 'image/jpeg' }));
+  mocks.uploadImage.mockResolvedValue('https://storage.example.com/recipe-images/u1/photo.jpg');
 });
 
 afterEach(() => {
@@ -347,5 +358,174 @@ describe('AddRecipe leaving', () => {
     fireEvent.click(screen.getByRole('button', { name: t('recipe.close') }));
 
     expect(screen.getByText('recipes screen')).toBeTruthy();
+  });
+});
+
+function photoFile() {
+  return new File(['big photo'], 'photo.png', { type: 'image/png' });
+}
+
+function choosePhoto(source: 'camera' | 'gallery') {
+  fireEvent.click(screen.getByRole('button', { name: t('recipeForm.photoAdd') }));
+  expect(screen.getByRole('button', { name: new RegExp(t('recipePhoto.camera')) })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: new RegExp(t('recipePhoto.remove')) })).toBeNull();
+  const file = photoFile();
+  fireEvent.change(screen.getByTestId(`recipe-photo-${source}`), { target: { files: [file] } });
+  return file;
+}
+
+describe('AddRecipe photo', () => {
+  it('resizes and uploads the chosen photo and saves its address with the recipe', async () => {
+    renderAddRecipe();
+    fireEvent.change(screen.getByLabelText(t('recipeForm.name')), { target: { value: 'Sałatka' } });
+
+    const file = choosePhoto('gallery');
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await screen.findByRole('button', { name: t('recipeForm.photoChange') });
+    expect(mocks.resizeRecipePhoto).toHaveBeenCalledWith(file);
+    expect(mocks.uploadImage).toHaveBeenCalledWith(expect.any(Blob));
+    expect(document.querySelector('img')?.getAttribute('src')).toBe('https://storage.example.com/recipe-images/u1/photo.jpg');
+
+    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.save') }));
+    await screen.findByText('recipes screen');
+    expect(mocks.createRecipe).toHaveBeenCalledWith(expect.objectContaining({
+      image_url: 'https://storage.example.com/recipe-images/u1/photo.jpg',
+    }));
+  });
+
+  it('takes a photo with the camera and disables saving while it uploads', async () => {
+    let finishUpload: (url: string) => void = () => {};
+    mocks.uploadImage.mockReturnValue(new Promise<string>(resolve => { finishUpload = resolve; }));
+    renderAddRecipe();
+    fireEvent.change(screen.getByLabelText(t('recipeForm.name')), { target: { value: 'Sałatka' } });
+
+    choosePhoto('camera');
+
+    expect(await screen.findByText(t('recipeForm.photoUploading'))).toBeTruthy();
+    expect(screen.getByRole('button', { name: t('recipeForm.save') }).hasAttribute('disabled')).toBe(true);
+    finishUpload('https://storage.example.com/camera.jpg');
+    await screen.findByRole('button', { name: t('recipeForm.photoChange') });
+    expect(screen.getByRole('button', { name: t('recipeForm.save') }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('shows the server message when the upload is rejected', async () => {
+    mocks.uploadImage.mockRejectedValue(new ApiError('Zdjęcie jest za duże.', 413));
+    renderAddRecipe();
+
+    choosePhoto('gallery');
+
+    expect((await screen.findByRole('alert')).textContent).toBe('Zdjęcie jest za duże.');
+    expect(document.querySelector('img')).toBeNull();
+  });
+
+  it('shows a general message when the photo cannot be read', async () => {
+    mocks.resizeRecipePhoto.mockRejectedValue(new Error('Unsupported image'));
+    renderAddRecipe();
+
+    choosePhoto('gallery');
+
+    expect((await screen.findByRole('alert')).textContent).toBe(t('recipeForm.photoFailed'));
+    expect(mocks.uploadImage).not.toHaveBeenCalled();
+  });
+
+  it('ignores closing the file picker without a photo and closes the sheet with cancel', () => {
+    renderAddRecipe();
+    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.photoAdd') }));
+
+    fireEvent.change(screen.getByTestId('recipe-photo-gallery'), { target: { files: [] } });
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: t('common.cancel') }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(mocks.resizeRecipePhoto).not.toHaveBeenCalled();
+  });
+
+  it('removes the photo of an edited recipe', async () => {
+    mocks.getRecipe.mockResolvedValue({
+      id: 'r1', name: 'Owsianka', kcal: 500, protein: 20, fat: 10, carbs: 80, portions: 1, own: true,
+      image_url: 'https://storage.example.com/old.jpg', ingredients: [],
+    });
+    renderAddRecipe('/edit-recipe/r1');
+
+    fireEvent.click(await screen.findByRole('button', { name: t('recipeForm.photoChange') }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipePhoto.remove')) }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.save') }));
+
+    await screen.findByText('recipes screen');
+    expect(mocks.updateRecipe).toHaveBeenCalledWith('r1', expect.objectContaining({ image_url: null }));
+  });
+});
+
+describe('AddRecipe portions and errors', () => {
+  it('saves nutrition of one portion and a trimmed name', async () => {
+    renderAddRecipe();
+    fireEvent.change(screen.getByLabelText(t('recipeForm.name')), { target: { value: '  Miska skyru  ' } });
+    fireEvent.change(screen.getByLabelText(t('recipeForm.portions')), { target: { value: '4' } });
+    fireEvent.change(screen.getByLabelText(t('recipeForm.prepTime')), { target: { value: '15' } });
+    await pickSkyr();
+    fireEvent.change(screen.getByLabelText(t('amount.grams')), { target: { value: '400' } });
+    fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.add') }));
+
+    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.save') }));
+
+    await screen.findByText('recipes screen');
+    expect(mocks.createRecipe).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Miska skyru',
+      portions: 4,
+      prep_time: 15,
+      kcal: 65,
+      protein: 12,
+      carbs: 4,
+    }));
+  });
+
+  it('does not allow saving a name made only of spaces', () => {
+    renderAddRecipe();
+
+    fireEvent.change(screen.getByLabelText(t('recipeForm.name')), { target: { value: '   ' } });
+
+    expect(screen.getByRole('button', { name: t('recipeForm.save') }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('shows why the recipe was not saved and lets the user try again', async () => {
+    mocks.createRecipe.mockRejectedValueOnce(new Error('Brak dostępu.'));
+    renderAddRecipe();
+    fireEvent.change(screen.getByLabelText(t('recipeForm.name')), { target: { value: 'Sałatka' } });
+
+    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.save') }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe(t('recipeForm.saveFailed', { message: 'Brak dostępu.' }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.save') }));
+    await screen.findByText('recipes screen');
+  });
+
+  it('opens the details instead of the form for a recipe of someone else', async () => {
+    mocks.getRecipe.mockResolvedValue({ id: 'r2', name: 'Sałatka bazowa', own: false, ingredients: [] });
+    renderAddRecipe('/edit-recipe/r2');
+
+    expect(await screen.findByText('details screen')).toBeTruthy();
+  });
+
+  it('goes back to the list when the edited recipe cannot be loaded', async () => {
+    mocks.getRecipe.mockRejectedValue(new Error('Not found'));
+    renderAddRecipe('/edit-recipe/r9');
+
+    expect(await screen.findByText('recipes screen')).toBeTruthy();
+  });
+
+  it('removes a step after confirming', () => {
+    renderAddRecipe();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeForm.addStep')) }));
+    fireEvent.change(screen.getByLabelText(t('recipeForm.step', { number: 1 })), { target: { value: 'Wymieszaj' } });
+
+    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.removeStep', { number: 1 }) }));
+    expect(screen.getByText(t('recipeForm.removeStepText', { number: 1 }))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('common.cancel') }));
+    expect(screen.getByDisplayValue('Wymieszaj')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.removeStep', { number: 1 }) }));
+    fireEvent.click(screen.getByRole('button', { name: t('common.delete') }));
+    expect(screen.queryByDisplayValue('Wymieszaj')).toBeNull();
   });
 });
