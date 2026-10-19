@@ -25,7 +25,7 @@ public class Recipe {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "image_url")
+    @Column(name = "image_url", length = 1024)
     @JsonProperty("image_url")
     private String imageUrl;
 
@@ -44,11 +44,24 @@ public class Recipe {
     @Column(name = "instructions")
     private List<String> instructions;
 
-    @Column(name = "is_archived")
+    @Column(name = "is_archived", nullable = false)
     private Boolean isArchived = false;
 
     @Column(name = "created_by")
     private UUID createdBy;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private RecipeVisibility visibility = RecipeVisibility.PRIVATE;
+
+    @Transient
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private boolean own;
+
+    @Transient
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private boolean saved;
 
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<RecipeIngredient> ingredients;

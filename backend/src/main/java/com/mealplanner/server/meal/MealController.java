@@ -3,8 +3,7 @@ package com.mealplanner.server.meal;
 import com.mealplanner.server.handler.ApiException;
 import com.mealplanner.server.product.Product;
 import com.mealplanner.server.product.ProductRepository;
-import com.mealplanner.server.recipe.Recipe;
-import com.mealplanner.server.recipe.RecipeRepository;
+import com.mealplanner.server.recipe.RecipeService;
 import com.mealplanner.server.user.User;
 import com.mealplanner.server.user.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +32,7 @@ public class MealController {
     private ProductRepository productRepository;
 
     @Autowired
-    private RecipeRepository recipeRepository;
+    private RecipeService recipeService;
 
     private ResponseEntity<?> unauthorized() {
         throw new AuthenticationCredentialsNotFoundException("Authentication required");
@@ -79,8 +78,7 @@ public class MealController {
 
         // Resolve recipe from DB to avoid detached entity issues
         if (meal.getRecipe() != null && meal.getRecipe().getId() != null) {
-            Recipe recipe = recipeRepository.findById(meal.getRecipe().getId()).orElse(null);
-            meal.setRecipe(recipe);
+            meal.setRecipe(recipeService.findById(meal.getRecipe().getId(), email));
         }
 
         return ResponseEntity.ok(userMealRepository.save(meal));

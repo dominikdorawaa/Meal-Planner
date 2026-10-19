@@ -300,6 +300,17 @@ describe('AppDataProvider getConsumedForDay', () => {
     await waitFor(() => expect(JSON.parse(text('consumed') ?? '')).toEqual({ kcal: 1560, protein: 63, fat: 37.5, carbs: 184 }))
   })
 
+  it('counts recipes that are no longer on the recipe list with the data stored in the plan entry', async () => {
+    mocks.getProfile.mockResolvedValue({ visible_meals: ['breakfast'] })
+    mocks.getRecipes.mockResolvedValue([])
+    mocks.getMeals.mockResolvedValue([
+      { id: 'm1', meal_date: date, meal_type: 'breakfast', recipe: { id: 'deleted', kcal: 300, protein: 20, fat: 10, carbs: 30 }, portions_consumed: 2 },
+    ])
+    renderProvider({ date })
+
+    await waitFor(() => expect(JSON.parse(text('consumed') ?? '')).toEqual({ kcal: 600, protein: 40, fat: 20, carbs: 60 }))
+  })
+
   it('falls back to visible meals and then to all meals when there are no meal settings', async () => {
     mocks.getProfile.mockResolvedValue({ visible_meals: ['supper'] })
     mocks.getMeals.mockResolvedValue(meals)

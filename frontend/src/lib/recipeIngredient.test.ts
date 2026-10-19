@@ -7,7 +7,7 @@ import {
   ingredientMacros,
   ingredientUnits,
   supportedIngredientUnit,
-  recipeMacros,
+  recipeMacrosPerPortion,
 } from './recipeIngredient';
 
 const skyr = { id: 'p1', name: 'Skyr', kcal: 65, protein: 12, fat: 0.2, carbs: 4.2, unit: '100g' };
@@ -94,12 +94,22 @@ describe('ingredientMacros', () => {
   });
 });
 
-describe('recipeMacros', () => {
-  it('adds up all ingredients and rounds the totals', () => {
-    expect(recipeMacros([
-      { amount: 200, unit: 'g', product: skyr },
-      { amount: 2, unit: 'szt', product: egg },
-    ])).toEqual({ kcal: 280, protein: 37, fat: 10, carbs: 9 });
+describe('recipeMacrosPerPortion', () => {
+  const ingredients = [
+    { amount: 200, unit: 'g', product: skyr },
+    { amount: 2, unit: 'szt', product: egg },
+  ];
+
+  it('adds up all ingredients for a single portion', () => {
+    expect(recipeMacrosPerPortion(ingredients)).toEqual({ kcal: 280, protein: 36.6, fat: 10.4, carbs: 9.2 });
+  });
+
+  it('divides the totals by the number of portions', () => {
+    expect(recipeMacrosPerPortion(ingredients, 4)).toEqual({ kcal: 70, protein: 9.2, fat: 2.6, carbs: 2.3 });
+  });
+
+  it('treats a missing or invalid number of portions as one portion', () => {
+    expect(recipeMacrosPerPortion(ingredients, 0)).toEqual(recipeMacrosPerPortion(ingredients, 1));
   });
 });
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
@@ -10,13 +10,38 @@ import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { ingredientGrams } from '../lib/recipeIngredient';
+import { profileMealTypes } from '../lib/mealTypes';
+import { announceDeletedRecipe } from '../lib/deletedRecipe';
+import { RecipeDeleteSheet } from '../components/RecipeDeleteSheet';
+import { UndoSnackbar } from '../components/UndoSnackbar';
+import { pluralForm, t, type MessageKey } from '../i18n';
+
+const DEFAULT_RECIPE_WEIGHT = 300;
+const QUICK_PICK_MULTIPLIERS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75];
+const WEEKDAY_KEYS: MessageKey[] = [
+  'recipeDetails.weekday.mon',
+  'recipeDetails.weekday.tue',
+  'recipeDetails.weekday.wed',
+  'recipeDetails.weekday.thu',
+  'recipeDetails.weekday.fri',
+  'recipeDetails.weekday.sat',
+  'recipeDetails.weekday.sun',
+];
+
+function portionForm(count: number): string {
+  return Number.isInteger(count) ? pluralForm(count) : 'fraction';
+}
+
+function portionWord(count: number): string {
+  return t(`recipeDetails.portionWord.${portionForm(count)}` as MessageKey);
+}
 
 export function RecipeDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { user, refreshMeals, recipes, refreshRecipes, getConsumedForDay, profile } = useAppData();
+  const { user, refreshMeals, refreshRecipes, getConsumedForDay, profile } = useAppData();
   const [showPreview, setShowPreview] = useState(false);
   const [previewMode, setPreviewMode] = useState<'before' | 'after'>('after');
 
@@ -30,7 +55,6 @@ export function RecipeDetails() {
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
 
-  // States for calculator
   const [inputType, setInputType] = useState<'portions' | 'grams' | 'quick-pick'>('portions');
   const [portionInput, setPortionInput] = useState<number | ''>(1);
   const [gramInput, setGramInput] = useState<number | ''>(100);
@@ -39,6 +63,11 @@ export function RecipeDetails() {
   const [daysToAdd, setDaysToAdd] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [isTogglingSaved, setIsTogglingSaved] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const closeNotice = useCallback(() => setNotice(null), []);
   const [showAddToPlan, setShowAddToPlan] = useState(false);
   const [quickDate, setQuickDate] = useState('');
   const [quickDateInput, setQuickDateInput] = useState('');
@@ -53,104 +82,82 @@ export function RecipeDetails() {
   const [calendarDate, setCalendarDate] = useState(() => firstDayOfMonth(selectDate));
 
   useCloseOnBack(showMealPicker || showDatePicker, () => { setShowMealPicker(false); setShowDatePicker(false); });
-  useCloseOnBack(showDeleteConfirm, () => setShowDeleteConfirm(false));
   const addToPlanSheetRef = useBottomSheet(showAddToPlan, () => setShowAddToPlan(false));
   const menuSheetRef = useBottomSheet(showMenu, () => setShowMenu(false));
 
-  const availableMealTypes = useMemo(() => {
-    if (profile?.meal_config && profile.meal_config.length > 0) {
-      return profile.meal_config.map((m: any) => ({ id: m.id, name: m.name }));
-    }
-    return [
-      { id: 'breakfast', name: 'Śniadanie' },
-      { id: 'snack1', name: '2 Śniadanie' },
-      { id: 'lunch', name: 'Lunch' },
-      { id: 'snack2', name: 'Przekąska' },
-      { id: 'dinner', name: 'Obiad' },
-      { id: 'supper', name: 'Kolacja' },
-    ];
-  }, [profile]);
+  const mealTypes = useMemo(() => profileMealTypes(profile), [profile]);
+  const visibleMealTypes = useMemo(() => mealTypes.filter(meal => meal.visible !== false), [mealTypes]);
 
   const basePortions = recipe?.portions || 1;
-  const safeWeight = (totalWeight && totalWeight > 0) ? totalWeight : 300;
-
-
+  const safeWeight = (totalWeight && totalWeight > 0) ? totalWeight : DEFAULT_RECIPE_WEIGHT;
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadRecipe() {
       if (!id) return;
-      
-      try {
-        const data = await api.recipes.getById(id);
-        if (data) setRecipe(data);
+      setLoading(true);
+      let loaded: any = null;
+      let weight = DEFAULT_RECIPE_WEIGHT;
 
-        // Ingredients are already included in the recipe object from our API
-        if (data.ingredients) {
-          setIngredients(data.ingredients);
-          let weight = 0;
-          data.ingredients.forEach((i: any) => {
-            weight += ingredientGrams(i) ?? 0;
-          });
-          setTotalWeight(weight || 300);
-        } else {
-          setTotalWeight(300);
-        }
+      try {
+        loaded = await api.recipes.getById(id);
+        const loadedIngredients = Array.isArray(loaded?.ingredients) ? loaded.ingredients : [];
+        const ingredientWeight = loadedIngredients.reduce((sum: number, ingredient: any) => sum + (ingredientGrams(ingredient) ?? 0), 0);
+        weight = ingredientWeight > 0 ? ingredientWeight : DEFAULT_RECIPE_WEIGHT;
+        if (cancelled) return;
+        setRecipe(loaded ?? null);
+        setIngredients(loadedIngredients);
+        setTotalWeight(weight);
+        setSaved(Boolean(loaded?.saved));
       } catch (err) {
-        console.error("Error loading recipe:", err);
+        console.error('Error loading recipe:', err);
       }
 
-      // If editing existing meal, fetch its data
-      if (mealId) {
+      if (mealId && loaded) {
         try {
           const meals = await api.meals.getAll();
           const mealData = meals.find((m: any) => m.id === mealId);
-          if (mealData) {
+          if (mealData && !cancelled) {
             const portions = mealData.portions_consumed;
             setPortionInput(portions);
-            
-            // Przy edycji - pokaż gramy zamiast przeliczonej liczby porcji (np. 0.77)
-            const gramPerPortion = safeWeight / basePortions;
-            const grams = Math.round(portions * gramPerPortion);
-            setGramInput(grams);
-            
-            setInputType('grams');  // domyślnie gramy przy edycji
+            setGramInput(Math.round(portions * (weight / (loaded.portions || 1))));
+            setInputType('grams');
           }
         } catch (err) {
-          console.error("Error fetching meal data:", err);
+          console.error('Error fetching meal data:', err);
         }
-      } else {
-        setGramInput(100); // domyślnie 100g przy nowym dodaniu
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     }
+
     loadRecipe();
-  }, [id, recipes, mealId, safeWeight, basePortions]);
+    return () => {
+      cancelled = true;
+    };
+  }, [id, mealId]);
 
-
-  const consumedPortions = 
+  const consumedPortions =
     inputType === 'portions' ? (Number(String(portionInput).replace(',', '.')) || 0) :
     inputType === 'grams' ? (Number(String(gramInput).replace(',', '.')) ? (Number(String(gramInput).replace(',', '.')) / (safeWeight / basePortions)) : 0) :
     (quickPickPortions || 0);
-  
-  // Składniki skalują się automatycznie wraz z wielkością posiłku (consumedPortions),
-  // dopóki użytkownik ręcznie nie nadpisze ich w stepperze (ingredientPortions)
+
   const activeIngredientPortions = ingredientPortions !== null ? ingredientPortions : consumedPortions;
 
   const handleAddMeal = async (overrideDate?: string, overrideMealType?: string) => {
     const targetDate = overrideDate || activeDate || selectDate;
     const targetType = overrideMealType || activeMealType || selectType;
     if (!user || !recipe || !targetDate || !targetType) return;
-    
+
     setIsAdding(true);
 
     if (mealId) {
-      // Update existing meal
       try {
         await api.meals.update(mealId, { portions_consumed: consumedPortions });
         await refreshMeals();
         navigate('/');
-      } catch (err) {
-        alert("Błąd podczas aktualizacji posiłku.");
+      } catch {
+        setNotice(t('recipeDetails.updateFailed'));
         setIsAdding(false);
       }
       return;
@@ -176,27 +183,56 @@ export function RecipeDetails() {
     await refreshMeals();
     if (overrideDate) {
       setShowAddToPlan(false);
-      setSuccessToast('Dodano do planu! ✔');
+      setSuccessToast(t('recipeDetails.addedToPlan'));
       setTimeout(() => setSuccessToast(null), 3000);
     } else {
       navigate('/');
     }
   };
 
-  const handleArchive = async () => {
+  const leaveDetails = () => {
+    const historyIndex = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (historyIndex > 0) navigate(-1);
+    else navigate('/recipes');
+  };
+
+  const handleDelete = async () => {
     if (!recipe) return;
+    setIsDeleting(true);
     try {
       await api.recipes.archive(recipe.id);
-      refreshRecipes();
-      navigate(-1);
+      announceDeletedRecipe({ id: recipe.id, name: recipe.name });
+      await refreshRecipes();
+      leaveDetails();
     } catch (err) {
-      alert("Błąd podczas operacji archiwizacji.");
+      console.error('Error deleting recipe:', err);
+      setIsDeleting(false);
       setShowDeleteConfirm(false);
+      setNotice(t('recipeDelete.failed'));
+    }
+  };
+
+  const toggleSaved = async () => {
+    if (!recipe || isTogglingSaved) return;
+    const next = !saved;
+    setSaved(next);
+    setIsTogglingSaved(true);
+    try {
+      if (next) await api.recipes.save(recipe.id);
+      else await api.recipes.unsave(recipe.id);
+      await refreshRecipes();
+    } catch (err) {
+      console.error('Error saving recipe:', err);
+      setSaved(!next);
+      setNotice(t('recipeDetails.savedFailed'));
+    } finally {
+      setIsTogglingSaved(false);
     }
   };
 
   const handleEdit = () => {
-     navigate(`/edit-recipe/${recipe.id}`);
+    setShowMenu(false);
+    navigate(`/edit-recipe/${recipe.id}`);
   };
 
   if (loading) {
@@ -211,27 +247,26 @@ export function RecipeDetails() {
     return (
       <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-6 text-center">
         <span className="material-symbols-outlined text-6xl text-on-surface-variant/30 mb-4">error</span>
-        <h2 className="font-headline text-xl font-bold text-on-surface mb-2">Przepis nie znaleziony</h2>
-        <button onClick={() => navigate(-1)} className="px-6 py-3 bg-primary text-on-primary font-bold rounded-xl active:scale-95 transition-transform mt-6">Wróć</button>
+        <h2 className="font-headline text-xl font-bold text-on-surface mb-2">{t('recipeDetails.notFound')}</h2>
+        <button onClick={leaveDetails} className="px-6 py-3 bg-primary text-on-primary font-bold rounded-xl active:scale-95 transition-transform mt-6">{t('recipeDetails.back')}</button>
       </div>
     );
   }
 
-  const displaySuffix = 
-    inputType === 'portions' ? `w ${portionInput === '' ? 0 : portionInput} porcja` :
-    inputType === 'grams' ? `w ${gramInput === '' ? 0 : Math.round(Number(gramInput))} g` :
+  const displaySuffix =
+    inputType === 'portions' ? t('recipeDetails.nutritionForPortions', { count: Number(portionInput) || 0, portions: portionWord(Number(portionInput) || 0) }) :
+    inputType === 'grams' ? t('recipeDetails.nutritionForGrams', { grams: gramInput === '' ? 0 : Math.round(Number(gramInput)) }) :
     '';
   const currentKcal = Math.round(recipe.kcal * consumedPortions);
   const currentP = parseFloat((recipe.protein * consumedPortions).toFixed(1));
   const currentF = parseFloat((recipe.fat * consumedPortions).toFixed(1));
   const currentC = parseFloat((recipe.carbs * consumedPortions).toFixed(1));
 
-  // Pie chart calculation for 1 base portion
   const calP = recipe.protein * 4;
   const calF = recipe.fat * 9;
   const calC = recipe.carbs * 4;
   const totalCal = calP + calF + calC || 1;
-  
+
   const pctP = Math.round((calP / totalCal) * 100);
   const pctF = Math.round((calF / totalCal) * 100);
   const pctC = Math.round((calC / totalCal) * 100);
@@ -239,23 +274,24 @@ export function RecipeDetails() {
   const todayStr = todayIsoDate();
   const dateDisplay = formatShortDayLabel(selectDate || '');
 
-  const mealLabel = availableMealTypes.find((m: any) => m.id === activeMealType)?.name || activeMealType || selectType || '';
+  const mealLabel = mealTypes.find(m => m.id === activeMealType)?.name || activeMealType || selectType || '';
+  const isOwn = recipe.own !== false;
 
   const activeDateDisplay = activeDate ? formatShortDayLabel(activeDate) : dateDisplay;
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
 
-      {/* Toast sukcesu */}
       <div className={`fixed top-[calc(1.25rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 z-[200] transition-all duration-500 ${successToast ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
         <div className="flex items-center gap-3 bg-primary/10 backdrop-blur-md border border-primary/20 text-primary px-5 py-3 rounded-full shadow-lg whitespace-nowrap">
           <span className="material-symbols-outlined text-[18px] font-bold">check_circle</span>
           <span className="font-headline font-bold text-sm tracking-wide">{successToast}</span>
         </div>
-      </div>      {/* Top Header */}
+      </div>
       <header className="sticky top-0 w-full z-40 bg-surface/90 backdrop-blur-xl px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10">
-        <button 
-          onClick={() => navigate(-1)} 
+        <button
+          onClick={() => navigate(-1)}
+          aria-label={t('recipeDetails.back')}
           className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform hover:text-on-surface shrink-0"
         >
           <span className="material-symbols-outlined">arrow_back</span>
@@ -263,19 +299,18 @@ export function RecipeDetails() {
         {selectType && selectDate ? (
           <div className="flex flex-col pt-0.5 flex-1 relative">
 
-            {/* Meal picker */}
             <div className="relative">
               <button
                 disabled={Boolean(mealId)}
                 onClick={() => { setShowMealPicker(v => !v); setShowDatePicker(false); }}
                 className="flex items-center gap-1 font-headline font-bold text-[15px] sm:text-base text-on-surface leading-tight active:scale-95 transition-transform"
               >
-                <span>{mealId ? 'Edytujesz w: ' : 'Dodajesz do: '} <span className="text-primary">{mealLabel}</span></span>
+                <span>{t(mealId ? 'recipeDetails.editingIn' : 'recipeDetails.addingTo')} <span className="text-primary">{mealLabel}</span></span>
                 {!mealId && <span className={`material-symbols-outlined text-[14px] text-primary transition-transform ${showMealPicker ? 'rotate-180' : ''}`}>expand_more</span>}
               </button>
               {showMealPicker && (
                 <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
-                  {availableMealTypes.map((meal: any) => (
+                  {visibleMealTypes.map(meal => (
                     <button
                       key={meal.id}
                       onClick={() => { setActiveMealType(meal.id); setShowMealPicker(false); }}
@@ -289,7 +324,6 @@ export function RecipeDetails() {
               )}
             </div>
 
-            {/* Date picker */}
             <div className="relative">
               <button
                 disabled={Boolean(mealId)}
@@ -302,17 +336,17 @@ export function RecipeDetails() {
               {showDatePicker && (
                 <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
                   <div className="flex items-center justify-between mb-2 px-1">
-                    <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
+                    <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} aria-label={t('recipeDetails.previousMonth')} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
                       <span className="material-symbols-outlined text-[18px]">chevron_left</span>
                     </button>
-                    <span className="text-xs font-black text-on-surface uppercase tracking-widest">{calendarDate.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}</span>
-                    <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
+                    <span className="text-xs font-black text-on-surface uppercase tracking-widest">{calendarDate.toLocaleDateString(t('recipeDetails.locale'), { month: 'long', year: 'numeric' })}</span>
+                    <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} aria-label={t('recipeDetails.nextMonth')} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
                       <span className="material-symbols-outlined text-[18px]">chevron_right</span>
                     </button>
                   </div>
                   <div className="grid grid-cols-7 mb-1">
-                    {['Pn','Wt','Śr','Cz','Pt','So','Nd'].map(d => (
-                      <span key={d} className="text-center text-[9px] font-bold text-on-surface-variant/50 py-0.5">{d}</span>
+                    {WEEKDAY_KEYS.map(key => (
+                      <span key={key} className="text-center text-[9px] font-bold text-on-surface-variant/50 py-0.5">{t(key)}</span>
                     ))}
                   </div>
                   <div className="grid grid-cols-7 gap-0.5">
@@ -342,23 +376,34 @@ export function RecipeDetails() {
               )}
             </div>
 
-            {/* Close on outside click */}
             {(showMealPicker || showDatePicker) && (
               <div className="fixed inset-0 z-[199]" onClick={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
             )}
           </div>
         ) : (
-          <h1 className="font-headline font-bold text-[15px] sm:text-base text-on-surface leading-tight flex-1">Szczegóły Przepisu</h1>
+          <h1 className="font-headline font-bold text-[15px] sm:text-base text-on-surface leading-tight flex-1">{t('recipeDetails.title')}</h1>
         )}
-        <button 
-          onClick={() => setShowMenu(true)} 
-          className="w-10 h-10 ml-auto rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform hover:bg-surface-container-highest shrink-0"
-        >
-          <span className="material-symbols-outlined">more_vert</span>
-        </button>
+        {isOwn ? (
+          <button
+            onClick={() => setShowMenu(true)}
+            aria-label={t('recipeDetails.menu')}
+            className="w-10 h-10 ml-auto rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform hover:bg-surface-container-highest shrink-0"
+          >
+            <span className="material-symbols-outlined">more_vert</span>
+          </button>
+        ) : (
+          <button
+            onClick={toggleSaved}
+            disabled={isTogglingSaved}
+            aria-pressed={saved}
+            aria-label={t(saved ? 'recipeDetails.unsave' : 'recipeDetails.save')}
+            className={`w-10 h-10 ml-auto rounded-full flex items-center justify-center active:scale-90 transition-all hover:bg-surface-container-highest shrink-0 ${saved ? 'text-rose-500' : 'text-on-surface-variant'}`}
+          >
+            <span className="material-symbols-outlined" style={saved ? { fontVariationSettings: "'FILL' 1" } : undefined}>favorite</span>
+          </button>
+        )}
       </header>
-      
-      {/* Header Image */}
+
       <div className="relative w-full h-48 sm:h-64 bg-surface-container-highest shrink-0 overflow-hidden">
         <RecipeCoverImage
           recipe={recipe}
@@ -368,18 +413,17 @@ export function RecipeDetails() {
         />
       </div>
 
-      {/* Tytuł przepisu – mniejszy, pod zdjęciem */}
       <div className="max-w-xl mx-auto w-full px-4 pt-3">
         <h1 className="font-headline font-bold text-xl text-on-surface tracking-tight leading-tight shrink-0">{recipe.name}</h1>
       </div>
 
-      {/* Kalkulator porcji – zaraz pod tytułem */}
       <div className="flex flex-col gap-2 w-full max-w-xl mx-auto px-4 pt-2">
-            {/* Porcje */}
             <div className={`flex items-center rounded-2xl p-1.5 pr-4 border transition-all gap-3 ${inputType === 'portions' ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-surface-container-low border-outline-variant/10'}`}>
               <div className="flex items-center gap-2 pl-0.5">
                   <input
                     type="number"
+                    inputMode="decimal"
+                    aria-label={t('recipeDetails.portionsInput')}
                     value={portionInput}
                     onFocus={() => setInputType('portions')}
                     onChange={(e) => {
@@ -390,7 +434,7 @@ export function RecipeDetails() {
                   />
                 <div className="flex items-baseline gap-1">
                   <span className="font-bold text-on-surface-variant text-sm shrink-0 whitespace-nowrap">
-                    porcj{Number(portionInput) === 1 ? 'a' : (Math.floor(Number(portionInput)) >= 2 && Math.floor(Number(portionInput)) <= 4 ? 'e' : 'i')}
+                    {portionWord(Number(portionInput) || 0)}
                   </span>
                   <span className="text-xs font-medium text-on-surface-variant/60 ml-0.5">({Math.round(Number(portionInput || 0) * (safeWeight / basePortions))}g)</span>
                 </div>
@@ -402,11 +446,12 @@ export function RecipeDetails() {
             </div>
 
 
-            {/* Gramy */}
             <div className={`flex items-center rounded-2xl p-1.5 pr-4 border transition-all gap-3 ${inputType === 'grams' ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-surface-container-low border-outline-variant/10'}`}>
               <div className="flex items-center gap-2 pl-0.5">
                   <input
                     type="number"
+                    inputMode="decimal"
+                    aria-label={t('recipeDetails.gramsInput')}
                     value={gramInput}
                     onFocus={() => setInputType('grams')}
                     onChange={(e) => {
@@ -428,19 +473,15 @@ export function RecipeDetails() {
 
       <main className="w-full max-w-xl mx-auto px-4 py-8 flex flex-col gap-10">
 
-        {/* Kalorie - szybki wybór */}
         <section className="flex flex-col gap-3">
           <div>
-            <h2 className="font-headline font-bold text-lg text-on-surface">Kalorie <span className="text-on-surface-variant font-medium text-sm">na 1 porcję ({Math.round(consumedPortions * (safeWeight / basePortions))}g)</span></h2>
-            <p className="text-xs text-on-surface-variant mt-1">Możesz dopasować energię i makroskładniki.</p>
+            <h2 className="font-headline font-bold text-lg text-on-surface">{t('recipeDetails.kcalTitle')} <span className="text-on-surface-variant font-medium text-sm">{t('recipeDetails.kcalPortion', { grams: Math.round(consumedPortions * (safeWeight / basePortions)) })}</span></h2>
+            <p className="text-xs text-on-surface-variant mt-1">{t('recipeDetails.kcalHint')}</p>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-4 -mx-1 px-1 scrollbar-hide snap-x">
             {(() => {
               const baseKcal = Math.round(recipe.kcal);
-              // Używamy ułamków kulinarnych, żeby po przeliczeniu makro/składników wychodziły sensowne wartości do gotowania (np. pół, ćwierć)
-              const multipliers = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75];
-              
-              return multipliers.map((m) => {
+              return QUICK_PICK_MULTIPLIERS.map((m) => {
                 const kcalOption = Math.round(baseKcal * m);
                 const isSelected = inputType === 'quick-pick' && quickPickPortions !== null && Math.abs(quickPickPortions - m) < 0.01;
                 return (
@@ -464,25 +505,22 @@ export function RecipeDetails() {
           </div>
         </section>
 
-        {/* Makro zależne od wpisanych porcji */}
         <section className="flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <h2 className="text-[10px] font-black uppercase tracking-widest text-on-surface opacity-40">
-              Wartości Odżywcze {displaySuffix}
+              {t('recipeDetails.nutritionTitle')} {displaySuffix}
             </h2>
           </div>
-          
+
           <div className="flex items-center justify-between gap-1 sm:gap-4 px-2">
-            
-            {/* Kalorie */}
+
             <div className="flex flex-col items-center gap-3">
               <div className="w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px] flex items-center justify-center">
                  <span className="font-black text-3xl text-on-surface leading-none">{currentKcal}</span>
               </div>
               <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">kcal</span>
             </div>
-            
-            {/* Białko */}
+
             <div className="flex flex-col items-center gap-3">
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#4F46E5 ${pctP}%, #4F46E510 0)` }}></div>
@@ -490,10 +528,9 @@ export function RecipeDetails() {
                    <span className="font-black text-base text-on-surface leading-none">{currentP}g</span>
                  </div>
               </div>
-              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Białko</span>
+              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">{t('recipeDetails.protein')}</span>
             </div>
 
-            {/* Tłuszcz */}
             <div className="flex flex-col items-center gap-3">
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#F59E0B ${pctF}%, #F59E0B10 0)` }}></div>
@@ -501,10 +538,9 @@ export function RecipeDetails() {
                    <span className="font-black text-base text-on-surface leading-none">{currentF}g</span>
                  </div>
               </div>
-              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Tłuszcz</span>
+              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">{t('recipeDetails.fat')}</span>
             </div>
 
-            {/* Węglowodany */}
             <div className="flex flex-col items-center gap-3">
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#10B981 ${pctC}%, #10B98110 0)` }}></div>
@@ -512,7 +548,7 @@ export function RecipeDetails() {
                    <span className="font-black text-base text-on-surface leading-none">{currentC}g</span>
                  </div>
               </div>
-              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Węgle</span>
+              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">{t('recipeDetails.carbs')}</span>
             </div>
 
           </div>
@@ -520,19 +556,18 @@ export function RecipeDetails() {
 
         <RecipeMoreNutrients ingredients={ingredients} portions={basePortions} />
 
-        {/* Składniki */}
         {ingredients && ingredients.length > 0 && (
           <section className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-[11px] sm:text-xs font-bold uppercase tracking-wide text-on-surface-variant flex items-center gap-1 flex-wrap leading-tight">
-                <span>Składniki na {activeIngredientPortions} porcj{activeIngredientPortions === 1 ? 'ę' : (Math.floor(activeIngredientPortions) >= 2 && Math.floor(activeIngredientPortions) <= 4 && activeIngredientPortions % 1 === 0 ? 'e' : 'i')}</span>
+                <span>{t('recipeDetails.ingredientsFor', { portions: t(`recipeDetails.portionsAccusative.${portionForm(activeIngredientPortions)}` as MessageKey, { count: Math.round(activeIngredientPortions * 100) / 100 }) })}</span>
                 <span className="normal-case opacity-70">({Math.round(activeIngredientPortions * (safeWeight / basePortions))}g)</span>
               </h2>
 
-              {/* Stepper porcji składników */}
               <div className="flex items-center bg-surface-container-low rounded-xl p-1 shadow-sm border border-outline-variant/10">
-                <button 
+                <button
                   onClick={() => setIngredientPortions(p => Math.max(0.25, (p !== null ? p : consumedPortions) - 0.25))}
+                  aria-label={t('recipeDetails.fewerPortions')}
                   className="w-8 h-8 flex items-center justify-center text-on-surface hover:bg-surface-container-highest rounded-lg transition-colors font-bold active:scale-95"
                 >
                   <span className="material-symbols-outlined text-[18px]">remove</span>
@@ -540,15 +575,16 @@ export function RecipeDetails() {
                 <div className="w-8 text-center font-bold text-sm text-on-surface select-none">
                   {Math.round(activeIngredientPortions * 100) / 100}
                 </div>
-                <button 
+                <button
                   onClick={() => setIngredientPortions(p => (p !== null ? p : consumedPortions) + 0.25)}
+                  aria-label={t('recipeDetails.morePortions')}
                   className="w-8 h-8 flex items-center justify-center text-on-surface hover:bg-surface-container-highest rounded-lg transition-colors font-bold active:scale-95"
                 >
                   <span className="material-symbols-outlined text-[18px]">add</span>
                 </button>
               </div>
             </div>
-            
+
             <div className="flex flex-col gap-3">
               {ingredients.map((ing, idx) => {
                 const scaledAmount = ((Number(ing.amount) || 0) * (activeIngredientPortions / basePortions)).toFixed(1).replace(/\.0$/, '');
@@ -565,7 +601,6 @@ export function RecipeDetails() {
           </section>
         )}
 
-        {/* Podgląd wpływu na dzień */}
         {selectDate && !loading && (
           <section className="mt-4">
             <button
@@ -575,7 +610,7 @@ export function RecipeDetails() {
               <div className="flex items-center gap-3 text-primary">
                 <span className="material-symbols-outlined text-[22px]">{showPreview ? 'visibility_off' : 'analytics'}</span>
                 <span className="font-headline font-bold text-sm tracking-tight">
-                  {showPreview ? 'Ukryj podgląd dnia' : 'Sprawdź wpływ na bilans dnia'}
+                  {showPreview ? t('recipeDetails.hidePreview') : t('recipeDetails.showPreview')}
                 </span>
               </div>
               <span className={`material-symbols-outlined transition-transform duration-300 ${showPreview ? 'rotate-180 text-primary' : 'text-on-surface-variant'}`}>
@@ -591,7 +626,7 @@ export function RecipeDetails() {
                 fat: parseFloat((consumed.fat + currentF).toFixed(1)),
                 carbs: parseFloat((consumed.carbs + currentC).toFixed(1))
               };
-              
+
               const currentData = previewMode === 'after' ? after : consumed;
 
               return (
@@ -603,34 +638,32 @@ export function RecipeDetails() {
                       </div>
                       <div>
                         <h3 className="font-headline font-bold text-sm text-on-surface leading-tight">
-                          {previewMode === 'after' ? 'Bilans po dodaniu' : 'Aktualny bilans'}
+                          {previewMode === 'after' ? t('recipeDetails.previewAfterTitle') : t('recipeDetails.previewBeforeTitle')}
                         </h3>
                         <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">{dateDisplay}</p>
                       </div>
                     </div>
 
-                    {/* Przełącznik Przed/Po */}
                     <div className="flex bg-surface-container-highest p-1 rounded-2xl border border-outline-variant/5">
-                      <button 
+                      <button
                         onClick={() => setPreviewMode('before')}
                         className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${previewMode === 'before' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
                       >
-                        Przed
+                        {t('recipeDetails.previewBefore')}
                       </button>
-                      <button 
+                      <button
                         onClick={() => setPreviewMode('after')}
                         className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${previewMode === 'after' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
                       >
-                        Po
+                        {t('recipeDetails.previewAfter')}
                       </button>
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-5">
-                    {/* Kcal Preview */}
                     <div className="flex flex-col gap-2">
                       <div className="flex justify-between items-baseline leading-none gap-1">
-                        <span className="text-primary uppercase tracking-normal text-[8px] font-bold">Kalorie</span>
+                        <span className="text-primary uppercase tracking-normal text-[8px] font-bold">{t('recipeDetails.kcalTitle')}</span>
                         <span className="text-[7px] text-on-surface-variant font-bold uppercase">
                           <span className={`text-[10px] font-extrabold ${profile && currentData.kcal > profile.target_kcal ? 'text-error' : 'text-primary'}`}>
                             {currentData.kcal}
@@ -645,12 +678,10 @@ export function RecipeDetails() {
                       </div>
                     </div>
 
-                    {/* Macro Previews */}
                     <div className="grid grid-cols-1 gap-4">
-                      {/* Protein */}
                       <div className="flex flex-col gap-2">
                         <div className="flex justify-between items-baseline leading-none gap-1">
-                          <span className="text-primary uppercase tracking-normal text-[7px] font-bold">Białka</span>
+                          <span className="text-primary uppercase tracking-normal text-[7px] font-bold">{t('recipeDetails.protein')}</span>
                           <span className="text-[7px] text-on-surface-variant font-bold uppercase">
                             <span className={`text-[9px] font-extrabold ${profile && currentData.protein > (profile.target_protein_max || profile.target_protein * 1.1) ? 'text-error' : 'text-primary'}`}>
                               {currentData.protein}
@@ -665,10 +696,9 @@ export function RecipeDetails() {
                         </div>
                       </div>
 
-                      {/* Fat */}
                       <div className="flex flex-col gap-2">
                         <div className="flex justify-between items-baseline leading-none gap-1">
-                          <span className="text-primary uppercase tracking-normal text-[7px] font-bold">Tłuszcz</span>
+                          <span className="text-primary uppercase tracking-normal text-[7px] font-bold">{t('recipeDetails.fat')}</span>
                           <span className="text-[7px] text-on-surface-variant font-bold uppercase">
                              <span className={`text-[9px] font-extrabold ${profile && currentData.fat > (profile.target_fat_max || profile.target_fat * 1.1) ? 'text-error' : 'text-primary'}`}>
                               {currentData.fat}
@@ -683,10 +713,9 @@ export function RecipeDetails() {
                         </div>
                       </div>
 
-                      {/* Carbs */}
                       <div className="flex flex-col gap-2">
                         <div className="flex justify-between items-baseline leading-none gap-1">
-                          <span className="text-primary uppercase tracking-normal text-[7px] font-bold">Węgle</span>
+                          <span className="text-primary uppercase tracking-normal text-[7px] font-bold">{t('recipeDetails.carbs')}</span>
                           <span className="text-[7px] text-on-surface-variant font-bold uppercase">
                              <span className={`text-[9px] font-extrabold ${profile && currentData.carbs > (profile.target_carbs_max || profile.target_carbs * 1.1) ? 'text-error' : 'text-primary'}`}>
                               {currentData.carbs}
@@ -708,10 +737,9 @@ export function RecipeDetails() {
           </section>
         )}
 
-        {/* Przygotowanie */}
         {recipe.instructions && recipe.instructions.length > 0 && (
           <section className="flex flex-col gap-4">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-2">Przygotowanie</h2>
+            <h2 className="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-2">{t('recipeDetails.steps')}</h2>
             <div className="flex flex-col gap-5">
               {recipe.instructions.map((step: string, idx: number) => (
                 <div key={idx} className="flex gap-4">
@@ -729,28 +757,28 @@ export function RecipeDetails() {
 
       </main>
 
-      {/* Floating Add to Plan Bar */}
       {selectDate && selectType && (
         <div className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl border-t border-outline-variant/10 p-4 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
           <div className="max-w-xl mx-auto w-full flex gap-3 items-center">
-            
-            {/* Stepper Dni - ukryty przy edycji */}
+
             {!mealId && (
               <div className="flex items-center bg-surface-container-low border border-outline-variant/20 rounded-2xl p-1 h-[56px] shadow-sm">
-                <button 
+                <button
                   onClick={() => setDaysToAdd(prev => Math.max(1, prev - 1))}
+                  aria-label={t('recipeDetails.fewerDays')}
                   className="w-10 h-full flex items-center justify-center text-on-surface hover:bg-surface-container-highest rounded-xl transition-all font-bold active:scale-95"
                 >
                   <span className="material-symbols-outlined text-[20px]">remove</span>
                 </button>
-                
+
                 <div className="px-2 min-w-[60px] flex flex-col items-center justify-center -space-y-1">
                   <span className="font-black text-lg text-on-surface leading-none">{daysToAdd}</span>
-                  <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">dni</span>
+                  <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">{t('recipeDetails.days')}</span>
                 </div>
-                
-                <button 
+
+                <button
                   onClick={() => setDaysToAdd(prev => Math.min(30, prev + 1))}
+                  aria-label={t('recipeDetails.moreDays')}
                   className="w-10 h-full flex items-center justify-center text-on-surface hover:bg-surface-container-highest rounded-xl transition-all font-bold active:scale-95"
                 >
                   <span className="material-symbols-outlined text-[20px]">add</span>
@@ -758,8 +786,7 @@ export function RecipeDetails() {
               </div>
             )}
 
-            {/* Przycisk Akcji */}
-            <button 
+            <button
               onClick={() => handleAddMeal()}
               disabled={isAdding || consumedPortions <= 0}
               className="flex-1 h-[56px] bg-[#6B8E23] hover:bg-[#5a781d] text-white font-black text-base rounded-[20px] transition-all active:scale-[0.98] disabled:opacity-50 shadow-[0_4px_12px_rgba(107,142,35,0.3)] flex items-center justify-center gap-3"
@@ -767,9 +794,7 @@ export function RecipeDetails() {
               {isAdding ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
-                <>
-                  <span>{mealId ? 'Aktualizuj' : 'Dodaj'}</span>
-                </>
+                <span>{t(mealId ? 'recipeDetails.update' : 'recipeDetails.add')}</span>
               )}
             </button>
 
@@ -777,7 +802,6 @@ export function RecipeDetails() {
         </div>
       )}
 
-      {/* Przycisk Dodaj do planu (gdy brak kontekstu daty) */}
       {!selectDate && !selectType && (
         <div className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl border-t border-outline-variant/10 p-4 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
           <div className="max-w-xl mx-auto w-full">
@@ -786,28 +810,26 @@ export function RecipeDetails() {
               className="w-full h-[56px] bg-[#6B8E23] hover:bg-[#5a781d] text-white font-black text-base rounded-[20px] transition-all active:scale-[0.98] shadow-[0_4px_12px_rgba(107,142,35,0.3)] flex items-center justify-center gap-3"
             >
               <span className="material-symbols-outlined text-[22px]">add_circle</span>
-              Dodaj do planu
+              {t('recipeDetails.addToPlan')}
             </button>
           </div>
         </div>
       )}
 
-      {/* Bottom Sheet – Wybierz dzień i porę */}
       {showAddToPlan && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowAddToPlan(false)}>
           <div ref={addToPlanSheetRef} className="w-full max-w-xl bg-surface rounded-t-[32px] p-6 pb-8 animate-slide-up shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
-            <h2 className="font-headline font-bold text-xl text-on-surface mb-5">Wybierz dzień i porę</h2>
+            <h2 className="font-headline font-bold text-xl text-on-surface mb-5">{t('recipeDetails.planSheetTitle')}</h2>
 
-            {/* Szybki wybór dnia */}
-            <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">Dzień</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">{t('recipeDetails.day')}</p>
             <div className="grid grid-cols-3 gap-2 mb-3">
               {(() => {
                 const today = todayIsoDate();
                 return [
-                  { label: 'Dziś', val: today },
-                  { label: 'Jutro', val: addDaysToIsoDate(today, 1) },
-                  { label: 'Pojutrze', val: addDaysToIsoDate(today, 2) },
+                  { label: t('recipeDetails.today'), val: today },
+                  { label: t('recipeDetails.tomorrow'), val: addDaysToIsoDate(today, 1) },
+                  { label: t('recipeDetails.dayAfterTomorrow'), val: addDaysToIsoDate(today, 2) },
                 ].map(opt => (
                   <button
                     key={opt.val}
@@ -824,7 +846,6 @@ export function RecipeDetails() {
                 ));
               })()}
             </div>
-            {/* Pole kalendarza - ukryte, otwierane przyciskiem */}
             <div className="relative mb-5">
               <button
                 type="button"
@@ -839,13 +860,14 @@ export function RecipeDetails() {
               >
                 <span className="material-symbols-outlined text-[22px]">calendar_month</span>
                 <span className="font-bold text-sm flex-1 text-left">
-                  {quickDateInput ? new Date(quickDateInput + 'T00:00:00').toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Wybierz inną datę...'}
+                  {quickDateInput ? new Date(quickDateInput + 'T00:00:00').toLocaleDateString(t('recipeDetails.locale'), { weekday: 'long', day: 'numeric', month: 'long' }) : t('recipeDetails.otherDate')}
                 </span>
                 <span className="material-symbols-outlined text-[18px] opacity-40">chevron_right</span>
               </button>
               <input
                 ref={dateInputRef}
                 type="date"
+                aria-label={t('recipeDetails.otherDate')}
                 value={quickDateInput}
                 className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                 onChange={e => {
@@ -858,17 +880,9 @@ export function RecipeDetails() {
               />
             </div>
 
-            {/* Wybór pory */}
-            <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">Pora posiłku</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">{t('recipeDetails.mealTime')}</p>
             <div className="grid grid-cols-2 gap-2 mb-6">
-              {(profile?.meal_config || [
-                { id: 'breakfast', name: 'Śniadanie' },
-                { id: 'second_breakfast', name: '2 Śniadanie' },
-                { id: 'lunch', name: 'Lunch' },
-                { id: 'dinner', name: 'Obiad' },
-                { id: 'snack', name: 'Przekąska' },
-                { id: 'supper', name: 'Kolacja' },
-              ]).filter((m: any) => m.visible !== false).map((meal: any) => (
+              {visibleMealTypes.map(meal => (
                 <button
                   key={meal.id}
                   onClick={() => setQuickMealType(meal.id)}
@@ -890,78 +904,55 @@ export function RecipeDetails() {
               disabled={isAdding || !quickDate || !quickMealType}
               className="w-full h-[56px] bg-[#6B8E23] text-white font-black text-base rounded-[20px] transition-all active:scale-[0.98] disabled:opacity-40 shadow-[0_4px_12px_rgba(107,142,35,0.3)] flex items-center justify-center gap-3"
             >
-              {isAdding ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Dodaj do planu'}
+              {isAdding ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : t('recipeDetails.addToPlan')}
             </button>
           </div>
         </div>
       )}
 
-      {/* Bottom Sheet Menu */}
       {showMenu && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div ref={menuSheetRef} className="w-full max-w-md bg-surface rounded-t-3xl sm:rounded-3xl p-6 pb-safe-6 flex flex-col gap-2 animate-slide-up sm:animate-fade-in relative shadow-ambient">
-            <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto -mt-2 sm:hidden" />
-            <button
-              onClick={() => setShowMenu(false)}
-              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform"
-            >
-              <span className="material-symbols-outlined">close</span>
-            </button>
-            <h3 className="font-headline font-bold text-xl text-on-surface mb-4 mt-2">Zarządzaj przepisem</h3>
-            
-            <button onClick={handleEdit} className="flex items-center gap-4 p-4 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors text-left group">
-               <span className="material-symbols-outlined text-primary">edit</span>
-               <div className="flex flex-col">
-                  <span className="font-bold text-on-surface">Edytuj przepis</span>
-                  <span className="text-xs text-on-surface-variant">Zmień składniki, makro i przygotowanie</span>
-               </div>
-            </button>
-            
-            <button onClick={() => { alert('Opcja wkrótce dostępna! Ten projekt jeszcze nie obsługuje Uploadu Media Object Storage.'); setShowMenu(false); }} className="flex items-center gap-4 p-4 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors text-left group">
-               <span className="material-symbols-outlined text-primary">add_a_photo</span>
-               <div className="flex flex-col">
-                  <span className="font-bold text-on-surface">Zmień zdjęcie</span>
-                  <span className="text-xs text-on-surface-variant">Dodaj nową fotografię potrawy z menu</span>
-               </div>
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setShowMenu(false)}>
+          <div
+            ref={menuSheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="recipe-menu-title"
+            className="w-full max-w-md bg-surface rounded-t-3xl sm:rounded-3xl px-6 pt-4 pb-safe-6 flex flex-col gap-2 animate-slide-up sm:animate-fade-in relative shadow-ambient"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-2 sm:hidden" />
+            <h3 id="recipe-menu-title" className="font-headline font-bold text-xl text-on-surface mb-3">{t('recipeDetails.menuTitle')}</h3>
+
+            <button onClick={handleEdit} className="flex items-center gap-4 p-4 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors text-left">
+              <span className="material-symbols-outlined text-primary">edit</span>
+              <span className="flex flex-col">
+                <span className="font-bold text-on-surface">{t('recipeDetails.edit')}</span>
+                <span className="text-xs text-on-surface-variant">{t('recipeDetails.editHint')}</span>
+              </span>
             </button>
 
-            <button onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }} className="flex items-center gap-4 p-4 rounded-xl bg-error/5 hover:bg-error/10 transition-colors text-left mt-2 border border-error/10">
-               <span className="material-symbols-outlined text-error">delete</span>
-               <div className="flex flex-col">
-                  <span className="font-bold text-error">Usuń przepis</span>
-                  <span className="text-[10px] text-error">Zniknie z wyszukiwarki (w planach pozostanie zachowany)</span>
-               </div>
+            <button onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }} className="flex items-center gap-4 p-4 rounded-xl bg-error/5 hover:bg-error/10 transition-colors text-left border border-error/10">
+              <span className="material-symbols-outlined text-error">delete</span>
+              <span className="font-bold text-error">{t('recipeDelete.confirm')}</span>
+            </button>
+
+            <button onClick={() => setShowMenu(false)} className="w-full py-4 mt-1 font-bold text-on-surface-variant rounded-2xl active:scale-[0.98] transition-all">
+              {t('common.cancel')}
             </button>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 animate-fade-in" onClick={() => setShowDeleteConfirm(false)}>
-           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-           <div className="w-full max-w-sm bg-surface rounded-[32px] p-8 shadow-2xl relative animate-scale-up" onClick={e => e.stopPropagation()}>
-              <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="material-symbols-outlined text-3xl text-error">delete_forever</span>
-              </div>
-              <h2 className="font-headline font-bold text-xl text-center text-on-surface mb-8">Usunąć przepis?</h2>
-              <div className="flex flex-col gap-3">
-                 <button 
-                   onClick={handleArchive}
-                   className="w-full py-4 bg-error text-on-error font-bold rounded-2xl active:scale-95 transition-all shadow-lg shadow-error/20"
-                 >
-                   Tak, usuń przepis
-                 </button>
-                 <button 
-                   onClick={() => setShowDeleteConfirm(false)}
-                   className="w-full py-4 bg-surface-container-highest text-on-surface font-bold rounded-2xl active:scale-95 transition-all"
-                 >
-                   Anuluj
-                 </button>
-              </div>
-           </div>
-        </div>
+        <RecipeDeleteSheet
+          recipe={recipe}
+          deleting={isDeleting}
+          onConfirm={handleDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
       )}
+
+      {notice && <UndoSnackbar message={notice} onClose={closeNotice} />}
 
     </div>
   );

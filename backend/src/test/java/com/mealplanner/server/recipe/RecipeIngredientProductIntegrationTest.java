@@ -90,10 +90,11 @@ class RecipeIngredientProductIntegrationTest {
 
     @Test
     void keepsTheProductOfEachIngredientWithItsNutrients() throws Exception {
+        String token = bearer();
         Product product = saveProduct();
-        String recipeId = createRecipe(bearer(), product.getId().toString());
+        String recipeId = createRecipe(token, product.getId().toString());
 
-        mockMvc.perform(get("/api/recipes/" + recipeId))
+        mockMvc.perform(get("/api/recipes/" + recipeId).header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ingredients[?(@.name == 'Cream')].product.id").value(product.getId().toString()))
                 .andExpect(jsonPath("$.ingredients[?(@.name == 'Cream')].product.saturated_fat").value(12.0))
@@ -107,7 +108,7 @@ class RecipeIngredientProductIntegrationTest {
         Product product = saveProduct();
         String recipeId = createRecipe(token, UUID.randomUUID().toString());
 
-        mockMvc.perform(get("/api/recipes/" + recipeId))
+        mockMvc.perform(get("/api/recipes/" + recipeId).header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(jsonPath("$.ingredients[?(@.name == 'Cream')].product").value(hasItem(
                         nullValue())));
 
@@ -117,18 +118,19 @@ class RecipeIngredientProductIntegrationTest {
                         .content(recipeJson("Sauce", product.getId().toString())))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/recipes/" + recipeId))
+        mockMvc.perform(get("/api/recipes/" + recipeId).header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(jsonPath("$.ingredients[?(@.name == 'Cream')].product.sugars").value(3.4));
     }
 
     @Test
     void keepsTheIngredientWhenItsProductIsRemoved() throws Exception {
+        String token = bearer();
         Product product = saveProduct();
-        String recipeId = createRecipe(bearer(), product.getId().toString());
+        String recipeId = createRecipe(token, product.getId().toString());
 
         productRepository.deleteById(product.getId());
 
-        mockMvc.perform(get("/api/recipes/" + recipeId))
+        mockMvc.perform(get("/api/recipes/" + recipeId).header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ingredients.length()").value(2))
                 .andExpect(jsonPath("$.ingredients[?(@.name == 'Cream')].product").value(hasItem(

@@ -32,7 +32,7 @@ Do pracy w IDE wystarczy sama baza z Dockera:
 docker compose up -d postgres
 ```
 
-Backend wymaga JDK 25 i czyta ustawienia z tego samego głównego `.env` co Docker Compose. Przykładowe przepisy i produkty trafiają do pustej bazy tylko z aktywnym profilem `dev`, który Docker Compose włącza sam, a w IDE trzeba go ustawić w konfiguracji uruchomienia (Active profiles: `dev`). Testy uruchamia `mvn test` w katalogu `backend` i potrzebują działającego Dockera. Raport pokrycia JaCoCo powstaje w `backend/target/site/jacoco/index.html`.
+Backend wymaga JDK 25 i czyta ustawienia z tego samego głównego `.env` co Docker Compose. Przykładowe przepisy i produkty trafiają do pustej bazy tylko z aktywnym profilem `dev`, który Docker Compose włącza sam, a w IDE trzeba go ustawić w konfiguracji uruchomienia (Active profiles: `dev`). Testy uruchamia `mvn test` w katalogu `backend` i potrzebują działającego Dockera. Raport pokrycia JaCoCo powstaje w `backend/target/site/jacoco/index.html`. Zdjęcia przepisów backend wysyła do publicznego bucketu `recipe-images` w Supabase Storage, więc do uploadu potrzebuje `SUPABASE_URL` i `SUPABASE_SERVICE_ROLE_KEY`. Bez nich reszta aplikacji działa, a dodanie zdjęcia kończy się komunikatem o błędzie.
 
 Frontend wymaga Node 24. W katalogu `frontend` uruchom `npm install` i `npm run dev`. Domyślnie łączy się z `http://localhost:8080`, inny adres API ustawia zmienna `VITE_API_URL` w głównym `.env`.
 

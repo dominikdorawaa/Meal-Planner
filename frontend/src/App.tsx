@@ -13,6 +13,7 @@ import { AppDataProvider } from './lib/AppDataContext';
 import { useEffect, useState } from 'react';
 import { api, clearSession, type AuthUser } from './lib/apiClient';
 import { BackendLoader } from './components/BackendLoader';
+import { DeletedRecipeSnackbar } from './components/DeletedRecipeSnackbar';
 import { startSessionRenewal } from './lib/sessionRenewal';
 
 function App() {
@@ -54,6 +55,7 @@ function App() {
     <Router>
       <AppDataProvider user={user} onLogout={handleLogout}>
         <BackendLoader />
+        {isLoggedIn && <DeletedRecipeSnackbar />}
         <Routes>
           <Route path="/login" element={!isLoggedIn ? <Login /> : <Navigate to="/" />} />
           <Route path="/" element={isLoggedIn ? <Plan /> : <Navigate to="/login" />} />

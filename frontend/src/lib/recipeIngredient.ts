@@ -94,18 +94,22 @@ export function ingredientMacros(ingredient: IngredientAmount<Partial<Macros> & 
   };
 }
 
-export function recipeMacros(ingredients: IngredientAmount<Partial<Macros> & ScalableProduct>[]): Macros {
+export function recipeMacrosPerPortion(
+  ingredients: IngredientAmount<Partial<Macros> & ScalableProduct>[],
+  portions = 1
+): Macros {
   const totals = ingredients.map(ingredientMacros).reduce((sum, macros) => ({
     kcal: sum.kcal + macros.kcal,
     protein: sum.protein + macros.protein,
     fat: sum.fat + macros.fat,
     carbs: sum.carbs + macros.carbs,
   }), ZERO_MACROS);
+  const count = portions > 0 ? portions : 1;
   return {
-    kcal: Math.round(totals.kcal),
-    protein: Math.round(totals.protein),
-    fat: Math.round(totals.fat),
-    carbs: Math.round(totals.carbs),
+    kcal: Math.round(totals.kcal / count),
+    protein: scaled(totals.protein, 1 / count, 1),
+    fat: scaled(totals.fat, 1 / count, 1),
+    carbs: scaled(totals.carbs, 1 / count, 1),
   };
 }
 

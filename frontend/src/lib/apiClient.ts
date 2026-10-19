@@ -60,8 +60,13 @@ export interface Product {
 export interface RecipeSummary {
   id: string;
   name: string;
-  kcal?: number | null;
   image_url?: string | null;
+  kcal?: number | null;
+  protein?: number | null;
+  fat?: number | null;
+  carbs?: number | null;
+  prep_time?: number | null;
+  portions?: number | null;
   created_by?: string | null;
   status?: string;
   own?: boolean;
@@ -131,10 +136,11 @@ async function request<T>(
   body?: unknown,
   requiresAuth = true
 ): Promise<T> {
+  const isFormData = body instanceof FormData;
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     'Accept-Language': getLanguage(),
   };
+  if (!isFormData) headers['Content-Type'] = 'application/json';
 
   if (requiresAuth) {
     const token = getToken();
@@ -154,7 +160,7 @@ async function request<T>(
     const res = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: isFormData ? body : body ? JSON.stringify(body) : undefined,
     });
 
     if (!res.ok) {
@@ -300,6 +306,9 @@ export const api = {
     async archive(id: string): Promise<any> {
       return request<any>('PATCH', `/api/recipes/${id}/archive`);
     },
+    async restore(id: string): Promise<RecipeSummary> {
+      return request<RecipeSummary>('PATCH', `/api/recipes/${id}/restore`);
+    },
     async saved(): Promise<RecipeSummary[]> {
       return request<RecipeSummary[]>('GET', '/api/recipes/saved');
     },
@@ -308,6 +317,12 @@ export const api = {
     },
     async unsave(id: string): Promise<void> {
       return request<void>('DELETE', `/api/recipes/${id}/saved`);
+    },
+    async uploadImage(photo: Blob): Promise<string> {
+      const form = new FormData();
+      form.append('file', photo, 'recipe-photo.jpg');
+      const { url } = await request<{ url: string }>('POST', '/api/recipes/images', form);
+      return url;
     }
   },
 

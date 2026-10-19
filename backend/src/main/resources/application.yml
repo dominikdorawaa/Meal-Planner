@@ -23,6 +23,10 @@ spring:
           allow_jdbc_metadata_access: true
   jackson:
     property-naming-strategy: SNAKE_CASE
+  servlet:
+    multipart:
+      max-file-size: 6MB
+      max-request-size: 6MB
   messages:
     basename: messages
     fallback-to-system-locale: false
@@ -33,6 +37,12 @@ jwt:
 
 springdotenv:
   directory: ..
+
+supabase:
+  url: ${SUPABASE_URL:}
+  service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+  storage:
+    recipe-images-bucket: ${SUPABASE_RECIPE_IMAGES_BUCKET:recipe-images}
 
 corsAllowedOrigins: http://localhost:5173
 

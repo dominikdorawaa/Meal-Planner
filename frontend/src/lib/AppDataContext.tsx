@@ -197,7 +197,8 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
 
     mealsToday.forEach(meal => {
       if (meal.recipe) {
-        const rec = recipes.find(r => r.id === (meal.recipe?.id || meal.recipe));
+        const rec = recipes.find(r => r.id === (meal.recipe?.id || meal.recipe))
+          ?? (typeof meal.recipe?.kcal === 'number' ? meal.recipe : null);
         if (rec) {
           const mult = meal.portions_consumed || 1;
           kcal += Math.round(rec.kcal * mult);
