@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.Map;
 import java.util.Objects;
@@ -36,6 +37,7 @@ public class GlobalExceptionHandler {
     static final String METHOD_NOT_ALLOWED = "error.method-not-allowed";
     static final String REQUEST_FAILED = "error.request-failed";
     static final String INTERNAL_ERROR = "error.internal";
+    static final String PAYLOAD_TOO_LARGE = "error.payload-too-large";
 
     private final MessageSource messageSource;
 
@@ -64,6 +66,11 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<Map<String, String>> handleBadRequest(Exception e) {
         return error(HttpStatus.BAD_REQUEST, BAD_REQUEST);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, String>> handleMaxUploadSize(MaxUploadSizeExceededException e) {
+        return error(HttpStatus.PAYLOAD_TOO_LARGE, PAYLOAD_TOO_LARGE);
     }
 
     @ExceptionHandler(ApiException.class)

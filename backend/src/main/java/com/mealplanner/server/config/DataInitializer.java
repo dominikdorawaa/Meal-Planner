@@ -4,6 +4,7 @@ import com.mealplanner.server.product.Product;
 import com.mealplanner.server.product.ProductRepository;
 import com.mealplanner.server.recipe.Recipe;
 import com.mealplanner.server.recipe.RecipeRepository;
+import com.mealplanner.server.recipe.RecipeVisibility;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
@@ -79,6 +80,7 @@ public class DataInitializer implements CommandLineRunner {
         r.setPortions(1.0);
         r.setPrepTime(20);
         r.setIsArchived(false);
+        r.setVisibility(RecipeVisibility.PUBLIC);
         r.setInstructions(Arrays.asList("Krok 1: Przygotuj składniki", "Krok 2: Połącz i podawaj"));
         return r;
     }

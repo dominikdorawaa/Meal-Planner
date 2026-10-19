@@ -63,7 +63,7 @@ class DatabaseMigrationTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "select version, success from flyway_schema_history where version is not null order by installed_rank");
 
-        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
         assertThat(history).allSatisfy(row -> assertThat(row.get("success")).isEqualTo(true));
     }
 
@@ -81,7 +81,8 @@ class DatabaseMigrationTest {
                 "recipe_ingredients",
                 "user_meals",
                 "shopping_list",
-                "shopping_list_recipes");
+                "shopping_list_recipes",
+                "saved_recipes");
     }
 
     @Test
@@ -111,6 +112,75 @@ class DatabaseMigrationTest {
         assertThat(rows).extracting(row -> row.get("image_url"))
                 .containsExactly("https://example.com/my-photo.jpg", null);
         jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    @Test
+    void makesRecipesWithoutAuthorPublicAndKeepsUserRecipesPrivate() {
+        String schema = "recipe_visibility_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("10").load().migrate();
+        UUID author = UUID.randomUUID();
+        jdbcTemplate.update("insert into " + schema + ".recipes (id, name, created_by, is_archived) values (?, ?, ?, ?), (?, ?, ?, ?)",
+                UUID.randomUUID(), "Base", null, null,
+                UUID.randomUUID(), "Own", author, true);
+
+        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+
+        Map<String, Map<String, Object>> rows = new HashMap<>();
+        jdbcTemplate.queryForList("select name, visibility, is_archived from " + schema + ".recipes")
+                .forEach(row -> rows.put((String) row.get("name"), row));
+        assertThat(rows.get("Base")).containsEntry("visibility", "PUBLIC").containsEntry("is_archived", false);
+        assertThat(rows.get("Own")).containsEntry("visibility", "PRIVATE").containsEntry("is_archived", true);
+        assertThatThrownBy(() -> jdbcTemplate.update("update " + schema + ".recipes set visibility = 'SHARED'"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    @Test
+    void storesNutritionOfUserRecipesWithProductIngredientsPerPortion() {
+        String schema = "recipe_portions_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("10").load().migrate();
+        UUID author = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        jdbcTemplate.update("insert into " + schema + ".products (id, name) values (?, ?)", productId, "Banana");
+        String insertRecipe = "insert into " + schema + ".recipes (id, name, created_by, portions, kcal, protein, fat, carbs) "
+                + "values (?, ?, ?, ?, ?, ?, ?, ?)";
+        UUID calculated = UUID.randomUUID();
+        UUID manual = UUID.randomUUID();
+        UUID base = UUID.randomUUID();
+        jdbcTemplate.update(insertRecipe, calculated, "Calculated", author, 4.0, 356.0, 4.4, 1.2, 92.0);
+        jdbcTemplate.update(insertRecipe, manual, "Manual", author, 4.0, 400.0, 20.0, 10.0, 50.0);
+        jdbcTemplate.update(insertRecipe, base, "Base", null, 2.0, 500.0, 30.0, 20.0, 40.0);
+        String insertIngredient = "insert into " + schema + ".recipe_ingredients (id, recipe_id, name, amount, unit, product_id) values (?, ?, ?, ?, ?, ?)";
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), calculated, "Banana", 400.0, "g", productId);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), manual, "Banana", 400.0, "g", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), base, "Banana", 400.0, "g", productId);
+
+        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+
+        Map<String, Map<String, Object>> rows = new HashMap<>();
+        jdbcTemplate.queryForList("select name, kcal, protein, fat, carbs from " + schema + ".recipes")
+                .forEach(row -> rows.put((String) row.get("name"), row));
+        assertThat(rows.get("Calculated")).containsEntry("kcal", 89.0).containsEntry("protein", 1.1)
+                .containsEntry("fat", 0.3).containsEntry("carbs", 23.0);
+        assertThat(rows.get("Manual")).containsEntry("kcal", 400.0).containsEntry("carbs", 50.0);
+        assertThat(rows.get("Base")).containsEntry("kcal", 500.0);
+        jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    @Test
+    void removesSavedRecipesTogetherWithTheirRecipe() {
+        UUID userId = jdbcTemplate.queryForObject("select id from app_users where email = ?", UUID.class, registerNewUser());
+        UUID recipeId = UUID.randomUUID();
+        jdbcTemplate.update("insert into recipes (id, name) values (?, ?)", recipeId, "Temporary");
+        jdbcTemplate.update("insert into saved_recipes (id, user_id, recipe_id) values (?, ?, ?)", UUID.randomUUID(), userId, recipeId);
+
+        assertThatThrownBy(() -> jdbcTemplate.update("insert into saved_recipes (id, user_id, recipe_id) values (?, ?, ?)",
+                UUID.randomUUID(), userId, recipeId))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        jdbcTemplate.update("delete from recipes where id = ?", recipeId);
+
+        assertThat(jdbcTemplate.queryForObject("select count(*) from saved_recipes where recipe_id = ?", Integer.class, recipeId))
+                .isZero();
     }
 
     @Test
