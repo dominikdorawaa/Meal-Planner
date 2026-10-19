@@ -194,13 +194,16 @@ class ProductAccessIntegrationTest {
     }
 
     @Test
-    void barCodeLookupPrefersTheVerifiedProductOverTheUsersOwnPendingOne() throws Exception {
+    void barCodeLookupPrefersTheUsersOwnVersionOverTheVerifiedProduct() throws Exception {
         String barCode = uniqueBarCode();
         User author = saveUser(UserRole.USER);
         savePendingProduct(barCode, author, "My product");
         saveProduct(barCode, ProductStatus.VERIFIED, "Verified product");
 
         mockMvc.perform(get("/api/products/barcode/" + barCode).header(HttpHeaders.AUTHORIZATION, tokenFor(author)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("My product"));
+        mockMvc.perform(get("/api/products/barcode/" + barCode).header(HttpHeaders.AUTHORIZATION, tokenFor(saveUser(UserRole.USER))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Verified product"));
     }

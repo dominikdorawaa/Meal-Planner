@@ -11,6 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,9 +22,6 @@ import java.util.UUID;
 public class ProductController {
 
     static final String NOT_FOUND_BY_BAR_CODE = "product.not-found-by-bar-code";
-
-    @Autowired
-    private ProductRepository productRepository;
 
     @Autowired
     private ProductService productService;
@@ -48,9 +46,20 @@ public class ProductController {
         return productService.search(query, filters, page, size, email);
     }
 
+    @GetMapping("/saved")
+    public List<Product> getSavedProducts(Authentication authentication) {
+        return productService.savedProducts(authentication.getName());
+    }
+
+    @GetMapping("/own")
+    public List<Product> getOwnProducts(Authentication authentication) {
+        return productService.ownProducts(authentication.getName());
+    }
+
     @GetMapping("/{id}")
-    public ResponseEntity<Product> getProductById(@PathVariable UUID id) {
-        return productRepository.findById(id)
+    public ResponseEntity<Product> getProductById(@PathVariable UUID id, Authentication authentication) {
+        String email = authentication == null ? null : authentication.getName();
+        return productService.findVisible(id, email)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -85,6 +94,29 @@ public class ProductController {
     @PostMapping
     public Product createProduct(@RequestBody Product product, Authentication authentication) {
         return productService.create(product, authentication.getName());
+    }
+
+    @PutMapping("/{id}")
+    public Product updateProduct(@PathVariable UUID id, @RequestBody Product product, Authentication authentication) {
+        return productService.update(id, product, authentication.getName());
+    }
+
+    @PostMapping("/{id}/own-version")
+    public Product createOwnVersion(@PathVariable UUID id, @RequestBody(required = false) Product product,
+                                    Authentication authentication) {
+        return productService.createOwnVersion(id, product, authentication.getName());
+    }
+
+    @PostMapping("/{id}/saved")
+    public ResponseEntity<Void> saveProduct(@PathVariable UUID id, Authentication authentication) {
+        productService.save(id, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/saved")
+    public ResponseEntity<Void> unsaveProduct(@PathVariable UUID id, Authentication authentication) {
+        productService.unsave(id, authentication.getName());
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")

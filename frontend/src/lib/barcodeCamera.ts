@@ -1,4 +1,5 @@
-export const TARGET_ZOOM = 2;
+export const DEFAULT_ZOOM = 1;
+export const CLOSE_UP_ZOOM = 2;
 
 export const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   audio: false,
@@ -17,8 +18,14 @@ interface CameraCapabilities {
 
 type AdvancedConstraint = MediaTrackConstraintSet & { focusMode?: string; zoom?: number; torch?: boolean };
 
+export interface ZoomRange {
+  min: number;
+  max: number;
+}
+
 export interface CameraTuning {
   torchSupported: boolean;
+  zoom: ZoomRange | null;
 }
 
 export function isCameraSupported(): boolean {
@@ -37,9 +44,8 @@ export async function tuneBarcodeCamera(track: MediaStreamTrack): Promise<Camera
   const capabilities = capabilitiesOf(track);
   const advanced: AdvancedConstraint[] = [];
   if (capabilities.focusMode?.includes('continuous')) advanced.push({ focusMode: 'continuous' });
-  if (capabilities.zoom && capabilities.zoom.max > 1) {
-    advanced.push({ zoom: Math.max(capabilities.zoom.min, Math.min(capabilities.zoom.max, TARGET_ZOOM)) });
-  }
+  const zoom = capabilities.zoom && capabilities.zoom.max > capabilities.zoom.min ? capabilities.zoom : null;
+  if (zoom) advanced.push({ zoom: clampZoom(zoom, DEFAULT_ZOOM) });
   for (const constraint of advanced) {
     try {
       await track.applyConstraints({ advanced: [constraint] });
@@ -47,7 +53,20 @@ export async function tuneBarcodeCamera(track: MediaStreamTrack): Promise<Camera
       continue;
     }
   }
-  return { torchSupported: capabilities.torch === true };
+  return { torchSupported: capabilities.torch === true, zoom };
+}
+
+export function clampZoom(range: ZoomRange, value: number): number {
+  return Math.max(range.min, Math.min(range.max, value));
+}
+
+export async function setZoom(track: MediaStreamTrack, value: number): Promise<boolean> {
+  try {
+    await track.applyConstraints({ advanced: [{ zoom: value } as AdvancedConstraint] });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function setTorch(track: MediaStreamTrack, enabled: boolean): Promise<boolean> {

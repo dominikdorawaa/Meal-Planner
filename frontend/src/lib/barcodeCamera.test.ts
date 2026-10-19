@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   CAMERA_CONSTRAINTS,
-  TARGET_ZOOM,
+  clampZoom,
   isCameraSupported,
   openBarcodeCamera,
   setTorch,
+  setZoom,
   stopCamera,
   tuneBarcodeCamera,
 } from './barcodeCamera';
@@ -35,26 +36,37 @@ describe('barcodeCamera', () => {
     expect(isCameraSupported()).toBe(false);
   });
 
-  it('turns on continuous focus and zooms in when the camera allows it', async () => {
+  it('turns on continuous focus and starts without zoom when the camera can zoom', async () => {
     const track = fakeTrack({ focusMode: ['manual', 'continuous'], zoom: { min: 1, max: 8 }, torch: true });
 
-    await expect(tuneBarcodeCamera(track)).resolves.toEqual({ torchSupported: true });
+    await expect(tuneBarcodeCamera(track)).resolves.toEqual({ torchSupported: true, zoom: { min: 1, max: 8 } });
 
     expect(track.applyConstraints).toHaveBeenCalledWith({ advanced: [{ focusMode: 'continuous' }] });
-    expect(track.applyConstraints).toHaveBeenCalledWith({ advanced: [{ zoom: TARGET_ZOOM }] });
+    expect(track.applyConstraints).toHaveBeenCalledWith({ advanced: [{ zoom: 1 }] });
   });
 
   it('keeps the zoom within the camera range', async () => {
-    const track = fakeTrack({ zoom: { min: 1, max: 1.5 } });
+    const track = fakeTrack({ zoom: { min: 1.2, max: 1.5 } });
 
     await tuneBarcodeCamera(track);
 
-    expect(track.applyConstraints).toHaveBeenCalledWith({ advanced: [{ zoom: 1.5 }] });
+    expect(track.applyConstraints).toHaveBeenCalledWith({ advanced: [{ zoom: 1.2 }] });
+    expect(clampZoom({ min: 1, max: 1.5 }, 2)).toBe(1.5);
+    expect(clampZoom({ min: 1, max: 8 }, 2)).toBe(2);
+  });
+
+  it('changes the zoom and reports failures', async () => {
+    const track = fakeTrack({});
+    await expect(setZoom(track, 2)).resolves.toBe(true);
+    expect(track.applyConstraints).toHaveBeenCalledWith({ advanced: [{ zoom: 2 }] });
+
+    const failing = fakeTrack({}, vi.fn().mockRejectedValue(new Error('no zoom')));
+    await expect(setZoom(failing, 2)).resolves.toBe(false);
   });
 
   it('skips settings the camera does not support or rejects', async () => {
     const rejecting = fakeTrack({ focusMode: ['continuous'], zoom: { min: 1, max: 4 } }, vi.fn().mockRejectedValue(new Error('no')));
-    await expect(tuneBarcodeCamera(rejecting)).resolves.toEqual({ torchSupported: false });
+    await expect(tuneBarcodeCamera(rejecting)).resolves.toEqual({ torchSupported: false, zoom: { min: 1, max: 4 } });
     expect(rejecting.applyConstraints).toHaveBeenCalledTimes(2);
 
     const plain = fakeTrack({ focusMode: ['manual'], zoom: { min: 1, max: 1 } });
@@ -62,7 +74,7 @@ describe('barcodeCamera', () => {
     expect(plain.applyConstraints).not.toHaveBeenCalled();
 
     const old = fakeTrack();
-    await expect(tuneBarcodeCamera(old)).resolves.toEqual({ torchSupported: false });
+    await expect(tuneBarcodeCamera(old)).resolves.toEqual({ torchSupported: false, zoom: null });
   });
 
   it('switches the flashlight and reports failures', async () => {
