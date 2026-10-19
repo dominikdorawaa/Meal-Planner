@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   open: vi.fn(),
   tune: vi.fn(),
   torch: vi.fn(),
+  zoom: vi.fn(),
   stop: vi.fn(),
   createReader: vi.fn(),
   detect: vi.fn(),
@@ -17,7 +18,11 @@ vi.mock('../lib/barcodeCamera', () => ({
   openBarcodeCamera: mocks.open,
   tuneBarcodeCamera: mocks.tune,
   setTorch: mocks.torch,
+  setZoom: mocks.zoom,
   stopCamera: mocks.stop,
+  DEFAULT_ZOOM: 1,
+  CLOSE_UP_ZOOM: 2,
+  clampZoom: (range: { min: number; max: number }, value: number) => Math.max(range.min, Math.min(range.max, value)),
 }));
 
 vi.mock('../lib/barcodeDetection', async importOriginal => {
@@ -50,8 +55,9 @@ beforeEach(() => {
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
   mocks.supported.mockReturnValue(true);
   mocks.open.mockResolvedValue(stream);
-  mocks.tune.mockResolvedValue({ torchSupported: false });
+  mocks.tune.mockResolvedValue({ torchSupported: false, zoom: null });
   mocks.torch.mockResolvedValue(true);
+  mocks.zoom.mockResolvedValue(true);
   mocks.createReader.mockResolvedValue({ detect: mocks.detect });
   mocks.detect.mockResolvedValue([]);
 });
@@ -164,7 +170,7 @@ describe('BarcodeScanner', () => {
   });
 
   it('switches the flashlight when the camera has one', async () => {
-    mocks.tune.mockResolvedValue({ torchSupported: true });
+    mocks.tune.mockResolvedValue({ torchSupported: true, zoom: null });
     mocks.torch.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
     renderScanner();
     await flush();
@@ -177,6 +183,46 @@ describe('BarcodeScanner', () => {
     await act(async () => fireEvent.click(button));
     expect(mocks.torch).toHaveBeenLastCalledWith(track, false);
     expect(button.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('starts at 1x and one button switches between 2x and 1x', async () => {
+    mocks.tune.mockResolvedValue({ torchSupported: false, zoom: { min: 1, max: 8 } });
+    renderScanner();
+    await flush();
+    const button = screen.getByRole('button', { name: 'Przybliż obraz' });
+    expect(button.textContent).toBe('1x');
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+
+    await act(async () => fireEvent.click(button));
+    expect(mocks.zoom).toHaveBeenLastCalledWith(track, 2);
+    expect(button.textContent).toBe('2x');
+    expect(button.getAttribute('aria-label')).toBe('Oddal obraz');
+
+    await act(async () => fireEvent.click(button));
+    expect(mocks.zoom).toHaveBeenLastCalledWith(track, 1);
+    expect(button.textContent).toBe('1x');
+  });
+
+  it('limits the close up to what the camera can do and keeps the state when zoom fails', async () => {
+    mocks.tune.mockResolvedValue({ torchSupported: false, zoom: { min: 1, max: 1.5 } });
+    mocks.zoom.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    renderScanner();
+    await flush();
+    const button = screen.getByRole('button', { name: 'Przybliż obraz' });
+
+    await act(async () => fireEvent.click(button));
+    expect(button.textContent).toBe('1x');
+
+    await act(async () => fireEvent.click(button));
+    expect(mocks.zoom).toHaveBeenLastCalledWith(track, 1.5);
+    expect(button.textContent).toBe('1.5x');
+  });
+
+  it('hides the zoom button when the camera cannot zoom', async () => {
+    renderScanner();
+    await flush();
+
+    expect(screen.queryByRole('button', { name: 'Przybliż obraz' })).toBeNull();
   });
 
   it('hides the flashlight button when the camera has none', async () => {

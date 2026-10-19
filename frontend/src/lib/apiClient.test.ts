@@ -150,4 +150,26 @@ describe('apiClient', () => {
     expect(error.message).toBe('Nie znaleziono zasobu.');
     expect(error.body).toEqual({ error: 'Nie znaleziono zasobu.' });
   });
+
+  it('calls the saved, own and own version endpoints', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(200, []));
+    const calls: [() => Promise<unknown>, string, string][] = [
+      [() => api.products.saved(), 'GET', '/api/products/saved'],
+      [() => api.products.own(), 'GET', '/api/products/own'],
+      [() => api.products.save('p1'), 'POST', '/api/products/p1/saved'],
+      [() => api.products.unsave('p1'), 'DELETE', '/api/products/p1/saved'],
+      [() => api.products.update('p1', { name: 'Skyr' }), 'PUT', '/api/products/p1'],
+      [() => api.products.createOwnVersion('p1', { name: 'Skyr' }), 'POST', '/api/products/p1/own-version'],
+      [() => api.recipes.saved(), 'GET', '/api/recipes/saved'],
+      [() => api.recipes.save('r1'), 'POST', '/api/recipes/r1/saved'],
+      [() => api.recipes.unsave('r1'), 'DELETE', '/api/recipes/r1/saved'],
+    ];
+
+    for (const [call, method, path] of calls) {
+      fetchMock.mockClear();
+      await call();
+      expect(fetchMock.mock.calls[0][1].method).toBe(method);
+      expect(new URL(fetchMock.mock.calls[0][0]).pathname).toBe(path);
+    }
+  });
 });

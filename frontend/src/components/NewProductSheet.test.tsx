@@ -2,15 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { NewProductSheet, type NewProductDraft } from './NewProductSheet';
+import { draftFromProduct } from '../lib/productDraft';
 import { t } from '../i18n';
 
 const mocks = vi.hoisted(() => ({
   createProduct: vi.fn(),
+  updateProduct: vi.fn(),
+  createOwnVersion: vi.fn(),
   existing: { checking: false, product: null as null | { id: string; name: string } },
 }));
 
 vi.mock('../lib/apiClient', () => ({
-  api: { products: { create: mocks.createProduct } },
+  api: { products: { create: mocks.createProduct, update: mocks.updateProduct, createOwnVersion: mocks.createOwnVersion } },
 }));
 
 vi.mock('../lib/useExistingBarCodeProduct', () => ({
@@ -81,7 +84,7 @@ describe('NewProductSheet', () => {
 
     fireEvent.click(saveButton());
 
-    await waitFor(() => expect(alertMock).toHaveBeenCalledWith('Błąd przy tworzeniu produktu: offline'));
+    await waitFor(() => expect(alertMock).toHaveBeenCalledWith(t('productForm.saveFailed', { message: 'offline' })));
     expect(onCreated).not.toHaveBeenCalled();
     expect(saveButton().disabled).toBe(false);
   });
@@ -129,5 +132,63 @@ describe('NewProductSheet', () => {
     expect(fireEvent.keyDown(kcal, { key: '5' })).toBe(true);
     expect(fireEvent.keyDown(screen.getAllByPlaceholderText('0')[1], { key: '-' })).toBe(false);
     expect(fireEvent.keyDown(screen.getByLabelText(t('product.packageWeight')), { key: '+' })).toBe(false);
+  });
+});
+
+describe('NewProductSheet layout and modes', () => {
+  const SOURCE = { id: 'p1', name: 'Skyr', kcal: 65, protein: 12, fat: 0, carbs: 4, bar_code: '5900820000318', unit: '100ml' };
+
+  it('puts the bar code at the very bottom under more nutrients', () => {
+    renderSheet({});
+
+    const moreNutrients = screen.getByRole('button', { name: t('nutrients.more') });
+    const barCode = screen.getByLabelText(t('product.barCode'));
+    expect(moreNutrients.compareDocumentPosition(barCode) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText(t('productForm.newTitle'))).toBeTruthy();
+  });
+
+  it('saves changes to an own product without treating its bar code as taken', async () => {
+    mocks.existing = { checking: false, product: { id: 'p1', name: 'Skyr' } };
+    mocks.updateProduct.mockResolvedValue({ ...SOURCE, name: 'Skyr naturalny' });
+    const { onCreated } = renderSheet(draftFromProduct(SOURCE), { mode: 'edit', source: SOURCE });
+
+    expect(screen.getByText(t('productForm.editTitle'))).toBeTruthy();
+    expect(screen.queryByText(t('product.alreadyExists'))).toBeNull();
+    fireEvent.change(screen.getByLabelText(t('productForm.name')), { target: { value: 'Skyr naturalny' } });
+    fireEvent.click(screen.getByRole('button', { name: /Zapisz zmiany/ }));
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ name: 'Skyr naturalny' })));
+    expect(mocks.updateProduct).toHaveBeenCalledWith('p1', expect.objectContaining({ name: 'Skyr naturalny', unit: '100ml', bar_code: '5900820000318' }));
+  });
+
+  it('blocks an own version that takes the bar code of another product', () => {
+    mocks.existing = { checking: false, product: { id: 'p9', name: 'Kefir' } };
+    renderSheet(draftFromProduct(SOURCE), { mode: 'ownVersion', source: SOURCE });
+
+    fireEvent.change(screen.getByLabelText(t('product.barCode')), { target: { value: '5901234123457' } });
+
+    expect(screen.getByText(t('product.alreadyExists'))).toBeTruthy();
+    expect((screen.getByRole('button', { name: /Zapisz moją wersję/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('lets an own version keep an older bar code of the base product', () => {
+    const legacy = { ...SOURCE, bar_code: '5901234567894' };
+    renderSheet(draftFromProduct(legacy), { mode: 'ownVersion', source: legacy });
+
+    expect(screen.queryByText(t('nutrition.invalid-bar-code'))).toBeNull();
+    expect((screen.getByRole('button', { name: /Zapisz moją wersję/ }) as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.change(screen.getByLabelText(t('product.barCode')), { target: { value: '5901234567895' } });
+    expect((screen.getByRole('button', { name: /Zapisz moją wersję/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('saves an own version through its own endpoint', async () => {
+    mocks.createOwnVersion.mockResolvedValue({ ...SOURCE, id: 'p2' });
+    const { onCreated } = renderSheet(draftFromProduct({ ...SOURCE, bar_code: null }), { mode: 'ownVersion', source: { ...SOURCE, bar_code: null } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Zapisz moją wersję/ }));
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: 'p2' })));
+    expect(mocks.createOwnVersion).toHaveBeenCalledWith('p1', expect.objectContaining({ name: 'Skyr', bar_code: null }));
   });
 });
