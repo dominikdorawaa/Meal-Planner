@@ -26,20 +26,17 @@ public class ProductService {
     static final int MAX_PAGE_SIZE = 50;
     static final String BAR_CODE_EXISTS = "product.bar-code-exists";
     static final String PACKAGE_WEIGHT_INVALID = "product.package-weight-invalid";
+    static final String NOT_FOUND = "error.not-found";
+    static final String FORBIDDEN = "error.forbidden";
 
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final UserMealRepository userMealRepository;
+    private final SavedProductRepository savedProductRepository;
 
     public Product create(Product product, String email) {
         User author = findUser(email);
-        NutritionCheck check = NutritionValidator.check(product);
-        if (!check.isValid()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, check.errors().getFirst().messageKey());
-        }
-        if (!PackageWeight.isValid(product.getPackageWeight())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, PACKAGE_WEIGHT_INVALID);
-        }
+        validate(product);
         if (product.getBarCode() != null && findByBarCode(product.getBarCode(), author).isPresent()) {
             throw new ApiException(HttpStatus.CONFLICT, BAR_CODE_EXISTS);
         }
@@ -51,29 +48,108 @@ public class ProductService {
         return productRepository.save(product);
     }
 
+    @Transactional
+    public Product createOwnVersion(UUID id, Product changes, String email) {
+        User author = findUser(email);
+        Product original = findActive(id);
+        if (!isVisible(original, author)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, NOT_FOUND);
+        }
+        Product copy = new Product();
+        copyEditableFields(changes == null ? original : changes, copy);
+        boolean inheritedBarCode = copy.getBarCode() != null && copy.getBarCode().equals(original.getBarCode());
+        if (inheritedBarCode) {
+            copy.setBarCode(null);
+        }
+        validate(copy);
+        if (inheritedBarCode) {
+            copy.setBarCode(original.getBarCode());
+        }
+        if (copy.getBarCode() != null && productRepository.existsByBarCodeAndCreatedByAndIdNotAndDeletedAtIsNull(
+                copy.getBarCode(), author.getId(), original.getId())) {
+            throw new ApiException(HttpStatus.CONFLICT, BAR_CODE_EXISTS);
+        }
+        copy.setSource(ProductSource.USER);
+        copy.setStatus(ProductStatus.PENDING);
+        copy.setCreatedBy(author.getId());
+        Product saved = productRepository.save(copy);
+        savedProductRepository.deleteByUserIdAndProductId(author.getId(), original.getId());
+        return saved;
+    }
+
+    @Transactional
+    public Product update(UUID id, Product changes, String email) {
+        User user = findUser(email);
+        Product product = findActive(id);
+        if (!canModify(product, user)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, FORBIDDEN);
+        }
+        String barCode = changes.getBarCode();
+        if (barCode != null && !barCode.equals(product.getBarCode()) && findByBarCode(barCode, user)
+                .filter(found -> !found.getId().equals(product.getId()))
+                .isPresent()) {
+            throw new ApiException(HttpStatus.CONFLICT, BAR_CODE_EXISTS);
+        }
+        copyEditableFields(changes, product);
+        validate(product);
+        return productRepository.save(product);
+    }
+
+    public Optional<Product> findVisible(UUID id, String email) {
+        User user = email == null ? null : userRepository.findByEmail(email).orElse(null);
+        return productRepository.findById(id).filter(product -> product.getStatus() == ProductStatus.VERIFIED
+                || (user != null && (user.getRole() == UserRole.ADMIN || user.getId().equals(product.getCreatedBy()))));
+    }
+
+    public List<Product> savedProducts(String email) {
+        return savedProductRepository.findSavedProducts(findUser(email).getId());
+    }
+
+    public List<Product> ownProducts(String email) {
+        return productRepository.findByCreatedByAndDeletedAtIsNullOrderByCreatedAtDesc(findUser(email).getId());
+    }
+
+    @Transactional
+    public void save(UUID id, String email) {
+        User user = findUser(email);
+        Product product = findActive(id);
+        if (!isVisible(product, user)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, NOT_FOUND);
+        }
+        if (!savedProductRepository.existsByUserIdAndProductId(user.getId(), product.getId())) {
+            savedProductRepository.save(new SavedProduct(user.getId(), product));
+        }
+    }
+
+    @Transactional
+    public void unsave(UUID id, String email) {
+        savedProductRepository.deleteByUserIdAndProductId(findUser(email).getId(), id);
+    }
+
     public Optional<Product> findByBarCode(String barCode, String email) {
         User user = email == null ? null : userRepository.findByEmail(email).orElse(null);
         return findByBarCode(barCode, user);
     }
 
     private Optional<Product> findByBarCode(String barCode, User user) {
-        Optional<Product> verified = productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(barCode, ProductStatus.VERIFIED);
-        if (verified.isPresent() || user == null) {
-            return verified;
+        if (user != null) {
+            Optional<Product> own = productRepository
+                    .findFirstByBarCodeAndStatusAndCreatedByAndDeletedAtIsNullOrderByCreatedAtDesc(
+                            barCode, ProductStatus.PENDING, user.getId());
+            if (own.isPresent()) {
+                return own;
+            }
         }
-        return productRepository.findFirstByBarCodeAndStatusAndCreatedByAndDeletedAtIsNullOrderByCreatedAtDesc(
-                barCode, ProductStatus.PENDING, user.getId());
+        return productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(barCode, ProductStatus.VERIFIED);
     }
 
     @Transactional
     public void delete(UUID id, String email) {
         User user = findUser(email);
-        Product product = productRepository.findById(id)
-                .filter(found -> found.getDeletedAt() == null)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "error.not-found"));
+        Product product = findActive(id);
 
-        if (!canDelete(product, user)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "error.forbidden");
+        if (!canModify(product, user)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, FORBIDDEN);
         }
 
         if (userMealRepository.existsByProduct(product)) {
@@ -128,11 +204,48 @@ public class ProductService {
         return combined;
     }
 
-    private boolean canDelete(Product product, User user) {
+    private boolean canModify(Product product, User user) {
         if (user.getRole() == UserRole.ADMIN) {
             return true;
         }
         return product.getStatus() == ProductStatus.PENDING && user.getId().equals(product.getCreatedBy());
+    }
+
+    private boolean isVisible(Product product, User user) {
+        return product.getStatus() == ProductStatus.VERIFIED
+                || (product.getStatus() == ProductStatus.PENDING && user.getId().equals(product.getCreatedBy()));
+    }
+
+    private Product findActive(UUID id) {
+        return productRepository.findById(id)
+                .filter(found -> found.getDeletedAt() == null)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, NOT_FOUND));
+    }
+
+    private void validate(Product product) {
+        NutritionCheck check = NutritionValidator.check(product);
+        if (!check.isValid()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, check.errors().getFirst().messageKey());
+        }
+        if (!PackageWeight.isValid(product.getPackageWeight())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, PACKAGE_WEIGHT_INVALID);
+        }
+    }
+
+    private static void copyEditableFields(Product source, Product target) {
+        target.setName(source.getName());
+        target.setBrand(source.getBrand());
+        target.setKcal(source.getKcal());
+        target.setProtein(source.getProtein());
+        target.setFat(source.getFat());
+        target.setCarbs(source.getCarbs());
+        target.setSaturatedFat(source.getSaturatedFat());
+        target.setSugars(source.getSugars());
+        target.setFiber(source.getFiber());
+        target.setSalt(source.getSalt());
+        target.setUnit(source.getUnit());
+        target.setPackageWeight(source.getPackageWeight());
+        target.setBarCode(source.getBarCode());
     }
 
     private User findUser(String email) {
