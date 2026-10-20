@@ -1,4 +1,5 @@
 import type { MessageKey } from '../i18n';
+import { formatCompactNumber } from './compactNumber';
 import { ingredientFactor, type ScalableProduct } from './recipeIngredient';
 
 export const EXTRA_NUTRIENTS = ['saturated_fat', 'sugars', 'fiber', 'salt'] as const;
@@ -48,8 +49,8 @@ export function scaleNutritionFacts(values: NutritionFactValues, factor: number)
 
 export function formatNutritionFact(fact: NutritionFact, value: number | null | undefined): string | null {
   if (value == null) return null;
-  if (fact === 'kcal') return `${Math.round(value)} kcal`;
-  return `${Number(value.toFixed(fact === 'salt' ? 2 : 1))} g`;
+  if (fact === 'kcal') return `${formatCompactNumber(value)} kcal`;
+  return `${formatCompactNumber(value, fact === 'salt' ? 2 : 1)} g`;
 }
 
 export interface IngredientWithProduct {

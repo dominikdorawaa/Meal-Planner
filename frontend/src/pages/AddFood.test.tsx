@@ -316,11 +316,128 @@ describe('AddFood selection', () => {
     renderAddFood(`${ADD_FOOD_URL}&mealId=m1`);
 
     await waitFor(() => expect(screen.getByDisplayValue('Pizza')).toBeTruthy());
+    fireEvent.change(screen.getByLabelText('Nazwa'), { target: { value: 'Pizza z pieca' } });
     fireEvent.click(screen.getByRole('button', { name: /Aktualizuj wpis/ }));
 
     await screen.findByText('plan screen');
-    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', expect.objectContaining({ manual_name: 'Pizza' }));
+    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', expect.objectContaining({ manual_name: 'Pizza z pieca' }));
     expect(mocks.addMeal).not.toHaveBeenCalled();
+  });
+});
+
+describe('AddFood quick entry editing', () => {
+  function updateButton() {
+    return screen.getByRole('button', { name: /Aktualizuj wpis/ }) as HTMLButtonElement;
+  }
+
+  it('keeps the update button disabled until something changes', async () => {
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', manual_name: 'Pizza', manual_kcal: 800, manual_protein: 30 }]);
+    renderAddFood(`${ADD_FOOD_URL}&mealId=m1`);
+
+    await waitFor(() => expect(screen.getByDisplayValue('Pizza')).toBeTruthy());
+    expect(updateButton().disabled).toBe(true);
+
+    fireEvent.change(screen.getByLabelText('Białko'), { target: { value: '31' } });
+    expect(updateButton().disabled).toBe(false);
+
+    fireEvent.change(screen.getByLabelText('Białko'), { target: { value: '30' } });
+    expect(updateButton().disabled).toBe(true);
+  });
+
+  it('blocks saving when calories are zero or empty', async () => {
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', manual_name: 'Pizza', manual_kcal: 800 }]);
+    renderAddFood(`${ADD_FOOD_URL}&mealId=m1`);
+    await waitFor(() => expect(screen.getByDisplayValue('Pizza')).toBeTruthy());
+
+    fireEvent.change(screen.getByLabelText('Wartość energetyczna'), { target: { value: '0' } });
+    expect(updateButton().disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Wartość energetyczna'), { target: { value: '' } });
+    expect(updateButton().disabled).toBe(true);
+  });
+
+  it('does not accept values above the meal limits', async () => {
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', manual_name: 'Pizza', manual_kcal: 800 }]);
+    renderAddFood(`${ADD_FOOD_URL}&mealId=m1`);
+    await waitFor(() => expect(screen.getByDisplayValue('Pizza')).toBeTruthy());
+
+    const kcal = screen.getByLabelText('Wartość energetyczna') as HTMLInputElement;
+    fireEvent.change(kcal, { target: { value: '10000' } });
+    expect(kcal.value).toBe('10000');
+    fireEvent.change(kcal, { target: { value: '10001' } });
+    expect(kcal.value).toBe('10000');
+
+    const fat = screen.getByLabelText('Tłuszcz') as HTMLInputElement;
+    fireEvent.change(fat, { target: { value: '1000.5' } });
+    expect(fat.value).toBe('');
+  });
+
+  it('turns off autofill suggestions in the quick entry fields', async () => {
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', manual_name: 'Pizza', manual_kcal: 800 }]);
+    renderAddFood(`${ADD_FOOD_URL}&mealId=m1`);
+    await waitFor(() => expect(screen.getByDisplayValue('Pizza')).toBeTruthy());
+
+    for (const label of ['Nazwa', 'Wartość energetyczna', 'Węgle', 'Białko', 'Tłuszcz']) {
+      expect(screen.getByLabelText(label).getAttribute('autocomplete')).toBe('off');
+    }
+    expect(screen.getByLabelText('Wartość energetyczna').getAttribute('inputmode')).toBe('numeric');
+    expect(screen.getByLabelText('Białko').getAttribute('inputmode')).toBe('decimal');
+  });
+});
+
+describe('AddFood item cards', () => {
+  it('toggles the checkbox when the right part of the card is tapped', () => {
+    renderAddFood();
+
+    const areas = screen.getAllByTestId('food-row-select-area');
+    fireEvent.click(areas[0]);
+
+    expect(checkbox('Owsianka').getAttribute('aria-checked')).toBe('true');
+    expect(screen.queryByText(/^details/)).toBeNull();
+    fireEvent.click(areas[0]);
+    expect(checkbox('Owsianka').getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('opens details when the left part of the card is tapped', async () => {
+    renderAddFood();
+
+    fireEvent.click(screen.getByText('Owsianka'));
+
+    expect(await screen.findByText(/^details \/recipe\/r1/)).toBeTruthy();
+  });
+
+  it('gives every checked checkbox the same grey colour', () => {
+    renderAddFood();
+
+    fireEvent.click(checkbox('Owsianka'));
+    fireEvent.click(checkbox('Omlet'));
+
+    const boxes = [checkbox('Owsianka'), checkbox('Omlet')].map(item => item.firstElementChild!.className);
+    expect(boxes[0]).toBe(boxes[1]);
+    expect(boxes[0]).toContain('bg-on-surface-variant');
+  });
+
+  it('shortens very large calorie values on the card', () => {
+    mocks.recipes = [{ id: 'r1', name: 'Owsianka', kcal: 123456, protein: 12, fat: 6, carbs: 60 }];
+    renderAddFood();
+
+    expect(screen.getByText('123,5 tys. kcal')).toBeTruthy();
+  });
+
+  it('turns off autofill suggestions in the search field', () => {
+    renderAddFood();
+
+    const search = screen.getByPlaceholderText(t('food.searchPlaceholder'));
+    expect(search.getAttribute('autocomplete')).toBe('off');
+    expect(search.getAttribute('inputmode')).toBe('search');
+  });
+
+  it('does not accept filter values above the limit', () => {
+    renderAddFood();
+    fireEvent.click(screen.getByTitle('Filtruj wyniki'));
+
+    const maxKcal = screen.getByPlaceholderText('np. 500') as HTMLInputElement;
+    fireEvent.change(maxKcal, { target: { value: '10001' } });
+    expect(maxKcal.value).toBe('');
   });
 });
 

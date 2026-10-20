@@ -29,7 +29,7 @@ export function IngredientSearch({ onClose, onSelect, onAddProduct, onScan }: In
   const searchFinished = longEnough && search.resultsMatchQuery && !search.loading;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-surface flex flex-col animate-fade-in">
+    <div data-scroll-lock className="fixed inset-0 z-[100] bg-surface flex flex-col animate-fade-in">
       <header className="px-4 py-3 pt-safe-3 flex items-center gap-3 bg-surface border-b border-outline-variant/10">
         <button
           onClick={onClose}
@@ -43,6 +43,7 @@ export function IngredientSearch({ onClose, onSelect, onAddProduct, onScan }: In
             <span className="material-symbols-outlined text-on-surface-variant/60">search</span>
           </div>
           <input
+            autoComplete="off"
             autoFocus
             type="search"
             enterKeyHint="search"

@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { RecipeDetails } from './RecipeDetails';
 import { t } from '../i18n';
-import { todayIsoDate } from '../lib/planDates';
+import { toIsoDate, todayIsoDate } from '../lib/planDates';
 
 const mocks = vi.hoisted(() => ({
   getRecipe: vi.fn(),
@@ -151,14 +151,33 @@ describe('RecipeDetails loading', () => {
     expect(screen.getByText('recipes screen')).toBeTruthy();
   });
 
-  it('opens a plan entry with its weight', async () => {
+  it('opens a plan entry with its weight and saves a changed amount', async () => {
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
 
     await waitFor(() => expect((screen.getByLabelText(t('recipeDetails.gramsInput')) as HTMLInputElement).value).toBe('200'));
-    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.update') }));
+    const update = screen.getByRole('button', { name: t('recipeDetails.update') }) as HTMLButtonElement;
+    expect(update.disabled).toBe(true);
+
+    fireEvent.change(screen.getByLabelText(t('recipeDetails.portionsInput')), { target: { value: '3' } });
+    expect(update.disabled).toBe(false);
+    fireEvent.change(screen.getByLabelText(t('recipeDetails.portionsInput')), { target: { value: '2' } });
+    expect(update.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText(t('recipeDetails.portionsInput')), { target: { value: '3' } });
+    fireEvent.click(update);
 
     await screen.findByText('plan screen');
-    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 2 });
+    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 3 });
+  });
+
+  it('blocks updating a plan entry with an empty or zero amount', async () => {
+    renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
+    await waitFor(() => expect((screen.getByLabelText(t('recipeDetails.gramsInput')) as HTMLInputElement).value).toBe('200'));
+    const update = screen.getByRole('button', { name: t('recipeDetails.update') }) as HTMLButtonElement;
+
+    fireEvent.change(screen.getByLabelText(t('recipeDetails.gramsInput')), { target: { value: '0' } });
+    expect(update.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText(t('recipeDetails.gramsInput')), { target: { value: '' } });
+    expect(update.disabled).toBe(true);
   });
 
   it('tells when a plan entry cannot be updated', async () => {
@@ -166,6 +185,7 @@ describe('RecipeDetails loading', () => {
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
     await waitFor(() => expect((screen.getByLabelText(t('recipeDetails.gramsInput')) as HTMLInputElement).value).toBe('200'));
 
+    fireEvent.change(screen.getByLabelText(t('recipeDetails.gramsInput')), { target: { value: '250' } });
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.update') }));
 
     expect(await screen.findByText(t('recipeDetails.updateFailed'))).toBeTruthy();
@@ -302,11 +322,14 @@ describe('RecipeDetails adding to the plan', () => {
     expect(screen.getByRole('button', { name: 'Śniadanie' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Kolacja' })).toBeNull();
 
-    fireEvent.change(screen.getByLabelText(t('recipeDetails.otherDate')), { target: { value: '2026-12-24' } });
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeDetails.otherDate')) }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.nextMonth') }));
+    const firstOfNextMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+    fireEvent.click(screen.getByRole('button', { name: firstOfNextMonth.toLocaleDateString(t('recipeDetails.locale'), { day: 'numeric', month: 'long' }) }));
     fireEvent.click(screen.getByRole('button', { name: 'Śniadanie' }));
     fireEvent.click(screen.getAllByRole('button', { name: t('recipeDetails.addToPlan') }).at(-1)!);
 
-    await waitFor(() => expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({ meal_date: '2026-12-24', meal_type: 'breakfast' })));
+    await waitFor(() => expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({ meal_date: toIsoDate(firstOfNextMonth), meal_type: 'breakfast' })));
   });
 
   it('adds the recipe for several days to the chosen meal time and date', async () => {
@@ -347,5 +370,103 @@ describe('RecipeDetails adding to the plan', () => {
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.previewAfter') }));
     fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeDetails.hidePreview')) }));
     expect(screen.queryByText(t('recipeDetails.previewAfterTitle'))).toBeNull();
+  });
+});
+
+describe('RecipeDetails add to plan sheet calendar', () => {
+  it('picks a date from the calendar without choosing a quick day first', async () => {
+    renderDetails();
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(t('recipeDetails.addToPlan')) }));
+
+    const otherDate = screen.getByRole('button', { name: new RegExp(t('recipeDetails.otherDate')) });
+    expect(otherDate.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(otherDate);
+    const today = new Date();
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    fireEvent.click(screen.getByRole('button', { name: lastDay.toLocaleDateString(t('recipeDetails.locale'), { day: 'numeric', month: 'long' }) }));
+
+    expect(screen.queryByRole('button', { name: t('recipeDetails.nextMonth') })).toBeNull();
+    expect(screen.getByText(lastDay.toLocaleDateString(t('recipeDetails.locale'), { weekday: 'long', day: 'numeric', month: 'long' }))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Kolacja' }));
+    fireEvent.click(screen.getAllByRole('button', { name: t('recipeDetails.addToPlan') }).at(-1)!);
+
+    await waitFor(() => expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({ meal_date: toIsoDate(lastDay), meal_type: 'supper' })));
+  });
+
+  it('closes the calendar when tapped again', async () => {
+    renderDetails();
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(t('recipeDetails.addToPlan')) }));
+    const otherDate = screen.getByRole('button', { name: new RegExp(t('recipeDetails.otherDate')) });
+
+    fireEvent.click(otherDate);
+    expect(screen.getByRole('button', { name: t('recipeDetails.previousMonth') })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.previousMonth') }));
+    fireEvent.click(otherDate);
+    expect(screen.queryByRole('button', { name: t('recipeDetails.previousMonth') })).toBeNull();
+  });
+});
+
+describe('RecipeDetails amount limits', () => {
+  it('does not accept more than 50 portions or 5000 grams', async () => {
+    renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast');
+    const portions = await screen.findByLabelText(t('recipeDetails.portionsInput')) as HTMLInputElement;
+
+    fireEvent.change(portions, { target: { value: '51' } });
+    expect(portions.value).toBe('1');
+    fireEvent.change(portions, { target: { value: '1.25' } });
+    expect(portions.value).toBe('1');
+    fireEvent.change(portions, { target: { value: '50' } });
+    expect(portions.value).toBe('50');
+
+    const grams = screen.getByLabelText(t('recipeDetails.gramsInput')) as HTMLInputElement;
+    fireEvent.change(grams, { target: { value: '5001' } });
+    expect(grams.value).toBe('100');
+    expect(grams.getAttribute('autocomplete')).toBe('off');
+    expect(grams.getAttribute('inputmode')).toBe('decimal');
+  });
+
+  it('keeps the largest values inside the cards and circles', async () => {
+    mocks.getRecipe.mockResolvedValue({ ...OWN_RECIPE, kcal: 9000, protein: 900, fat: 400, carbs: 1000 });
+    renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast');
+    const portions = await screen.findByLabelText(t('recipeDetails.portionsInput'));
+
+    fireEvent.change(portions, { target: { value: '50' } });
+
+    expect(screen.getByTestId('portions-kcal').textContent).toBe('450 tys.');
+    const kcal = screen.getByTestId('kcal-value');
+    expect(kcal.textContent).toBe('450 tys.');
+    expect(kcal.className).toContain('text-sm');
+    const carbs = screen.getByTestId('carbs-value');
+    expect(carbs.textContent).toBe('50 tys.g');
+    expect(carbs.className).toContain('text-[10px]');
+  });
+});
+
+describe('RecipeDetails small plan entry changes', () => {
+  it('enables updating after a change smaller than one gram', async () => {
+    renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
+    await waitFor(() => expect((screen.getByLabelText(t('recipeDetails.gramsInput')) as HTMLInputElement).value).toBe('200'));
+    const update = screen.getByRole('button', { name: t('recipeDetails.update') }) as HTMLButtonElement;
+
+    fireEvent.change(screen.getByLabelText(t('recipeDetails.gramsInput')), { target: { value: '200.1' } });
+    expect(update.disabled).toBe(false);
+    fireEvent.change(screen.getByLabelText(t('recipeDetails.gramsInput')), { target: { value: '200' } });
+    expect(update.disabled).toBe(true);
+  });
+});
+
+describe('RecipeDetails sheet calendar and quick days', () => {
+  it('moves the calendar to the quick day chosen above it', async () => {
+    renderDetails();
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(t('recipeDetails.addToPlan')) }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeDetails.otherDate')) }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.nextMonth') }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.nextMonth') }));
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeDetails.today')) }));
+
+    const today = new Date();
+    const todayLabel = today.toLocaleDateString(t('recipeDetails.locale'), { day: 'numeric', month: 'long' });
+    expect(screen.getByRole('button', { name: todayLabel }).getAttribute('aria-pressed')).toBe('true');
   });
 });

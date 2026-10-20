@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
@@ -15,8 +15,16 @@ import { announceDeletedRecipe } from '../lib/deletedRecipe';
 import { RecipeDeleteSheet } from '../components/RecipeDeleteSheet';
 import { UndoSnackbar } from '../components/UndoSnackbar';
 import { pluralForm, t, type MessageKey } from '../i18n';
+import { AMOUNT_LIMITS, acceptsLimitedNumber, numberFieldProps } from '../lib/inputLimits';
+import { formatCompactNumber } from '../lib/compactNumber';
+import { KCAL_HERO_SIZES, RING_VALUE_SIZES, fitTextClass } from '../lib/fitText';
+import { MonthCalendar } from '../components/MonthCalendar';
 
 const DEFAULT_RECIPE_WEIGHT = 300;
+
+function gramsLabel(value: number): string {
+  return `${formatCompactNumber(value, 1)}g`;
+}
 const QUICK_PICK_MULTIPLIERS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75];
 const WEEKDAY_KEYS: MessageKey[] = [
   'recipeDetails.weekday.mon',
@@ -71,9 +79,11 @@ export function RecipeDetails() {
   const [showAddToPlan, setShowAddToPlan] = useState(false);
   const [quickDate, setQuickDate] = useState('');
   const [quickDateInput, setQuickDateInput] = useState('');
+  const [showSheetCalendar, setShowSheetCalendar] = useState(false);
+  const [savedPortions, setSavedPortions] = useState<number | null>(null);
+  const [savedGrams, setSavedGrams] = useState<number | null>(null);
   const [quickMealType, setQuickMealType] = useState('');
   const [successToast, setSuccessToast] = useState<string | null>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null);
 
   const [activeDate, setActiveDate] = useState(selectDate || '');
   const [activeMealType, setActiveMealType] = useState(selectType || '');
@@ -120,8 +130,11 @@ export function RecipeDetails() {
           const mealData = meals.find((m: any) => m.id === mealId);
           if (mealData && !cancelled) {
             const portions = mealData.portions_consumed;
+            setSavedPortions(portions);
             setPortionInput(portions);
-            setGramInput(Math.round(portions * (weight / (loaded.portions || 1))));
+            const grams = Math.round(portions * (weight / (loaded.portions || 1)));
+            setSavedGrams(grams);
+            setGramInput(grams);
             setInputType('grams');
           }
         } catch (err) {
@@ -141,6 +154,11 @@ export function RecipeDetails() {
     inputType === 'portions' ? (Number(String(portionInput).replace(',', '.')) || 0) :
     inputType === 'grams' ? (Number(String(gramInput).replace(',', '.')) ? (Number(String(gramInput).replace(',', '.')) / (safeWeight / basePortions)) : 0) :
     (quickPickPortions || 0);
+
+  const gramsPerPortion = safeWeight / basePortions;
+  const unchangedPlanItem = Boolean(mealId) && (savedPortions === null || (
+    inputType === 'grams' ? gramInput === savedGrams : Math.abs(consumedPortions - savedPortions) < 1e-9
+  ));
 
   const activeIngredientPortions = ingredientPortions !== null ? ingredientPortions : consumedPortions;
 
@@ -377,7 +395,7 @@ export function RecipeDetails() {
             </div>
 
             {(showMealPicker || showDatePicker) && (
-              <div className="fixed inset-0 z-[199]" onClick={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
+              <div data-scroll-lock className="fixed inset-0 z-[199]" onClick={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
             )}
           </div>
         ) : (
@@ -421,12 +439,12 @@ export function RecipeDetails() {
             <div className={`flex items-center rounded-2xl p-1.5 pr-4 border transition-all gap-3 ${inputType === 'portions' ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-surface-container-low border-outline-variant/10'}`}>
               <div className="flex items-center gap-2 pl-0.5">
                   <input
-                    type="number"
-                    inputMode="decimal"
+                    {...numberFieldProps(AMOUNT_LIMITS.portion)}
                     aria-label={t('recipeDetails.portionsInput')}
                     value={portionInput}
                     onFocus={() => setInputType('portions')}
                     onChange={(e) => {
+                      if (!acceptsLimitedNumber(e.target.value, AMOUNT_LIMITS.portion)) return;
                       setInputType('portions');
                       setPortionInput(e.target.value === '' ? '' : Number(e.target.value));
                     }}
@@ -436,11 +454,11 @@ export function RecipeDetails() {
                   <span className="font-bold text-on-surface-variant text-sm shrink-0 whitespace-nowrap">
                     {portionWord(Number(portionInput) || 0)}
                   </span>
-                  <span className="text-xs font-medium text-on-surface-variant/60 ml-0.5">({Math.round(Number(portionInput || 0) * (safeWeight / basePortions))}g)</span>
+                  <span className="text-xs font-medium text-on-surface-variant/60 ml-0.5 whitespace-nowrap">({formatCompactNumber(Number(portionInput || 0) * gramsPerPortion)}g)</span>
                 </div>
               </div>
               <div className="flex items-baseline gap-1 ml-auto shrink-0">
-                <span className={`font-black text-xl transition-colors ${inputType === 'portions' ? 'text-primary' : 'text-on-surface'}`}>{Math.round(recipe.kcal * (Number(portionInput) || 0))}</span>
+                <span data-testid="portions-kcal" className={`font-black text-xl tabular-nums whitespace-nowrap transition-colors ${inputType === 'portions' ? 'text-primary' : 'text-on-surface'}`}>{formatCompactNumber(recipe.kcal * (Number(portionInput) || 0))}</span>
                 <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">kcal</span>
               </div>
             </div>
@@ -449,12 +467,12 @@ export function RecipeDetails() {
             <div className={`flex items-center rounded-2xl p-1.5 pr-4 border transition-all gap-3 ${inputType === 'grams' ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-surface-container-low border-outline-variant/10'}`}>
               <div className="flex items-center gap-2 pl-0.5">
                   <input
-                    type="number"
-                    inputMode="decimal"
+                    {...numberFieldProps(AMOUNT_LIMITS.g)}
                     aria-label={t('recipeDetails.gramsInput')}
                     value={gramInput}
                     onFocus={() => setInputType('grams')}
                     onChange={(e) => {
+                      if (!acceptsLimitedNumber(e.target.value, AMOUNT_LIMITS.g)) return;
                       setInputType('grams');
                       setGramInput(e.target.value === '' ? '' : Number(e.target.value));
                     }}
@@ -463,8 +481,8 @@ export function RecipeDetails() {
                 <span className="font-bold text-on-surface-variant text-sm shrink-0 whitespace-nowrap">g</span>
               </div>
               <div className="flex items-baseline gap-1 ml-auto shrink-0">
-                <span className={`font-black text-xl transition-colors ${inputType === 'grams' ? 'text-primary' : 'text-on-surface'}`}>
-                  {Math.round(recipe.kcal * (Number(gramInput) ? (Number(gramInput) / (safeWeight / basePortions)) : 0))}
+                <span data-testid="grams-kcal" className={`font-black text-xl tabular-nums whitespace-nowrap transition-colors ${inputType === 'grams' ? 'text-primary' : 'text-on-surface'}`}>
+                  {formatCompactNumber(recipe.kcal * (Number(gramInput) ? (Number(gramInput) / gramsPerPortion) : 0))}
                 </span>
                 <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">kcal</span>
               </div>
@@ -475,7 +493,7 @@ export function RecipeDetails() {
 
         <section className="flex flex-col gap-3">
           <div>
-            <h2 className="font-headline font-bold text-lg text-on-surface">{t('recipeDetails.kcalTitle')} <span className="text-on-surface-variant font-medium text-sm">{t('recipeDetails.kcalPortion', { grams: Math.round(consumedPortions * (safeWeight / basePortions)) })}</span></h2>
+            <h2 className="font-headline font-bold text-lg text-on-surface">{t('recipeDetails.kcalTitle')} <span className="text-on-surface-variant font-medium text-sm">{t('recipeDetails.kcalPortion', { grams: formatCompactNumber(consumedPortions * gramsPerPortion) })}</span></h2>
             <p className="text-xs text-on-surface-variant mt-1">{t('recipeDetails.kcalHint')}</p>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-4 -mx-1 px-1 scrollbar-hide snap-x">
@@ -497,7 +515,7 @@ export function RecipeDetails() {
                         : 'bg-surface-container-lowest text-on-surface border-outline-variant/20 hover:border-on-surface/30'
                     }`}
                   >
-                    {kcalOption} kcal
+                    {formatCompactNumber(kcalOption)} kcal
                   </button>
                 );
               });
@@ -516,7 +534,7 @@ export function RecipeDetails() {
 
             <div className="flex flex-col items-center gap-3">
               <div className="w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px] flex items-center justify-center">
-                 <span className="font-black text-3xl text-on-surface leading-none">{currentKcal}</span>
+                 <span data-testid="kcal-value" className={`font-black ${fitTextClass(formatCompactNumber(currentKcal), KCAL_HERO_SIZES, 3)} text-on-surface leading-none text-center max-w-full break-words`}>{formatCompactNumber(currentKcal)}</span>
               </div>
               <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">kcal</span>
             </div>
@@ -525,7 +543,7 @@ export function RecipeDetails() {
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#4F46E5 ${pctP}%, #4F46E510 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span className="font-black text-base text-on-surface leading-none">{currentP}g</span>
+                   <span data-testid="protein-value" className={`font-black ${fitTextClass(gramsLabel(currentP), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentP)}</span>
                  </div>
               </div>
               <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">{t('recipeDetails.protein')}</span>
@@ -535,7 +553,7 @@ export function RecipeDetails() {
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#F59E0B ${pctF}%, #F59E0B10 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span className="font-black text-base text-on-surface leading-none">{currentF}g</span>
+                   <span data-testid="fat-value" className={`font-black ${fitTextClass(gramsLabel(currentF), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentF)}</span>
                  </div>
               </div>
               <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">{t('recipeDetails.fat')}</span>
@@ -545,7 +563,7 @@ export function RecipeDetails() {
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#10B981 ${pctC}%, #10B98110 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span className="font-black text-base text-on-surface leading-none">{currentC}g</span>
+                   <span data-testid="carbs-value" className={`font-black ${fitTextClass(gramsLabel(currentC), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentC)}</span>
                  </div>
               </div>
               <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">{t('recipeDetails.carbs')}</span>
@@ -561,7 +579,7 @@ export function RecipeDetails() {
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-[11px] sm:text-xs font-bold uppercase tracking-wide text-on-surface-variant flex items-center gap-1 flex-wrap leading-tight">
                 <span>{t('recipeDetails.ingredientsFor', { portions: t(`recipeDetails.portionsAccusative.${portionForm(activeIngredientPortions)}` as MessageKey, { count: Math.round(activeIngredientPortions * 100) / 100 }) })}</span>
-                <span className="normal-case opacity-70">({Math.round(activeIngredientPortions * (safeWeight / basePortions))}g)</span>
+                <span className="normal-case opacity-70">({formatCompactNumber(activeIngredientPortions * gramsPerPortion)}g)</span>
               </h2>
 
               <div className="flex items-center bg-surface-container-low rounded-xl p-1 shadow-sm border border-outline-variant/10">
@@ -572,7 +590,7 @@ export function RecipeDetails() {
                 >
                   <span className="material-symbols-outlined text-[18px]">remove</span>
                 </button>
-                <div className="w-8 text-center font-bold text-sm text-on-surface select-none">
+                <div className="min-w-8 px-1 text-center font-bold text-sm text-on-surface select-none whitespace-nowrap">
                   {Math.round(activeIngredientPortions * 100) / 100}
                 </div>
                 <button
@@ -590,8 +608,8 @@ export function RecipeDetails() {
                 const scaledAmount = ((Number(ing.amount) || 0) * (activeIngredientPortions / basePortions)).toFixed(1).replace(/\.0$/, '');
                 return (
                   <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-surface-container-lowest border border-outline-variant/10">
-                    <span className="font-bold text-sm text-on-surface capitalize">{ing.name}</span>
-                    <span className="text-xs font-bold text-on-surface-variant bg-surface-container-highest px-3 py-1 rounded-lg">
+                    <span className="font-bold text-sm text-on-surface capitalize min-w-0 break-words">{ing.name}</span>
+                    <span className="text-xs font-bold text-on-surface-variant bg-surface-container-highest px-3 py-1 rounded-lg whitespace-nowrap shrink-0 ml-2">
                       {scaledAmount} {ing.unit}
                     </span>
                   </div>
@@ -666,7 +684,7 @@ export function RecipeDetails() {
                         <span className="text-primary uppercase tracking-normal text-[8px] font-bold">{t('recipeDetails.kcalTitle')}</span>
                         <span className="text-[7px] text-on-surface-variant font-bold uppercase">
                           <span className={`text-[10px] font-extrabold ${profile && currentData.kcal > profile.target_kcal ? 'text-error' : 'text-primary'}`}>
-                            {currentData.kcal}
+                            {formatCompactNumber(currentData.kcal)}
                           </span>
                           <span className="mx-0.5 opacity-50">/</span>
                           {profile?.target_kcal || '···'} kcal
@@ -684,7 +702,7 @@ export function RecipeDetails() {
                           <span className="text-primary uppercase tracking-normal text-[7px] font-bold">{t('recipeDetails.protein')}</span>
                           <span className="text-[7px] text-on-surface-variant font-bold uppercase">
                             <span className={`text-[9px] font-extrabold ${profile && currentData.protein > (profile.target_protein_max || profile.target_protein * 1.1) ? 'text-error' : 'text-primary'}`}>
-                              {currentData.protein}
+                              {formatCompactNumber(currentData.protein, 1)}
                             </span>
                             <span className="mx-0.5 opacity-50">/</span>
                             {profile ? targetRange(profile.target_protein, profile.target_protein_min, profile.target_protein_max) : '··'}g
@@ -701,7 +719,7 @@ export function RecipeDetails() {
                           <span className="text-primary uppercase tracking-normal text-[7px] font-bold">{t('recipeDetails.fat')}</span>
                           <span className="text-[7px] text-on-surface-variant font-bold uppercase">
                              <span className={`text-[9px] font-extrabold ${profile && currentData.fat > (profile.target_fat_max || profile.target_fat * 1.1) ? 'text-error' : 'text-primary'}`}>
-                              {currentData.fat}
+                              {formatCompactNumber(currentData.fat, 1)}
                             </span>
                             <span className="mx-0.5 opacity-50">/</span>
                             {profile ? targetRange(profile.target_fat, profile.target_fat_min, profile.target_fat_max) : '··'}g
@@ -718,7 +736,7 @@ export function RecipeDetails() {
                           <span className="text-primary uppercase tracking-normal text-[7px] font-bold">{t('recipeDetails.carbs')}</span>
                           <span className="text-[7px] text-on-surface-variant font-bold uppercase">
                              <span className={`text-[9px] font-extrabold ${profile && currentData.carbs > (profile.target_carbs_max || profile.target_carbs * 1.1) ? 'text-error' : 'text-primary'}`}>
-                              {currentData.carbs}
+                              {formatCompactNumber(currentData.carbs, 1)}
                             </span>
                             <span className="mx-0.5 opacity-50">/</span>
                             {profile ? targetRange(profile.target_carbs, profile.target_carbs_min, profile.target_carbs_max) : '··'}g
@@ -788,7 +806,7 @@ export function RecipeDetails() {
 
             <button
               onClick={() => handleAddMeal()}
-              disabled={isAdding || consumedPortions <= 0}
+              disabled={isAdding || !(consumedPortions > 0) || unchangedPlanItem}
               className="flex-1 h-[56px] bg-[#6B8E23] hover:bg-[#5a781d] text-white font-black text-base rounded-[20px] transition-all active:scale-[0.98] disabled:opacity-50 shadow-[0_4px_12px_rgba(107,142,35,0.3)] flex items-center justify-center gap-3"
             >
               {isAdding ? (
@@ -817,8 +835,8 @@ export function RecipeDetails() {
       )}
 
       {showAddToPlan && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowAddToPlan(false)}>
-          <div ref={addToPlanSheetRef} className="w-full max-w-xl bg-surface rounded-t-[32px] p-6 pb-8 animate-slide-up shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowAddToPlan(false)}>
+          <div ref={addToPlanSheetRef} className="w-full max-w-xl max-h-[92dvh] overflow-y-auto overscroll-contain bg-surface rounded-t-[32px] p-6 pb-8 animate-slide-up shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
             <h2 className="font-headline font-bold text-xl text-on-surface mb-5">{t('recipeDetails.planSheetTitle')}</h2>
 
@@ -846,14 +864,13 @@ export function RecipeDetails() {
                 ));
               })()}
             </div>
-            <div className="relative mb-5">
+            <div className="mb-5">
               <button
                 type="button"
-                onClick={() => {
-                  try { (dateInputRef.current as any)?.showPicker(); } catch { dateInputRef.current?.click(); }
-                }}
+                aria-expanded={showSheetCalendar}
+                onClick={() => setShowSheetCalendar(open => !open)}
                 className={`w-full flex items-center gap-3 py-3 px-4 rounded-2xl border-2 transition-all active:scale-[0.98] ${
-                  quickDateInput && !['', undefined].includes(quickDateInput)
+                  quickDateInput
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-outline-variant/20 bg-surface-container-low text-on-surface-variant'
                 }`}
@@ -862,22 +879,20 @@ export function RecipeDetails() {
                 <span className="font-bold text-sm flex-1 text-left">
                   {quickDateInput ? new Date(quickDateInput + 'T00:00:00').toLocaleDateString(t('recipeDetails.locale'), { weekday: 'long', day: 'numeric', month: 'long' }) : t('recipeDetails.otherDate')}
                 </span>
-                <span className="material-symbols-outlined text-[18px] opacity-40">chevron_right</span>
+                <span className={`material-symbols-outlined text-[18px] opacity-40 transition-transform ${showSheetCalendar ? 'rotate-90' : ''}`}>chevron_right</span>
               </button>
-              <input
-                ref={dateInputRef}
-                type="date"
-                aria-label={t('recipeDetails.otherDate')}
-                value={quickDateInput}
-                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                onChange={e => {
-                  const iso = e.target.value;
-                  setQuickDateInput(iso);
-                  if (iso) {
-                    setQuickDate(iso);
-                  }
-                }}
-              />
+              {showSheetCalendar && (
+                <div className="mt-2 rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-3">
+                  <MonthCalendar
+                    selected={quickDate}
+                    onSelect={iso => {
+                      setQuickDate(iso);
+                      setQuickDateInput(iso);
+                      setShowSheetCalendar(false);
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">{t('recipeDetails.mealTime')}</p>
@@ -911,7 +926,7 @@ export function RecipeDetails() {
       )}
 
       {showMenu && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setShowMenu(false)}>
+        <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setShowMenu(false)}>
           <div
             ref={menuSheetRef}
             role="dialog"

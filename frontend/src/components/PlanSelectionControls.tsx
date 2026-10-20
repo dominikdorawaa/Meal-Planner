@@ -17,10 +17,10 @@ export function SelectionCheckbox({ checked, label, onToggle }: SelectionCheckbo
         event.stopPropagation();
         onToggle();
       }}
-      className="w-11 h-11 -my-1 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+      className="w-11 h-11 -my-1 rounded-full flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-90 transition-transform"
     >
       <span
-        className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${checked ? 'bg-primary border-primary text-on-primary' : 'border-on-surface-variant/40'}`}
+        className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${checked ? 'bg-on-surface-variant border-on-surface-variant text-surface' : 'border-on-surface-variant/40'}`}
       >
         {checked && <span className="material-symbols-outlined text-[18px] font-black">check</span>}
       </span>

@@ -1,5 +1,6 @@
 import type { Product } from './apiClient';
 import { t } from '../i18n';
+import { formatCompactNumber } from './compactNumber';
 
 export type IngredientUnit = 'g' | 'ml' | 'szt' | 'opak';
 
@@ -124,5 +125,5 @@ export function ingredientAmountLabel(ingredient: IngredientAmount): string {
   const product = ingredient.product;
   if (!product || ingredient.unit === baseUnit(product)) return label;
   const grams = ingredientGrams(ingredient);
-  return grams == null ? label : `${label} (${Math.round(grams)} ${baseUnit(product)})`;
+  return grams == null ? label : `${label} (${formatCompactNumber(grams)} ${baseUnit(product)})`;
 }

@@ -66,20 +66,29 @@ function FoodRow({ name, kcal, amount, own, unverified, selected, heart, onOpen,
   return (
     <div
       onClick={onOpen}
-      className="flex items-center bg-surface-container-lowest p-2.5 rounded-[20px] shadow-sm border border-outline-variant/10 active:scale-[0.98] transition-all cursor-pointer group hover:bg-primary/5"
+      className="flex items-center bg-surface-container-lowest p-2.5 rounded-[20px] shadow-sm border border-outline-variant/10 active:scale-[0.98] transition-all cursor-pointer"
     >
       {children}
       <div className="flex flex-col justify-center gap-0.5 px-3 flex-1 min-w-0">
-        <h3 className="font-headline font-bold text-[13px] text-on-surface line-clamp-2 leading-relaxed group-hover:text-primary transition-colors">{name}</h3>
+        <h3 className="font-headline font-bold text-[13px] text-on-surface line-clamp-2 leading-relaxed">{name}</h3>
         <ItemBadges own={own} unverified={unverified} />
       </div>
-      <div className="flex flex-col items-end justify-center pl-1 pr-1 shrink-0">
-        <span className="text-xs font-black group-hover:text-primary transition-colors whitespace-nowrap">{kcal} kcal</span>
-        <span className="text-[9px] font-bold text-on-surface-variant uppercase">{amount}</span>
-      </div>
-      {heart && <SaveHeartButton saved={heart.saved} name={name} onToggle={heart.onToggle} className="shrink-0" />}
-      <div className="flex items-center justify-center pl-1 border-l border-outline-variant/10 ml-1 shrink-0">
-        <SelectionCheckbox checked={selected} label={name} onToggle={onToggleSelected} />
+      <div
+        data-testid="food-row-select-area"
+        onClick={event => {
+          event.stopPropagation();
+          onToggleSelected();
+        }}
+        className="flex items-center self-stretch shrink-0 -my-2.5 -mr-2.5 py-2.5 pr-2.5"
+      >
+        <div className="flex flex-col items-end justify-center pl-1 pr-1 max-w-[5.5rem]">
+          <span className="text-xs font-black whitespace-nowrap max-w-full truncate">{kcal} kcal</span>
+          <span className="text-[9px] font-bold text-on-surface-variant uppercase whitespace-nowrap max-w-full truncate">{amount}</span>
+        </div>
+        {heart && <SaveHeartButton saved={heart.saved} name={name} onToggle={heart.onToggle} className="shrink-0" />}
+        <div className="flex items-center justify-center pl-1 border-l border-outline-variant/10 ml-1 shrink-0">
+          <SelectionCheckbox checked={selected} label={name} onToggle={onToggleSelected} />
+        </div>
       </div>
     </div>
   );

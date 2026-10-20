@@ -21,7 +21,7 @@ export function PlanConflictDialog({ conflicts, busy = false, onOverwrite, onApp
   }, [busy, onCancel]);
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[230] flex items-center justify-center p-4 animate-fade-in" onClick={busy ? undefined : onCancel}>
+    <div data-scroll-lock className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[230] flex items-center justify-center p-4 animate-fade-in" onClick={busy ? undefined : onCancel}>
       <div role="dialog" aria-modal="true" aria-labelledby="plan-conflict-title" aria-describedby="plan-conflict-description" className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[340px] w-full border border-outline-variant/20 text-center flex flex-col max-h-[85vh] animate-slide-up" onClick={event => event.stopPropagation()}>
         <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4 shrink-0">
           <span className="material-symbols-outlined text-[28px]">content_copy</span>

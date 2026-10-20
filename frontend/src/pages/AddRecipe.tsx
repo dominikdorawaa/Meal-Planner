@@ -20,6 +20,8 @@ import { t } from '../i18n';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { RecipePhotoSheet } from '../components/RecipePhotoSheet';
 import { resizeRecipePhoto } from '../lib/recipePhoto';
+import { formatCompactNumber } from '../lib/compactNumber';
+import { AMOUNT_LIMITS, RECIPE_LIMITS, acceptsLimitedNumber, isPositiveWithinLimit, numberFieldProps } from '../lib/inputLimits';
 
 interface InstructionStep {
   text: string;
@@ -259,7 +261,7 @@ export default function AddRecipe() {
         </div>
         <button
           onClick={handleSaveRecipe}
-          disabled={!name.trim() || isSaving || isUploadingPhoto}
+          disabled={!name.trim() || isSaving || isUploadingPhoto || (portions.trim() !== '' && !isPositiveWithinLimit(portions, AMOUNT_LIMITS.portion))}
           className="px-5 py-2 bg-primary text-on-primary font-bold text-sm rounded-xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm"
         >
           {isSaving ? t('recipeForm.saving') : t('recipeForm.save')}
@@ -314,6 +316,7 @@ export default function AddRecipe() {
           <div className="flex flex-col gap-2">
             <label htmlFor="recipe-name" className="text-xs font-bold uppercase tracking-widest text-on-surface-variant pl-1">{t('recipeForm.name')}</label>
             <input
+              autoComplete="off"
               id="recipe-name"
               type="text"
               value={name}
@@ -329,11 +332,9 @@ export default function AddRecipe() {
               <div className="relative flex items-center bg-surface-container-lowest border border-outline-variant/20 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-primary/30 transition-shadow">
                 <input
                   id="recipe-prep-time"
-                  type="number"
-                  inputMode="numeric"
-                  min="0"
+                  {...numberFieldProps(RECIPE_LIMITS.prepMinutes, 0)}
                   value={prepTime}
-                  onChange={e => setPrepTime(e.target.value)}
+                  onChange={e => acceptsLimitedNumber(e.target.value, RECIPE_LIMITS.prepMinutes, 0) && setPrepTime(e.target.value)}
                   className="w-full bg-transparent py-3.5 pl-4 pr-12 outline-none text-on-surface font-bold text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   placeholder="0"
                 />
@@ -346,11 +347,9 @@ export default function AddRecipe() {
               <div className="relative flex items-center bg-surface-container-lowest border border-outline-variant/20 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-primary/30 transition-shadow">
                 <input
                   id="recipe-portions"
-                  type="number"
-                  inputMode="decimal"
-                  min="1"
+                  {...numberFieldProps(AMOUNT_LIMITS.portion)}
                   value={portions}
-                  onChange={e => setPortions(e.target.value)}
+                  onChange={e => acceptsLimitedNumber(e.target.value, AMOUNT_LIMITS.portion) && setPortions(e.target.value)}
                   className="w-full bg-transparent py-3.5 pl-4 pr-16 outline-none text-on-surface font-bold text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   placeholder="1"
                 />
@@ -387,7 +386,7 @@ export default function AddRecipe() {
                   >
                     <span className="flex flex-col flex-1 min-w-0 pr-2">
                       <span className="font-bold text-sm text-on-surface truncate">{ing.name}</span>
-                      {kcal > 0 && <span className="text-[10px] font-bold text-primary mt-0.5">{kcal} kcal</span>}
+                      {kcal > 0 && <span className="text-[10px] font-bold text-primary mt-0.5 truncate">{formatCompactNumber(kcal)} kcal</span>}
                     </span>
                     <span className="text-xs font-bold text-on-surface-variant bg-surface-container-highest px-3 py-1 rounded-lg shrink-0">
                       {ingredientAmountLabel(ing)}
@@ -432,6 +431,7 @@ export default function AddRecipe() {
                 </div>
                 <div className="flex-1 relative">
                   <textarea
+                    autoComplete="off"
                     value={step.text}
                     onChange={(e) => handleUpdateStep(idx, e.target.value)}
                     placeholder={t('recipeForm.stepPlaceholder', { number: idx + 1 })}
@@ -493,7 +493,7 @@ export default function AddRecipe() {
       )}
 
       {showLeaveConfirm && (
-        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowLeaveConfirm(false)}>
+        <div data-scroll-lock className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowLeaveConfirm(false)}>
           <div role="alertdialog" aria-labelledby="leave-recipe-title" className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[320px] w-full border border-outline-variant/20 text-center animate-slide-up" onClick={e => e.stopPropagation()}>
             <h3 id="leave-recipe-title" className="font-headline font-bold text-lg text-on-surface mb-2">{t('recipe.leaveTitle')}</h3>
             <p className="text-on-surface-variant text-sm font-medium mb-6">{t('recipe.leaveText')}</p>
@@ -516,7 +516,7 @@ export default function AddRecipe() {
       )}
 
       {stepToDelete !== null && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setStepToDelete(null)}>
+        <div data-scroll-lock className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setStepToDelete(null)}>
           <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-outlined text-3xl">delete</span>
@@ -543,7 +543,7 @@ export default function AddRecipe() {
       )}
 
       {ingredientToDelete !== null && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setIngredientToDelete(null)}>
+        <div data-scroll-lock className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setIngredientToDelete(null)}>
           <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-outlined text-3xl">delete</span>

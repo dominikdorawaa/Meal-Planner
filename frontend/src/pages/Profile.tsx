@@ -9,6 +9,7 @@ import { ProductDataAttribution } from '../components/ProductDataAttribution';
 import { MealSettingsList } from '../components/MealSettingsList';
 import type { MealSetting } from '../lib/mealSettings';
 import { useCloseOnBack } from '../lib/backNavigation';
+import { PROFILE_LIMITS, acceptsLimitedNumber, isPositiveWithinLimit, numberFieldProps } from '../lib/inputLimits';
 
 const MEAL_TYPES = [
   { id: 'breakfast', name: 'Śniadanie', icon: 'light_mode' },
@@ -442,6 +443,7 @@ export function Profile() {
   // Obliczanie makroskładników na żywo w zależności od trybu
   const currentMacros = tempProfile.is_manual_macros ? tempProfile : calculateMacros(tempProfile);
   const percentages = getMacroPercentages(currentMacros, tempProfile.is_manual_macros);
+  const manualMacrosInvalid = Boolean(tempProfile.is_manual_macros) && (percentages.total !== 100 || !isPositiveWithinLimit(tempProfile.target_kcal, PROFILE_LIMITS.targetKcal));
 
   const handleMacroChange = (key: 'protein' | 'fat' | 'carbs', type: 'gram' | 'percent', val: string) => {
     let newProfile = { ...tempProfile };
@@ -607,7 +609,7 @@ export function Profile() {
 
       {/* Overlay Dane Profilowe */}
       {isEditingProfile && (
-        <div className="fixed inset-0 z-[100] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div data-scroll-lock className="fixed inset-0 z-[100] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
           <header className="flex items-center gap-4 p-6 border-b border-outline-variant/10">
             <button
               onClick={() => {
@@ -689,6 +691,7 @@ export function Profile() {
                     Wyświetlana nazwa
                   </label>
                   <input
+                    autoComplete="off"
                     type="text"
                     value={tempProfile.display_name ?? ''}
                     onChange={e => setTempProfile({ ...tempProfile, display_name: e.target.value })}
@@ -723,7 +726,9 @@ export function Profile() {
                     <span className="font-bold text-on-surface text-sm">Wiek</span>
                     <div className="flex items-baseline gap-1">
                       <input
+                        autoComplete="off"
                         type="number"
+                        inputMode="numeric"
                         min="1" max="100"
                         value={tempProfile.age}
                         onChange={(e) => setTempProfile({ ...tempProfile, age: Math.min(100, Math.max(1, parseInt(e.target.value) || 1)) })}
@@ -763,7 +768,9 @@ export function Profile() {
                       {heightUnit === 'cm' ? (
                         <>
                           <input
+                            autoComplete="off"
                             type="number"
+                            inputMode="decimal"
                             value={tempProfile.height}
                             onChange={(e) => setTempProfile({ ...tempProfile, height: parseFloat(e.target.value) })}
                             className="bg-transparent text-primary font-bold text-xl w-16 text-right outline-none"
@@ -862,7 +869,7 @@ export function Profile() {
 
       {/* Overlay Cele i Masa */}
       {isEditingGoals && (
-        <div className="fixed inset-0 z-[100] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div data-scroll-lock className="fixed inset-0 z-[100] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
           <header className="flex items-center gap-4 p-6 border-b border-outline-variant/10">
             <button
               onClick={() => {
@@ -1096,7 +1103,7 @@ export function Profile() {
 
       {/* Overlay Twoje Makroskładniki */}
       {isEditingMacros && (
-        <div className="fixed inset-0 z-[100] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div data-scroll-lock className="fixed inset-0 z-[100] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
           <header className="flex items-center gap-4 p-6 border-b border-outline-variant/10">
             <button
               onClick={() => setIsEditingMacros(false)}
@@ -1120,9 +1127,10 @@ export function Profile() {
               <div className="flex items-baseline gap-2">
                 {tempProfile.is_manual_macros ? (
                   <input
-                    type="number"
+                    {...numberFieldProps(PROFILE_LIMITS.targetKcal, 0)}
+                    aria-label="Twój cel kaloryczny"
                     value={tempProfile.target_kcal}
-                    onChange={(e) => setTempProfile({ ...tempProfile, target_kcal: e.target.value })}
+                    onChange={(e) => acceptsLimitedNumber(e.target.value, PROFILE_LIMITS.targetKcal, 0) && setTempProfile({ ...tempProfile, target_kcal: e.target.value })}
                     className="bg-transparent text-4xl font-black text-primary text-center w-32 outline-none"
                   />
                 ) : (
@@ -1188,9 +1196,10 @@ export function Profile() {
                         <div className={`w-full px-4 py-3 rounded-2xl font-black text-lg transition-all flex items-center justify-center ${tempProfile.is_manual_macros ? 'bg-primary/5 text-primary border border-primary/20' : 'bg-surface-container-highest/50 text-on-surface-variant opacity-50'}`}>
                           {tempProfile.is_manual_macros ? (
                             <input
-                              type="number"
+                              {...numberFieldProps(PROFILE_LIMITS.macroGrams, 0)}
+                              aria-label={`${m.label} (g)`}
                               value={currentVal}
-                              onChange={(e) => handleMacroChange(m.key as any, 'gram', e.target.value)}
+                              onChange={(e) => acceptsLimitedNumber(e.target.value, PROFILE_LIMITS.macroGrams, 0) && handleMacroChange(m.key as any, 'gram', e.target.value)}
                               className="bg-transparent text-center w-full outline-none"
                             />
                           ) : (
@@ -1203,9 +1212,10 @@ export function Profile() {
                         <div className={`w-full px-4 py-3 rounded-2xl font-black text-lg transition-all flex items-center justify-center ${tempProfile.is_manual_macros ? 'bg-primary/5 text-primary border border-primary/20' : 'bg-surface-container-highest/50 text-on-surface-variant opacity-50'}`}>
                           {tempProfile.is_manual_macros ? (
                             <input
-                              type="number"
+                              {...numberFieldProps(PROFILE_LIMITS.macroPercent, 0)}
+                              aria-label={`${m.label} (%)`}
                               value={currentPct}
-                              onChange={(e) => handleMacroChange(m.key as any, 'percent', e.target.value)}
+                              onChange={(e) => acceptsLimitedNumber(e.target.value, PROFILE_LIMITS.macroPercent, 0) && handleMacroChange(m.key as any, 'percent', e.target.value)}
                               className="bg-transparent text-center w-full outline-none"
                             />
                           ) : (
@@ -1233,8 +1243,8 @@ export function Profile() {
           <div className="fixed bottom-0 left-0 w-full p-6 pb-safe-6 bg-gradient-to-t from-surface via-surface to-transparent backdrop-blur-sm z-50">
             <button
               onClick={handleSaveProfileData}
-              disabled={tempProfile.is_manual_macros && percentages.total !== 100}
-              className={`w-full py-4 rounded-2xl font-bold shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${tempProfile.is_manual_macros && percentages.total !== 100 ? 'bg-surface-container-highest text-on-surface-variant/30 shadow-none' : 'bg-primary text-on-primary shadow-primary/30'}`}
+              disabled={manualMacrosInvalid}
+              className={`w-full py-4 rounded-2xl font-bold shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${manualMacrosInvalid ? 'bg-surface-container-highest text-on-surface-variant/30 shadow-none' : 'bg-primary text-on-primary shadow-primary/30'}`}
             >
               <span className="material-symbols-outlined text-[20px]">check</span>
               Zapisz Makroskładniki
@@ -1245,7 +1255,7 @@ export function Profile() {
 
       {/* Overlay do konfiguracji posiłków */}
       {isEditingMeals && (
-        <div className="fixed inset-0 z-[100] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div data-scroll-lock className="fixed inset-0 z-[100] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
           <header className="flex items-center gap-4 p-6 border-b border-outline-variant/10">
             <button
               onClick={() => { setIsEditingMeals(false); setIsReordering(false); }}
@@ -1287,6 +1297,7 @@ export function Profile() {
                     {editingMealId === meal.id && !isReordering ? (
                       <div className="flex items-center gap-2">
                         <input
+                          autoComplete="off"
                           value={tempName}
                           onChange={(e) => setTempName(e.target.value)}
                           onBlur={handleSaveRename}
@@ -1363,7 +1374,7 @@ export function Profile() {
         const finalKcal = results.target_kcal;
 
         return (
-          <div className="fixed inset-0 z-[200] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div data-scroll-lock className="fixed inset-0 z-[200] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
             <header className="flex items-center gap-4 p-6 border-b border-outline-variant/10">
               <button
                 onClick={() => setShowFormulaInfo(false)}
@@ -1548,7 +1559,7 @@ export function Profile() {
 
       {/* Potwierdzenie wylogowania */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-in fade-in duration-200">
+        <div data-scroll-lock className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="absolute inset-0 bg-surface/40" onClick={() => setShowLogoutConfirm(false)}></div>
           <div className="bg-surface border border-outline-variant/10 p-8 rounded-[32px] shadow-2xl w-full max-w-xs relative animate-in zoom-in-95 duration-200 flex flex-col items-center text-center">
             <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center text-error mb-4">

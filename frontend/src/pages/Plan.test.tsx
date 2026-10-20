@@ -675,3 +675,19 @@ describe('Plan profile loading', () => {
     expect(mocks.reload).toHaveBeenCalledOnce()
   })
 })
+
+describe('Plan cards with very large values', () => {
+  it('shortens calories and macros so they stay inside the card', () => {
+    mocks.userMeals.splice(0, mocks.userMeals.length, {
+      id: 'meal-9', meal_date: '2026-10-12', meal_type: 'lunch', manual_name: 'Feast',
+      manual_kcal: 45000, manual_protein: 5000, manual_fat: 12345, manual_carbs: 900,
+    })
+    const { container } = renderPlan()
+
+    const card = slot(container, '2026-10-12', 'lunch')
+    const kcal = card.getByTestId('plan-card-kcal')
+    expect(kcal.textContent).toBe('45 tys. kcal')
+    expect(kcal.className).toContain('truncate')
+    expect(card.getByText('B 5000g · T 12,3 tys.g · W 900g').className).toContain('max-w-full')
+  })
+})

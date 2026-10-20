@@ -192,3 +192,57 @@ describe('NewProductSheet layout and modes', () => {
     expect(mocks.createOwnVersion).toHaveBeenCalledWith('p1', expect.objectContaining({ name: 'Skyr', bar_code: null }));
   });
 });
+
+describe('NewProductSheet limits', () => {
+  function field(label: string) {
+    return screen.getByLabelText(label) as HTMLInputElement;
+  }
+
+  it('does not accept per 100 g values above the validator limits', () => {
+    renderSheet({});
+
+    fireEvent.change(field(t('productForm.kcal')), { target: { value: '900' } });
+    fireEvent.change(field(t('productForm.kcal')), { target: { value: '901' } });
+    expect(field(t('productForm.kcal')).value).toBe('900');
+
+    for (const label of [t('productForm.protein'), t('productForm.carbs'), t('productForm.fat')]) {
+      fireEvent.change(field(label), { target: { value: '100' } });
+      fireEvent.change(field(label), { target: { value: '100.5' } });
+      expect(field(label).value).toBe('100');
+    }
+  });
+
+  it('accepts two decimal places for nutrition values', () => {
+    renderSheet({});
+
+    fireEvent.change(field(t('productForm.protein')), { target: { value: '12.34' } });
+    expect(field(t('productForm.protein')).value).toBe('12.34');
+    fireEvent.change(field(t('productForm.protein')), { target: { value: '12.345' } });
+    expect(field(t('productForm.protein')).value).toBe('12.34');
+  });
+
+  it('does not limit values of products counted per piece', () => {
+    renderSheet(draftFromProduct({ id: 'p9', name: 'Pizza', kcal: 1200, protein: 50, fat: 40, carbs: 150, unit: 'pc' } as never), {
+      mode: 'edit',
+      source: { id: 'p9', name: 'Pizza', kcal: 1200, protein: 50, fat: 40, carbs: 150, unit: 'pc' } as never,
+    });
+
+    fireEvent.change(field(t('productForm.kcal')), { target: { value: '1500' } });
+    expect(field(t('productForm.kcal')).value).toBe('1500');
+  });
+
+  it('turns off autofill suggestions in every field', () => {
+    renderSheet({});
+
+    expect(field(t('productForm.name')).getAttribute('autocomplete')).toBe('off');
+    expect(field(t('productForm.brand')).getAttribute('autocomplete')).toBe('off');
+    expect(field(t('productForm.kcal')).getAttribute('inputmode')).toBe('decimal');
+    expect(field(t('product.packageWeight')).getAttribute('autocomplete')).toBe('off');
+  });
+
+  it('locks the page behind the open sheet', () => {
+    renderSheet({});
+
+    expect(document.querySelector('[data-scroll-lock]')).not.toBeNull();
+  });
+});

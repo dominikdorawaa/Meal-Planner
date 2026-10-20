@@ -138,6 +138,7 @@ export function Recipes() {
               <span className="material-symbols-outlined text-[20px]">search</span>
             </span>
             <input
+              autoComplete="off"
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full bg-surface-container-low rounded-2xl py-3 pl-12 pr-10 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-medium text-sm placeholder:text-on-surface-variant/40 transition-all"
@@ -269,7 +270,7 @@ export function Recipes() {
 
       {showFilters && (
         <div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in"
+          data-scroll-lock className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in"
           onClick={() => setShowFilters(false)}
         >
           <div

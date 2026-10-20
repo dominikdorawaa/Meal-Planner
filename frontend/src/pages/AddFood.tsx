@@ -35,6 +35,8 @@ import {
 } from '../lib/planSelection';
 import type { PlanSelectionKind } from '../lib/planSelection';
 import { AddSelectedBar } from '../components/PlanSelectionControls';
+import { formatCompactNumber } from '../lib/compactNumber';
+import { MEAL_LIMITS, acceptsLimitedNumber, isPositiveWithinLimit, numberFieldProps } from '../lib/inputLimits';
 
 type FoodTab = 'recent' | 'saved' | 'own';
 
@@ -140,6 +142,8 @@ export function AddFood() {
 
   const [showQuickAdd, setShowQuickAdd] = useState(!!mealId);
   const [quickAddForm, setQuickAddForm] = useState({ name: '', kcal: '', protein: '', fat: '', carbs: '' });
+  const [quickAddInitial, setQuickAddInitial] = useState(quickAddForm);
+  const quickAddChanged = (Object.keys(quickAddForm) as (keyof typeof quickAddForm)[]).some(key => quickAddForm[key] !== quickAddInitial[key]);
 
   useCloseOnBack(showMealPicker || showDatePicker, () => { setShowMealPicker(false); setShowDatePicker(false); });
   const quickAddSheetRef = useBottomSheet(showQuickAdd && !mealId, () => setShowQuickAdd(false));
@@ -159,6 +163,7 @@ export function AddFood() {
             carbs: String(data.manual_carbs || '')
           };
           setQuickAddForm(formData);
+          setQuickAddInitial(formData);
         }
       } catch (err) {
         console.error("Error loading meal for edit:", err);
@@ -206,7 +211,7 @@ export function AddFood() {
       <ProductRow
         key={`product-${product.id}`}
         name={name}
-        kcal={product.kcal}
+        kcal={formatCompactNumber(Number(product.kcal) || 0)}
         amount={`${DEFAULT_PRODUCT_GRAMS}g`}
         own={own}
         unverified={isUnverified(product)}
@@ -225,7 +230,7 @@ export function AddFood() {
         key={`recipe-${recipe.id}`}
         recipe={recipe}
         name={recipe.name}
-        kcal={recipe.kcal}
+        kcal={formatCompactNumber(Number(recipe.kcal) || 0)}
         amount={t('food.portion', { count: DEFAULT_RECIPE_PORTIONS })}
         own={own}
         unverified={isUnverified(recipe)}
@@ -422,7 +427,7 @@ export function AddFood() {
             </div>
             {/* Close dropdowns on outside click */}
             {(showMealPicker || showDatePicker) && (
-              <div className="fixed inset-0 z-[199]" onClick={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
+              <div data-scroll-lock className="fixed inset-0 z-[199]" onClick={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
             )}
           </div>
 
@@ -437,7 +442,9 @@ export function AddFood() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 pl-12 pr-4 focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50 text-on-surface text-sm font-medium transition-all shadow-inner"
                   placeholder={t('food.searchPlaceholder')}
-                  type="text"
+                  type="search"
+                  inputMode="search"
+                  autoComplete="off"
                 />
                 {searchQuery && (
                   <button onClick={() => setSearchQuery('')} className="absolute inset-y-0 right-4 flex items-center text-on-surface-variant/60 hover:text-on-surface active:scale-90 transition-transform">
@@ -485,10 +492,10 @@ export function AddFood() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { key: 'maxKcal', label: 'Max kcal', icon: 'local_fire_department', placeholder: 'np. 500' },
-                  { key: 'minProtein', label: 'Min białko (g)', icon: 'fitness_center', placeholder: 'np. 20' },
-                  { key: 'maxFat', label: 'Max tłuszcz (g)', icon: 'water_drop', placeholder: 'np. 15' },
-                  { key: 'maxCarbs', label: 'Max węgle (g)', icon: 'grain', placeholder: 'np. 50' },
+                  { key: 'maxKcal', label: 'Max kcal', icon: 'local_fire_department', placeholder: 'np. 500', max: MEAL_LIMITS.kcal },
+                  { key: 'minProtein', label: 'Min białko (g)', icon: 'fitness_center', placeholder: 'np. 20', max: MEAL_LIMITS.grams },
+                  { key: 'maxFat', label: 'Max tłuszcz (g)', icon: 'water_drop', placeholder: 'np. 15', max: MEAL_LIMITS.grams },
+                  { key: 'maxCarbs', label: 'Max węgle (g)', icon: 'grain', placeholder: 'np. 50', max: MEAL_LIMITS.grams },
                 ].map(f => (
                   <div key={f.key} className="flex flex-col gap-1">
                     <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
@@ -496,10 +503,10 @@ export function AddFood() {
                       {f.label}
                     </label>
                     <input
-                      type="number"
-                      min="0"
+                      {...numberFieldProps(f.max, 0)}
+                      aria-label={f.label}
                       value={filters[f.key as keyof typeof filters]}
-                      onChange={e => setFilters(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      onChange={e => acceptsLimitedNumber(e.target.value, f.max, 0) && setFilters(prev => ({ ...prev, [f.key]: e.target.value }))}
                       onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
                       placeholder={f.placeholder}
                       className="w-full bg-surface rounded-xl py-2.5 px-3 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -662,7 +669,7 @@ export function AddFood() {
 
       {/* Quick Add Form - Modal for new, Page Content for edit */}
       {showQuickAdd && (
-        <div className={mealId ? "flex-1 w-full max-w-xl mx-auto px-4 py-6" : "fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-fade-in"} onClick={!mealId ? () => setShowQuickAdd(false) : undefined}>
+        <div data-scroll-lock={mealId ? undefined : true} className={mealId ? "flex-1 w-full max-w-xl mx-auto px-4 py-6" : "fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-fade-in"} onClick={!mealId ? () => setShowQuickAdd(false) : undefined}>
           <div ref={mealId ? undefined : quickAddSheetRef} className={mealId ? "bg-transparent" : "bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[90vh] overflow-y-auto animate-slide-up w-full max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative"} onClick={e => e.stopPropagation()}>
             {!mealId && <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6"></div>}
 
@@ -692,6 +699,8 @@ export function AddFood() {
                 <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">Nazwa</label>
                 <input
                   type="text"
+                  autoComplete="off"
+                  aria-label="Nazwa"
                   value={quickAddForm.name}
                   onChange={e => setQuickAddForm({ ...quickAddForm, name: e.target.value })}
                   className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm transition-shadow placeholder:font-medium placeholder:text-on-surface-variant/40"
@@ -706,13 +715,13 @@ export function AddFood() {
                 </div>
                 <div className={`relative flex items-center rounded-2xl overflow-hidden transition-shadow border ${mealId ? 'bg-primary/5 border-primary/30 ring-1 ring-primary/10 shadow-sm' : 'bg-surface-container-low border-none focus-within:ring-2 focus-within:ring-primary/30'}`}>
                   <input
-                    type="number"
-                    min="0"
+                    {...numberFieldProps(MEAL_LIMITS.kcal, 0)}
+                    aria-label="Wartość energetyczna"
                     onKeyDown={(e) => {
                       if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
                     }}
                     value={quickAddForm.kcal}
-                    onChange={e => setQuickAddForm({ ...quickAddForm, kcal: e.target.value })}
+                    onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.kcal, 0) && setQuickAddForm({ ...quickAddForm, kcal: e.target.value })}
                     className="flex-1 bg-transparent py-4 pl-4 pr-16 outline-none text-on-surface font-bold text-lg leading-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="0"
                   />
@@ -726,13 +735,13 @@ export function AddFood() {
                   <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest leading-none truncate">Węgle</label>
                   <div className={`relative flex items-center rounded-xl overflow-hidden transition-shadow border ${mealId ? 'bg-primary/5 border-primary/30' : 'bg-surface-container-low border-none focus-within:ring-2 focus-within:ring-primary/30'}`}>
                     <input
-                      type="number"
-                      min="0"
+                      {...numberFieldProps(MEAL_LIMITS.grams)}
+                      aria-label="Węgle"
                       onKeyDown={(e) => {
                         if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
                       }}
                       value={quickAddForm.carbs}
-                      onChange={e => setQuickAddForm({ ...quickAddForm, carbs: e.target.value })}
+                      onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.grams) && setQuickAddForm({ ...quickAddForm, carbs: e.target.value })}
                       className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="0"
                     />
@@ -745,13 +754,13 @@ export function AddFood() {
                   <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest leading-none truncate">Białko</label>
                   <div className={`relative flex items-center rounded-xl overflow-hidden transition-shadow border ${mealId ? 'bg-primary/5 border-primary/30' : 'bg-surface-container-low border-none focus-within:ring-2 focus-within:ring-primary/30'}`}>
                     <input
-                      type="number"
-                      min="0"
+                      {...numberFieldProps(MEAL_LIMITS.grams)}
+                      aria-label="Białko"
                       onKeyDown={(e) => {
                         if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
                       }}
                       value={quickAddForm.protein}
-                      onChange={e => setQuickAddForm({ ...quickAddForm, protein: e.target.value })}
+                      onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.grams) && setQuickAddForm({ ...quickAddForm, protein: e.target.value })}
                       className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="0"
                     />
@@ -764,13 +773,13 @@ export function AddFood() {
                   <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest leading-none truncate">Tłuszcz</label>
                   <div className={`relative flex items-center rounded-xl overflow-hidden transition-shadow border ${mealId ? 'bg-primary/5 border-primary/30' : 'bg-surface-container-low border-none focus-within:ring-2 focus-within:ring-primary/30'}`}>
                     <input
-                      type="number"
-                      min="0"
+                      {...numberFieldProps(MEAL_LIMITS.grams)}
+                      aria-label="Tłuszcz"
                       onKeyDown={(e) => {
                         if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
                       }}
                       value={quickAddForm.fat}
-                      onChange={e => setQuickAddForm({ ...quickAddForm, fat: e.target.value })}
+                      onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.grams) && setQuickAddForm({ ...quickAddForm, fat: e.target.value })}
                       className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="0"
                     />
@@ -784,7 +793,7 @@ export function AddFood() {
 
             <button
               onClick={handleQuickAddSubmit}
-              disabled={isAdding || !quickAddForm.name || !quickAddForm.kcal}
+              disabled={isAdding || !quickAddForm.name.trim() || !isPositiveWithinLimit(quickAddForm.kcal, MEAL_LIMITS.kcal) || (Boolean(mealId) && !quickAddChanged)}
               className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
             >
               {isAdding ? (
