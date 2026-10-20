@@ -196,7 +196,7 @@ export function ShoppingList() {
   }, {});
 
   return (
-    <div className="bg-surface font-body text-on-surface min-h-screen pb-32">
+    <div className="bg-surface font-body text-on-surface min-h-screen pb-bottom-nav">
       <nav className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm pt-safe">
         <div className="flex justify-between items-center px-6 h-16 w-full max-w-screen-xl mx-auto">
           <div className="flex items-center gap-3">

@@ -115,7 +115,7 @@ export function Recipes() {
   };
 
   return (
-    <div className="bg-surface font-body text-on-surface min-h-screen pb-32">
+    <div className="bg-surface font-body text-on-surface min-h-screen pb-bottom-nav">
 
       <header className="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/10 pt-safe">
         <div className="flex items-center justify-between px-5 h-16 w-full max-w-2xl mx-auto">

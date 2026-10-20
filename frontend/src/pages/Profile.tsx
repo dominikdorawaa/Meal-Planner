@@ -470,7 +470,7 @@ export function Profile() {
   };
 
   return (
-    <div className="bg-surface font-body text-on-surface min-h-screen pb-32">
+    <div className="bg-surface font-body text-on-surface min-h-screen pb-bottom-nav">
       <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm pt-safe">
         <div className="h-16 flex items-center justify-center px-6">
           <h1 className="font-headline font-bold text-xl tracking-tight text-primary">Profil</h1>
@@ -610,7 +610,7 @@ export function Profile() {
       {/* Overlay Dane Profilowe */}
       {isEditingProfile && (
         <div data-scroll-lock className="fixed inset-0 z-[100] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <header className="flex items-center gap-4 p-6 border-b border-outline-variant/10">
+          <header className="flex items-center gap-4 p-6 pt-safe-6 border-b border-outline-variant/10">
             <button
               onClick={() => {
                 setIsEditingProfile(false);
@@ -870,7 +870,7 @@ export function Profile() {
       {/* Overlay Cele i Masa */}
       {isEditingGoals && (
         <div data-scroll-lock className="fixed inset-0 z-[100] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <header className="flex items-center gap-4 p-6 border-b border-outline-variant/10">
+          <header className="flex items-center gap-4 p-6 pt-safe-6 border-b border-outline-variant/10">
             <button
               onClick={() => {
                 setIsEditingGoals(false);
@@ -1104,7 +1104,7 @@ export function Profile() {
       {/* Overlay Twoje Makroskładniki */}
       {isEditingMacros && (
         <div data-scroll-lock className="fixed inset-0 z-[100] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <header className="flex items-center gap-4 p-6 border-b border-outline-variant/10">
+          <header className="flex items-center gap-4 p-6 pt-safe-6 border-b border-outline-variant/10">
             <button
               onClick={() => setIsEditingMacros(false)}
               className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform"
@@ -1256,7 +1256,7 @@ export function Profile() {
       {/* Overlay do konfiguracji posiłków */}
       {isEditingMeals && (
         <div data-scroll-lock className="fixed inset-0 z-[100] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <header className="flex items-center gap-4 p-6 border-b border-outline-variant/10">
+          <header className="flex items-center gap-4 p-6 pt-safe-6 border-b border-outline-variant/10">
             <button
               onClick={() => { setIsEditingMeals(false); setIsReordering(false); }}
               className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform"
@@ -1375,7 +1375,7 @@ export function Profile() {
 
         return (
           <div data-scroll-lock className="fixed inset-0 z-[200] bg-surface flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <header className="flex items-center gap-4 p-6 border-b border-outline-variant/10">
+            <header className="flex items-center gap-4 p-6 pt-safe-6 border-b border-outline-variant/10">
               <button
                 onClick={() => setShowFormulaInfo(false)}
                 className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform"
