@@ -9,12 +9,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="Aplikacja do planowania posiłków." />
   <meta name="theme-color" content="#0a0a0a" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <script>
     (function () {
       try {
         var preference = localStorage.getItem('mp_theme') || 'dark';
         var dark = preference === 'system' ? window.matchMedia('(prefers-color-scheme: dark)').matches : preference !== 'light';
         document.documentElement.classList.toggle('dark', dark);
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0a0a0a' : '#f8faf7');
+        document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').setAttribute('content', dark ? 'black-translucent' : 'default');
       } catch (error) {
         document.documentElement.classList.add('dark');
       }
@@ -23,7 +26,6 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Meal Planner" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link

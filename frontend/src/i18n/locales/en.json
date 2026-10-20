@@ -381,5 +381,10 @@
   "nutrients.noData": "no data",
   "nutrients.someMissing": "Some values have no data.",
   "nutrients.showMore": "Show more values per 100 {unit}",
-  "nutrients.showLess": "Hide extra values"
+  "nutrients.showLess": "Hide extra values",
+  "nav.label": "Main sections",
+  "nav.plan": "Plan",
+  "nav.recipes": "Recipes",
+  "nav.shopping": "Shopping",
+  "nav.more": "More"
 }

@@ -381,5 +381,10 @@
   "nutrients.noData": "brak danych",
   "nutrients.someMissing": "Dla części wartości nie mamy danych.",
   "nutrients.showMore": "Pokaż więcej wartości na 100 {unit}",
-  "nutrients.showLess": "Ukryj dodatkowe wartości"
+  "nutrients.showLess": "Ukryj dodatkowe wartości",
+  "nav.label": "Główne sekcje",
+  "nav.plan": "Plan",
+  "nav.recipes": "Przepisy",
+  "nav.shopping": "Zakupy",
+  "nav.more": "Więcej"
 }

@@ -32,11 +32,15 @@ function mockSystemScheme(prefersDark: boolean) {
 
 const isDark = () => document.documentElement.classList.contains('dark');
 const themeColor = () => document.querySelector('meta[name="theme-color"]')?.getAttribute('content');
+const statusBarStyle = () => document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.getAttribute('content');
 
 beforeEach(() => {
   const meta = document.createElement('meta');
   meta.name = 'theme-color';
   document.head.appendChild(meta);
+  const statusBar = document.createElement('meta');
+  statusBar.name = 'apple-mobile-web-app-status-bar-style';
+  document.head.appendChild(statusBar);
 });
 
 afterEach(() => {
@@ -56,6 +60,7 @@ describe('theme', () => {
 
     expect(isDark()).toBe(true);
     expect(themeColor()).toBe(THEME_COLORS.dark);
+    expect(statusBarStyle()).toBe('black-translucent');
   });
 
   it('ignores an unsupported stored preference', () => {
@@ -82,6 +87,7 @@ describe('theme', () => {
     expect(localStorage.getItem('mp_theme')).toBe('light');
     expect(isDark()).toBe(false);
     expect(themeColor()).toBe(THEME_COLORS.light);
+    expect(statusBarStyle()).toBe('default');
     expect((listener.mock.calls[0][0] as CustomEvent).detail).toEqual({ preference: 'light' });
     window.removeEventListener(THEME_CHANGE_EVENT, listener);
   });

@@ -15,6 +15,7 @@ import { api, clearSession, type AuthUser } from './lib/apiClient';
 import { BackendLoader } from './components/BackendLoader';
 import { DeletedRecipeSnackbar } from './components/DeletedRecipeSnackbar';
 import { startSessionRenewal } from './lib/sessionRenewal';
+import { ScrollMemory } from './lib/scrollMemory';
 
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -54,6 +55,7 @@ function App() {
   return (
     <Router>
       <AppDataProvider user={user} onLogout={handleLogout}>
+        <ScrollMemory />
         <BackendLoader />
         {isLoggedIn && <DeletedRecipeSnackbar />}
         <Routes>
