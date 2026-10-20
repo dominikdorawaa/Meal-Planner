@@ -56,6 +56,11 @@ export function Onboarding() {
     setStep(prev => Math.max(prev - 1, 1));
   };
 
+  const weightValid = isPositiveWithinLimit(data.weight, PROFILE_LIMITS.weight);
+  const targetWeightValid = isPositiveWithinLimit(data.target_weight, PROFILE_LIMITS.weight);
+  const stepValid = (step !== 2 || weightValid) && (step !== 3 || targetWeightValid);
+  const canFinish = manualMode ? isPositiveWithinLimit(manualMacros.kcal, PROFILE_LIMITS.targetKcal) : weightValid && targetWeightValid;
+
   const finish = async () => {
     try {
       setLoading(true);
@@ -505,7 +510,7 @@ export function Onboarding() {
         {step < 5 ? (
           <button 
             onClick={nextStep}
-            disabled={!isPositiveWithinLimit(data.weight, PROFILE_LIMITS.weight) || !isPositiveWithinLimit(data.target_weight, PROFILE_LIMITS.weight)}
+            disabled={!stepValid}
             className="w-full bg-primary text-on-primary font-bold py-4 rounded-full shadow-lg hover:bg-primary/90 active:scale-95 transition-all text-sm tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Dalej
@@ -513,7 +518,7 @@ export function Onboarding() {
         ) : (
           <button 
             onClick={finish}
-            disabled={loading || (manualMode && !isPositiveWithinLimit(manualMacros.kcal, PROFILE_LIMITS.targetKcal))}
+            disabled={loading || !canFinish}
             className="w-full bg-primary text-on-primary font-bold py-4 flex items-center justify-center gap-2 rounded-full shadow-lg hover:bg-primary/90 active:scale-95 transition-all text-sm tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Zapisywanie profilu...' : (manualMode ? 'Zatwierdź własne makro' : 'Idź do Planu Posiłków')} {loading ? '' : <span className="material-symbols-outlined text-[18px]">arrow_forward</span>}

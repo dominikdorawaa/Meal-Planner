@@ -81,6 +81,7 @@ export function RecipeDetails() {
   const [quickDateInput, setQuickDateInput] = useState('');
   const [showSheetCalendar, setShowSheetCalendar] = useState(false);
   const [savedPortions, setSavedPortions] = useState<number | null>(null);
+  const [savedGrams, setSavedGrams] = useState<number | null>(null);
   const [quickMealType, setQuickMealType] = useState('');
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
@@ -131,7 +132,9 @@ export function RecipeDetails() {
             const portions = mealData.portions_consumed;
             setSavedPortions(portions);
             setPortionInput(portions);
-            setGramInput(Math.round(portions * (weight / (loaded.portions || 1))));
+            const grams = Math.round(portions * (weight / (loaded.portions || 1)));
+            setSavedGrams(grams);
+            setGramInput(grams);
             setInputType('grams');
           }
         } catch (err) {
@@ -153,7 +156,9 @@ export function RecipeDetails() {
     (quickPickPortions || 0);
 
   const gramsPerPortion = safeWeight / basePortions;
-  const unchangedPlanItem = Boolean(mealId) && (savedPortions === null || Math.abs(consumedPortions - savedPortions) * gramsPerPortion < 0.5);
+  const unchangedPlanItem = Boolean(mealId) && (savedPortions === null || (
+    inputType === 'grams' ? gramInput === savedGrams : Math.abs(consumedPortions - savedPortions) < 1e-9
+  ));
 
   const activeIngredientPortions = ingredientPortions !== null ? ingredientPortions : consumedPortions;
 

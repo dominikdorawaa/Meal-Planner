@@ -441,3 +441,32 @@ describe('RecipeDetails amount limits', () => {
     expect(carbs.className).toContain('text-[10px]');
   });
 });
+
+describe('RecipeDetails small plan entry changes', () => {
+  it('enables updating after a change smaller than one gram', async () => {
+    renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
+    await waitFor(() => expect((screen.getByLabelText(t('recipeDetails.gramsInput')) as HTMLInputElement).value).toBe('200'));
+    const update = screen.getByRole('button', { name: t('recipeDetails.update') }) as HTMLButtonElement;
+
+    fireEvent.change(screen.getByLabelText(t('recipeDetails.gramsInput')), { target: { value: '200.1' } });
+    expect(update.disabled).toBe(false);
+    fireEvent.change(screen.getByLabelText(t('recipeDetails.gramsInput')), { target: { value: '200' } });
+    expect(update.disabled).toBe(true);
+  });
+});
+
+describe('RecipeDetails sheet calendar and quick days', () => {
+  it('moves the calendar to the quick day chosen above it', async () => {
+    renderDetails();
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(t('recipeDetails.addToPlan')) }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeDetails.otherDate')) }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.nextMonth') }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.nextMonth') }));
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeDetails.today')) }));
+
+    const today = new Date();
+    const todayLabel = today.toLocaleDateString(t('recipeDetails.locale'), { day: 'numeric', month: 'long' });
+    expect(screen.getByRole('button', { name: todayLabel }).getAttribute('aria-pressed')).toBe('true');
+  });
+});

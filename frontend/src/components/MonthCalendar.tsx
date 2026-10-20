@@ -18,7 +18,10 @@ interface MonthCalendarProps {
 }
 
 export function MonthCalendar({ selected, onSelect }: MonthCalendarProps) {
-  const [month, setMonth] = useState(() => firstDayOfMonth(selected || null));
+  const [shown, setShown] = useState(() => ({ selected, month: firstDayOfMonth(selected || null) }));
+  if (shown.selected !== selected) setShown({ selected, month: firstDayOfMonth(selected || null) });
+  const month = shown.month;
+  const setMonth = (next: Date) => setShown({ selected, month: next });
   const year = month.getFullYear();
   const monthIndex = month.getMonth();
   const firstDay = new Date(year, monthIndex, 1).getDay();

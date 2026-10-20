@@ -238,4 +238,31 @@ describe('Onboarding limits', () => {
     fireEvent.change(kcal, { target: { value: '' } })
     expect((screen.getByText('Zatwierdź własne makro').closest('button') as HTMLButtonElement).disabled).toBe(true)
   })
+
+  it('checks only the fields of the current step, so going back is never blocked', () => {
+    renderOnboarding()
+    fireEvent.click(screen.getByText('Dalej'))
+    fireEvent.click(screen.getByText('Dalej'))
+
+    fireEvent.change(screen.getByLabelText('Masa docelowa (kg)'), { target: { value: '' } })
+    expect((screen.getByText('Dalej') as HTMLButtonElement).disabled).toBe(true)
+
+    fireEvent.click(screen.getByLabelText('Wstecz'))
+    expect(screen.getByLabelText('Obecna waga (kg)')).toBeTruthy()
+    expect((screen.getByText('Dalej') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('lets the guided setup finish once a cleared weight is filled again', () => {
+    renderOnboarding()
+    fireEvent.click(screen.getByText('Dalej'))
+    fireEvent.click(screen.getByText('Dalej'))
+    fireEvent.change(screen.getByLabelText('Masa docelowa (kg)'), { target: { value: '' } })
+    fireEvent.click(screen.getByLabelText('Wstecz'))
+    fireEvent.click(screen.getByText('Dalej'))
+    fireEvent.change(screen.getByLabelText('Masa docelowa (kg)'), { target: { value: '60' } })
+    fireEvent.click(screen.getByText('Dalej'))
+    fireEvent.click(screen.getByText('Dalej'))
+
+    expect((screen.getByText('Idź do Planu Posiłków').closest('button') as HTMLButtonElement).disabled).toBe(false)
+  })
 })
