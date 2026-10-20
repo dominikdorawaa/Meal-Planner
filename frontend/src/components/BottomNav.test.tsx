@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { BottomNav } from './BottomNav'
 
@@ -107,8 +107,30 @@ describe('BottomNav', () => {
     expect(currentPath()).toBe('outside')
   })
 
-  it('replaces the entry when the plan tab is picked from a tab opened directly', () => {
+  it('puts the plan below a tab that was opened directly', () => {
     renderApp(['/cart'])
+    expect(currentPath()).toBe('/cart')
+
+    fireEvent.click(screen.getByText('system back'))
+    expect(currentPath()).toBe('/')
+
+    fireEvent.click(screen.getByText('system back'))
+    expect(currentPath()).toBe('outside')
+  })
+
+  it('returns to the plan after switching tabs from a tab opened directly', () => {
+    renderApp(['/recipes'])
+
+    fireEvent.click(tab('list_altZakupy'))
+    fireEvent.click(screen.getByText('system back'))
+    expect(currentPath()).toBe('/')
+
+    fireEvent.click(screen.getByText('system back'))
+    expect(currentPath()).toBe('outside')
+  })
+
+  it('goes back to the plan below when the plan tab is picked on a tab opened directly', () => {
+    renderApp(['/profile'])
 
     fireEvent.click(tab('calendar_monthPlan'))
     expect(currentPath()).toBe('/')
@@ -197,5 +219,19 @@ describe('BottomNav', () => {
 
     input.remove()
     checkbox.remove()
+  })
+
+  it('shows again when the focused text field is removed together with its sheet', async () => {
+    renderApp()
+    const sheet = document.createElement('div')
+    const input = document.createElement('input')
+    sheet.appendChild(input)
+    document.body.appendChild(sheet)
+    act(() => input.focus())
+    expect(screen.getByRole('navigation', { hidden: true }).getAttribute('aria-hidden')).toBe('true')
+
+    act(() => sheet.remove())
+
+    await waitFor(() => expect(screen.getByRole('navigation').getAttribute('aria-hidden')).toBeNull())
   })
 })

@@ -23,5 +23,14 @@ export function useTextEntryFocused(): boolean {
     };
   }, []);
 
+  useEffect(() => {
+    if (!focused) return;
+    const observer = new MutationObserver(() => {
+      if (!isTextEntry(document.activeElement)) setFocused(false);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [focused]);
+
   return focused;
 }

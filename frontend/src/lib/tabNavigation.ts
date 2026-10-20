@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { MessageKey } from '../i18n';
 import { runTabTransition, type SlideDirection } from './tabTransition';
@@ -49,11 +49,22 @@ export function useTabNavigation() {
         navigate(target, { state: { [FROM_HOME_KEY]: true } });
       } else if (target !== HOME_TAB) {
         navigate(target, { replace: true, state });
-      } else if (cameFromHome(state)) {
-        navigate(-1);
       } else {
-        navigate(HOME_TAB, { replace: true });
+        navigate(-1);
       }
     });
   }, [current, navigate, state]);
+}
+
+export function useHomeBelowTabs() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { pathname, search, hash } = location;
+  const needsHome = pathname !== HOME_TAB && isTabPath(pathname) && !cameFromHome(location.state);
+
+  useEffect(() => {
+    if (!needsHome) return;
+    navigate(HOME_TAB, { replace: true });
+    navigate({ pathname, search, hash }, { state: { [FROM_HOME_KEY]: true } });
+  }, [needsHome, navigate, pathname, search, hash]);
 }

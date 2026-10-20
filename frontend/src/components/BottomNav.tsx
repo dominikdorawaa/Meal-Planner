@@ -1,7 +1,7 @@
 import type { MouseEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { t } from '../i18n';
-import { HOME_TAB, TABS, useTabNavigation } from '../lib/tabNavigation';
+import { HOME_TAB, TABS, useHomeBelowTabs, useTabNavigation } from '../lib/tabNavigation';
 import { useTabSwipe } from '../lib/tabSwipe';
 import { useTextEntryFocused } from '../lib/textEntryFocus';
 
@@ -11,6 +11,7 @@ function isPlainClick(event: MouseEvent) {
 
 export function BottomNav() {
   const path = useLocation().pathname;
+  useHomeBelowTabs();
   const goToTab = useTabNavigation();
   const hidden = useTextEntryFocused();
   useTabSwipe(path, path !== HOME_TAB, goToTab);
