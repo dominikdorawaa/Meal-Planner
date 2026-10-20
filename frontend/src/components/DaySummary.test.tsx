@@ -120,3 +120,27 @@ describe('DaySummary gestures', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
+
+describe('DaySummary with very large values', () => {
+  const huge = { kcal: 123456, protein: 25000, fat: 9999, carbs: 1000000 }
+  const maxTargets = { target_kcal: 10000, target_protein: 500, target_fat: 300, target_carbs: 1000 }
+
+  it('shortens the values so they fit in the day column', () => {
+    render(<DaySummary consumed={huge} targets={maxTargets} dayLabel="Niedziela, 18.10" interactive={false} />)
+
+    expect(screen.getByTestId('kcal-compact-value').textContent).toBe('123,5 tys.')
+    expect(screen.getByTestId('protein-compact-value').textContent).toBe('25 tys.')
+    expect(screen.getByTestId('fat-compact-value').textContent).toBe('9999')
+    expect(screen.getByTestId('carbs-compact-value').textContent).toBe('1 mln')
+    expect(screen.getByTestId('kcal-compact-value').className).toContain('truncate')
+  })
+
+  it('shortens the values and the excess in the details', () => {
+    render(<DaySummary consumed={huge} targets={maxTargets} dayLabel="Niedziela, 18.10" interactive />)
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))
+
+    const dialog = within(screen.getByRole('dialog'))
+    expect(dialog.getByText('123,5 tys.')).toBeTruthy()
+    expect(dialog.getByText('Za dużo o 113,5 tys. kcal')).toBeTruthy()
+  })
+})

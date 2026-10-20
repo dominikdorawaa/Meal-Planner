@@ -50,6 +50,12 @@
   body {
     @apply bg-surface text-on-surface-variant font-body antialiased m-0 p-0;
   }
+
+  html:has([data-scroll-lock]),
+  html:has([data-scroll-lock]) body {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
   
   h1, h2, h3, h4, h5, h6 {
     @apply font-headline text-on-surface font-semibold tracking-tight;

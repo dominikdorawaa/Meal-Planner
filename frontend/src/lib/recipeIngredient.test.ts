@@ -116,6 +116,7 @@ describe('recipeMacrosPerPortion', () => {
 describe('ingredientAmountLabel', () => {
   it('shows the amount with the weight of packages and pieces', () => {
     expect(ingredientAmountLabel({ amount: 2, unit: 'opak', product: { ...skyr, package_weight: 450 } })).toBe('2 opak. (900 g)');
+    expect(ingredientAmountLabel({ amount: 100, unit: 'opak', product: { ...skyr, package_weight: 50000 } })).toBe('100 opak. (5 mln g)');
     expect(ingredientAmountLabel({ amount: 1, unit: 'opak', product: { ...juice } })).toBe('1 opak. (1000 ml)');
     expect(ingredientAmountLabel({ amount: 3, unit: 'szt', product: { ...skyr, piece_weight: 50 } })).toBe('3 szt. (150 g)');
   });

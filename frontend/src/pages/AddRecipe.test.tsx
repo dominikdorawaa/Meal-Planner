@@ -123,6 +123,7 @@ describe('AddRecipe ingredient search', () => {
     fireEvent.change(field, { target: { value: 'sky' } });
     expect(await screen.findByRole('button', { name: /Skyr/ })).toBeTruthy();
     expect(mocks.searchProducts).toHaveBeenCalledWith(expect.objectContaining({ query: 'sky' }));
+    expect(openSearch().getAttribute('autocomplete')).toBe('off');
   });
 
   it('adds a product only after choosing its amount, in packages when the package weight is known', async () => {
@@ -527,5 +528,58 @@ describe('AddRecipe portions and errors', () => {
     fireEvent.click(screen.getByRole('button', { name: t('recipeForm.removeStep', { number: 1 }) }));
     fireEvent.click(screen.getByRole('button', { name: t('common.delete') }));
     expect(screen.queryByDisplayValue('Wymieszaj')).toBeNull();
+  });
+});
+
+describe('AddRecipe limits', () => {
+  it('does not accept more than 50 portions or a day of preparation', () => {
+    renderAddRecipe();
+
+    const portions = screen.getByLabelText(t('recipeForm.portions')) as HTMLInputElement;
+    fireEvent.change(portions, { target: { value: '50' } });
+    fireEvent.change(portions, { target: { value: '51' } });
+    expect(portions.value).toBe('50');
+    expect(portions.getAttribute('autocomplete')).toBe('off');
+
+    const prepTime = screen.getByLabelText(t('recipeForm.prepTime')) as HTMLInputElement;
+    fireEvent.change(prepTime, { target: { value: '1441' } });
+    expect(prepTime.value).toBe('');
+    expect(prepTime.getAttribute('inputmode')).toBe('numeric');
+    expect(screen.getByLabelText(t('recipeForm.name')).getAttribute('autocomplete')).toBe('off');
+  });
+
+  it('blocks saving with zero portions', () => {
+    renderAddRecipe();
+    fireEvent.change(screen.getByLabelText(t('recipeForm.name')), { target: { value: 'Sałatka' } });
+
+    fireEvent.change(screen.getByLabelText(t('recipeForm.portions')), { target: { value: '0' } });
+    expect(screen.getByRole('button', { name: t('recipeForm.save') }).hasAttribute('disabled')).toBe(true);
+    fireEvent.change(screen.getByLabelText(t('recipeForm.portions')), { target: { value: '2' } });
+    expect(screen.getByRole('button', { name: t('recipeForm.save') }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('limits ingredient amounts by unit and blocks adding zero', async () => {
+    renderAddRecipe();
+    await pickSkyr();
+
+    const grams = screen.getByLabelText(t('amount.grams')) as HTMLInputElement;
+    fireEvent.change(grams, { target: { value: '5001' } });
+    expect(grams.value).toBe('100');
+    const packages = screen.getByLabelText(t('amount.packages')) as HTMLInputElement;
+    fireEvent.change(packages, { target: { value: '101' } });
+    expect(packages.value).toBe('1');
+
+    fireEvent.change(grams, { target: { value: '0' } });
+    expect(screen.getByRole('button', { name: t('recipeIngredients.add') }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('shortens the calories of a very large ingredient', async () => {
+    renderAddRecipe();
+    await pickSkyr();
+
+    fireEvent.change(screen.getByLabelText(t('amount.packages')), { target: { value: '100' } });
+    fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.add') }));
+
+    expect(within(ingredientRow('Skyr')).getByText('29,3 tys. kcal')).toBeTruthy();
   });
 });

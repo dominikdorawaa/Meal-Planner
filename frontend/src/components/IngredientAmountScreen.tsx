@@ -14,6 +14,7 @@ import {
 } from '../lib/recipeIngredient';
 import { t } from '../i18n';
 import { AmountRow } from './AmountRow';
+import { amountLimit, isPositiveWithinLimit } from '../lib/inputLimits';
 import { NutritionFactsTable } from './NutritionFactsTable';
 
 interface IngredientAmountScreenProps {
@@ -61,7 +62,7 @@ export function IngredientAmountScreen({ product, initial, submitLabel, onSubmit
   const perPiece = product.unit === 'pc';
 
   return (
-    <div className="fixed inset-0 z-[110] bg-surface flex flex-col animate-fade-in">
+    <div data-scroll-lock className="fixed inset-0 z-[110] bg-surface flex flex-col animate-fade-in">
       <header className="px-4 py-3 pt-safe-3 flex items-center gap-3 bg-surface-container-lowest border-b border-outline-variant/10">
         <button
           onClick={onBack}
@@ -87,6 +88,7 @@ export function IngredientAmountScreen({ product, initial, submitLabel, onSubmit
               <AmountRow
                 key={unit}
                 label={row.label}
+                max={amountLimit(unit)}
                 unit={row.unit}
                 value={value}
                 kcal={ingredientMacros({ amount: Number(value) || 0, unit, product }).kcal}
@@ -116,7 +118,7 @@ export function IngredientAmountScreen({ product, initial, submitLabel, onSubmit
       <div className="px-4 pt-3 pb-safe-6 bg-surface border-t border-outline-variant/10">
         <button
           onClick={() => onSubmit({ amount, unit: activeUnit })}
-          disabled={!(amount > 0)}
+          disabled={!isPositiveWithinLimit(amount, amountLimit(activeUnit))}
           className="w-full max-w-xl mx-auto block py-4 bg-primary text-on-primary font-black text-sm rounded-2xl active:scale-95 transition-transform disabled:opacity-50 shadow-sm"
         >
           {submitLabel}

@@ -60,6 +60,8 @@
   "nutrients.recipeTitle": "Więcej wartości w 1 porcji",
   "nutrients.recipePortion": "1 porcja",
   "nutrients.incompleteData": "niepełne dane",
+  "number.thousands": "{value} tys.",
+  "number.millions": "{value} mln",
   "addFood.selectItem": "Zaznacz: {name}",
   "addFood.addSelected": "Dodaj ({count})",
   "addFood.addSelectedFailed": "Nie udało się dodać zaznaczonych pozycji. Spróbuj ponownie.",

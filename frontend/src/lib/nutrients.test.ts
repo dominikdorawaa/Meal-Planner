@@ -26,6 +26,11 @@ describe('formatNutritionFact', () => {
     expect(formatNutritionFact('salt', 0.125)).toBe('0.13 g');
   });
 
+  it('shortens very large values', () => {
+    expect(formatNutritionFact('kcal', 45000)).toBe('45 tys. kcal');
+    expect(formatNutritionFact('fat', 12345.6)).toBe('12,3 tys. g');
+  });
+
   it('returns nothing for a missing value', () => {
     expect(formatNutritionFact('fiber', null)).toBeNull();
     expect(formatNutritionFact('fiber', undefined)).toBeNull();

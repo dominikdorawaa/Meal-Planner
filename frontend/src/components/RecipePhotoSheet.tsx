@@ -24,7 +24,7 @@ export function RecipePhotoSheet({ hasPhoto, onPick, onRemove, onClose }: Recipe
   };
 
   return (
-    <div className="fixed inset-0 z-[160] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+    <div data-scroll-lock className="fixed inset-0 z-[160] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
       <div
         ref={sheetRef}
         role="dialog"

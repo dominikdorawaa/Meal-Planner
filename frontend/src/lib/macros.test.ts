@@ -5,6 +5,10 @@ describe('formatMacrosShort', () => {
   it('shows protein, fat and carbs rounded to whole grams', () => {
     expect(formatMacrosShort(30.4, 12.6, 45)).toBe('B 30g · T 13g · W 45g')
   })
+
+  it('shortens very large amounts', () => {
+    expect(formatMacrosShort(50000, 20000, 123456)).toBe('B 50 tys.g · T 20 tys.g · W 123,5 tys.g')
+  })
 })
 
 describe('targetRange', () => {

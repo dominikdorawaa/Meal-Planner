@@ -14,6 +14,13 @@ import { measureUnit, scaleNutritionFacts } from '../lib/nutrients';
 import { t } from '../i18n';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
+import { AMOUNT_LIMITS } from '../lib/inputLimits';
+import { formatCompactNumber } from '../lib/compactNumber';
+import { KCAL_HERO_SIZES, RING_VALUE_SIZES, fitTextClass } from '../lib/fitText';
+
+function gramsLabel(value: number): string {
+  return `${formatCompactNumber(value, 1)}g`;
+}
 
 export function ProductDetails() {
   const { id } = useParams();
@@ -38,6 +45,7 @@ export function ProductDetails() {
   const [grams, setGrams] = useState<number | ''>(100);
   const [pieces, setPieces] = useState<number | ''>(1);
   const [packages, setPackages] = useState<number | ''>(1);
+  const [savedWeight, setSavedWeight] = useState<number | null>(null);
 
   const [activeDate, setActiveDate] = useState(selectDate || '');
   const [activeMealType, setActiveMealType] = useState(selectType || '');
@@ -94,6 +102,7 @@ export function ProductDetails() {
       if (data) {
         const weight = data.portions_consumed || 0;
         setGrams(weight);
+        setSavedWeight(weight);
         if (product?.piece_weight) {
           setPieces(parseFloat((weight / product.piece_weight).toFixed(2)));
         }
@@ -109,6 +118,8 @@ export function ProductDetails() {
     if (inputType === 'packages') return (Number(packages) || 0) * (product?.package_weight || 0);
     return 0;
   }, [inputType, grams, pieces, packages, product]);
+
+  const unchangedPlanItem = Boolean(mealId) && (savedWeight === null || Math.abs(currentWeight - savedWeight) < 0.001);
 
   const kcalFor = (weight: number) => Math.round((Number(product?.kcal) || 0) * weight / 100);
 
@@ -295,7 +306,7 @@ export function ProductDetails() {
           </div>
 
            {(showMealPicker || showDatePicker) && (
-            <div className="fixed inset-0 z-[199]" onClick={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
+            <div data-scroll-lock className="fixed inset-0 z-[199]" onClick={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
           )}
         </div>
 
@@ -314,7 +325,7 @@ export function ProductDetails() {
           {showMenu && (
             <>
               <div
-                className="fixed inset-0 z-40"
+                data-scroll-lock className="fixed inset-0 z-40"
                 onClick={() => setShowMenu(false)}
               />
               <div role="menu" className="absolute right-0 top-12 w-56 bg-surface-container border border-outline-variant/10 rounded-xl shadow-lg z-50 overflow-hidden text-sm py-1 animate-fade-in">
@@ -368,7 +379,7 @@ export function ProductDetails() {
 
       {/* Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+        <div data-scroll-lock className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
           <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-sm w-full animate-scale-up text-center border border-outline-variant/10 flex flex-col items-center">
             <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mb-4 text-error">
               <span className="material-symbols-outlined text-[32px]">warning</span>
@@ -408,6 +419,7 @@ export function ProductDetails() {
         {product.piece_weight && (
           <AmountRow
             label={t('amount.pieces')}
+            max={AMOUNT_LIMITS.szt}
             unit="szt."
             value={pieces}
             kcal={kcalFor((Number(pieces) || 0) * product.piece_weight)}
@@ -420,6 +432,7 @@ export function ProductDetails() {
         {product.package_weight && (
           <AmountRow
             label={t('amount.packages')}
+            max={AMOUNT_LIMITS.opak}
             unit={t('amount.packageOf', { amount: `${product.package_weight} ${measureUnit(product.unit)}` })}
             value={packages}
             kcal={kcalFor((Number(packages) || 0) * product.package_weight)}
@@ -431,6 +444,7 @@ export function ProductDetails() {
 
         <AmountRow
           label={t('amount.grams')}
+          max={AMOUNT_LIMITS[measureUnit(product.unit)]}
           unit={measureUnit(product.unit)}
           value={grams}
           kcal={kcalFor(Number(grams) || 0)}
@@ -453,7 +467,7 @@ export function ProductDetails() {
             {/* Kalorie */}
             <div className="flex flex-col items-center gap-3">
               <div className="w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px] flex items-center justify-center">
-                 <span className="font-black text-3xl text-on-surface leading-none">{currentMacros.kcal}</span>
+                 <span data-testid="kcal-value" className={`font-black ${fitTextClass(formatCompactNumber(currentMacros.kcal), KCAL_HERO_SIZES, 3)} text-on-surface leading-none text-center max-w-full break-words`}>{formatCompactNumber(currentMacros.kcal)}</span>
               </div>
               <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">kcal</span>
             </div>
@@ -463,7 +477,7 @@ export function ProductDetails() {
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#4F46E5 ${pctP}%, #4F46E510 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span className="font-black text-base text-on-surface leading-none">{currentMacros.protein}g</span>
+                   <span data-testid="protein-value" className={`font-black ${fitTextClass(gramsLabel(currentMacros.protein), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentMacros.protein)}</span>
                  </div>
               </div>
               <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Białko</span>
@@ -474,7 +488,7 @@ export function ProductDetails() {
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#F59E0B ${pctF}%, #F59E0B10 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span className="font-black text-base text-on-surface leading-none">{currentMacros.fat}g</span>
+                   <span data-testid="fat-value" className={`font-black ${fitTextClass(gramsLabel(currentMacros.fat), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentMacros.fat)}</span>
                  </div>
               </div>
               <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Tłuszcz</span>
@@ -485,7 +499,7 @@ export function ProductDetails() {
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#10B981 ${pctC}%, #10B98110 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span className="font-black text-base text-on-surface leading-none">{currentMacros.carbs}g</span>
+                   <span data-testid="carbs-value" className={`font-black ${fitTextClass(gramsLabel(currentMacros.carbs), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentMacros.carbs)}</span>
                  </div>
               </div>
               <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Węgle</span>
@@ -569,7 +583,7 @@ export function ProductDetails() {
                           <div className="flex justify-between items-baseline leading-none">
                             <span className="text-on-surface uppercase tracking-widest text-[8px] font-black">Kalorie</span>
                             <span className="text-[10px] font-black text-on-surface">
-                              {currentData.kcal} / <span className="opacity-40">{profile?.target_kcal || '···'} kcal</span>
+                              {formatCompactNumber(currentData.kcal)} / <span className="opacity-40">{profile?.target_kcal || '···'} kcal</span>
                             </span>
                           </div>
                           <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
@@ -585,7 +599,7 @@ export function ProductDetails() {
                             <div className="flex justify-between items-baseline leading-none">
                               <span className="text-on-surface uppercase tracking-widest text-[8px] font-black">Białka</span>
                               <span className="text-[10px] font-black text-on-surface">
-                                {currentData.protein}g / <span className="opacity-40">{profile?.target_protein || '···'}g</span>
+                                {gramsLabel(currentData.protein)} / <span className="opacity-40">{profile?.target_protein || '···'}g</span>
                               </span>
                             </div>
                             <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
@@ -597,7 +611,7 @@ export function ProductDetails() {
                             <div className="flex justify-between items-baseline leading-none">
                               <span className="text-on-surface uppercase tracking-widest text-[8px] font-black">Tłuszcze</span>
                               <span className="text-[10px] font-black text-on-surface">
-                                {currentData.fat}g / <span className="opacity-40">{profile?.target_fat || '···'}g</span>
+                                {gramsLabel(currentData.fat)} / <span className="opacity-40">{profile?.target_fat || '···'}g</span>
                               </span>
                             </div>
                             <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
@@ -609,7 +623,7 @@ export function ProductDetails() {
                             <div className="flex justify-between items-baseline leading-none">
                               <span className="text-on-surface uppercase tracking-widest text-[8px] font-black">Węglowodany</span>
                               <span className="text-[10px] font-black text-on-surface">
-                                {currentData.carbs}g / <span className="opacity-40">{profile?.target_carbs || '···'}g</span>
+                                {gramsLabel(currentData.carbs)} / <span className="opacity-40">{profile?.target_carbs || '···'}g</span>
                               </span>
                             </div>
                             <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
@@ -667,7 +681,7 @@ export function ProductDetails() {
 
             <button 
               onClick={handleAddProduct}
-              disabled={isAdding || currentWeight <= 0}
+              disabled={isAdding || !(currentWeight > 0) || unchangedPlanItem}
               className="flex-1 h-[56px] bg-[#6B8E23] text-white font-black text-base rounded-[20px] shadow-lg shadow-[#6B8E23]/20 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center"
             >
               {isAdding ? 'Czekaj...' : (mealId ? 'Zaktualizuj' : 'Dodaj')}

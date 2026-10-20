@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { t } from '../i18n';
+import { PROFILE_LIMITS, acceptsLimitedNumber, isPositiveWithinLimit, numberFieldProps } from '../lib/inputLimits';
 
 export function Onboarding() {
   const navigate = useNavigate();
@@ -279,11 +280,11 @@ export function Onboarding() {
                 <div className="flex justify-between items-center mb-4">
                   <span className="font-bold tracking-wide text-on-surface">Obecna waga (kg)</span>
                   <div className="flex items-baseline gap-1">
-                    <input 
-                      type="number" 
-                      step="0.1"
-                      value={data.weight} 
-                      onChange={(e) => handleUpdate('weight', parseFloat(e.target.value) || 0)}
+                    <input
+                      {...numberFieldProps(PROFILE_LIMITS.weight)}
+                      aria-label="Obecna waga (kg)"
+                      value={data.weight}
+                      onChange={(e) => acceptsLimitedNumber(e.target.value, PROFILE_LIMITS.weight) && handleUpdate('weight', parseFloat(e.target.value) || 0)}
                       className="text-primary font-headline font-bold text-3xl bg-transparent w-24 text-right outline-none appearance-none"
                     />
                     <span className="text-primary/60 text-xs font-bold uppercase tracking-widest pl-1">kg</span>
@@ -310,11 +311,11 @@ export function Onboarding() {
                 <div className="flex justify-between items-center mb-4">
                   <span className="font-bold tracking-wide text-on-surface">Masa docelowa (kg)</span>
                   <div className="flex items-baseline gap-1">
-                    <input 
-                      type="number" 
-                      step="0.1"
-                      value={data.target_weight} 
-                      onChange={(e) => handleUpdate('target_weight', parseFloat(e.target.value) || 0)}
+                    <input
+                      {...numberFieldProps(PROFILE_LIMITS.weight)}
+                      aria-label="Masa docelowa (kg)"
+                      value={data.target_weight}
+                      onChange={(e) => acceptsLimitedNumber(e.target.value, PROFILE_LIMITS.weight) && handleUpdate('target_weight', parseFloat(e.target.value) || 0)}
                       className="text-primary font-headline font-bold text-3xl bg-transparent w-24 text-right outline-none appearance-none"
                     />
                     <span className="text-primary/60 text-xs font-bold uppercase tracking-widest pl-1">kg</span>
@@ -456,37 +457,41 @@ export function Onboarding() {
             <div className="w-full grid grid-cols-3 gap-3 mb-4">
               <div className="col-span-3 bg-surface-container-lowest p-4 rounded-3xl shadow-ambient border border-outline-variant/10 text-center">
                 <span className="text-xs font-bold uppercase tracking-widest text-primary block mb-2">Kcal</span>
-                <input 
-                  type="number"
+                <input
+                  {...numberFieldProps(PROFILE_LIMITS.targetKcal, 0)}
+                  aria-label="Kcal"
                   value={manualMacros.kcal}
-                  onChange={e => setManualMacros({...manualMacros, kcal: parseInt(e.target.value) || 0})}
+                  onChange={e => acceptsLimitedNumber(e.target.value, PROFILE_LIMITS.targetKcal, 0) && setManualMacros({...manualMacros, kcal: parseInt(e.target.value) || 0})}
                   className="w-full bg-transparent text-center font-headline font-extrabold text-4xl text-on-surface outline-none"
                 />
               </div>
               <div className="bg-surface-container-lowest p-4 rounded-3xl shadow-ambient border border-outline-variant/10 text-center">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Białka (g)</span>
                 <input 
-                  type="number"
+                  {...numberFieldProps(PROFILE_LIMITS.macroGrams, 0)}
+                  aria-label="Białka (g)"
                   value={manualMacros.protein}
-                  onChange={e => setManualMacros({...manualMacros, protein: parseInt(e.target.value) || 0})}
+                  onChange={e => acceptsLimitedNumber(e.target.value, PROFILE_LIMITS.macroGrams, 0) && setManualMacros({...manualMacros, protein: parseInt(e.target.value) || 0})}
                   className="w-full bg-transparent text-center font-bold text-xl text-primary outline-none"
                 />
               </div>
               <div className="bg-surface-container-lowest p-4 rounded-3xl shadow-ambient border border-outline-variant/10 text-center">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Tłuszcz (g)</span>
                 <input 
-                  type="number"
+                  {...numberFieldProps(PROFILE_LIMITS.macroGrams, 0)}
+                  aria-label="Tłuszcz (g)"
                   value={manualMacros.fat}
-                  onChange={e => setManualMacros({...manualMacros, fat: parseInt(e.target.value) || 0})}
+                  onChange={e => acceptsLimitedNumber(e.target.value, PROFILE_LIMITS.macroGrams, 0) && setManualMacros({...manualMacros, fat: parseInt(e.target.value) || 0})}
                   className="w-full bg-transparent text-center font-bold text-xl text-primary outline-none"
                 />
               </div>
               <div className="bg-surface-container-lowest p-4 rounded-3xl shadow-ambient border border-outline-variant/10 text-center">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Węgle (g)</span>
                 <input
-                  type="number"
+                  {...numberFieldProps(PROFILE_LIMITS.macroGrams, 0)}
+                  aria-label="Węgle (g)"
                   value={manualMacros.carbs}
-                  onChange={e => setManualMacros({...manualMacros, carbs: parseInt(e.target.value) || 0})}
+                  onChange={e => acceptsLimitedNumber(e.target.value, PROFILE_LIMITS.macroGrams, 0) && setManualMacros({...manualMacros, carbs: parseInt(e.target.value) || 0})}
                   className="w-full bg-transparent text-center font-bold text-xl text-primary outline-none"
                 />
               </div>
@@ -500,14 +505,15 @@ export function Onboarding() {
         {step < 5 ? (
           <button 
             onClick={nextStep}
-            className="w-full bg-primary text-on-primary font-bold py-4 rounded-full shadow-lg hover:bg-primary/90 active:scale-95 transition-all text-sm tracking-wide"
+            disabled={!isPositiveWithinLimit(data.weight, PROFILE_LIMITS.weight) || !isPositiveWithinLimit(data.target_weight, PROFILE_LIMITS.weight)}
+            className="w-full bg-primary text-on-primary font-bold py-4 rounded-full shadow-lg hover:bg-primary/90 active:scale-95 transition-all text-sm tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Dalej
           </button>
         ) : (
           <button 
             onClick={finish}
-            disabled={loading}
+            disabled={loading || (manualMode && !isPositiveWithinLimit(manualMacros.kcal, PROFILE_LIMITS.targetKcal))}
             className="w-full bg-primary text-on-primary font-bold py-4 flex items-center justify-center gap-2 rounded-full shadow-lg hover:bg-primary/90 active:scale-95 transition-all text-sm tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Zapisywanie profilu...' : (manualMode ? 'Zatwierdź własne makro' : 'Idź do Planu Posiłków')} {loading ? '' : <span className="material-symbols-outlined text-[18px]">arrow_forward</span>}

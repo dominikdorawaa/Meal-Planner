@@ -35,4 +35,22 @@ describe('MoreNutrientsFields', () => {
     expect(fireEvent.keyDown(input, { key: '-' })).toBe(false);
     expect(fireEvent.keyDown(input, { key: '1' })).toBe(true);
   });
+
+  it('does not accept values above 100 g', () => {
+    const onChange = vi.fn();
+    render(<MoreNutrientsFields values={{ ...EMPTY, salt: '1' }} onChange={onChange} />);
+
+    fireEvent.change(screen.getByLabelText('Sól'), { target: { value: '100.01' } });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Sól'), { target: { value: '100' } });
+    expect(onChange).toHaveBeenCalledWith('salt', '100');
+  });
+
+  it('accepts larger values when the limits do not apply', () => {
+    const onChange = vi.fn();
+    render(<MoreNutrientsFields values={{ ...EMPTY, salt: '1' }} onChange={onChange} limited={false} />);
+
+    fireEvent.change(screen.getByLabelText('Sól'), { target: { value: '150' } });
+    expect(onChange).toHaveBeenCalledWith('salt', '150');
+  });
 });

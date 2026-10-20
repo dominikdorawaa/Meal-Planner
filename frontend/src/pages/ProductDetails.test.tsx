@@ -6,6 +6,8 @@ import { t } from '../i18n';
 
 const mocks = vi.hoisted(() => ({
   addMeal: vi.fn(),
+  updateMeal: vi.fn(),
+  getAllMeals: vi.fn(),
   getProduct: vi.fn(),
   saved: vi.fn(),
   save: vi.fn(),
@@ -18,7 +20,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../lib/apiClient', () => ({
   api: {
-    meals: { add: mocks.addMeal, update: vi.fn(), getAll: vi.fn().mockResolvedValue([]) },
+    meals: { add: mocks.addMeal, update: mocks.updateMeal, getAll: mocks.getAllMeals },
     products: {
       getById: mocks.getProduct,
       delete: mocks.deleteProduct,
@@ -46,9 +48,9 @@ vi.mock('../lib/AppDataContext', () => ({
 
 const SKYR = { id: 'p1', name: 'Skyr', kcal: 60, protein: 12, fat: 0, carbs: 3, unit: '100g' };
 
-function renderDetails() {
+function renderDetails(query = '?selectDate=2026-10-17&selectType=lunch') {
   return render(
-    <MemoryRouter initialEntries={['/product/p1?selectDate=2026-10-17&selectType=lunch']}>
+    <MemoryRouter initialEntries={[`/product/p1${query}`]}>
       <Routes>
         <Route path="/" element={<p>plan screen</p>} />
         <Route path="/product/p2" element={<p>own version screen</p>} />
@@ -64,6 +66,8 @@ function openMenu() {
 
 beforeEach(() => {
   mocks.addMeal.mockResolvedValue({});
+  mocks.updateMeal.mockResolvedValue({});
+  mocks.getAllMeals.mockResolvedValue([]);
   mocks.user = { userId: 'user-1' };
   mocks.saved.mockResolvedValue([]);
   mocks.save.mockResolvedValue(undefined);
@@ -263,5 +267,89 @@ describe('ProductDetails saving and ownership', () => {
 
     expect(screen.queryByRole('button', { name: t('product.menu') })).toBeNull();
     expect(mocks.saved).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProductDetails plan item editing', () => {
+  const EDIT_QUERY = '?selectDate=2026-10-17&selectType=lunch&mealId=m1';
+
+  function updateButton() {
+    return screen.getByRole('button', { name: 'Zaktualizuj' }) as HTMLButtonElement;
+  }
+
+  it('keeps the update button disabled until the amount changes', async () => {
+    mocks.getProduct.mockResolvedValue(SKYR);
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 150 }]);
+    renderDetails(EDIT_QUERY);
+
+    const grams = await screen.findByLabelText(t('amount.grams'));
+    await waitFor(() => expect((grams as HTMLInputElement).value).toBe('150'));
+    expect(updateButton().disabled).toBe(true);
+
+    fireEvent.change(grams, { target: { value: '200' } });
+    expect(updateButton().disabled).toBe(false);
+    fireEvent.click(updateButton());
+
+    await screen.findByText('plan screen');
+    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 200 });
+  });
+
+  it('blocks saving when the amount is zero or empty', async () => {
+    mocks.getProduct.mockResolvedValue(SKYR);
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 150 }]);
+    renderDetails(EDIT_QUERY);
+
+    const grams = await screen.findByLabelText(t('amount.grams'));
+    await waitFor(() => expect((grams as HTMLInputElement).value).toBe('150'));
+    fireEvent.change(grams, { target: { value: '0' } });
+    expect(updateButton().disabled).toBe(true);
+    fireEvent.change(grams, { target: { value: '' } });
+    expect(updateButton().disabled).toBe(true);
+  });
+});
+
+describe('ProductDetails amount limits', () => {
+  it('does not accept grams above 5000 or more than one decimal place', async () => {
+    mocks.getProduct.mockResolvedValue(SKYR);
+    renderDetails();
+
+    const grams = await screen.findByLabelText(t('amount.grams')) as HTMLInputElement;
+    fireEvent.change(grams, { target: { value: '5000' } });
+    expect(grams.value).toBe('5000');
+    fireEvent.change(grams, { target: { value: '5001' } });
+    expect(grams.value).toBe('5000');
+    fireEvent.change(grams, { target: { value: '12.25' } });
+    expect(grams.value).toBe('5000');
+    expect(grams.getAttribute('autocomplete')).toBe('off');
+    expect(grams.getAttribute('inputmode')).toBe('decimal');
+  });
+
+  it('does not accept more than 100 pieces or packages', async () => {
+    mocks.getProduct.mockResolvedValue({ ...SKYR, piece_weight: 50, package_weight: 450 });
+    renderDetails();
+
+    const pieces = await screen.findByLabelText(t('amount.pieces')) as HTMLInputElement;
+    fireEvent.change(pieces, { target: { value: '101' } });
+    expect(pieces.value).toBe('1');
+    const packages = screen.getByLabelText(t('amount.packages')) as HTMLInputElement;
+    fireEvent.change(packages, { target: { value: '100' } });
+    expect(packages.value).toBe('100');
+  });
+
+  it('keeps the largest values inside the summary circles', async () => {
+    mocks.getProduct.mockResolvedValue({ ...SKYR, kcal: 900, protein: 100, fat: 100, carbs: 100 });
+    renderDetails();
+
+    const grams = await screen.findByLabelText(t('amount.grams'));
+    fireEvent.change(grams, { target: { value: '5000' } });
+
+    const kcal = screen.getByTestId('kcal-value');
+    expect(kcal.textContent).toBe('45 tys.');
+    expect(kcal.className).not.toContain('text-3xl');
+    const protein = screen.getByTestId('protein-value');
+    expect(protein.textContent).toBe('5000g');
+    expect(protein.className).toContain('text-sm');
+    const gramsRow = grams.closest('[data-amount-row]') as HTMLElement;
+    expect(within(gramsRow).getByText('45 tys.')).toBeTruthy();
   });
 });

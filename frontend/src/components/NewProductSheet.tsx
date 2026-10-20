@@ -4,11 +4,14 @@ import type { ProductPrefill } from '../lib/barcodeLookup';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { EXTRA_NUTRIENTS, extraNutrientInputs, type ExtraNutrientValues } from '../lib/nutrients';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
-import { isValidPackageWeight } from '../lib/packageWeight';
+import { MAX_PACKAGE_WEIGHT, isValidPackageWeight } from '../lib/packageWeight';
 import { useExistingBarCodeProduct } from '../lib/useExistingBarCodeProduct';
 import { t, type MessageKey } from '../i18n';
 import { BarCodeField, type ExistingProductAction } from './BarCodeField';
 import { MoreNutrientsFields } from './MoreNutrientsFields';
+import { NUTRITION_DECIMALS, NUTRITION_LIMITS, acceptsLimitedNumber, numberFieldProps } from '../lib/inputLimits';
+
+const PER_PIECE_UNIT = 'pc';
 
 export interface NewProductDraft {
   name?: string;
@@ -85,6 +88,11 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
   const barCodeBlocksSaving = !keepsSourceBarCode && (existingBarCode.checking || existingProduct !== null);
   const texts = MODE_TEXTS[mode];
   const sheetRef = useBottomSheet(true, onClose);
+  const per100 = (source?.unit ?? '100g') !== PER_PIECE_UNIT;
+  const nutrientLimit = (nutrient: keyof typeof NUTRITION_LIMITS) => per100 ? NUTRITION_LIMITS[nutrient] : Number.MAX_SAFE_INTEGER;
+  const setLimited = (field: 'kcal' | 'protein' | 'carbs' | 'fat', value: string) => {
+    if (acceptsLimitedNumber(value, nutrientLimit(field), NUTRITION_DECIMALS)) setForm(p => ({ ...p, [field]: value }));
+  };
 
   const handleCreate = async () => {
     if (!check.valid || !packageWeightValid || barCodeBlocksSaving) return;
@@ -110,7 +118,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => onClose()}>
+    <div data-scroll-lock className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => onClose()}>
       <div ref={sheetRef} className="bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[92vh] overflow-y-auto animate-slide-up w-full max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative" onClick={e => e.stopPropagation()}>
         <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
 
@@ -142,6 +150,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
             <input
               id="product-form-name"
               type="text"
+              autoComplete="off"
               value={form.name}
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
               className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
@@ -152,6 +161,8 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
             <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('productForm.brand')}</label>
             <input
               type="text"
+              autoComplete="off"
+              aria-label={t('productForm.brand')}
               value={form.brand}
               onChange={e => setForm(p => ({ ...p, brand: e.target.value }))}
               className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
@@ -162,10 +173,11 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
             <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('productForm.kcal')}</label>
             <div className="relative flex items-center rounded-2xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
               <input
-                type="number" min="0"
+                {...numberFieldProps(nutrientLimit('kcal'), NUTRITION_DECIMALS)}
+                aria-label={t('productForm.kcal')}
                 onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
                 value={form.kcal}
-                onChange={e => setForm(p => ({ ...p, kcal: e.target.value }))}
+                onChange={e => setLimited('kcal', e.target.value)}
                 className="flex-1 bg-transparent py-4 pl-4 pr-16 outline-none text-on-surface font-bold text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 placeholder="0"
               />
@@ -182,10 +194,11 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
                 <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest leading-none truncate">{f.label}</label>
                 <div className="relative flex items-center rounded-xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
                   <input
-                    type="number" min="0"
+                    {...numberFieldProps(nutrientLimit(f.key as 'protein' | 'carbs' | 'fat'), NUTRITION_DECIMALS)}
+                    aria-label={f.label}
                     onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
                     value={form[f.key as 'protein' | 'carbs' | 'fat']}
-                    onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                    onChange={e => setLimited(f.key as 'protein' | 'carbs' | 'fat', e.target.value)}
                     className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="0"
                   />
@@ -200,10 +213,10 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
             <div className="relative flex items-center rounded-2xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
               <input
                 id="new-product-package-weight"
-                type="number" min="0" inputMode="decimal"
+                {...numberFieldProps(MAX_PACKAGE_WEIGHT)}
                 onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
                 value={form.packageWeight}
-                onChange={e => setForm(p => ({ ...p, packageWeight: e.target.value }))}
+                onChange={e => acceptsLimitedNumber(e.target.value, MAX_PACKAGE_WEIGHT) && setForm(p => ({ ...p, packageWeight: e.target.value }))}
                 aria-invalid={!packageWeightValid}
                 className="flex-1 bg-transparent py-3.5 pl-4 pr-12 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:font-medium placeholder:text-on-surface-variant/40"
                 placeholder={t('productForm.packageWeightPlaceholder')}
@@ -217,6 +230,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
 
           <MoreNutrientsFields
             values={form.extras}
+            limited={per100}
             onChange={(nutrient, value) => setForm(p => ({ ...p, extras: { ...p.extras, [nutrient]: value } }))}
           />
 

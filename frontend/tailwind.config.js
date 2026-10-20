@@ -3,6 +3,9 @@ const token = (name) => `rgb(var(--color-${name}) / <alpha-value>)`
 
 export default {
   darkMode: 'class',
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",

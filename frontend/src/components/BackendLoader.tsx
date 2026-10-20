@@ -39,7 +39,7 @@ export function BackendLoader() {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div data-scroll-lock className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-surface rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center space-y-4">
         <Loader2 className="w-12 h-12 text-primary animate-spin" />
         <div>

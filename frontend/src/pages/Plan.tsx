@@ -7,6 +7,7 @@ import { resolveMealProduct } from '../lib/mealProducts';
 import { useNavigate } from 'react-router-dom';
 import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 import { formatMacrosShort } from '../lib/macros';
+import { formatCompactNumber } from '../lib/compactNumber';
 import { DaySummary } from '../components/DaySummary';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { MEAL_TYPES, profileMealTypes } from '../lib/mealTypes';
@@ -363,7 +364,7 @@ export function Plan() {
                   <RecipeCard
                     key={assignedMeal.id}
                     title={recipe.name}
-                    kcal={String(Math.round(recipe.kcal * mult))}
+                    kcal={formatCompactNumber(recipe.kcal * mult)}
                     macros={formatMacrosShort(recipe.protein * mult, recipe.fat * mult, recipe.carbs * mult)}
                     imgSrc={recipe.image_url || PLACEHOLDER_IMAGE}
                     imageFallbackSrc={DEFAULT_RECIPE_IMAGE_URL}
@@ -400,7 +401,7 @@ export function Plan() {
                   <RecipeCard
                     key={assignedMeal.id}
                     title={productDisplayName(product)}
-                    kcal={String(kcal)}
+                    kcal={formatCompactNumber(kcal)}
                     macros={formatMacrosShort(p, f, c)}
                     imgSrc={product.image_url || PLACEHOLDER_IMAGE}
                     noWrap
@@ -427,7 +428,7 @@ export function Plan() {
                   <RecipeCard
                     key={assignedMeal.id}
                     title={assignedMeal.manual_name || t('plan.quickMeal')}
-                    kcal={String(assignedMeal.manual_kcal || 0)}
+                    kcal={formatCompactNumber(Number(assignedMeal.manual_kcal) || 0)}
                     macros={formatMacrosShort(Number(assignedMeal.manual_protein || 0), Number(assignedMeal.manual_fat || 0), Number(assignedMeal.manual_carbs || 0))}
                     imgSrc={PLACEHOLDER_IMAGE}
                     noWrap
@@ -600,7 +601,7 @@ export function Plan() {
 
       {/* Menu zarządzania DNIEM (BottomSheet) */}
       {activeDayMenu && (
-        <div className="fixed inset-0 bg-black/10 z-[200] flex flex-col justify-end sm:justify-center items-center p-0 sm:p-6 animate-fade-in" onClick={() => setActiveDayMenu(null)}>
+        <div data-scroll-lock className="fixed inset-0 bg-black/10 z-[200] flex flex-col justify-end sm:justify-center items-center p-0 sm:p-6 animate-fade-in" onClick={() => setActiveDayMenu(null)}>
           <div ref={dayMenuRef} className="bg-surface-container-lowest rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-ambient w-full max-w-sm border-t sm:border border-outline-variant/10 animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-1.5 bg-surface-container-highest rounded-full mx-auto mb-6 sm:hidden"></div>
 
@@ -666,7 +667,7 @@ export function Plan() {
 
       {/* Menu zarządzania posiłkiem (BottomSheet na mobilce) */}
       {activeMealMenu && (
-        <div className="fixed inset-0 bg-black/10 z-[200] flex flex-col justify-end sm:justify-center items-center p-0 sm:p-6 animate-fade-in" onClick={() => setActiveMealMenu(null)}>
+        <div data-scroll-lock className="fixed inset-0 bg-black/10 z-[200] flex flex-col justify-end sm:justify-center items-center p-0 sm:p-6 animate-fade-in" onClick={() => setActiveMealMenu(null)}>
           <div ref={mealMenuRef} className="bg-surface-container-lowest rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-ambient w-full max-w-sm border-t sm:border border-outline-variant/10 animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-1.5 bg-surface-container-highest rounded-full mx-auto mb-6 sm:hidden"></div>
 
@@ -794,7 +795,7 @@ export function Plan() {
         const count = mealsOfDay(visibleMeals, dayToDelete).length;
         const weekday = parseIsoDate(dayToDelete)?.getDay() ?? 0;
         return (
-          <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-fade-in pointer-events-none">
+          <div data-scroll-lock className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-fade-in pointer-events-none">
             <div role="alertdialog" aria-modal="true" aria-labelledby="delete-day-title" aria-describedby="delete-day-description" className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center pointer-events-auto flex flex-col items-center">
               <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mb-4">
                 <span className="material-symbols-outlined text-3xl">delete_sweep</span>
@@ -873,8 +874,8 @@ function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick
       <div className={`${isManual ? 'h-[85px]' : 'h-[120px] sm:h-[135px]'} w-full rounded-2xl overflow-hidden bg-surface-container-lowest relative shadow-sm border transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface border-transparent' : 'border-outline-variant/10'}`}>
         {renderImage()}
 
-        <div className={`absolute ${isManual ? 'bottom-1.5 left-1.5' : 'bottom-2 left-2'} z-10 bg-surface/90 backdrop-blur-xl px-1.5 h-[14px] flex items-center justify-center gap-0.5 rounded-md shadow-sm`}>
-          <span className="text-[9px] font-bold text-primary tracking-wide leading-none translate-y-[0.5px]">{kcal} kcal</span>
+        <div className={`absolute ${isManual ? 'bottom-1.5 left-1.5' : 'bottom-2 left-2'} z-10 max-w-[calc(100%-1rem)] bg-surface/90 backdrop-blur-xl px-1.5 h-[14px] flex items-center justify-center gap-0.5 rounded-md shadow-sm`}>
+          <span data-testid="plan-card-kcal" className="text-[9px] font-bold text-primary tracking-wide leading-none translate-y-[0.5px] truncate">{kcal} kcal</span>
         </div>
 
         {isCopyMode ? (
@@ -890,7 +891,7 @@ function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick
 
       <div className="flex flex-col px-0.5">
         <h3 className="font-headline font-bold text-[11px] sm:text-[13px] text-on-surface leading-tight line-clamp-1">{title}</h3>
-        <span className="text-[9px] sm:text-[10px] font-body font-medium text-on-surface-variant tracking-wide mt-1 truncate block bg-surface-container-highest/50 px-1.5 py-0.5 rounded-md w-fit">{macros}</span>
+        <span className="text-[9px] sm:text-[10px] font-body font-medium text-on-surface-variant tracking-wide mt-1 truncate block bg-surface-container-highest/50 px-1.5 py-0.5 rounded-md w-fit max-w-full">{macros}</span>
       </div>
     </div>
   );

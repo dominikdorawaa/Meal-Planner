@@ -13,7 +13,7 @@ export function RecipeDeleteSheet({ recipe, deleting, onConfirm, onCancel }: Rec
   const sheetRef = useBottomSheet(true, onCancel, deleting);
 
   return (
-    <div className="fixed inset-0 z-[160] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => !deleting && onCancel()}>
+    <div data-scroll-lock className="fixed inset-0 z-[160] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => !deleting && onCancel()}>
       <div
         ref={sheetRef}
         role="alertdialog"

@@ -1,5 +1,6 @@
 import type { MessageKey } from '../i18n';
 import { EXTRA_NUTRIENTS, type ExtraNutrientValues } from './nutrients';
+import { NUTRITION_LIMITS } from './inputLimits';
 
 export type NutritionIssue =
   | 'NAME_MISSING'
@@ -32,8 +33,8 @@ export interface NutritionCheck {
   valid: boolean;
 }
 
-const MAX_KCAL_PER_100G = 900;
-const MAX_GRAMS_PER_100G = 100;
+const MAX_KCAL_PER_100G = NUTRITION_LIMITS.kcal;
+const MAX_GRAMS_PER_100G = NUTRITION_LIMITS.protein;
 const MACROS_SUM_ROUNDING = 1;
 const KJ_RATIO_MIN = 3.8;
 const KJ_RATIO_MAX = 4.6;

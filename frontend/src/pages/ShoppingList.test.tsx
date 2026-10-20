@@ -129,3 +129,20 @@ describe('ShoppingList create from plan', () => {
     expect(screen.getByRole('button', { name: t('shopping.addProduct') })).toBeTruthy();
   });
 });
+
+describe('ShoppingList add product form', () => {
+  it('turns off autofill suggestions and limits the amount', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('shopping.addProduct')) }));
+
+    expect(screen.getByPlaceholderText('np. Mleko 2%').getAttribute('autocomplete')).toBe('off');
+    expect(screen.getByPlaceholderText('szt').getAttribute('autocomplete')).toBe('off');
+    const amount = screen.getByLabelText('Ilość') as HTMLInputElement;
+    expect(amount.getAttribute('autocomplete')).toBe('off');
+    fireEvent.change(amount, { target: { value: '2,5' } });
+    expect(amount.value).toBe('2,5');
+    fireEvent.change(amount, { target: { value: '5001' } });
+    expect(amount.value).toBe('2,5');
+    expect(document.querySelector('[data-scroll-lock]')).not.toBeNull();
+  });
+});

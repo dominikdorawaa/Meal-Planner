@@ -60,6 +60,8 @@
   "nutrients.recipeTitle": "More values per portion",
   "nutrients.recipePortion": "1 portion",
   "nutrients.incompleteData": "incomplete data",
+  "number.thousands": "{value}k",
+  "number.millions": "{value}M",
   "addFood.selectItem": "Select: {name}",
   "addFood.addSelected": "Add ({count})",
   "addFood.addSelectedFailed": "Could not add the selected items. Please try again.",

@@ -12,7 +12,7 @@ export function BarcodeLookupPending({ onCancel }: BarcodeLookupPendingProps) {
       role="alertdialog"
       aria-modal="true"
       aria-busy="true"
-      className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-6"
+      data-scroll-lock className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-6"
     >
       <div className="bg-surface-container-lowest rounded-[24px] p-6 w-full max-w-sm flex flex-col items-center gap-4">
         <p className="text-sm font-medium text-on-surface">{t('scanner.lookingUp')}</p>

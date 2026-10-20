@@ -122,6 +122,7 @@ describe('Recipes search and filters', () => {
   it('searches by name and clears the search', () => {
     renderRecipes();
 
+    expect(screen.getByLabelText(t('recipes.searchPlaceholder')).getAttribute('autocomplete')).toBe('off');
     fireEvent.change(screen.getByLabelText(t('recipes.searchPlaceholder')), { target: { value: 'OWS' } });
     expect(names()).toEqual(['Owsianka']);
     expect(screen.getByText(t('recipes.countFor', { query: 'OWS' }))).toBeTruthy();

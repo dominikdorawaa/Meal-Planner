@@ -105,12 +105,13 @@ describe('adding from item details', () => {
 
   it('does not add checked items when updating an existing product entry', async () => {
     renderDetails('/product/p1', `${SEARCH}&mealId=m1`);
-    await screen.findByDisplayValue('150');
+    const grams = await screen.findByDisplayValue('150');
 
+    fireEvent.change(grams, { target: { value: '180' } });
     fireEvent.click(screen.getByRole('button', { name: 'Zaktualizuj' }));
 
     await screen.findByText('plan screen');
-    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 150 });
+    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 180 });
     expect(mocks.addMeal).not.toHaveBeenCalled();
   });
 

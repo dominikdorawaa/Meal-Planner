@@ -10,6 +10,7 @@ import { ShoppingFromPlanPicker } from '../components/ShoppingFromPlanPicker';
 import { t } from '../i18n';
 import { profileMealTypes } from '../lib/mealTypes';
 import { addPlanMealsToShoppingList, type PlanMeal, type ShoppingFromPlanResult } from '../lib/shoppingFromPlan';
+import { AMOUNT_LIMITS, acceptsLimitedNumber } from '../lib/inputLimits';
 
 const SUCCESS_TOAST_MS = 3500;
 
@@ -387,7 +388,7 @@ export function ShoppingList() {
 
       {/* Dodaj produkt */}
       {showAddModal && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-6">
+        <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-6">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => !addSubmitting && setShowAddModal(false)}
@@ -410,6 +411,7 @@ export function ShoppingList() {
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">Nazwa</label>
                 <input
+                  autoComplete="off"
                   type="text"
                   value={newIngredientName}
                   onChange={e => setNewIngredientName(e.target.value)}
@@ -422,16 +424,19 @@ export function ShoppingList() {
                 <div className="flex-1 min-w-0">
                   <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">Ilość</label>
                   <input
+                    autoComplete="off"
                     type="text"
                     inputMode="decimal"
+                    aria-label="Ilość"
                     value={newQuantity}
-                    onChange={e => setNewQuantity(e.target.value)}
+                    onChange={e => acceptsLimitedNumber(e.target.value, AMOUNT_LIMITS.g) && setNewQuantity(e.target.value)}
                     className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-none focus:ring-2 focus:ring-primary/25"
                   />
                 </div>
                 <div className="w-28 shrink-0">
                   <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">Jedn.</label>
                   <input
+                    autoComplete="off"
                     type="text"
                     value={newUnit}
                     onChange={e => setNewUnit(e.target.value)}
@@ -465,7 +470,7 @@ export function ShoppingList() {
 
       {/* Confirmation Modal */}
       {showConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+        <div data-scroll-lock className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div 
             className="absolute inset-0 bg-black/40 animate-in fade-in duration-300" 
             onClick={() => setShowConfirm(false)}

@@ -1,15 +1,17 @@
 import { useId, useState } from 'react';
 import { t } from '../i18n';
 import { EXTRA_NUTRIENTS, NUTRITION_FACT_LABELS, type ExtraNutrient } from '../lib/nutrients';
+import { NUTRITION_DECIMALS, NUTRITION_LIMITS, acceptsLimitedNumber, numberFieldProps } from '../lib/inputLimits';
 
 export type ExtraNutrientInputs = Record<ExtraNutrient, string>;
 
 interface MoreNutrientsFieldsProps {
   values: ExtraNutrientInputs;
   onChange: (nutrient: ExtraNutrient, value: string) => void;
+  limited?: boolean;
 }
 
-export function MoreNutrientsFields({ values, onChange }: MoreNutrientsFieldsProps) {
+export function MoreNutrientsFields({ values, onChange, limited = true }: MoreNutrientsFieldsProps) {
   const [open, setOpen] = useState(() => EXTRA_NUTRIENTS.some(nutrient => values[nutrient].trim() !== ''));
   const panelId = useId();
 
@@ -35,12 +37,13 @@ export function MoreNutrientsFields({ values, onChange }: MoreNutrientsFieldsPro
               <div className="mt-auto relative flex items-center rounded-xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
                 <input
                   id={`${panelId}-${nutrient}`}
-                  type="number"
-                  min="0"
-                  inputMode="decimal"
+                  {...numberFieldProps(limited ? NUTRITION_LIMITS[nutrient] : Number.MAX_SAFE_INTEGER, NUTRITION_DECIMALS)}
                   onKeyDown={event => ['e', 'E', '+', '-'].includes(event.key) && event.preventDefault()}
                   value={values[nutrient]}
-                  onChange={event => onChange(nutrient, event.target.value)}
+                  onChange={event => {
+                    if (!acceptsLimitedNumber(event.target.value, limited ? NUTRITION_LIMITS[nutrient] : Number.MAX_SAFE_INTEGER, NUTRITION_DECIMALS)) return;
+                    onChange(nutrient, event.target.value);
+                  }}
                   className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   placeholder="0"
                 />
