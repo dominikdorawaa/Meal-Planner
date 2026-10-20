@@ -203,6 +203,9 @@ describe('Onboarding limits', () => {
 
     fireEvent.change(weight, { target: { value: '0' } })
     expect((screen.getByText('Dalej') as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.change(weight, { target: { value: '' } })
+    expect(weight.value).toBe('')
+    expect((screen.getByText('Dalej') as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('does not accept a target weight above 500 kg', () => {

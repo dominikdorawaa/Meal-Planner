@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { t, type MessageKey } from '../i18n';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { formatCompactNumber } from '../lib/compactNumber';
+import { COMPACT_KCAL_SIZES, COMPACT_MACRO_SIZES, fitTextClass } from '../lib/fitText';
 import {
   buildDaySummary,
   type DayConsumed,
@@ -56,7 +57,7 @@ function CompactSummary({ metrics }: { metrics: SummaryMetric[] }) {
         <span className="flex items-baseline justify-between gap-1 leading-none">
           <span className="flex items-baseline gap-[3px] min-w-0">
             <span className="uppercase text-[clamp(6px,2vw,7px)] font-extrabold text-on-surface-variant">{t(shortLabel.kcal)}</span>
-            <span data-testid="kcal-compact-value" className={`font-headline text-[clamp(10px,3.3vw,12px)] font-extrabold tabular-nums truncate ${valueTone[kcal.status]}`}>{formatCompactNumber(kcal.value)}</span>
+            <span data-testid="kcal-compact-value" className={`font-headline ${fitTextClass(formatCompactNumber(kcal.value), COMPACT_KCAL_SIZES, 5)} font-extrabold tabular-nums truncate ${valueTone[kcal.status]}`}>{formatCompactNumber(kcal.value)}</span>
           </span>
           <span className="text-[clamp(7px,2.3vw,8px)] font-bold text-on-surface-variant tabular-nums shrink-0">/{kcal.target}</span>
         </span>
@@ -67,7 +68,7 @@ function CompactSummary({ metrics }: { metrics: SummaryMetric[] }) {
           <span className="flex items-baseline justify-between gap-1 leading-none">
             <span className="flex items-baseline gap-1 min-w-0">
               <span className="text-[8px] font-extrabold text-on-surface-variant w-2">{t(shortLabel[metric.key])}</span>
-              <span data-testid={`${metric.key}-compact-value`} className={`text-[clamp(9px,2.9vw,10px)] font-extrabold tabular-nums truncate ${valueTone[metric.status]}`}>{formatCompactNumber(metric.value)}</span>
+              <span data-testid={`${metric.key}-compact-value`} className={`${fitTextClass(formatCompactNumber(metric.value), COMPACT_MACRO_SIZES, 5)} font-extrabold tabular-nums truncate ${valueTone[metric.status]}`}>{formatCompactNumber(metric.value)}</span>
             </span>
             <span className="text-[clamp(7px,2.3vw,8px)] font-semibold text-on-surface-variant tabular-nums shrink-0">{metric.target}</span>
           </span>

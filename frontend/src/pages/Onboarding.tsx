@@ -284,7 +284,7 @@ export function Onboarding() {
                       {...numberFieldProps(PROFILE_LIMITS.weight)}
                       aria-label="Obecna waga (kg)"
                       value={data.weight}
-                      onChange={(e) => acceptsLimitedNumber(e.target.value, PROFILE_LIMITS.weight) && handleUpdate('weight', parseFloat(e.target.value) || 0)}
+                      onChange={(e) => acceptsLimitedNumber(e.target.value, PROFILE_LIMITS.weight) && handleUpdate('weight', e.target.value === '' ? '' : parseFloat(e.target.value))}
                       className="text-primary font-headline font-bold text-3xl bg-transparent w-24 text-right outline-none appearance-none"
                     />
                     <span className="text-primary/60 text-xs font-bold uppercase tracking-widest pl-1">kg</span>
@@ -315,7 +315,7 @@ export function Onboarding() {
                       {...numberFieldProps(PROFILE_LIMITS.weight)}
                       aria-label="Masa docelowa (kg)"
                       value={data.target_weight}
-                      onChange={(e) => acceptsLimitedNumber(e.target.value, PROFILE_LIMITS.weight) && handleUpdate('target_weight', parseFloat(e.target.value) || 0)}
+                      onChange={(e) => acceptsLimitedNumber(e.target.value, PROFILE_LIMITS.weight) && handleUpdate('target_weight', e.target.value === '' ? '' : parseFloat(e.target.value))}
                       className="text-primary font-headline font-bold text-3xl bg-transparent w-24 text-right outline-none appearance-none"
                     />
                     <span className="text-primary/60 text-xs font-bold uppercase tracking-widest pl-1">kg</span>

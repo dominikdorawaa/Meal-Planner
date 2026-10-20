@@ -831,7 +831,7 @@ export function RecipeDetails() {
 
       {showAddToPlan && (
         <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowAddToPlan(false)}>
-          <div ref={addToPlanSheetRef} className="w-full max-w-xl bg-surface rounded-t-[32px] p-6 pb-8 animate-slide-up shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div ref={addToPlanSheetRef} className="w-full max-w-xl max-h-[92dvh] overflow-y-auto overscroll-contain bg-surface rounded-t-[32px] p-6 pb-8 animate-slide-up shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
             <h2 className="font-headline font-bold text-xl text-on-surface mb-5">{t('recipeDetails.planSheetTitle')}</h2>
 

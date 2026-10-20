@@ -133,6 +133,8 @@ describe('DaySummary with very large values', () => {
     expect(screen.getByTestId('fat-compact-value').textContent).toBe('9999')
     expect(screen.getByTestId('carbs-compact-value').textContent).toBe('1 mln')
     expect(screen.getByTestId('kcal-compact-value').className).toContain('truncate')
+    expect(screen.getByTestId('kcal-compact-value').className).toContain('text-[clamp(7px,2.3vw,9px)]')
+    expect(screen.getByTestId('fat-compact-value').className).toContain('text-[clamp(9px,2.9vw,10px)]')
   })
 
   it('shortens the values and the excess in the details', () => {
