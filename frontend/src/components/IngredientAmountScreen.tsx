@@ -6,16 +6,15 @@ import {
   defaultIngredientAmount,
   ingredientAmountLabel,
   ingredientFactor,
-  ingredientMacros,
-  ingredientUnits,
   supportedIngredientUnit,
   type IngredientQuantity,
   type IngredientUnit,
 } from '../lib/recipeIngredient';
+import { findMeasure, initialMeasureValues, isPerPiece } from '../lib/measures';
 import { t } from '../i18n';
-import { AmountRow } from './AmountRow';
-import { amountLimit, isPositiveWithinLimit } from '../lib/inputLimits';
+import { isPositiveWithinLimit } from '../lib/inputLimits';
 import { NutritionFactsTable } from './NutritionFactsTable';
+import { MeasureAmountRows } from './MeasureAmountRows';
 
 interface IngredientAmountScreenProps {
   product: Product;
@@ -25,41 +24,19 @@ interface IngredientAmountScreenProps {
   onBack: () => void;
 }
 
-type AmountValues = Partial<Record<IngredientUnit, number | ''>>;
-
-function initialValues(product: Product, units: IngredientUnit[], saved: IngredientQuantity | null): AmountValues {
-  const fallback = defaultIngredientAmount(product);
-  const values: AmountValues = {};
-  for (const unit of units) values[unit] = unit === fallback.unit ? fallback.amount : 1;
-  if (saved) values[saved.unit] = saved.amount;
-  return values;
-}
-
 function savedQuantity(product: Product, initial?: { amount: number; unit: string }): IngredientQuantity | null {
   const unit = initial ? supportedIngredientUnit(product, initial.unit) : null;
   return initial && unit ? { amount: initial.amount, unit } : null;
 }
 
-function rowLabel(unit: IngredientUnit, product: Product): { label: string; unit: string } {
-  const measure = measureUnit(product.unit);
-  if (unit === 'opak') {
-    return { label: t('amount.packages'), unit: t('amount.packageOf', { amount: `${product.package_weight} ${measure}` }) };
-  }
-  if (unit === 'szt') {
-    const unitText = product.piece_weight ? t('amount.pieceOf', { amount: `${product.piece_weight} ${measure}` }) : t('units.szt');
-    return { label: t('amount.pieces'), unit: unitText };
-  }
-  return { label: t('amount.grams'), unit };
-}
-
 export function IngredientAmountScreen({ product, initial, submitLabel, onSubmit, onBack }: IngredientAmountScreenProps) {
-  const units = ingredientUnits(product);
   const saved = savedQuantity(product, initial);
-  const [values, setValues] = useState(() => initialValues(product, units, saved));
+  const [values, setValues] = useState(() => initialMeasureValues(product, saved));
   const [activeUnit, setActiveUnit] = useState<IngredientUnit>(() => saved?.unit ?? defaultIngredientAmount(product).unit);
   const amount = Number(values[activeUnit]) || 0;
   const current = { amount, unit: activeUnit, product };
-  const perPiece = product.unit === 'pc';
+  const perPiece = isPerPiece(product);
+  const maxAmount = findMeasure(product, activeUnit)?.max_amount ?? 0;
 
   return (
     <div data-scroll-lock className="fixed inset-0 z-[110] bg-surface flex flex-col animate-fade-in">
@@ -78,26 +55,16 @@ export function IngredientAmountScreen({ product, initial, submitLabel, onSubmit
         <div className="flex flex-col gap-2">
           {initial && !saved && (
             <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-primary/10 text-on-surface">
-              {t('recipeIngredients.unitUnavailable', { amount: ingredientAmountLabel({ amount: initial.amount, unit: initial.unit }) })}
+              {t('recipeIngredients.unitUnavailable', { amount: ingredientAmountLabel({ amount: initial.amount, unit: initial.unit, product }) })}
             </p>
           )}
-          {units.map(unit => {
-            const row = rowLabel(unit, product);
-            const value = values[unit] ?? '';
-            return (
-              <AmountRow
-                key={unit}
-                label={row.label}
-                max={amountLimit(unit)}
-                unit={row.unit}
-                value={value}
-                kcal={ingredientMacros({ amount: Number(value) || 0, unit, product }).kcal}
-                active={activeUnit === unit}
-                onActivate={() => setActiveUnit(unit)}
-                onChange={next => setValues(previous => ({ ...previous, [unit]: next }))}
-              />
-            );
-          })}
+          <MeasureAmountRows
+            product={product}
+            values={values}
+            activeCode={activeUnit}
+            onActivate={setActiveUnit}
+            onChange={(code, next) => setValues(previous => ({ ...previous, [code]: next }))}
+          />
         </div>
 
         <NutritionFactsTable
@@ -118,7 +85,7 @@ export function IngredientAmountScreen({ product, initial, submitLabel, onSubmit
       <div className="px-4 pt-3 pb-safe-6 bg-surface border-t border-outline-variant/10">
         <button
           onClick={() => onSubmit({ amount, unit: activeUnit })}
-          disabled={!isPositiveWithinLimit(amount, amountLimit(activeUnit))}
+          disabled={!isPositiveWithinLimit(amount, maxAmount)}
           className="w-full max-w-xl mx-auto block py-4 bg-primary text-on-primary font-black text-sm rounded-2xl active:scale-95 transition-transform disabled:opacity-50 shadow-sm"
         >
           {submitLabel}

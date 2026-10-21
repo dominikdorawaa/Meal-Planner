@@ -1,4 +1,5 @@
 import { api } from './apiClient';
+import { shoppingUnit, type MeasuredProduct } from './measures';
 
 export type ShoppingFromPlanResult = 'added' | 'no-recipes' | 'no-ingredients';
 
@@ -18,6 +19,7 @@ export interface RecipeIngredient {
   name: string;
   amount: number | string;
   unit: string;
+  product?: MeasuredProduct | null;
 }
 
 export interface RecipeWithIngredients {
@@ -51,13 +53,14 @@ export function buildShoppingAdditions(meals: PlanMeal[], recipes: RecipeWithIng
     recipePortions.set(recipe.id, (recipePortions.get(recipe.id) || 0) + ratio);
 
     (recipe.ingredients ?? []).forEach(ingredient => {
-      const key = `${ingredient.name.toLowerCase()}_${ingredient.unit.toLowerCase()}`;
+      const unit = shoppingUnit(ingredient.unit, ingredient.product);
+      const key = `${ingredient.name.toLowerCase()}_${unit.toLowerCase()}`;
       const scaledAmount = Number(ingredient.amount) * ratio;
       const existing = items.get(key);
       if (existing) {
         existing.quantity += scaledAmount;
       } else {
-        items.set(key, { ingredient_name: ingredient.name, quantity: scaledAmount, unit: ingredient.unit });
+        items.set(key, { ingredient_name: ingredient.name, quantity: scaledAmount, unit });
       }
     });
   });

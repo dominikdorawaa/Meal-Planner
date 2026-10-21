@@ -98,7 +98,7 @@ describe('adding from item details', () => {
 
     await screen.findByText('plan screen');
     expect(addedPayloads()).toEqual([
-      { product: { id: 'p1' }, meal_date: '2026-10-17', meal_type: 'lunch', portions_consumed: 250 },
+      { product: { id: 'p1' }, meal_date: '2026-10-17', meal_type: 'lunch', portions_consumed: 250, measure_code: null, measure_amount: null },
       ...SELECTION_PAYLOADS,
     ]);
   });
@@ -111,7 +111,7 @@ describe('adding from item details', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Zaktualizuj' }));
 
     await screen.findByText('plan screen');
-    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 180 });
+    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 180, measure_code: null, measure_amount: null });
     expect(mocks.addMeal).not.toHaveBeenCalled();
   });
 
@@ -137,7 +137,7 @@ describe('adding from item details', () => {
 
     await screen.findByText('plan screen');
     expect(addedPayloads()).toEqual([
-      { product: { id: 'p1' }, meal_date: '2026-10-17', meal_type: 'lunch', portions_consumed: 100 },
+      { product: { id: 'p1' }, meal_date: '2026-10-17', meal_type: 'lunch', portions_consumed: 100, measure_code: null, measure_amount: null },
       ...SELECTION_PAYLOADS,
     ]);
   });

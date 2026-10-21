@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import AddRecipe from './AddRecipe';
 import { t } from '../i18n';
+import { MEASURE_KINDS, measure, withMeasures } from '../lib/measureFixtures';
 import { ApiError } from '../lib/apiClient';
 
 const mocks = vi.hoisted(() => ({
@@ -22,6 +23,7 @@ vi.mock('../lib/apiClient', async importOriginal => ({
   api: {
     recipes: { getById: mocks.getRecipe, create: mocks.createRecipe, update: mocks.updateRecipe, uploadImage: mocks.uploadImage },
     products: { search: mocks.searchProducts, create: mocks.createProduct },
+    measureKinds: { list: () => Promise.resolve(MEASURE_KINDS) },
   },
 }));
 
@@ -48,7 +50,8 @@ vi.mock('../components/LazyBarcodeScanner', () => ({
   ),
 }));
 
-const SKYR = { id: 'p1', name: 'Skyr', brand: 'Piątnica', kcal: 65, protein: 12, fat: 0, carbs: 4, unit: '100g', package_weight: 450 };
+const SKYR = withMeasures({ id: 'p1', name: 'Skyr', brand: 'Piątnica', kcal: 65, protein: 12, fat: 0, carbs: 4, unit: '100g' }, measure('package', 450));
+const PACKAGES = t('amount.countOf', { name: 'opakowania' });
 const EGG = { id: 'p3', name: 'Jajko', kcal: 75, protein: 6, fat: 5, carbs: 0, unit: 'pc' };
 const OATS = { id: 'p2', name: 'Płatki owsiane', kcal: 370, protein: 13, fat: 7, carbs: 60, unit: '100g' };
 const alertMock = vi.fn();
@@ -130,12 +133,12 @@ describe('AddRecipe ingredient search', () => {
     renderAddRecipe();
     await pickSkyr();
 
-    const packages = screen.getByLabelText(t('amount.packages'));
+    const packages = screen.getByLabelText(PACKAGES);
     fireEvent.change(packages, { target: { value: '2' } });
     fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.add') }));
 
     const row = ingredientRow('Skyr');
-    expect(within(row).getByText('2 opak. (900 g)')).toBeTruthy();
+    expect(within(row).getByText('2 opakowania (900 g)')).toBeTruthy();
     expect(within(row).getByText('585 kcal')).toBeTruthy();
     expect(screen.queryByPlaceholderText(t('recipeIngredients.searchPlaceholder'))).toBeNull();
   });
@@ -245,7 +248,7 @@ describe('AddRecipe ingredient search', () => {
     fireEvent.click(screen.getByText('detect code'));
 
     await waitFor(() => expect((screen.getByLabelText(t('product.barCode')) as HTMLInputElement).value).toBe('5900820000318'));
-    expect((screen.getByLabelText(t('product.packageWeight')) as HTMLInputElement).value).toBe('450');
+    expect((await screen.findByLabelText(t('productForm.measureAmount', { name: 'opakowanie', unit: 'g' })) as HTMLInputElement).value).toBe('450');
   });
 });
 
@@ -254,7 +257,7 @@ describe('AddRecipe saving', () => {
     renderAddRecipe();
     fireEvent.change(screen.getByPlaceholderText('np. Owsianka z malinami'), { target: { value: 'Miska skyru' } });
     await pickSkyr();
-    fireEvent.focus(screen.getByLabelText(t('amount.packages')));
+    fireEvent.focus(screen.getByLabelText(PACKAGES));
     fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.add') }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Zapisz' }));
@@ -266,7 +269,7 @@ describe('AddRecipe saving', () => {
       protein: 54,
       fat: 0,
       carbs: 18,
-      ingredients: [{ name: 'Skyr', amount: 1, unit: 'opak', product: { id: 'p1' } }],
+      ingredients: [{ name: 'Skyr', amount: 1, unit: 'package', product: { id: 'p1' } }],
     }));
   });
 
@@ -299,10 +302,37 @@ describe('AddRecipe saving', () => {
 });
 
 describe('AddRecipe editing an ingredient', () => {
+  it('adds an ingredient in any measure of the product and edits it in that measure', async () => {
+    const honey = withMeasures({ id: 'p7', name: 'Miód', kcal: 320, protein: 0, fat: 0, carbs: 80, unit: '100g' },
+      measure('tbsp', 25, true), measure('tsp', 8));
+    mocks.searchProducts.mockResolvedValue({ items: [honey], page: 0, size: 20, has_next: false });
+    renderAddRecipe();
+    fireEvent.change(openSearch(), { target: { value: 'mio' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Miód/ }));
+
+    const spoons = screen.getByLabelText(t('amount.countOf', { name: 'łyżki' })) as HTMLInputElement;
+    expect(spoons.value).toBe('1');
+    expect(screen.getByText(t('amount.measureOf', { name: 'łyżka', amount: '25 g' }))).toBeTruthy();
+    fireEvent.change(spoons, { target: { value: '2' } });
+    expect(screen.getByText(t('amount.measureOf', { name: 'łyżki', amount: '25 g' }))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.add') }));
+
+    const row = ingredientRow('Miód');
+    expect(within(row).getByText('2 łyżki (50 g)')).toBeTruthy();
+    expect(within(row).getByText('160 kcal')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeIngredients.edit', { name: 'Miód' })) }));
+    expect((screen.getByLabelText(t('amount.countOf', { name: 'łyżki' })) as HTMLInputElement).value).toBe('2');
+    fireEvent.change(screen.getByLabelText(t('amount.countOf', { name: 'łyżeczki' })), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.save') }));
+
+    expect(within(ingredientRow('Miód')).getByText('3 łyżeczki (24 g)')).toBeTruthy();
+  });
+
   it('keeps the saved amount visible when its unit is no longer available', async () => {
     mocks.getRecipe.mockResolvedValue({
       id: 'r1', name: 'Owsianka', kcal: 500, protein: 20, fat: 10, carbs: 80, portions: 1,
-      ingredients: [{ id: 'i1', name: 'Płatki owsiane', amount: 1, unit: 'opak', product: OATS }],
+      ingredients: [{ id: 'i1', name: 'Płatki owsiane', amount: 1, unit: 'package', product: OATS }],
     });
     renderAddRecipe('/edit-recipe/r1');
 
@@ -565,7 +595,7 @@ describe('AddRecipe limits', () => {
     const grams = screen.getByLabelText(t('amount.grams')) as HTMLInputElement;
     fireEvent.change(grams, { target: { value: '5001' } });
     expect(grams.value).toBe('100');
-    const packages = screen.getByLabelText(t('amount.packages')) as HTMLInputElement;
+    const packages = screen.getByLabelText(PACKAGES) as HTMLInputElement;
     fireEvent.change(packages, { target: { value: '101' } });
     expect(packages.value).toBe('1');
 
@@ -577,7 +607,7 @@ describe('AddRecipe limits', () => {
     renderAddRecipe();
     await pickSkyr();
 
-    fireEvent.change(screen.getByLabelText(t('amount.packages')), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText(PACKAGES), { target: { value: '100' } });
     fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.add') }));
 
     expect(within(ingredientRow('Skyr')).getByText('29,3 tys. kcal')).toBeTruthy();

@@ -8,6 +8,7 @@ import { useCloseOnBack } from '../lib/backNavigation';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { ShoppingFromPlanPicker } from '../components/ShoppingFromPlanPicker';
 import { t } from '../i18n';
+import { ingredientUnitLabel } from '../lib/recipeIngredient';
 import { profileMealTypes } from '../lib/mealTypes';
 import { addPlanMealsToShoppingList, type PlanMeal, type ShoppingFromPlanResult } from '../lib/shoppingFromPlan';
 import { AMOUNT_LIMITS, acceptsLimitedNumber } from '../lib/inputLimits';
@@ -343,7 +344,7 @@ export function ShoppingList() {
                                     </div>
                                   </div>
                                   <span className={`font-bold text-sm shrink-0 transition-opacity duration-300 ${shopItem?.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-primary'}`}>
-                                    {formatIngredientAmount(Number(ing.amount) * r.portions, ing.unit)} {ing.unit}
+                                    {formatIngredientAmount(Number(ing.amount) * r.portions, ing.unit)} {ingredientUnitLabel(ing.unit, Number(ing.amount) * r.portions, ing.product)}
                                   </span>
                                 </label>
                               );

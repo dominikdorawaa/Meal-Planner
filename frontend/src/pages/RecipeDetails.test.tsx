@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { RecipeDetails } from './RecipeDetails';
 import { t } from '../i18n';
+import { measure, withMeasures } from '../lib/measureFixtures';
 import { toIsoDate, todayIsoDate } from '../lib/planDates';
 
 const mocks = vi.hoisted(() => ({
@@ -105,6 +106,21 @@ describe('RecipeDetails loading', () => {
     expect(screen.getByText('100 g')).toBeTruthy();
     expect(screen.getByText('Pokrój banana')).toBeTruthy();
     expect(mocks.getRecipe).toHaveBeenCalledTimes(1);
+  });
+
+  it('names ingredient measures in their declined form', async () => {
+    const banana = withMeasures(BANANA, measure('piece', 120));
+    mocks.getRecipe.mockResolvedValue({
+      ...OWN_RECIPE,
+      ingredients: [
+        { id: 'i1', name: 'Banan', amount: 8, unit: 'piece', product: banana },
+        { id: 'i2', name: 'Miód', amount: 20, unit: 'tbsp', product: null },
+      ],
+    });
+    renderDetails();
+
+    expect(await screen.findByText('2 sztuki')).toBeTruthy();
+    expect(screen.getByText('5 tbsp')).toBeTruthy();
   });
 
   it('recalculates calories for the typed weight', async () => {

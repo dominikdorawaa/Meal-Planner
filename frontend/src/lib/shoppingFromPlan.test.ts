@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { addPlanMealsToShoppingList, buildShoppingAdditions, refId, toggleMealIds, type PlanMeal } from './shoppingFromPlan';
+import { measure, withMeasures } from './measureFixtures';
 
 const mocks = vi.hoisted(() => ({
   getRecipe: vi.fn(),
@@ -85,6 +86,30 @@ describe('buildShoppingAdditions', () => {
     expect([...recipePortions]).toEqual([
       ['r1', 1],
       ['r2', 0.5],
+    ]);
+  });
+
+  it('lists measured ingredients in the units the shopping list already uses', () => {
+    const honey = withMeasures({ unit: '100g' }, measure('tbsp', 25), measure('package', 400));
+    const recipe = {
+      id: 'r7',
+      portions: 1,
+      ingredients: [
+        { name: 'Honey', amount: 2, unit: 'tbsp', product: honey },
+        { name: 'Honey', amount: 1, unit: 'tbsp', product: honey },
+        { name: 'Honey jar', amount: 1, unit: 'package', product: honey },
+        { name: 'Eggs', amount: 2, unit: 'piece', product: null },
+        { name: 'Salt', amount: 1, unit: 'pinch', product: null },
+      ],
+    };
+
+    const { items } = buildShoppingAdditions([meal('m1', { recipe: 'r7' })], [recipe]);
+
+    expect(items).toEqual([
+      { ingredient_name: 'Honey', quantity: 3, unit: 'łyżki' },
+      { ingredient_name: 'Honey jar', quantity: 1, unit: 'opak' },
+      { ingredient_name: 'Eggs', quantity: 2, unit: 'szt' },
+      { ingredient_name: 'Salt', quantity: 1, unit: 'pinch' },
     ]);
   });
 

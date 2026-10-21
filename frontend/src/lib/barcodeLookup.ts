@@ -1,4 +1,5 @@
 import { api, ApiError, type Product } from './apiClient';
+import type { ProductMeasure } from './measures';
 
 export interface ProductPrefill {
   name?: string | null;
@@ -12,6 +13,7 @@ export interface ProductPrefill {
   fiber?: number | null;
   salt?: number | null;
   package_weight?: number | null;
+  measures?: ProductMeasure[] | null;
 }
 
 export interface BarCodeLookup {

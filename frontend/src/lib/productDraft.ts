@@ -15,7 +15,7 @@ export function draftFromProduct(product: Product): NewProductDraft {
       sugars: product.sugars ?? null,
       fiber: product.fiber ?? null,
       salt: product.salt ?? null,
-      package_weight: product.package_weight ?? null,
+      measures: product.measures ?? null,
     },
   };
 }

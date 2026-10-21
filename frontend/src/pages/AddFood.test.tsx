@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AddFood } from './AddFood';
 import { ProductDetails } from './ProductDetails';
+import { MEASURE_KINDS } from '../lib/measureFixtures';
 import { t } from '../i18n';
 
 const mocks = vi.hoisted(() => ({
@@ -28,6 +29,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../lib/apiClient', () => ({
   api: {
     meals: { add: mocks.addMeal, update: mocks.updateMeal, getAll: mocks.getAllMeals },
+    measureKinds: { list: () => Promise.resolve(MEASURE_KINDS) },
     products: {
       create: mocks.createProduct,
       getByBarCode: vi.fn(),
@@ -629,8 +631,8 @@ describe('AddFood search field', () => {
 describe('AddFood new product form', () => {
   const SKYR_PREFILL = { name: 'Skyr', brand: 'Piątnica', kcal: 65, protein: 12, fat: 0, carbs: 4.2 };
 
-  function packageWeightField() {
-    return screen.getByLabelText(t('product.packageWeight')) as HTMLInputElement;
+  function packageField() {
+    return screen.findByLabelText(t('productForm.measureAmount', { name: 'opakowanie', unit: 'g' })) as Promise<HTMLInputElement>;
   }
 
   function addProductButton() {
@@ -648,45 +650,40 @@ describe('AddFood new product form', () => {
     fireEvent.click(screen.getByTitle('Skanuj kod'));
     fireEvent.click(screen.getByText('detect code'));
 
-    await waitFor(() => expect(packageWeightField().value).toBe('450'));
+    expect((await packageField()).value).toBe('450');
     fireEvent.click(addProductButton());
 
-    await waitFor(() => expect(mocks.createProduct).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Skyr', bar_code: '5900820000318', package_weight: 450 })
-    ));
+    await waitFor(() => expect(mocks.createProduct).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Skyr', bar_code: '5900820000318', measures: [{ code: 'package', base_amount: 450, default: false }],
+    })));
   });
 
-  it('saves a product without a package weight when the field is empty', async () => {
+  it('saves a product without measures when Open Food Facts knows no package weight', async () => {
     mocks.findProductByBarCode.mockResolvedValue({ product: null, prefill: SKYR_PREFILL });
     renderAddFood();
 
     fireEvent.click(screen.getByTitle('Skanuj kod'));
     fireEvent.click(screen.getByText('detect code'));
 
-    await waitFor(() => expect(packageWeightField().value).toBe(''));
+    await waitFor(() => expect(screen.getByText(t('productForm.measures'))).toBeTruthy());
     fireEvent.click(addProductButton());
 
-    await waitFor(() => expect(mocks.createProduct).toHaveBeenCalledWith(
-      expect.objectContaining({ package_weight: null })
-    ));
+    await waitFor(() => expect(mocks.createProduct).toHaveBeenCalledWith(expect.objectContaining({ measures: [] })));
   });
 
-  it('blocks saving an impossible package weight', async () => {
-    mocks.findProductByBarCode.mockResolvedValue({ product: null, prefill: SKYR_PREFILL });
+  it('blocks saving a package that weighs nothing', async () => {
+    mocks.findProductByBarCode.mockResolvedValue({ product: null, prefill: { ...SKYR_PREFILL, package_weight: 450 } });
     renderAddFood();
 
     fireEvent.click(screen.getByTitle('Skanuj kod'));
     fireEvent.click(screen.getByText('detect code'));
-    await waitFor(() => expect(packageWeightField()).toBeTruthy());
 
-    for (const weight of ['0', '50001']) {
-      fireEvent.change(packageWeightField(), { target: { value: weight } });
-      expect(screen.getByText(t('product.packageWeightInvalid'))).toBeTruthy();
-      expect((addProductButton() as HTMLButtonElement).disabled).toBe(true);
-    }
+    fireEvent.change(await packageField(), { target: { value: '0' } });
+    expect(screen.getByText(t('productForm.measureInvalid', { max: 50 }))).toBeTruthy();
+    expect((addProductButton() as HTMLButtonElement).disabled).toBe(true);
 
-    fireEvent.change(packageWeightField(), { target: { value: '450' } });
-    expect(screen.queryByText(t('product.packageWeightInvalid'))).toBeNull();
+    fireEvent.change(await packageField(), { target: { value: '450' } });
+    expect(screen.queryByText(t('productForm.measureInvalid', { max: 50 }))).toBeNull();
     expect((addProductButton() as HTMLButtonElement).disabled).toBe(false);
   });
 });
