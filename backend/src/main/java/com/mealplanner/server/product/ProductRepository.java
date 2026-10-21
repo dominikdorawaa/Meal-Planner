@@ -43,8 +43,9 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             + " AND p.bar_code IS DISTINCT FROM :rawQuery ";
 
     @Query(nativeQuery = true, value = "SELECT p.* FROM products p WHERE " + VISIBLE_PRODUCTS + EXACT_MATCH + """
-            ORDER BY (p.bar_code = :rawQuery) DESC NULLS LAST,
+            ORDER BY (p.bar_code = :rawQuery) IS TRUE DESC,
                      (p.search_text LIKE CONCAT(:query, '%')) DESC,
+                     (p.source = 'BASIC') DESC,
                      word_similarity(:query, p.search_text) DESC,
                      p.name, p.id
             LIMIT :limit OFFSET :offset
@@ -64,7 +65,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
                     @Param("maxFat") Double maxFat, @Param("maxCarbs") Double maxCarbs);
 
     @Query(nativeQuery = true, value = "SELECT p.* FROM products p WHERE " + VISIBLE_PRODUCTS + SIMILAR_MATCH + """
-            ORDER BY word_similarity(:query, p.search_text) DESC, p.name, p.id
+            ORDER BY (p.source = 'BASIC') DESC, word_similarity(:query, p.search_text) DESC, p.name, p.id
             LIMIT :limit OFFSET :offset
             """)
     List<Product> searchSimilar(@Param("query") String query, @Param("rawQuery") String rawQuery,
