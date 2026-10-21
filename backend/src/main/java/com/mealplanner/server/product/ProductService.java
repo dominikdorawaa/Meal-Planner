@@ -254,7 +254,8 @@ public class ProductService {
             MeasureKind kind = measureKindRepository.findById(measure.code())
                     .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, MEASURE_INVALID));
             Double amount = measure.baseAmount();
-            if (amount == null || !Double.isFinite(amount) || amount <= 0 || amount > kind.getMaxBaseAmount()) {
+            double rounded = amount == null || !Double.isFinite(amount) ? 0 : Math.round(amount * 10) / 10.0;
+            if (rounded <= 0 || rounded > kind.getMaxBaseAmount()) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, MEASURE_INVALID);
             }
             ProductMeasure stored = product.getStoredMeasures().stream()
@@ -265,7 +266,7 @@ public class ProductService {
                         product.getStoredMeasures().add(created);
                         return created;
                     });
-            stored.setBaseAmount(Math.round(amount * 10) / 10.0);
+            stored.setBaseAmount(rounded);
             stored.setDefaultMeasure(measure.defaultMeasure());
             stored.setPosition(position);
         }

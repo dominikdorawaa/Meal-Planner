@@ -377,6 +377,8 @@
   "productForm.measureRemove": "Usuń miarę {name}",
   "productForm.measureInvalid": "Waga miary musi być większa od 0 i nie większa niż {max} kg.",
   "productForm.addMeasure": "Dodaj miarę",
+  "productForm.measureKindsFailed": "Nie udało się wczytać rodzajów miar.",
+  "productForm.measureKindsRetry": "Spróbuj ponownie",
   "productForm.create": "Dodaj produkt",
   "productForm.saveChanges": "Zapisz zmiany",
   "productForm.saveOwnVersion": "Zapisz moją wersję",

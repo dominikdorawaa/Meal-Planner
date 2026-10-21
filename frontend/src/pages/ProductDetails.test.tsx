@@ -178,6 +178,17 @@ describe('ProductDetails measures', () => {
     expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 240, measure_code: null, measure_amount: null });
   });
 
+  it('opens a plan item in its saved grams when the measure weight has changed since', async () => {
+    mocks.getProduct.mockResolvedValue(withMeasures(SKYR, measure('piece', 150, true)));
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 240, measure_code: 'piece', measure_amount: 2 }]);
+    renderDetails('?selectDate=2026-10-17&selectType=lunch&mealId=m1');
+
+    const grams = await screen.findByLabelText(t('amount.grams')) as HTMLInputElement;
+    await waitFor(() => expect(grams.value).toBe('240'));
+    expect((screen.getByLabelText(PIECES) as HTMLInputElement).value).toBe('1');
+    expect((screen.getByRole('button', { name: 'Zaktualizuj' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('opens a plan item in grams when its measure is no longer offered', async () => {
     mocks.getProduct.mockResolvedValue(BANANA);
     mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 60, measure_code: 'tbsp', measure_amount: 4 }]);

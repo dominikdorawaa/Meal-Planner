@@ -346,6 +346,24 @@ describe('NewProductSheet measures', () => {
     })));
   });
 
+  it('keeps a large package valid and offers a retry when the measure kinds cannot be loaded', async () => {
+    mocks.listMeasureKinds.mockRejectedValueOnce(new Error('offline'));
+    mocks.updateProduct.mockResolvedValue({ id: 'p2' });
+    const source = withMeasures({ id: 'p2', ...SKYR, unit: '100g' }, measure('package', 10000));
+    renderSheet(draftFromProduct(source as never), { mode: 'edit', source: source as never });
+
+    const alert = await screen.findByText(t('productForm.measureKindsFailed'));
+    expect(screen.queryByText(t('productForm.measureInvalid', { max: 5 }))).toBeNull();
+    expect((screen.getByRole('button', { name: /Zapisz zmiany/ }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByRole('button', { name: /Dodaj miarę/ })).toBeNull();
+
+    fireEvent.click(within(alert.closest('[role="alert"]') as HTMLElement).getByRole('button', { name: t('productForm.measureKindsRetry') }));
+
+    expect(await screen.findByRole('button', { name: /Dodaj miarę/ })).toBeTruthy();
+    expect(screen.queryByText(t('productForm.measureKindsFailed'))).toBeNull();
+    expect(mocks.listMeasureKinds).toHaveBeenCalledTimes(2);
+  });
+
   it('has no measures for products counted per piece and works without the list of kinds', async () => {
     mocks.listMeasureKinds.mockRejectedValue(new Error('offline'));
     renderSheet({ prefill: SKYR }, { mode: 'edit', source: { id: 'p9', ...SKYR, unit: 'pc' } as never });

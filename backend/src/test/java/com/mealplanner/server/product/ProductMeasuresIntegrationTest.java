@@ -128,6 +128,7 @@ class ProductMeasuresIntegrationTest {
                 "[{\"code\":\"piece\",\"base_amount\":120},{\"code\":\"piece\",\"base_amount\":130}]",
                 "[{\"code\":\"piece\",\"base_amount\":120,\"default\":true},{\"code\":\"g\",\"default\":true}]",
                 "[{\"code\":\"piece\",\"base_amount\":0}]",
+                "[{\"code\":\"piece\",\"base_amount\":0.04}]",
                 "[{\"code\":\"piece\"}]",
                 "[{\"code\":\"piece\",\"base_amount\":5001}]",
                 "[{\"code\":\"package\",\"base_amount\":50001}]");

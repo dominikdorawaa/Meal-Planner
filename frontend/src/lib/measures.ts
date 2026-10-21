@@ -28,6 +28,7 @@ export interface MeasuredProduct {
 export const PIECE_CODE = 'piece';
 export const PACKAGE_CODE = 'package';
 export const MAX_BASE_AMOUNT = AMOUNT_LIMITS.g;
+export const MAX_PACKAGE_BASE_AMOUNT = 50_000;
 const MAX_PIECES = AMOUNT_LIMITS.szt;
 const PER_PIECE_UNIT = 'pc';
 const PER_100_ML_UNIT = '100ml';

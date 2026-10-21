@@ -103,7 +103,8 @@ export function ProductDetails() {
       const data = meals.find((m: any) => m.id === mealId);
       if (data) {
         const weight = data.portions_consumed || 0;
-        const measure = data.measure_code && data.measure_amount != null ? findMeasure(product, data.measure_code) : null;
+        const found = data.measure_code && data.measure_amount != null ? findMeasure(product, data.measure_code) : null;
+        const measure = found && Math.abs(data.measure_amount * found.base_amount - weight) < 0.001 ? found : null;
         const saved = measure ? { amount: data.measure_amount, unit: measure.code } : { amount: weight, unit: baseMeasureCode(product) };
         setValues(initialMeasureValues(product, saved));
         setActiveCode(saved.unit);

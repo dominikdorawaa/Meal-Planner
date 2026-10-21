@@ -7,6 +7,8 @@ interface MeasuresFieldProps {
   rows: MeasureInput[];
   baseUnit: string;
   kinds: MeasureKind[];
+  kindsFailed?: boolean;
+  onRetryKinds?: () => void;
   onChange: (rows: MeasureInput[]) => void;
 }
 
@@ -14,7 +16,7 @@ function kindName(names: MeasureNames | null | undefined, code: string): string 
   return measureName(names, 1) ?? code;
 }
 
-export function MeasuresField({ rows, baseUnit, kinds, onChange }: MeasuresFieldProps) {
+export function MeasuresField({ rows, baseUnit, kinds, kindsFailed = false, onRetryKinds, onChange }: MeasuresFieldProps) {
   const used = new Set(rows.map(row => row.code));
   const nextKind = kinds.find(kind => !used.has(kind.code));
   const update = (index: number, change: Partial<MeasureInput>) =>
@@ -83,6 +85,14 @@ export function MeasuresField({ rows, baseUnit, kinds, onChange }: MeasuresField
           </div>
         );
       })}
+      {kindsFailed && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-xs font-medium bg-error/10 text-error">
+          <span>{t('productForm.measureKindsFailed')}</span>
+          <button type="button" onClick={onRetryKinds} className="shrink-0 font-bold underline active:scale-95">
+            {t('productForm.measureKindsRetry')}
+          </button>
+        </div>
+      )}
       {nextKind && (
         <button
           type="button"

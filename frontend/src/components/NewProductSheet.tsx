@@ -75,7 +75,7 @@ function formFrom({ name, barCode, prefill }: NewProductDraft, unit: string) {
 export function NewProductSheet({ draft, onClose, onCreated, existingProductAction, mode = 'create', source = null }: NewProductSheetProps) {
   const unit = source?.unit ?? '100g';
   const [form, setForm] = useState(() => formFrom(draft, unit));
-  const kinds = useMeasureKinds();
+  const { kinds, failed: kindsFailed, retry: retryKinds } = useMeasureKinds();
   const [scanMessage, setScanMessage] = useState(draft.message ?? null);
   const [creating, setCreating] = useState(false);
 
@@ -229,6 +229,8 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
               rows={form.measures}
               baseUnit={measureUnit(unit)}
               kinds={kinds}
+              kindsFailed={kindsFailed}
+              onRetryKinds={retryKinds}
               onChange={measures => setForm(p => ({ ...p, measures }))}
             />
           )}

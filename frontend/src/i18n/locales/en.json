@@ -377,6 +377,8 @@
   "productForm.measureRemove": "Remove {name}",
   "productForm.measureInvalid": "The measure weight must be above 0 and at most {max} kg.",
   "productForm.addMeasure": "Add measure",
+  "productForm.measureKindsFailed": "Could not load the measure kinds.",
+  "productForm.measureKindsRetry": "Try again",
   "productForm.create": "Add product",
   "productForm.saveChanges": "Save changes",
   "productForm.saveOwnVersion": "Save my version",
