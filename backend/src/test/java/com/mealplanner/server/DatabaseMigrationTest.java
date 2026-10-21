@@ -2,6 +2,8 @@ package com.mealplanner.server;
 
 import com.mealplanner.server.auth.AuthService;
 import com.mealplanner.server.auth.RegisterRequest;
+import com.mealplanner.server.product.ExtraNutrients;
+import com.mealplanner.server.product.NutritionValidator;
 import com.mealplanner.server.product.ProductSearchText;
 import com.mealplanner.server.user.ProfileService;
 import com.mealplanner.server.user.UserProfile;
@@ -63,7 +65,7 @@ class DatabaseMigrationTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "select version, success from flyway_schema_history where version is not null order by installed_rank");
 
-        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13", "14");
+        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13", "14", "15");
         assertThat(history).allSatisfy(row -> assertThat(row.get("success")).isEqualTo(true));
     }
 
@@ -89,9 +91,10 @@ class DatabaseMigrationTest {
     }
 
     @Test
-    void seedsSampleRecipesAndProducts() {
+    void seedsSampleRecipesAndOnlyBasicProducts() {
         assertThat(jdbcTemplate.queryForObject("select count(*) from recipes", Integer.class)).isEqualTo(7);
-        assertThat(jdbcTemplate.queryForObject("select count(*) from products", Integer.class)).isEqualTo(5);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from products where source <> 'BASIC'", Integer.class))
+                .isZero();
     }
 
     @Test
@@ -188,7 +191,7 @@ class DatabaseMigrationTest {
         jdbcTemplate.update(insertIngredient, UUID.randomUUID(), recipeId, "Skyr", 1.0, "opak");
         jdbcTemplate.update(insertIngredient, UUID.randomUUID(), recipeId, "Milk", 200.0, "ml");
 
-        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("14").load().migrate();
 
         List<Map<String, Object>> measures = jdbcTemplate.queryForList(
                 "select product_id, kind_code, base_amount, is_default from " + schema + ".product_measures");
@@ -211,6 +214,68 @@ class DatabaseMigrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
         jdbcTemplate.update("delete from " + schema + ".products where id = ?", withPackage);
         assertThat(jdbcTemplate.queryForObject("select count(*) from " + schema + ".product_measures", Integer.class)).isZero();
+        jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    @Test
+    void addsVerifiedBasicProductsWithoutAuthorOrBarCode() {
+        List<Map<String, Object>> products = jdbcTemplate.queryForList("select * from products where source = 'BASIC'");
+
+        assertThat(products).hasSize(122);
+        assertThat(products).extracting(row -> row.get("name")).doesNotHaveDuplicates()
+                .contains("Truskawki", "Banan", "Mleko 3,2%", "Jajko", "Ryż biały", "Mąka pszenna", "Cebula");
+        assertThat(products).allSatisfy(row -> {
+            assertThat(row).containsEntry("status", "VERIFIED").containsEntry("created_by", null)
+                    .containsEntry("bar_code", null).containsEntry("brand", null).containsEntry("deleted_at", null);
+            assertThat(row.get("unit")).isIn("100g", "100ml");
+            assertThat(row.get("search_text")).isEqualTo(ProductSearchText.of((String) row.get("name"), null));
+            assertThat(NutritionValidator.check((String) row.get("name"), (Double) row.get("kcal"),
+                    (Double) row.get("protein"), (Double) row.get("fat"), (Double) row.get("carbs"),
+                    (String) row.get("unit"), null, new ExtraNutrients((Double) row.get("saturated_fat"),
+                            (Double) row.get("sugars"), (Double) row.get("fiber"), (Double) row.get("salt")))
+                    .errors()).as((String) row.get("name")).isEmpty();
+        });
+        assertThat(jdbcTemplate.queryForList("select name from products where source = 'BASIC' and unit = '100ml' order by name",
+                String.class)).containsExactly("Kefir", "Maślanka", "Mleko 0,5%", "Mleko 2%", "Mleko 3,2%",
+                "Napój owsiany", "Olej rzepakowy", "Oliwa z oliwek", "Sok pomarańczowy", "Sos sojowy");
+    }
+
+    @Test
+    void addsMeasuresOfBasicProducts() {
+        assertThat(basicMeasures("Banan")).containsExactly("piece 120 default");
+        assertThat(basicMeasures("Jajko")).containsExactly("piece 50 default");
+        assertThat(basicMeasures("Truskawki")).containsExactly("piece 12", "cup 150");
+        assertThat(basicMeasures("Mleko 3,2%")).containsExactly("cup 250", "package 1000");
+        assertThat(basicMeasures("Masło")).containsExactly("tsp 5", "tbsp 15", "package 200");
+        assertThat(basicMeasures("Brokuł")).isEmpty();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from product_measures m join products p on p.id = m.product_id "
+                + "where p.source = 'BASIC'", Integer.class)).isEqualTo(124);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from (select product_id from product_measures "
+                + "where is_default group by product_id having count(*) > 1) duplicated", Integer.class)).isZero();
+    }
+
+    private List<String> basicMeasures(String name) {
+        return jdbcTemplate.queryForList("select m.kind_code || ' ' || m.base_amount || case when m.is_default then ' default' "
+                + "else '' end from product_measures m join products p on p.id = m.product_id "
+                + "where p.source = 'BASIC' and p.name = ? order by m.position", String.class, name);
+    }
+
+    @Test
+    void keepsExistingProductsWhenAddingBasicProducts() {
+        String schema = "basic_products_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("14").load().migrate();
+        UUID existing = UUID.randomUUID();
+        jdbcTemplate.update("insert into " + schema + ".products (id, name, source, kcal) values (?, ?, ?, ?)",
+                existing, "Banan", "OPEN_FOOD_FACTS", 95.0);
+
+        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+
+        assertThat(jdbcTemplate.queryForMap("select name, source, kcal from " + schema + ".products where id = ?", existing))
+                .containsEntry("name", "Banan").containsEntry("source", "OPEN_FOOD_FACTS").containsEntry("kcal", 95.0);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from " + schema + ".product_measures where product_id = ?",
+                Integer.class, existing)).isZero();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from " + schema + ".products where source = 'BASIC'",
+                Integer.class)).isEqualTo(122);
         jdbcTemplate.execute("drop schema " + schema + " cascade");
     }
 
@@ -297,7 +362,7 @@ class DatabaseMigrationTest {
         jdbcTemplate.update("insert into " + schema + ".products (id, name, bar_code) values (?, ?, ?)",
                 UUID.randomUUID(), "Existing product", "5900000000001");
 
-        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("14").load().migrate();
 
         Map<String, Object> product = jdbcTemplate.queryForMap(
                 "select status, source, created_by from " + schema + ".products");

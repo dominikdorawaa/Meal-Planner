@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -157,6 +158,28 @@ class ProductPermissionsIntegrationTest {
                 .andExpect(status().isForbidden());
 
         assertThat(productRepository.existsById(product.getId())).isTrue();
+    }
+
+    @Test
+    void onlyAdminEditsOrDeletesBasicProducts() throws Exception {
+        User user = saveUser(UserRole.USER);
+        User admin = saveUser(UserRole.ADMIN);
+        Product basic = saveProduct(ProductStatus.VERIFIED, null);
+        basic.setSource(ProductSource.BASIC);
+        productRepository.save(basic);
+        String changes = "{\"kcal\":90,\"protein\":1.1,\"fat\":0.3,\"carbs\":20,\"name\":\"Banana edited\",\"unit\":\"100g\"}";
+
+        mockMvc.perform(put("/api/products/" + basic.getId()).header(HttpHeaders.AUTHORIZATION, bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON).content(changes))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(delete("/api/products/" + basic.getId()).header(HttpHeaders.AUTHORIZATION, bearer(user)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put("/api/products/" + basic.getId()).header(HttpHeaders.AUTHORIZATION, bearer(admin))
+                        .contentType(MediaType.APPLICATION_JSON).content(changes))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Banana edited"))
+                .andExpect(jsonPath("$.source").value("BASIC"))
+                .andExpect(jsonPath("$.status").value("VERIFIED"));
     }
 
     @Test

@@ -72,6 +72,13 @@ class ProductSearchIntegrationTest {
         return productRepository.save(product);
     }
 
+    private Product saveBasicProduct(String name) {
+        Product product = saveProduct(name, null);
+        product.setBarCode(null);
+        product.setSource(ProductSource.BASIC);
+        return productRepository.save(product);
+    }
+
     private MockHttpServletRequestBuilder search(String query) {
         return get("/api/products/search").param("q", query);
     }
@@ -137,6 +144,46 @@ class ProductSearchIntegrationTest {
         mockMvc.perform(search("kokosowy"))
                 .andExpect(jsonPath("$.items[0].id").value(prefix.getId().toString()))
                 .andExpect(jsonPath("$.items[1].id").value(inside.getId().toString()));
+    }
+
+    @Test
+    void ranksBasicProductsAboveOpenFoodFactsProductsWithSimilarNames() throws Exception {
+        Product openFoodFacts = saveProduct("Jagody kamczackie bio", null);
+        openFoodFacts.setSource(ProductSource.OPEN_FOOD_FACTS);
+        productRepository.save(openFoodFacts);
+        Product basic = saveBasicProduct("Jagody kamczackie swieze");
+
+        mockMvc.perform(search("jagody kamczackie"))
+                .andExpect(jsonPath("$.items[*].id", contains(basic.getId().toString(), openFoodFacts.getId().toString())));
+        mockMvc.perform(search("jagody kamczacke"))
+                .andExpect(jsonPath("$.items[*].id", contains(basic.getId().toString(), openFoodFacts.getId().toString())));
+    }
+
+    @Test
+    void keepsNamesStartingWithTheQueryAboveBasicProducts() throws Exception {
+        Product prefix = saveProduct("Pigwowiec owoce bio", null);
+        Product basic = saveBasicProduct("Suszony pigwowiec owoce");
+
+        mockMvc.perform(search("pigwowiec owoce"))
+                .andExpect(jsonPath("$.items[*].id", contains(prefix.getId().toString(), basic.getId().toString())));
+    }
+
+    @Test
+    void findsBasicProductsWithTheirMeasures() throws Exception {
+        mockMvc.perform(search("banan"))
+                .andExpect(jsonPath("$.items[0].name").value("Banan"))
+                .andExpect(jsonPath("$.items[0].source").value("BASIC"))
+                .andExpect(jsonPath("$.items[0].measures[*].code", contains("piece", "g")))
+                .andExpect(jsonPath("$.items[0].measures[*].base_amount", contains(120.0, 1.0)));
+        mockMvc.perform(search("truskawki"))
+                .andExpect(jsonPath("$.items[0].name").value("Truskawki"))
+                .andExpect(jsonPath("$.items[0].measures[*].code", contains("g", "piece", "cup")))
+                .andExpect(jsonPath("$.items[0].measures[*].base_amount", contains(1.0, 12.0, 150.0)));
+        mockMvc.perform(search("mleko 3,2%"))
+                .andExpect(jsonPath("$.items[0].name").value("Mleko 3,2%"))
+                .andExpect(jsonPath("$.items[0].unit").value("100ml"))
+                .andExpect(jsonPath("$.items[0].measures[*].code", contains("ml", "cup", "package")))
+                .andExpect(jsonPath("$.items[0].measures[*].base_amount", contains(1.0, 250.0, 1000.0)));
     }
 
     @Test
