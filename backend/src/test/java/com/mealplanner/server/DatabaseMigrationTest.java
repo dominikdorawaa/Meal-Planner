@@ -63,7 +63,7 @@ class DatabaseMigrationTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "select version, success from flyway_schema_history where version is not null order by installed_rank");
 
-        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13");
+        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13", "14");
         assertThat(history).allSatisfy(row -> assertThat(row.get("success")).isEqualTo(true));
     }
 
@@ -83,7 +83,9 @@ class DatabaseMigrationTest {
                 "user_meals",
                 "shopping_list",
                 "shopping_list_recipes",
-                "saved_recipes");
+                "saved_recipes",
+                "measure_kinds",
+                "product_measures");
     }
 
     @Test
@@ -165,6 +167,50 @@ class DatabaseMigrationTest {
                 .containsEntry("fat", 0.3).containsEntry("carbs", 23.0);
         assertThat(rows.get("Manual")).containsEntry("kcal", 400.0).containsEntry("carbs", 50.0);
         assertThat(rows.get("Base")).containsEntry("kcal", 500.0);
+        jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    @Test
+    void movesPackageWeightsToProductMeasuresAndRenamesIngredientUnits() {
+        String schema = "measures_migration_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("13").load().migrate();
+        UUID withPackage = UUID.randomUUID();
+        UUID withoutPackage = UUID.randomUUID();
+        UUID perPiece = UUID.randomUUID();
+        String insertProduct = "insert into " + schema + ".products (id, name, unit, package_weight) values (?, ?, ?, ?)";
+        jdbcTemplate.update(insertProduct, withPackage, "Skyr", "100g", 450.0);
+        jdbcTemplate.update(insertProduct, withoutPackage, "Milk", "100ml", null);
+        jdbcTemplate.update(insertProduct, perPiece, "Egg", "pc", 600.0);
+        UUID recipeId = UUID.randomUUID();
+        jdbcTemplate.update("insert into " + schema + ".recipes (id, name) values (?, ?)", recipeId, "Breakfast");
+        String insertIngredient = "insert into " + schema + ".recipe_ingredients (id, recipe_id, name, amount, unit) values (?, ?, ?, ?, ?)";
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), recipeId, "Egg", 2.0, "szt");
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), recipeId, "Skyr", 1.0, "opak");
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), recipeId, "Milk", 200.0, "ml");
+
+        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+
+        List<Map<String, Object>> measures = jdbcTemplate.queryForList(
+                "select product_id, kind_code, base_amount, is_default from " + schema + ".product_measures");
+        assertThat(measures).hasSize(1);
+        assertThat(measures.getFirst()).containsEntry("product_id", withPackage).containsEntry("kind_code", "package")
+                .containsEntry("base_amount", 450.0).containsEntry("is_default", false);
+        assertThat(jdbcTemplate.queryForList("select unit from " + schema + ".recipe_ingredients order by name", String.class))
+                .containsExactly("piece", "ml", "package");
+        assertThat(jdbcTemplate.queryForList("select code from " + schema + ".measure_kinds order by sort_order", String.class))
+                .containsExactly("piece", "slice", "tbsp", "tsp", "cup", "package");
+        assertThat(jdbcTemplate.queryForList("select column_name from information_schema.columns where table_schema = ? "
+                + "and table_name = 'products' and column_name = 'package_weight'", String.class, schema)).isEmpty();
+        assertThatThrownBy(() -> jdbcTemplate.update("insert into " + schema + ".product_measures "
+                        + "(id, product_id, kind_code, base_amount, is_default, position) values (?, ?, 'package', 500, false, 1)",
+                UUID.randomUUID(), withPackage))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbcTemplate.update("insert into " + schema + ".product_measures "
+                        + "(id, product_id, kind_code, base_amount, is_default, position) values (?, ?, 'handful', 30, false, 1)",
+                UUID.randomUUID(), withoutPackage))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        jdbcTemplate.update("delete from " + schema + ".products where id = ?", withPackage);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from " + schema + ".product_measures", Integer.class)).isZero();
         jdbcTemplate.execute("drop schema " + schema + " cascade");
     }
 

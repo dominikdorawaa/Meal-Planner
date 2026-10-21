@@ -20,7 +20,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -345,38 +344,6 @@ class ProductPermissionsIntegrationTest {
                 .andExpect(jsonPath("$.sugars").value(3.4))
                 .andExpect(jsonPath("$.fiber").value(0.0))
                 .andExpect(jsonPath("$.salt").value(0.1));
-    }
-
-    @Test
-    void createsProductWithPackageWeight() throws Exception {
-        User user = saveUser(UserRole.USER);
-
-        mockMvc.perform(post("/api/products")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(user))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Skyr\",\"kcal\":65,\"protein\":12,\"fat\":0,\"carbs\":4.2,\"unit\":\"100g\","
-                                + "\"package_weight\":450}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.package_weight").value(450.0));
-    }
-
-    @Test
-    void rejectsImpossiblePackageWeight() throws Exception {
-        User user = saveUser(UserRole.USER);
-        long before = productRepository.count();
-
-        for (String weight : List.of("0", "-5", "50001")) {
-            mockMvc.perform(post("/api/products")
-                            .header(HttpHeaders.AUTHORIZATION, bearer(user))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"name\":\"Skyr\",\"kcal\":65,\"protein\":12,\"fat\":0,\"carbs\":4.2,"
-                                    + "\"package_weight\":" + weight + "}"))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").value(messageSource.getMessage(
-                            ProductService.PACKAGE_WEIGHT_INVALID, null, LocaleConfig.DEFAULT_LOCALE)));
-        }
-
-        assertThat(productRepository.count()).isEqualTo(before);
     }
 
     @Test

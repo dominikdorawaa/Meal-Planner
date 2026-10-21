@@ -1,8 +1,11 @@
 package com.mealplanner.server.off;
 
+import com.mealplanner.server.product.MeasureKind;
+import com.mealplanner.server.product.MeasureKindRepository;
 import com.mealplanner.server.product.NutritionRounding;
 import com.mealplanner.server.product.PackageWeight;
 import com.mealplanner.server.product.Product;
+import com.mealplanner.server.product.ProductMeasures;
 import com.mealplanner.server.product.ProductRepository;
 import com.mealplanner.server.product.ProductSource;
 import com.mealplanner.server.product.ProductStatus;
@@ -35,6 +38,7 @@ public class OffImportService {
     static final String DELETED_IN_APP = "DELETED_IN_APP";
 
     private final ProductRepository productRepository;
+    private final MeasureKindRepository measureKindRepository;
     private final JdbcTemplate jdbcTemplate;
     private final TransactionTemplate transactionTemplate;
 
@@ -95,10 +99,11 @@ public class OffImportService {
                     .collect(Collectors.toMap(Product::getBarCode, Function.identity(),
                             (first, second) -> first.getDeletedAt() == null ? first : second));
             List<Product> toSave = new ArrayList<>();
+            MeasureKind packageKind = measureKindRepository.findById(ProductMeasures.PACKAGE).orElse(null);
             for (OffProduct offProduct : products) {
                 Product product = existing.get(offProduct.code());
                 if (product == null) {
-                    toSave.add(newProduct(offProduct));
+                    toSave.add(newProduct(offProduct, packageKind));
                     progress.inserted++;
                 } else if (product.getDeletedAt() != null) {
                     progress.skip(List.of(DELETED_IN_APP));
@@ -115,13 +120,16 @@ public class OffImportService {
         });
     }
 
-    private static Product newProduct(OffProduct offProduct) {
+    private static Product newProduct(OffProduct offProduct, MeasureKind packageKind) {
         Product product = new Product();
         product.setBarCode(offProduct.code());
         product.setStatus(ProductStatus.VERIFIED);
         product.setSource(ProductSource.OPEN_FOOD_FACTS);
         offProduct.extras().cleanedFor(offProduct.fat(), offProduct.carbs()).applyTo(product);
-        product.setPackageWeight(PackageWeight.parse(offProduct.quantity(), OffImportRules.UNIT));
+        Double packageWeight = PackageWeight.parse(offProduct.quantity(), OffImportRules.UNIT);
+        if (packageWeight != null && packageKind != null) {
+            product.addMeasure(packageKind, packageWeight);
+        }
         apply(product, offProduct);
         return product;
     }

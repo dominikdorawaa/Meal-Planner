@@ -247,7 +247,8 @@ class SavedAndOwnProductsIntegrationTest {
 
         perform(user, post("/api/products/" + base.getId() + "/own-version")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Broken\",\"kcal\":65,\"protein\":12,\"fat\":0,\"carbs\":4.2,\"package_weight\":0}"))
+                        .content("{\"name\":\"Broken\",\"kcal\":65,\"protein\":12,\"fat\":0,\"carbs\":4.2,"
+                                + "\"measures\":[{\"code\":\"package\",\"base_amount\":0}]}"))
                 .andExpect(status().isBadRequest());
         perform(user, post("/api/products/" + foreignPending.getId() + "/own-version"))
                 .andExpect(status().isNotFound());

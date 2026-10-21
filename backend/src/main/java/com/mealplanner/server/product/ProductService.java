@@ -25,7 +25,7 @@ public class ProductService {
     static final int MIN_PAGE_SIZE = 1;
     static final int MAX_PAGE_SIZE = 50;
     static final String BAR_CODE_EXISTS = "product.bar-code-exists";
-    static final String PACKAGE_WEIGHT_INVALID = "product.package-weight-invalid";
+    static final String MEASURE_INVALID = "product.measure-invalid";
     static final String NOT_FOUND = "error.not-found";
     static final String FORBIDDEN = "error.forbidden";
 
@@ -33,6 +33,7 @@ public class ProductService {
     private final UserRepository userRepository;
     private final UserMealRepository userMealRepository;
     private final SavedProductRepository savedProductRepository;
+    private final MeasureKindRepository measureKindRepository;
 
     public Product create(Product product, String email) {
         User author = findUser(email);
@@ -45,6 +46,8 @@ public class ProductService {
         product.setSource(ProductSource.USER);
         product.setCreatedBy(author.getId());
         product.setStatus(author.getRole() == UserRole.ADMIN ? ProductStatus.VERIFIED : ProductStatus.PENDING);
+        product.setStoredMeasures(new ArrayList<>());
+        applyMeasures(product, product.getRequestedMeasures());
         return productRepository.save(product);
     }
 
@@ -72,6 +75,8 @@ public class ProductService {
         copy.setSource(ProductSource.USER);
         copy.setStatus(ProductStatus.PENDING);
         copy.setCreatedBy(author.getId());
+        boolean newMeasures = changes != null && changes.getRequestedMeasures() != null;
+        applyMeasures(copy, newMeasures ? changes.getRequestedMeasures() : original.getMeasures());
         Product saved = productRepository.save(copy);
         savedProductRepository.deleteByUserIdAndProductId(author.getId(), original.getId());
         return saved;
@@ -92,6 +97,7 @@ public class ProductService {
         }
         copyEditableFields(changes, product);
         validate(product);
+        applyMeasures(product, changes.getRequestedMeasures());
         return productRepository.save(product);
     }
 
@@ -227,8 +233,41 @@ public class ProductService {
         if (!check.isValid()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, check.errors().getFirst().messageKey());
         }
-        if (!PackageWeight.isValid(product.getPackageWeight())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, PACKAGE_WEIGHT_INVALID);
+    }
+
+    private void applyMeasures(Product product, List<Measure> requested) {
+        if (requested == null) {
+            return;
+        }
+        String baseCode = ProductMeasures.baseCode(product.getUnit());
+        if (requested.stream().anyMatch(measure -> measure == null || measure.code() == null)
+                || requested.stream().filter(measure -> measure.defaultMeasure()).count() > 1
+                || requested.stream().map(Measure::code).distinct().count() < requested.size()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, MEASURE_INVALID);
+        }
+        List<Measure> extra = ProductMeasures.perPiece(product.getUnit()) ? List.of()
+                : requested.stream().filter(measure -> !baseCode.equals(measure.code())).toList();
+        List<String> codes = extra.stream().map(Measure::code).toList();
+        product.getStoredMeasures().removeIf(stored -> !codes.contains(stored.getKind().getCode()));
+        for (int position = 0; position < extra.size(); position++) {
+            Measure measure = extra.get(position);
+            MeasureKind kind = measureKindRepository.findById(measure.code())
+                    .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, MEASURE_INVALID));
+            Double amount = measure.baseAmount();
+            if (amount == null || !Double.isFinite(amount) || amount <= 0 || amount > kind.getMaxBaseAmount()) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, MEASURE_INVALID);
+            }
+            ProductMeasure stored = product.getStoredMeasures().stream()
+                    .filter(existing -> existing.getKind().getCode().equals(kind.getCode()))
+                    .findFirst()
+                    .orElseGet(() -> {
+                        ProductMeasure created = new ProductMeasure(product, kind);
+                        product.getStoredMeasures().add(created);
+                        return created;
+                    });
+            stored.setBaseAmount(Math.round(amount * 10) / 10.0);
+            stored.setDefaultMeasure(measure.defaultMeasure());
+            stored.setPosition(position);
         }
     }
 
@@ -244,7 +283,6 @@ public class ProductService {
         target.setFiber(source.getFiber());
         target.setSalt(source.getSalt());
         target.setUnit(source.getUnit());
-        target.setPackageWeight(source.getPackageWeight());
         target.setBarCode(source.getBarCode());
     }
 
