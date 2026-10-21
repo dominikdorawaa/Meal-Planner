@@ -4,16 +4,21 @@ import { MemoryRouter } from 'react-router-dom';
 import { NewProductSheet, type NewProductDraft } from './NewProductSheet';
 import { draftFromProduct } from '../lib/productDraft';
 import { t } from '../i18n';
+import { MEASURE_KINDS, measure, withMeasures } from '../lib/measureFixtures';
 
 const mocks = vi.hoisted(() => ({
   createProduct: vi.fn(),
   updateProduct: vi.fn(),
   createOwnVersion: vi.fn(),
+  listMeasureKinds: vi.fn(),
   existing: { checking: false, product: null as null | { id: string; name: string } },
 }));
 
 vi.mock('../lib/apiClient', () => ({
-  api: { products: { create: mocks.createProduct, update: mocks.updateProduct, createOwnVersion: mocks.createOwnVersion } },
+  api: {
+    products: { create: mocks.createProduct, update: mocks.updateProduct, createOwnVersion: mocks.createOwnVersion },
+    measureKinds: { list: mocks.listMeasureKinds },
+  },
 }));
 
 vi.mock('../lib/useExistingBarCodeProduct', () => ({
@@ -46,6 +51,7 @@ function saveButton() {
 beforeEach(() => {
   vi.stubGlobal('alert', alertMock);
   mocks.existing = { checking: false, product: null };
+  mocks.listMeasureKinds.mockResolvedValue(MEASURE_KINDS);
 });
 
 afterEach(() => {
@@ -66,7 +72,7 @@ describe('NewProductSheet', () => {
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith({ id: 'p1', ...SKYR }));
     expect(mocks.createProduct).toHaveBeenCalledWith(expect.objectContaining({
-      name: 'Skyr', brand: 'Piątnica', bar_code: '5900820000318', sugars: 4, salt: 0.1, package_weight: null, unit: '100g',
+      name: 'Skyr', brand: 'Piątnica', bar_code: '5900820000318', sugars: 4, salt: 0.1, measures: [], unit: '100g',
     }));
   });
 
@@ -124,14 +130,15 @@ describe('NewProductSheet', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it('ignores letters and signs in number fields', () => {
+  it('ignores letters and signs in number fields', async () => {
     renderSheet({});
+    fireEvent.click(await screen.findByRole('button', { name: /Dodaj miarę/ }));
 
     const kcal = screen.getAllByPlaceholderText('0')[0];
     expect(fireEvent.keyDown(kcal, { key: 'e' })).toBe(false);
     expect(fireEvent.keyDown(kcal, { key: '5' })).toBe(true);
     expect(fireEvent.keyDown(screen.getAllByPlaceholderText('0')[1], { key: '-' })).toBe(false);
-    expect(fireEvent.keyDown(screen.getByLabelText(t('product.packageWeight')), { key: '+' })).toBe(false);
+    expect(fireEvent.keyDown(screen.getByLabelText(t('productForm.measureAmount', { name: 'sztuka', unit: 'g' })), { key: '+' })).toBe(false);
   });
 });
 
@@ -231,18 +238,137 @@ describe('NewProductSheet limits', () => {
     expect(field(t('productForm.kcal')).value).toBe('1500');
   });
 
-  it('turns off autofill suggestions in every field', () => {
+  it('turns off autofill suggestions in every field', async () => {
     renderSheet({});
+    fireEvent.click(await screen.findByRole('button', { name: /Dodaj miarę/ }));
 
     expect(field(t('productForm.name')).getAttribute('autocomplete')).toBe('off');
     expect(field(t('productForm.brand')).getAttribute('autocomplete')).toBe('off');
     expect(field(t('productForm.kcal')).getAttribute('inputmode')).toBe('decimal');
-    expect(field(t('product.packageWeight')).getAttribute('autocomplete')).toBe('off');
+    expect(field(t('productForm.measureAmount', { name: 'sztuka', unit: 'g' })).getAttribute('autocomplete')).toBe('off');
   });
 
   it('locks the page behind the open sheet', () => {
     renderSheet({});
 
     expect(document.querySelector('[data-scroll-lock]')).not.toBeNull();
+  });
+});
+
+describe('NewProductSheet measures', () => {
+  const amountField = (name: string, unit = 'g') =>
+    screen.getByLabelText(t('productForm.measureAmount', { name, unit })) as HTMLInputElement;
+  const findAmountField = async (name: string, unit = 'g') =>
+    (await screen.findByLabelText(t('productForm.measureAmount', { name, unit }))) as HTMLInputElement;
+  const addMeasure = async () => fireEvent.click(await screen.findByRole('button', { name: /Dodaj miarę/ }));
+
+  it('fills the package from Open Food Facts and sends it as a measure', async () => {
+    mocks.createProduct.mockResolvedValue({ id: 'p1', ...SKYR });
+    renderSheet({ prefill: { ...SKYR, package_weight: 450 } });
+
+    expect((await findAmountField('opakowanie')).value).toBe('450');
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(mocks.createProduct).toHaveBeenCalledWith(expect.objectContaining({
+      measures: [{ code: 'package', base_amount: 450, default: false }],
+    })));
+  });
+
+  it('adds own measures, marks one as default and changes their kind', async () => {
+    mocks.createProduct.mockResolvedValue({ id: 'p1', ...SKYR });
+    renderSheet({ prefill: SKYR });
+
+    await addMeasure();
+    fireEvent.change(amountField('sztuka'), { target: { value: '120.5' } });
+    fireEvent.click(screen.getByRole('button', { name: t('productForm.measureDefault', { name: 'sztuka' }) }));
+    await addMeasure();
+    fireEvent.change(screen.getByLabelText(t('productForm.measureKind', { index: 2 })), { target: { value: 'tbsp' } });
+    fireEvent.change(amountField('łyżka'), { target: { value: '15' } });
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(mocks.createProduct).toHaveBeenCalledWith(expect.objectContaining({
+      measures: [{ code: 'piece', base_amount: 120.5, default: true }, { code: 'tbsp', base_amount: 15, default: false }],
+    })));
+    expect(screen.getByRole('button', { name: t('productForm.measureDefault', { name: 'sztuka' }) }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('offers each kind only once and hides adding when every kind is used', async () => {
+    renderSheet({ prefill: SKYR });
+
+    for (let i = 0; i < MEASURE_KINDS.length; i++) await addMeasure();
+
+    expect(screen.queryByRole('button', { name: /Dodaj miarę/ })).toBeNull();
+    const lastKind = screen.getByLabelText(t('productForm.measureKind', { index: 6 })) as HTMLSelectElement;
+    expect([...lastKind.options].map(option => option.value)).toEqual(['package']);
+  });
+
+  it('removes measures and skips ones left empty', async () => {
+    mocks.createProduct.mockResolvedValue({ id: 'p1', ...SKYR });
+    renderSheet({ prefill: { ...SKYR, package_weight: 450 } });
+
+    await findAmountField('opakowanie');
+    fireEvent.click(screen.getByRole('button', { name: t('productForm.measureRemove', { name: 'opakowanie' }) }));
+    await addMeasure();
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(mocks.createProduct).toHaveBeenCalledWith(expect.objectContaining({ measures: [] })));
+  });
+
+  it('blocks saving a measure that weighs nothing', async () => {
+    renderSheet({ prefill: SKYR });
+
+    await addMeasure();
+    fireEvent.change(amountField('sztuka'), { target: { value: '0' } });
+
+    expect(screen.getByText(t('productForm.measureInvalid', { max: 5 }))).toBeTruthy();
+    expect(saveButton().disabled).toBe(true);
+    fireEvent.change(amountField('sztuka'), { target: { value: '5001' } });
+    expect(amountField('sztuka').value).toBe('0');
+  });
+
+  it('edits the measures of a product without its base unit and keeps unknown kinds', async () => {
+    mocks.updateProduct.mockResolvedValue({ id: 'p2' });
+    const source = withMeasures(
+      { id: 'p2', name: 'Mleko', kcal: 60, protein: 3, fat: 3, carbs: 5, unit: '100ml' },
+      measure('cup', 250, true),
+      { code: 'handful', base_amount: 30, default: false, names: { pl: { one: 'garść' } }, max_amount: 10 },
+    );
+    renderSheet(draftFromProduct(source as never), { mode: 'edit', source: source as never });
+
+    expect(amountField('szklanka', 'ml').value).toBe('250');
+    expect(amountField('garść', 'ml').value).toBe('30');
+    fireEvent.click(screen.getByRole('button', { name: t('productForm.measureDefault', { name: 'szklanka' }) }));
+    fireEvent.click(screen.getByRole('button', { name: /Zapisz zmiany/ }));
+
+    await waitFor(() => expect(mocks.updateProduct).toHaveBeenCalledWith('p2', expect.objectContaining({
+      unit: '100ml',
+      measures: [{ code: 'cup', base_amount: 250, default: false }, { code: 'handful', base_amount: 30, default: false }],
+    })));
+  });
+
+  it('keeps a large package valid and offers a retry when the measure kinds cannot be loaded', async () => {
+    mocks.listMeasureKinds.mockRejectedValueOnce(new Error('offline'));
+    mocks.updateProduct.mockResolvedValue({ id: 'p2' });
+    const source = withMeasures({ id: 'p2', ...SKYR, unit: '100g' }, measure('package', 10000));
+    renderSheet(draftFromProduct(source as never), { mode: 'edit', source: source as never });
+
+    const alert = await screen.findByText(t('productForm.measureKindsFailed'));
+    expect(screen.queryByText(t('productForm.measureInvalid', { max: 5 }))).toBeNull();
+    expect((screen.getByRole('button', { name: /Zapisz zmiany/ }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByRole('button', { name: /Dodaj miarę/ })).toBeNull();
+
+    fireEvent.click(within(alert.closest('[role="alert"]') as HTMLElement).getByRole('button', { name: t('productForm.measureKindsRetry') }));
+
+    expect(await screen.findByRole('button', { name: /Dodaj miarę/ })).toBeTruthy();
+    expect(screen.queryByText(t('productForm.measureKindsFailed'))).toBeNull();
+    expect(mocks.listMeasureKinds).toHaveBeenCalledTimes(2);
+  });
+
+  it('has no measures for products counted per piece and works without the list of kinds', async () => {
+    mocks.listMeasureKinds.mockRejectedValue(new Error('offline'));
+    renderSheet({ prefill: SKYR }, { mode: 'edit', source: { id: 'p9', ...SKYR, unit: 'pc' } as never });
+
+    await waitFor(() => expect(mocks.listMeasureKinds).toHaveBeenCalled());
+    expect(screen.queryByText(t('productForm.measures'))).toBeNull();
   });
 });

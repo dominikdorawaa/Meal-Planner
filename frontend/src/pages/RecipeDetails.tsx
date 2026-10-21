@@ -9,7 +9,7 @@ import { RecipeMoreNutrients } from '../components/RecipeMoreNutrients';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { useBottomSheet } from '../lib/bottomSheet';
-import { ingredientGrams } from '../lib/recipeIngredient';
+import { ingredientGrams, ingredientUnitLabel } from '../lib/recipeIngredient';
 import { profileMealTypes } from '../lib/mealTypes';
 import { announceDeletedRecipe } from '../lib/deletedRecipe';
 import { RecipeDeleteSheet } from '../components/RecipeDeleteSheet';
@@ -610,7 +610,7 @@ export function RecipeDetails() {
                   <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-surface-container-lowest border border-outline-variant/10">
                     <span className="font-bold text-sm text-on-surface capitalize min-w-0 break-words">{ing.name}</span>
                     <span className="text-xs font-bold text-on-surface-variant bg-surface-container-highest px-3 py-1 rounded-lg whitespace-nowrap shrink-0 ml-2">
-                      {scaledAmount} {ing.unit}
+                      {scaledAmount} {ingredientUnitLabel(ing.unit, Number(scaledAmount), ing.product)}
                     </span>
                   </div>
                 );

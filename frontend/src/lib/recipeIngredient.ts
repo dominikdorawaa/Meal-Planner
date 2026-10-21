@@ -1,14 +1,22 @@
 import type { Product } from './apiClient';
-import { t } from '../i18n';
 import { formatCompactNumber } from './compactNumber';
+import {
+  baseMeasureCode,
+  defaultMeasure,
+  defaultMeasureAmount,
+  findMeasure,
+  isBaseMeasure,
+  isPerPiece,
+  measureBaseAmount,
+  PIECE_CODE,
+  productMeasures,
+  unitLabel,
+  type MeasuredProduct,
+} from './measures';
 
-export type IngredientUnit = 'g' | 'ml' | 'szt' | 'opak';
+export type IngredientUnit = string;
 
-export interface ScalableProduct {
-  unit?: string | null;
-  piece_weight?: number | null;
-  package_weight?: number | null;
-}
+export type ScalableProduct = MeasuredProduct;
 
 export interface IngredientQuantity {
   amount: number;
@@ -33,48 +41,32 @@ export interface Macros {
   carbs: number;
 }
 
-const PER_PIECE_UNIT = 'pc';
-const PER_100_ML_UNIT = '100ml';
-const DEFAULT_AMOUNT = 100;
 const ZERO_MACROS: Macros = { kcal: 0, protein: 0, fat: 0, carbs: 0 };
 
-function baseUnit(product: ScalableProduct): IngredientUnit {
-  if (product.unit === PER_PIECE_UNIT) return 'szt';
-  return product.unit === PER_100_ML_UNIT ? 'ml' : 'g';
-}
-
 export function ingredientUnits(product: ScalableProduct): IngredientUnit[] {
-  const base = baseUnit(product);
-  if (base === 'szt') return ['szt'];
-  const units: IngredientUnit[] = [base];
-  if (product.piece_weight) units.push('szt');
-  if (product.package_weight) units.push('opak');
-  return units;
+  return productMeasures(product).map(measure => measure.code);
 }
 
 export function supportedIngredientUnit(product: ScalableProduct, unit: string): IngredientUnit | null {
-  return ingredientUnits(product).find(supported => supported === unit) ?? null;
+  return findMeasure(product, unit)?.code ?? null;
 }
 
 export function defaultIngredientAmount(product: ScalableProduct): IngredientQuantity {
-  const unit = baseUnit(product);
-  return { amount: unit === 'szt' ? 1 : DEFAULT_AMOUNT, unit };
+  const unit = defaultMeasure(product).code;
+  return { amount: defaultMeasureAmount(product, unit), unit };
 }
 
 export function ingredientGrams({ amount, unit, product }: IngredientAmount): number | null {
   const value = Number(amount) || 0;
   if (!product) return unit === 'g' || unit === 'ml' ? value : null;
-  if (baseUnit(product) === 'szt') return null;
-  if (unit === baseUnit(product)) return value;
-  if (unit === 'opak' && product.package_weight) return value * product.package_weight;
-  if (unit === 'szt' && product.piece_weight) return value * product.piece_weight;
-  return null;
+  if (isPerPiece(product)) return null;
+  return measureBaseAmount(product, unit, value);
 }
 
 export function ingredientFactor(ingredient: IngredientAmount): number | null {
   const { amount, unit, product } = ingredient;
   if (!product) return null;
-  if (baseUnit(product) === 'szt') return unit === 'szt' ? Number(amount) || 0 : null;
+  if (isPerPiece(product)) return unit === PIECE_CODE ? Number(amount) || 0 : null;
   const grams = ingredientGrams(ingredient);
   return grams == null ? null : grams / 100;
 }
@@ -114,16 +106,15 @@ export function recipeMacrosPerPortion(
   };
 }
 
-export function ingredientUnitLabel(unit: string): string {
-  if (unit === 'opak') return t('units.opak');
-  if (unit === 'szt') return t('units.szt');
-  return unit;
+export function ingredientUnitLabel(unit: string, amount = 1, product?: ScalableProduct | null): string {
+  return unitLabel(unit, amount, product);
 }
 
 export function ingredientAmountLabel(ingredient: IngredientAmount): string {
-  const label = `${ingredient.amount} ${ingredientUnitLabel(ingredient.unit)}`;
+  const amount = Number(ingredient.amount) || 0;
   const product = ingredient.product;
-  if (!product || ingredient.unit === baseUnit(product)) return label;
+  const label = `${formatCompactNumber(amount, 1)} ${ingredientUnitLabel(ingredient.unit, amount, product)}`;
+  if (!product || isBaseMeasure(product, ingredient.unit)) return label;
   const grams = ingredientGrams(ingredient);
-  return grams == null ? label : `${label} (${formatCompactNumber(grams)} ${baseUnit(product)})`;
+  return grams == null ? label : `${label} (${formatCompactNumber(grams)} ${baseMeasureCode(product)})`;
 }

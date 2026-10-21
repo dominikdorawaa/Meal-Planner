@@ -45,6 +45,12 @@ public class UserMeal {
     @Column(name = "portions_consumed")
     private Double portionsConsumed = 1.0;
 
+    @Column(name = "measure_code")
+    private String measureCode;
+
+    @Column(name = "measure_amount")
+    private Double measureAmount;
+
     @Column(name = "manual_name")
     private String manualName;
 

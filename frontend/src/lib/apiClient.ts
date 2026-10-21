@@ -1,3 +1,4 @@
+import type { MeasureKind, ProductMeasure } from './measures';
 import { getLanguage, t } from '../i18n';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (
@@ -48,8 +49,7 @@ export interface Product {
   salt?: number | null;
   unit?: string | null;
   image_url?: string | null;
-  piece_weight?: number | null;
-  package_weight?: number | null;
+  measures?: ProductMeasure[] | null;
   bar_code?: string | null;
   status?: string;
   source?: string;
@@ -286,6 +286,12 @@ export const api = {
     },
     async unsave(id: string): Promise<void> {
       return request<void>('DELETE', `/api/products/${id}/saved`);
+    }
+  },
+
+  measureKinds: {
+    async list(): Promise<MeasureKind[]> {
+      return request<MeasureKind[]>('GET', '/api/measure-kinds');
     }
   },
 

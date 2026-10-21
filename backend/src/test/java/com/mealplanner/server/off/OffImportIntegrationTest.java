@@ -1,6 +1,7 @@
 package com.mealplanner.server.off;
 
 import com.mealplanner.server.TestcontainersConfiguration;
+import com.mealplanner.server.product.Measure;
 import com.mealplanner.server.product.Product;
 import com.mealplanner.server.product.ProductFilters;
 import com.mealplanner.server.product.ProductRepository;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.zip.GZIPOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
@@ -115,7 +117,8 @@ class OffImportIntegrationTest {
         assertThat(skyr.getFat()).isEqualTo(0.0);
         assertThat(skyr.getCarbs()).isEqualTo(4.2);
         assertThat(skyr.getUnit()).isEqualTo("100g");
-        assertThat(skyr.getPackageWeight()).isEqualTo(150.0);
+        assertThat(skyr.getMeasures()).extracting(Measure::code, Measure::baseAmount)
+                .containsExactly(tuple("g", 1.0), tuple("package", 150.0));
         assertThat(skyr.getSource()).isEqualTo(ProductSource.OPEN_FOOD_FACTS);
         assertThat(skyr.getCreatedBy()).isNull();
         assertThat(skyr.getSearchText()).isEqualTo("skyr naturalny piatnica");

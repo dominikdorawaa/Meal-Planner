@@ -40,7 +40,7 @@ export function ProductNutritionTable({ title, unit, per100, columns }: ProductN
           <tr className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
             <th scope="col" className="sr-only">{t('nutrients.name')}</th>
             {columns.map(column => (
-              <th key={column.label} scope="col" className="py-2 pl-2 text-right font-black whitespace-nowrap">{column.label}</th>
+              <th key={column.label} scope="col" className="py-2 pl-2 text-right font-black align-bottom">{column.label}</th>
             ))}
           </tr>
         </thead>

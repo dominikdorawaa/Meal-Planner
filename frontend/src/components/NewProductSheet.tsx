@@ -2,13 +2,15 @@ import { useMemo, useState } from 'react';
 import { api, type Product } from '../lib/apiClient';
 import type { ProductPrefill } from '../lib/barcodeLookup';
 import { useBottomSheet } from '../lib/bottomSheet';
-import { EXTRA_NUTRIENTS, extraNutrientInputs, type ExtraNutrientValues } from '../lib/nutrients';
+import { EXTRA_NUTRIENTS, extraNutrientInputs, measureUnit, type ExtraNutrientValues } from '../lib/nutrients';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
-import { MAX_PACKAGE_WEIGHT, isValidPackageWeight } from '../lib/packageWeight';
+import { PACKAGE_CODE, isBaseMeasure } from '../lib/measures';
 import { useExistingBarCodeProduct } from '../lib/useExistingBarCodeProduct';
 import { t, type MessageKey } from '../i18n';
 import { BarCodeField, type ExistingProductAction } from './BarCodeField';
 import { MoreNutrientsFields } from './MoreNutrientsFields';
+import { MeasuresField } from './MeasuresField';
+import { isEmptyMeasure, isValidMeasure, useMeasureKinds, type MeasureInput } from '../lib/measureInputs';
 import { NUTRITION_DECIMALS, NUTRITION_LIMITS, acceptsLimitedNumber, numberFieldProps } from '../lib/inputLimits';
 
 const PER_PIECE_UNIT = 'pc';
@@ -47,7 +49,16 @@ function saveProduct(mode: ProductFormMode, source: Product | null | undefined, 
   return api.products.create(data);
 }
 
-function formFrom({ name, barCode, prefill }: NewProductDraft) {
+function measuresFrom(prefill: ProductPrefill | null | undefined, unit: string): MeasureInput[] {
+  if (prefill?.measures?.length) {
+    return prefill.measures
+      .filter(measure => !isBaseMeasure({ unit }, measure.code))
+      .map(measure => ({ code: measure.code, amount: String(measure.base_amount), isDefault: Boolean(measure.default), names: measure.names }));
+  }
+  return prefill?.package_weight ? [{ code: PACKAGE_CODE, amount: String(prefill.package_weight), isDefault: false }] : [];
+}
+
+function formFrom({ name, barCode, prefill }: NewProductDraft, unit: string) {
   return {
     name: inputValue(prefill?.name ?? name),
     brand: inputValue(prefill?.brand),
@@ -56,13 +67,15 @@ function formFrom({ name, barCode, prefill }: NewProductDraft) {
     fat: inputValue(prefill?.fat),
     carbs: inputValue(prefill?.carbs),
     barCode: barCode ?? '',
-    packageWeight: inputValue(prefill?.package_weight),
+    measures: measuresFrom(prefill, unit),
     extras: extraNutrientInputs(prefill ?? {}),
   };
 }
 
 export function NewProductSheet({ draft, onClose, onCreated, existingProductAction, mode = 'create', source = null }: NewProductSheetProps) {
-  const [form, setForm] = useState(() => formFrom(draft));
+  const unit = source?.unit ?? '100g';
+  const [form, setForm] = useState(() => formFrom(draft, unit));
+  const { kinds, failed: kindsFailed, retry: retryKinds } = useMeasureKinds();
   const [scanMessage, setScanMessage] = useState(draft.message ?? null);
   const [creating, setCreating] = useState(false);
 
@@ -73,14 +86,13 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
     fat: parseNutritionValue(form.fat),
     carbs: parseNutritionValue(form.carbs),
     barCode: form.barCode || null,
-    packageWeight: parseNutritionValue(form.packageWeight),
     extras: Object.fromEntries(EXTRA_NUTRIENTS.map(nutrient =>
       [nutrient, parseNutritionValue(form.extras[nutrient])])) as ExtraNutrientValues,
   }), [form]);
   const keepsSourceBarCode = source !== null && mode !== 'create' && form.barCode === (source.bar_code ?? '');
   const inheritsBarCode = keepsSourceBarCode && mode === 'ownVersion';
   const check = useMemo(() => checkNutrition(inheritsBarCode ? { ...values, barCode: null } : values), [values, inheritsBarCode]);
-  const packageWeightValid = isValidPackageWeight(values.packageWeight);
+  const measuresValid = form.measures.every(row => isValidMeasure(row, kinds));
   const nutrientsStarted = [form.kcal, form.protein, form.fat, form.carbs].some(value => value.trim() !== '');
   const hints = formNutritionHints(check, nutrientsStarted);
   const existingBarCode = useExistingBarCodeProduct(form.barCode);
@@ -88,14 +100,14 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
   const barCodeBlocksSaving = !keepsSourceBarCode && (existingBarCode.checking || existingProduct !== null);
   const texts = MODE_TEXTS[mode];
   const sheetRef = useBottomSheet(true, onClose);
-  const per100 = (source?.unit ?? '100g') !== PER_PIECE_UNIT;
+  const per100 = unit !== PER_PIECE_UNIT;
   const nutrientLimit = (nutrient: keyof typeof NUTRITION_LIMITS) => per100 ? NUTRITION_LIMITS[nutrient] : Number.MAX_SAFE_INTEGER;
   const setLimited = (field: 'kcal' | 'protein' | 'carbs' | 'fat', value: string) => {
     if (acceptsLimitedNumber(value, nutrientLimit(field), NUTRITION_DECIMALS)) setForm(p => ({ ...p, [field]: value }));
   };
 
   const handleCreate = async () => {
-    if (!check.valid || !packageWeightValid || barCodeBlocksSaving) return;
+    if (!check.valid || !measuresValid || barCodeBlocksSaving) return;
     setCreating(true);
     try {
       const product = await saveProduct(mode, source, {
@@ -106,9 +118,13 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
         carbs: values.carbs,
         ...values.extras,
         bar_code: values.barCode,
-        package_weight: values.packageWeight,
+        measures: form.measures.filter(row => !isEmptyMeasure(row)).map(row => ({
+          code: row.code,
+          base_amount: Number(row.amount.replace(',', '.')),
+          default: row.isDefault,
+        })),
         brand: form.brand.trim() || null,
-        unit: source?.unit ?? '100g',
+        unit,
       });
       onCreated(product);
     } catch (err) {
@@ -208,25 +224,16 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
             ))}
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="new-product-package-weight" className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('product.packageWeight')}</label>
-            <div className="relative flex items-center rounded-2xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
-              <input
-                id="new-product-package-weight"
-                {...numberFieldProps(MAX_PACKAGE_WEIGHT)}
-                onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
-                value={form.packageWeight}
-                onChange={e => acceptsLimitedNumber(e.target.value, MAX_PACKAGE_WEIGHT) && setForm(p => ({ ...p, packageWeight: e.target.value }))}
-                aria-invalid={!packageWeightValid}
-                className="flex-1 bg-transparent py-3.5 pl-4 pr-12 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:font-medium placeholder:text-on-surface-variant/40"
-                placeholder={t('productForm.packageWeightPlaceholder')}
-              />
-              <span className="absolute right-4 text-[10px] font-black text-on-surface-variant/50 uppercase">g</span>
-            </div>
-            {!packageWeightValid && (
-              <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-error/10 text-error">{t('product.packageWeightInvalid')}</p>
-            )}
-          </div>
+          {per100 && (
+            <MeasuresField
+              rows={form.measures}
+              baseUnit={measureUnit(unit)}
+              kinds={kinds}
+              kindsFailed={kindsFailed}
+              onRetryKinds={retryKinds}
+              onChange={measures => setForm(p => ({ ...p, measures }))}
+            />
+          )}
 
           <MoreNutrientsFields
             values={form.extras}
@@ -261,7 +268,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
 
         <button
           onClick={handleCreate}
-          disabled={creating || !check.valid || !packageWeightValid || barCodeBlocksSaving}
+          disabled={creating || !check.valid || !measuresValid || barCodeBlocksSaving}
           className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
         >
           {creating ? (

@@ -9,6 +9,8 @@ export type PlanMeal = {
   recipe?: EntityReference;
   product?: EntityReference;
   portions_consumed?: number | null;
+  measure_code?: string | null;
+  measure_amount?: number | null;
   manual_name?: string | null;
   manual_kcal?: number | null;
   manual_protein?: number | null;
@@ -39,6 +41,8 @@ export const mealCopyPayload = (meal: PlanMeal, mealDate: string, mealType: stri
   meal_date: mealDate,
   meal_type: mealType,
   portions_consumed: meal.portions_consumed,
+  measure_code: meal.measure_code,
+  measure_amount: meal.measure_amount,
   manual_name: meal.manual_name,
   manual_kcal: meal.manual_kcal,
   manual_protein: meal.manual_protein,

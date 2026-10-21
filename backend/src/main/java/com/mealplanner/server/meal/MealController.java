@@ -93,6 +93,8 @@ public class MealController {
             meal.setManualFat(mealDetails.getManualFat());
             meal.setManualCarbs(mealDetails.getManualCarbs());
             meal.setPortionsConsumed(mealDetails.getPortionsConsumed());
+            meal.setMeasureCode(mealDetails.getMeasureCode());
+            meal.setMeasureAmount(mealDetails.getMeasureAmount());
             return ResponseEntity.ok(userMealRepository.save(meal));
         }).orElse(ResponseEntity.notFound().build());
     }

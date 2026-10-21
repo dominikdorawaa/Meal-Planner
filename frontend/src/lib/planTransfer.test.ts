@@ -51,6 +51,8 @@ describe('planTransfer', () => {
       meal_date: '2026-10-20',
       meal_type: 'dinner',
       portions_consumed: 2,
+      measure_code: undefined,
+      measure_amount: undefined,
       manual_name: undefined,
       manual_kcal: undefined,
       manual_protein: undefined,
@@ -58,6 +60,8 @@ describe('planTransfer', () => {
       manual_carbs: undefined,
     });
     expect(mealCopyPayload(productMeal, '2026-10-20', 'lunch')).toMatchObject({ recipe: null, product: { id: 'product-1' } });
+    expect(mealCopyPayload({ ...productMeal, measure_code: 'piece', measure_amount: 2 }, '2026-10-20', 'lunch'))
+      .toMatchObject({ portions_consumed: 150, measure_code: 'piece', measure_amount: 2 });
     expect(mealCopyPayload(manualMeal, '2026-10-20', 'lunch')).toMatchObject({ recipe: null, product: null, manual_name: 'Coffee', manual_kcal: 20 });
   });
 

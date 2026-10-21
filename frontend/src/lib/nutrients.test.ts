@@ -41,7 +41,7 @@ describe('recipeExtraNutrientsPerPortion', () => {
   it('sums every ingredient and divides by the number of portions', () => {
     expect(recipeExtraNutrientsPerPortion([
       { amount: 200, unit: 'g', product: cream },
-      { amount: 2, unit: 'szt', product: egg },
+      { amount: 2, unit: 'piece', product: egg },
       { amount: 100, unit: 'ml', product: { ...cream, unit: '100ml' } },
     ], 2)).toEqual({
       saturated_fat: expect.closeTo(19.5), sugars: expect.closeTo(5.3), fiber: 0, salt: expect.closeTo(0.35),

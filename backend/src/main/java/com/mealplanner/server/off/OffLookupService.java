@@ -2,8 +2,10 @@ package com.mealplanner.server.off;
 
 import com.mealplanner.server.product.BarCodes;
 import com.mealplanner.server.product.NutritionValidator;
+import com.mealplanner.server.product.MeasureKindRepository;
 import com.mealplanner.server.product.PackageWeight;
 import com.mealplanner.server.product.Product;
+import com.mealplanner.server.product.ProductMeasures;
 import com.mealplanner.server.product.ProductRepository;
 import com.mealplanner.server.product.ProductSource;
 import com.mealplanner.server.product.ProductStatus;
@@ -26,14 +28,17 @@ public class OffLookupService {
 
     private final OffApiClient apiClient;
     private final ProductRepository productRepository;
+    private final MeasureKindRepository measureKindRepository;
     private final RequestLimiter limiter;
     private final ExpiringCodeCache notFound;
 
     public OffLookupService(OffApiClient apiClient, ProductRepository productRepository,
+                            MeasureKindRepository measureKindRepository,
                             @Value("${off.api.requests-per-minute:90}") int requestsPerMinute,
                             @Value("${off.api.not-found-ttl:24h}") Duration notFoundTtl) {
         this.apiClient = apiClient;
         this.productRepository = productRepository;
+        this.measureKindRepository = measureKindRepository;
         this.limiter = new RequestLimiter(requestsPerMinute, Duration.ofMinutes(1), Instant::now);
         this.notFound = new ExpiringCodeCache(notFoundTtl, NOT_FOUND_CACHE_SIZE, Instant::now);
     }
@@ -71,7 +76,11 @@ public class OffLookupService {
         product.setCarbs(offProduct.carbs());
         offProduct.extras().cleanedFor(offProduct.fat(), offProduct.carbs()).applyTo(product);
         product.setUnit(UNIT);
-        product.setPackageWeight(PackageWeight.parse(offProduct.quantity(), UNIT));
+        Double packageWeight = PackageWeight.parse(offProduct.quantity(), UNIT);
+        if (packageWeight != null) {
+            measureKindRepository.findById(ProductMeasures.PACKAGE)
+                    .ifPresent(kind -> product.addMeasure(kind, packageWeight));
+        }
         product.setStatus(ProductStatus.VERIFIED);
         product.setSource(ProductSource.OPEN_FOOD_FACTS);
         try {

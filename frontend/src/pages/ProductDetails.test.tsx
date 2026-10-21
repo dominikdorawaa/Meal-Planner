@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ProductDetails } from './ProductDetails';
 import { t } from '../i18n';
+import { MEASURE_KINDS, measure, withMeasures } from '../lib/measureFixtures';
 
 const mocks = vi.hoisted(() => ({
   addMeal: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock('../lib/apiClient', () => ({
       update: mocks.update,
       createOwnVersion: mocks.createOwnVersion,
     },
+    measureKinds: { list: () => Promise.resolve(MEASURE_KINDS) },
   },
 }));
 
@@ -82,29 +84,36 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+const PACKAGES = t('amount.countOf', { name: 'opakowania' });
+const PIECES = t('amount.countOf', { name: 'sztuki' });
+
 describe('ProductDetails package amount', () => {
   it('offers a whole package with its weight and calories when the package weight is known', async () => {
-    mocks.getProduct.mockResolvedValue({ ...SKYR, package_weight: 450 });
+    mocks.getProduct.mockResolvedValue(withMeasures(SKYR, measure('package', 450)));
     renderDetails();
 
-    const packages = await screen.findByLabelText(t('amount.packages'));
+    const packages = await screen.findByLabelText(PACKAGES);
     const packageRow = packages.closest('[data-amount-row]') as HTMLElement;
-    expect(within(packageRow).getByText(t('amount.packageOf', { amount: '450 g' }))).toBeTruthy();
+    expect(within(packageRow).getByText(t('amount.measureOf', { name: 'opakowanie', amount: '450 g' }))).toBeTruthy();
     expect(within(packageRow).getByText('270')).toBeTruthy();
 
     fireEvent.change(packages, { target: { value: '2' } });
     expect(within(packageRow).getByText('540')).toBeTruthy();
+    expect(within(packageRow).getByText(t('amount.measureOf', { name: 'opakowania', amount: '450 g' }))).toBeTruthy();
+    expect(screen.getByText(t('product.nutritionFor', { amount: '2 opakowania (900 g)' }))).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
     await screen.findByText('plan screen');
-    expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({ portions_consumed: 900 }));
+    expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({
+      portions_consumed: 900, measure_code: 'package', measure_amount: 2,
+    }));
   });
 
   it('shows the package in millilitres for drinks', async () => {
-    mocks.getProduct.mockResolvedValue({ ...SKYR, unit: '100ml', package_weight: 330 });
+    mocks.getProduct.mockResolvedValue(withMeasures({ ...SKYR, unit: '100ml' }, measure('package', 330)));
     renderDetails();
 
-    expect(await screen.findByText(t('amount.packageOf', { amount: '330 ml' }))).toBeTruthy();
+    expect(await screen.findByText(t('amount.measureOf', { name: 'opakowanie', amount: '330 ml' }))).toBeTruthy();
   });
 
   it('does not offer packages when the package weight is unknown', async () => {
@@ -112,7 +121,98 @@ describe('ProductDetails package amount', () => {
     renderDetails();
 
     await screen.findByDisplayValue('100');
-    expect(screen.queryByLabelText(t('amount.packages'))).toBeNull();
+    expect(screen.queryByLabelText(PACKAGES)).toBeNull();
+  });
+});
+
+describe('ProductDetails measures', () => {
+  const BANANA = withMeasures({ ...SKYR, name: 'Banan', kcal: 90 }, measure('piece', 120, true), measure('slice', 10));
+
+  it('starts with one default measure and adds it to the plan with its weight', async () => {
+    mocks.getProduct.mockResolvedValue(BANANA);
+    renderDetails();
+
+    const pieces = await screen.findByLabelText(PIECES) as HTMLInputElement;
+    expect(pieces.value).toBe('1');
+    expect(pieces.closest('[data-amount-row]')?.className).toContain('bg-primary/5');
+    expect(screen.getByTestId('kcal-value').textContent).toBe('108');
+
+    fireEvent.change(screen.getByLabelText(t('amount.countOf', { name: 'plasterki' })), { target: { value: '3' } });
+    expect(screen.getByTestId('kcal-value').textContent).toBe('27');
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+
+    await screen.findByText('plan screen');
+    expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({
+      portions_consumed: 30, measure_code: 'slice', measure_amount: 3,
+    }));
+  });
+
+  it('adds grams without a measure', async () => {
+    mocks.getProduct.mockResolvedValue(BANANA);
+    renderDetails();
+
+    fireEvent.change(await screen.findByLabelText(t('amount.grams')), { target: { value: '150' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+
+    await screen.findByText('plan screen');
+    expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({
+      portions_consumed: 150, measure_code: null, measure_amount: null,
+    }));
+  });
+
+  it('opens a plan item in the measure it was saved in and saves a switch to grams', async () => {
+    mocks.getProduct.mockResolvedValue(BANANA);
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 240, measure_code: 'piece', measure_amount: 2 }]);
+    renderDetails('?selectDate=2026-10-17&selectType=lunch&mealId=m1');
+
+    const pieces = await screen.findByLabelText(PIECES) as HTMLInputElement;
+    await waitFor(() => expect(pieces.value).toBe('2'));
+    const update = screen.getByRole('button', { name: 'Zaktualizuj' }) as HTMLButtonElement;
+    expect(update.disabled).toBe(true);
+
+    fireEvent.change(screen.getByLabelText(t('amount.grams')), { target: { value: '240' } });
+    expect(update.disabled).toBe(false);
+    fireEvent.click(update);
+
+    await screen.findByText('plan screen');
+    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 240, measure_code: null, measure_amount: null });
+  });
+
+  it('opens a plan item in its saved grams when the measure weight has changed since', async () => {
+    mocks.getProduct.mockResolvedValue(withMeasures(SKYR, measure('piece', 150, true)));
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 240, measure_code: 'piece', measure_amount: 2 }]);
+    renderDetails('?selectDate=2026-10-17&selectType=lunch&mealId=m1');
+
+    const grams = await screen.findByLabelText(t('amount.grams')) as HTMLInputElement;
+    await waitFor(() => expect(grams.value).toBe('240'));
+    expect((screen.getByLabelText(PIECES) as HTMLInputElement).value).toBe('1');
+    expect((screen.getByRole('button', { name: 'Zaktualizuj' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('opens a plan item in grams when its measure is no longer offered', async () => {
+    mocks.getProduct.mockResolvedValue(BANANA);
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 60, measure_code: 'tbsp', measure_amount: 4 }]);
+    renderDetails('?selectDate=2026-10-17&selectType=lunch&mealId=m1');
+
+    const grams = await screen.findByLabelText(t('amount.grams')) as HTMLInputElement;
+    await waitFor(() => expect(grams.value).toBe('60'));
+    expect(screen.getByTestId('kcal-value').textContent).toBe('54');
+  });
+
+  it('counts products sold per piece in pieces', async () => {
+    mocks.getProduct.mockResolvedValue({ ...SKYR, name: 'Jajko', kcal: 75, unit: 'pc' });
+    renderDetails();
+
+    const pieces = await screen.findByLabelText(t('amount.pieces')) as HTMLInputElement;
+    expect(pieces.value).toBe('1');
+    expect(screen.getByTestId('kcal-value').textContent).toBe('75');
+    fireEvent.change(pieces, { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+
+    await screen.findByText('plan screen');
+    expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({
+      portions_consumed: 2, measure_code: null, measure_amount: null,
+    }));
   });
 });
 
@@ -291,7 +391,7 @@ describe('ProductDetails plan item editing', () => {
     fireEvent.click(updateButton());
 
     await screen.findByText('plan screen');
-    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 200 });
+    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 200, measure_code: null, measure_amount: null });
   });
 
   it('blocks saving when the amount is zero or empty', async () => {
@@ -325,13 +425,16 @@ describe('ProductDetails amount limits', () => {
   });
 
   it('does not accept more than 100 pieces or packages', async () => {
-    mocks.getProduct.mockResolvedValue({ ...SKYR, piece_weight: 50, package_weight: 450 });
+    mocks.getProduct.mockResolvedValue(withMeasures(SKYR, measure('piece', 50), measure('package', 450), measure('cup', 250)));
     renderDetails();
 
-    const pieces = await screen.findByLabelText(t('amount.pieces')) as HTMLInputElement;
+    const pieces = await screen.findByLabelText(PIECES) as HTMLInputElement;
     fireEvent.change(pieces, { target: { value: '101' } });
     expect(pieces.value).toBe('1');
-    const packages = screen.getByLabelText(t('amount.packages')) as HTMLInputElement;
+    const cups = screen.getByLabelText(t('amount.countOf', { name: 'szklanki' })) as HTMLInputElement;
+    fireEvent.change(cups, { target: { value: '51' } });
+    expect(cups.value).toBe('1');
+    const packages = screen.getByLabelText(PACKAGES) as HTMLInputElement;
     fireEvent.change(packages, { target: { value: '100' } });
     expect(packages.value).toBe('100');
   });

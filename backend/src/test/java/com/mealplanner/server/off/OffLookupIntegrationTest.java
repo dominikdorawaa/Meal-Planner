@@ -1,6 +1,7 @@
 package com.mealplanner.server.off;
 
 import com.mealplanner.server.TestcontainersConfiguration;
+import com.mealplanner.server.product.Measure;
 import com.mealplanner.server.product.Product;
 import com.mealplanner.server.product.ProductRepository;
 import com.mealplanner.server.product.ProductSource;
@@ -28,6 +29,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -148,7 +150,12 @@ class OffLookupIntegrationTest {
                 .andExpect(jsonPath("$.brand").value("Piątnica"))
                 .andExpect(jsonPath("$.status").value("VERIFIED"))
                 .andExpect(jsonPath("$.source").value("OPEN_FOOD_FACTS"))
-                .andExpect(jsonPath("$.package_weight").value(500.0));
+                .andExpect(jsonPath("$.measures[0].code").value("g"))
+                .andExpect(jsonPath("$.measures[0].default").value(true))
+                .andExpect(jsonPath("$.measures[1].code").value("package"))
+                .andExpect(jsonPath("$.measures[1].base_amount").value(500.0))
+                .andExpect(jsonPath("$.measures[1].names.pl.one").value("opakowanie"))
+                .andExpect(jsonPath("$.measures.length()").value(2));
 
         Product saved = productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(COMPLETE, ProductStatus.VERIFIED).orElseThrow();
         assertThat(saved.getSource()).isEqualTo(ProductSource.OPEN_FOOD_FACTS);
@@ -160,7 +167,8 @@ class OffLookupIntegrationTest {
         assertThat(saved.getSugars()).isEqualTo(4.0);
         assertThat(saved.getFiber()).isNull();
         assertThat(saved.getSalt()).isEqualTo(0.1);
-        assertThat(saved.getPackageWeight()).isEqualTo(500.0);
+        assertThat(saved.getMeasures()).extracting(Measure::code, Measure::baseAmount)
+                .containsExactly(tuple("g", 1.0), tuple("package", 500.0));
         assertThat(USER_AGENTS).containsExactly("MealPlanner-Test/1.0");
 
         mockMvc.perform(get("/api/products/barcode/" + COMPLETE)).andExpect(status().isOk());

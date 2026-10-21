@@ -9,12 +9,13 @@ import { ProductNutritionTable } from '../components/ProductNutritionTable';
 import { ItemBadges, SaveHeartButton } from '../components/FoodRows';
 import { NewProductSheet, type ProductFormMode } from '../components/NewProductSheet';
 import { draftFromProduct } from '../lib/productDraft';
-import { AmountRow } from '../components/AmountRow';
+import { MeasureAmountRows } from '../components/MeasureAmountRows';
 import { measureUnit, scaleNutritionFacts } from '../lib/nutrients';
+import { ingredientAmountLabel, ingredientFactor } from '../lib/recipeIngredient';
+import { baseMeasureCode, defaultMeasure, findMeasure, initialMeasureValues, isBaseMeasure, measureBaseAmount, type MeasureValues } from '../lib/measures';
 import { t } from '../i18n';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
-import { AMOUNT_LIMITS } from '../lib/inputLimits';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { KCAL_HERO_SIZES, RING_VALUE_SIZES, fitTextClass } from '../lib/fitText';
 
@@ -40,12 +41,9 @@ export function ProductDetails() {
   const selectType = searchParams.get('selectType');
   const mealId = searchParams.get('mealId');
 
-  // Stany dla kalkulatora (zgodnie ze stylem RecipeDetails)
-  const [inputType, setInputType] = useState<'pieces' | 'packages' | 'grams'>('grams');
-  const [grams, setGrams] = useState<number | ''>(100);
-  const [pieces, setPieces] = useState<number | ''>(1);
-  const [packages, setPackages] = useState<number | ''>(1);
-  const [savedWeight, setSavedWeight] = useState<number | null>(null);
+  const [activeCode, setActiveCode] = useState('');
+  const [values, setValues] = useState<MeasureValues>({});
+  const [savedAmount, setSavedAmount] = useState<{ weight: number; code: string } | null>(null);
 
   const [activeDate, setActiveDate] = useState(selectDate || '');
   const [activeMealType, setActiveMealType] = useState(selectType || '');
@@ -79,7 +77,11 @@ export function ProductDetails() {
     async function loadProduct() {
       if (!id) return;
       const data = await api.products.getById(id).catch(() => null);
-      if (data) setProduct(data);
+      if (data) {
+        setProduct(data);
+        setValues(initialMeasureValues(data));
+        setActiveCode(defaultMeasure(data).code);
+      }
       setLoading(false);
     }
     loadProduct();
@@ -96,43 +98,39 @@ export function ProductDetails() {
 
   useEffect(() => {
     async function loadMeal() {
-      if (!mealId) return;
+      if (!mealId || !product) return;
       const meals = await api.meals.getAll().catch(() => []);
       const data = meals.find((m: any) => m.id === mealId);
       if (data) {
         const weight = data.portions_consumed || 0;
-        setGrams(weight);
-        setSavedWeight(weight);
-        if (product?.piece_weight) {
-          setPieces(parseFloat((weight / product.piece_weight).toFixed(2)));
-        }
-        setInputType('grams');
+        const found = data.measure_code && data.measure_amount != null ? findMeasure(product, data.measure_code) : null;
+        const measure = found && Math.abs(data.measure_amount * found.base_amount - weight) < 0.001 ? found : null;
+        const saved = measure ? { amount: data.measure_amount, unit: measure.code } : { amount: weight, unit: baseMeasureCode(product) };
+        setValues(initialMeasureValues(product, saved));
+        setActiveCode(saved.unit);
+        setSavedAmount({ weight, code: saved.unit });
       }
     }
     loadMeal();
   }, [mealId, product]);
 
-  const currentWeight = useMemo(() => {
-    if (inputType === 'grams') return Number(grams) || 0;
-    if (inputType === 'pieces') return (Number(pieces) || 0) * (product?.piece_weight || 0);
-    if (inputType === 'packages') return (Number(packages) || 0) * (product?.package_weight || 0);
-    return 0;
-  }, [inputType, grams, pieces, packages, product]);
+  const activeAmount = Number(values[activeCode]) || 0;
+  const currentWeight = product ? measureBaseAmount(product, activeCode, activeAmount) ?? 0 : 0;
+  const activeMeasure = product ? findMeasure(product, activeCode) : null;
+  const withinLimit = activeMeasure !== null && activeAmount <= activeMeasure.max_amount;
+  const chosen = { amount: activeAmount, unit: activeCode, product };
+  const chosenLabel = product ? ingredientAmountLabel(chosen) : '';
+  const chosenFactor = product ? ingredientFactor(chosen) ?? 0 : 0;
 
-  const unchangedPlanItem = Boolean(mealId) && (savedWeight === null || Math.abs(currentWeight - savedWeight) < 0.001);
+  const unchangedPlanItem = Boolean(mealId) && (savedAmount === null
+    || (savedAmount.code === activeCode && Math.abs(currentWeight - savedAmount.weight) < 0.001));
 
-  const kcalFor = (weight: number) => Math.round((Number(product?.kcal) || 0) * weight / 100);
-
-  const currentMacros = useMemo(() => {
-    if (!product) return { kcal: 0, protein: 0, fat: 0, carbs: 0 };
-    const factor = currentWeight / 100;
-    return {
-      kcal: Math.round(product.kcal * factor),
-      protein: parseFloat((product.protein * factor).toFixed(1)),
-      fat: parseFloat((product.fat * factor).toFixed(1)),
-      carbs: parseFloat((product.carbs * factor).toFixed(1))
-    };
-  }, [product, currentWeight]);
+  const currentMacros = product ? {
+    kcal: Math.round(product.kcal * chosenFactor),
+    protein: parseFloat((product.protein * chosenFactor).toFixed(1)),
+    fat: parseFloat((product.fat * chosenFactor).toFixed(1)),
+    carbs: parseFloat((product.carbs * chosenFactor).toFixed(1))
+  } : { kcal: 0, protein: 0, fat: 0, carbs: 0 };
 
   const totalMacros = currentMacros.protein + currentMacros.fat + currentMacros.carbs || 1;
   const pctP = Math.min(100, (currentMacros.protein / totalMacros) * 100);
@@ -145,19 +143,25 @@ export function ProductDetails() {
     if (!user || !product || !targetDate || !targetType) return;
     setIsAdding(true);
 
+    const baseChosen = isBaseMeasure(product, activeCode);
+    const chosenAmount = {
+      portions_consumed: currentWeight,
+      measure_code: baseChosen ? null : activeCode,
+      measure_amount: baseChosen ? null : activeAmount,
+    };
     const mealInserts = [];
     for (let i = 0; i < daysToAdd; i++) {
       mealInserts.push({
         product: { id: product.id },
         meal_date: addDaysToIsoDate(targetDate, i),
         meal_type: targetType,
-        portions_consumed: currentWeight
+        ...chosenAmount
       });
     }
 
     try {
       if (mealId) {
-        await api.meals.update(mealId, { portions_consumed: currentWeight });
+        await api.meals.update(mealId, chosenAmount);
       } else {
         for (const insert of mealInserts) {
           await api.meals.add(insert);
@@ -416,41 +420,12 @@ export function ProductDetails() {
 
       {/* Kalkulator - Zgodny ze stylem "pigułek" ze screena */}
       <div className="flex flex-col gap-2 w-full max-w-xl mx-auto px-4 pt-4">
-        {product.piece_weight && (
-          <AmountRow
-            label={t('amount.pieces')}
-            max={AMOUNT_LIMITS.szt}
-            unit="szt."
-            value={pieces}
-            kcal={kcalFor((Number(pieces) || 0) * product.piece_weight)}
-            active={inputType === 'pieces'}
-            onActivate={() => setInputType('pieces')}
-            onChange={setPieces}
-          />
-        )}
-
-        {product.package_weight && (
-          <AmountRow
-            label={t('amount.packages')}
-            max={AMOUNT_LIMITS.opak}
-            unit={t('amount.packageOf', { amount: `${product.package_weight} ${measureUnit(product.unit)}` })}
-            value={packages}
-            kcal={kcalFor((Number(packages) || 0) * product.package_weight)}
-            active={inputType === 'packages'}
-            onActivate={() => setInputType('packages')}
-            onChange={setPackages}
-          />
-        )}
-
-        <AmountRow
-          label={t('amount.grams')}
-          max={AMOUNT_LIMITS[measureUnit(product.unit)]}
-          unit={measureUnit(product.unit)}
-          value={grams}
-          kcal={kcalFor(Number(grams) || 0)}
-          active={inputType === 'grams'}
-          onActivate={() => setInputType('grams')}
-          onChange={setGrams}
+        <MeasureAmountRows
+          product={product}
+          values={values}
+          activeCode={activeCode}
+          onActivate={setActiveCode}
+          onChange={(code, next) => setValues(previous => ({ ...previous, [code]: next }))}
         />
       </div>
 
@@ -460,7 +435,7 @@ export function ProductDetails() {
         {/* Wartości Odżywcze - Zgodnie ze screenem */}
         <section className="flex flex-col gap-6">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-on-surface opacity-40">
-            WARTOŚCI ODŻYWCZE W {inputType === 'pieces' ? `${pieces} SZT.` : inputType === 'packages' ? `${packages} OPAK.` : `${grams} ${measureUnit(product.unit).toUpperCase()}`}
+            {t('product.nutritionFor', { amount: chosenLabel })}
           </h2>
           
           <div className="flex items-center justify-between gap-1 sm:gap-4 px-2">
@@ -514,8 +489,8 @@ export function ProductDetails() {
           columns={[
             { label: t('nutrients.per100', { unit: measureUnit(product.unit) }), values: product },
             {
-              label: t('nutrients.perPortion', { amount: `${Math.round(currentWeight)} ${measureUnit(product.unit)}` }),
-              values: scaleNutritionFacts(product, currentWeight / 100),
+              label: t('nutrients.perPortion', { amount: chosenLabel }),
+              values: scaleNutritionFacts(product, chosenFactor),
             },
           ]}
         />
@@ -681,7 +656,7 @@ export function ProductDetails() {
 
             <button 
               onClick={handleAddProduct}
-              disabled={isAdding || !(currentWeight > 0) || unchangedPlanItem}
+              disabled={isAdding || !(currentWeight > 0) || !withinLimit || unchangedPlanItem}
               className="flex-1 h-[56px] bg-[#6B8E23] text-white font-black text-base rounded-[20px] shadow-lg shadow-[#6B8E23]/20 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center"
             >
               {isAdding ? 'Czekaj...' : (mealId ? 'Zaktualizuj' : 'Dodaj')}

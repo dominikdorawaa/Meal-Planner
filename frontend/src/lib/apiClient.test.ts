@@ -151,7 +151,7 @@ describe('apiClient', () => {
     expect(error.body).toEqual({ error: 'Nie znaleziono zasobu.' });
   });
 
-  it('calls the saved, own and own version endpoints', async () => {
+  it('calls the saved, own, own version and measure kind endpoints', async () => {
     fetchMock.mockImplementation(async () => jsonResponse(200, []));
     const calls: [() => Promise<unknown>, string, string][] = [
       [() => api.products.saved(), 'GET', '/api/products/saved'],
@@ -160,6 +160,7 @@ describe('apiClient', () => {
       [() => api.products.unsave('p1'), 'DELETE', '/api/products/p1/saved'],
       [() => api.products.update('p1', { name: 'Skyr' }), 'PUT', '/api/products/p1'],
       [() => api.products.createOwnVersion('p1', { name: 'Skyr' }), 'POST', '/api/products/p1/own-version'],
+      [() => api.measureKinds.list(), 'GET', '/api/measure-kinds'],
       [() => api.recipes.saved(), 'GET', '/api/recipes/saved'],
       [() => api.recipes.save('r1'), 'POST', '/api/recipes/r1/saved'],
       [() => api.recipes.unsave('r1'), 'DELETE', '/api/recipes/r1/saved'],
