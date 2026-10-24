@@ -95,6 +95,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function tapOutside() {
+  fireEvent.click(document.querySelector('[data-outside-press-layer]')!);
+}
+
 describe('RecipeDetails loading', () => {
   it('loads the recipe once and shows nutrition of one portion', async () => {
     renderDetails();
@@ -215,10 +219,17 @@ describe('RecipeDetails own recipe actions', () => {
 
     expect(menu.getByText(t('recipeDetails.edit'))).toBeTruthy();
     expect(menu.getByText(t('recipeDelete.confirm'))).toBeTruthy();
-    expect(screen.queryByRole('button', { name: t('recipeDetails.save') })).toBeNull();
 
     fireEvent.click(menu.getByText(t('recipeDetails.edit')));
     expect(screen.getByText('edit screen')).toBeTruthy();
+  });
+
+  it('lets the author save their own recipe with the heart on the photo', async () => {
+    renderDetails();
+    fireEvent.click(await screen.findByRole('button', { name: t('recipeDetails.save') }));
+
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledWith('r1'));
+    expect(screen.getByRole('button', { name: t('recipeDetails.menu') })).toBeTruthy();
   });
 
   it('closes the menu when tapping outside or cancelling', async () => {
@@ -346,6 +357,22 @@ describe('RecipeDetails adding to the plan', () => {
     fireEvent.click(screen.getAllByRole('button', { name: t('recipeDetails.addToPlan') }).at(-1)!);
 
     await waitFor(() => expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({ meal_date: toIsoDate(firstOfNextMonth), meal_type: 'breakfast' })));
+  });
+
+  it('closes the meal time and date pickers when tapping outside them', async () => {
+    renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast');
+    await screen.findByRole('heading', { name: 'Owsianka bananowa' });
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeDetails.addingTo')) }));
+    expect(screen.getByRole('button', { name: 'Kolacja' })).toBeTruthy();
+    tapOutside();
+    expect(screen.queryByRole('button', { name: 'Kolacja' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /17/ }));
+    expect(screen.getByRole('button', { name: t('recipeDetails.nextMonth') })).toBeTruthy();
+    tapOutside();
+    expect(screen.queryByRole('button', { name: t('recipeDetails.nextMonth') })).toBeNull();
+    expect(document.querySelector('[data-outside-press-layer]')).toBeNull();
   });
 
   it('adds the recipe for several days to the chosen meal time and date', async () => {

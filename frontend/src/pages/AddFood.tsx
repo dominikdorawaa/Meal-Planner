@@ -10,6 +10,7 @@ import { useProductSearch } from '../lib/useProductSearch';
 import { useSavedFood } from '../lib/useSavedFood';
 import { isOwnItem, isUnverified } from '../lib/productPermissions';
 import { ProductRow, RecipeRow } from '../components/FoodRows';
+import { OPEN_HEADER_CLASS, OutsidePressLayer } from '../components/OutsidePressLayer';
 import type { MessageKey } from '../i18n';
 import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
 import { useBarcodeLookup } from '../lib/useBarcodeLookup';
@@ -216,7 +217,6 @@ export function AddFood() {
         own={own}
         unverified={isUnverified(product)}
         selected={isSelected(selection.items, 'product', product.id)}
-        heart={own ? null : { saved: savedFood.isProductSaved(product.id), onToggle: () => savedFood.toggleProduct(product) }}
         onOpen={() => handleSelectProduct(product)}
         onToggleSelected={() => toggleItem('product', product.id)}
       />
@@ -235,7 +235,6 @@ export function AddFood() {
         own={own}
         unverified={isUnverified(recipe)}
         selected={isSelected(selection.items, 'recipe', recipe.id)}
-        heart={own || !savedFood.recipeSavingAvailable ? null : { saved: savedFood.isRecipeSaved(recipe.id), onToggle: () => savedFood.toggleRecipe(recipe) }}
         onOpen={() => handleSelectRecipe(recipe)}
         onToggleSelected={() => toggleItem('recipe', recipe.id)}
       />
@@ -319,7 +318,7 @@ export function AddFood() {
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col">
       {/* Sticky Header & Search */}
-      <header className="sticky top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/10 pt-safe">
+      <header className={`sticky top-0 w-full ${showMealPicker || showDatePicker ? OPEN_HEADER_CLASS : 'z-50'} bg-surface/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/10 pt-safe`}>
         <div className="max-w-xl mx-auto px-4 py-4 space-y-4">
 
           <div className="flex items-center justify-between">
@@ -339,7 +338,7 @@ export function AddFood() {
                     {!mealId && <span className={`material-symbols-outlined text-[16px] text-primary transition-transform ${showMealPicker ? 'rotate-180' : ''}`}>expand_more</span>}
                   </button>
                   {showMealPicker && (
-                    <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
+                    <div className="absolute top-full left-0 mt-1 z-[200] pointer-events-auto bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
                       {availableMealTypes.map((meal: any) => (
                         <button
                           key={meal.id}
@@ -364,7 +363,7 @@ export function AddFood() {
                     {!mealId && <span className={`material-symbols-outlined text-[16px] text-primary/70 transition-transform ${showDatePicker ? 'rotate-180' : ''}`}>expand_more</span>}
                   </button>
                   {showDatePicker && (
-                    <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
+                    <div className="absolute top-full left-0 mt-1 z-[200] pointer-events-auto bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
                       {/* Month nav */}
                       <div className="flex items-center justify-between mb-2 px-1">
                         <button
@@ -427,7 +426,7 @@ export function AddFood() {
             </div>
             {/* Close dropdowns on outside click */}
             {(showMealPicker || showDatePicker) && (
-              <div data-scroll-lock className="fixed inset-0 z-[199]" onClick={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
+              <OutsidePressLayer onClose={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
             )}
           </div>
 
