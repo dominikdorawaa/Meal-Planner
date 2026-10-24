@@ -120,6 +120,15 @@ public class Product {
         return ProductMeasures.describe(unit, storedMeasures);
     }
 
+    public Double nutritionFactor(String measureCode, double amount) {
+        double nutritionBase = ProductMeasures.perPiece(unit) ? 1 : 100;
+        return getMeasures().stream()
+                .filter(measure -> measure.code().equals(measureCode))
+                .findFirst()
+                .map(measure -> amount * measure.baseAmount() / nutritionBase)
+                .orElse(null);
+    }
+
     @JsonProperty("measures")
     public void setMeasures(List<Measure> measures) {
         requestedMeasures = measures;

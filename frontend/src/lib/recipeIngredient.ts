@@ -75,16 +75,20 @@ function scaled(value: number | null | undefined, factor: number, digits: number
   return Number(((Number(value) || 0) * factor).toFixed(digits));
 }
 
-export function ingredientMacros(ingredient: IngredientAmount<Partial<Macros> & ScalableProduct>): Macros {
+export function ingredientNutrition(ingredient: IngredientAmount<Partial<Macros> & ScalableProduct>): Macros | null {
   const factor = ingredientFactor(ingredient);
   const product = ingredient.product;
-  if (factor == null || !product) return ZERO_MACROS;
+  if (factor == null || !product || product.kcal == null) return null;
   return {
     kcal: Math.round((Number(product.kcal) || 0) * factor),
     protein: scaled(product.protein, factor, 1),
     fat: scaled(product.fat, factor, 1),
     carbs: scaled(product.carbs, factor, 1),
   };
+}
+
+export function ingredientMacros(ingredient: IngredientAmount<Partial<Macros> & ScalableProduct>): Macros {
+  return ingredientNutrition(ingredient) ?? ZERO_MACROS;
 }
 
 export function recipeMacrosPerPortion(
