@@ -62,6 +62,10 @@ function renderDetails(query = '?selectDate=2026-10-17&selectType=lunch') {
   );
 }
 
+function tapOutside() {
+  fireEvent.click(document.querySelector('[data-outside-press-layer]')!);
+}
+
 function openMenu() {
   fireEvent.click(screen.getByRole('button', { name: t('product.menu') }));
 }
@@ -250,6 +254,22 @@ describe('ProductDetails saving and ownership', () => {
   const BASE = { ...SKYR, status: 'VERIFIED', source: 'OPEN_FOOD_FACTS', created_by: null, bar_code: '5900820000318' };
   const OWN = { ...SKYR, status: 'PENDING', source: 'USER', created_by: 'user-1' };
 
+  it('closes the menu and the header pickers when tapping outside them', async () => {
+    mocks.getProduct.mockResolvedValue(BASE);
+    renderDetails();
+    await screen.findByRole('button', { name: t('product.menu') });
+
+    openMenu();
+    expect(screen.getByRole('menu')).toBeTruthy();
+    tapOutside();
+    expect(screen.queryByRole('menu')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Lunch/ }));
+    expect(screen.getByRole('button', { name: 'Kolacja' })).toBeTruthy();
+    tapOutside();
+    expect(screen.queryByRole('button', { name: 'Kolacja' })).toBeNull();
+  });
+
   it('saves and unsaves a base product with the heart', async () => {
     mocks.getProduct.mockResolvedValue(BASE);
     renderDetails();
@@ -316,7 +336,7 @@ describe('ProductDetails saving and ownership', () => {
 
     expect(await screen.findByText('Twój')).toBeTruthy();
     expect(screen.getByText('niezweryfikowany')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: t('food.save', { name: 'Skyr' }) })).toBeNull();
+    expect(screen.getByRole('button', { name: t('food.save', { name: 'Skyr' }) })).toBeTruthy();
 
     openMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: /Edytuj/ }));
