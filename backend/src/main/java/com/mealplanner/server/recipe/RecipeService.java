@@ -69,10 +69,7 @@ public class RecipeService {
         Recipe recipe = findEditable(id, userId);
         recipe.setName(details.getName());
         recipe.setImageUrl(details.getImageUrl());
-        recipe.setKcal(details.getKcal());
-        recipe.setProtein(details.getProtein());
-        recipe.setFat(details.getFat());
-        recipe.setCarbs(details.getCarbs());
+        recipe.copyStoredNutrition(details);
         recipe.setPrepTime(details.getPrepTime());
         recipe.setPortions(details.getPortions());
         recipe.setInstructions(details.getInstructions());

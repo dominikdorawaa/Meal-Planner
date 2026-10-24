@@ -123,6 +123,24 @@ class RecipeIngredientProductIntegrationTest {
     }
 
     @Test
+    void recipeNutritionFollowsItsProducts() throws Exception {
+        String token = bearer();
+        Product product = saveProduct();
+        String recipeId = createRecipe(token, product.getId().toString());
+
+        mockMvc.perform(get("/api/recipes/" + recipeId).header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(jsonPath("$.kcal").value(186.0))
+                .andExpect(jsonPath("$.fat").value(18.0));
+
+        product.setKcal(200.0);
+        productRepository.save(product);
+
+        mockMvc.perform(get("/api/recipes/" + recipeId).header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(jsonPath("$.kcal").value(200.0))
+                .andExpect(jsonPath("$.protein").value(2.6));
+    }
+
+    @Test
     void keepsTheIngredientWhenItsProductIsRemoved() throws Exception {
         String token = bearer();
         Product product = saveProduct();
