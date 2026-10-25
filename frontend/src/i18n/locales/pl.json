@@ -153,6 +153,7 @@
   "recipeIngredients.close": "Zamknij wyszukiwanie",
   "recipeIngredients.searchPlaceholder": "Wyszukaj produkt...",
   "recipeIngredients.minChars": "Wpisz co najmniej 3 znaki",
+  "recipeIngredients.recentTitle": "Ostatnie",
   "recipeIngredients.searching": "Szukam produktów...",
   "recipeIngredients.searchFailed": "Nie udało się pobrać produktów",
   "recipeIngredients.loadMoreFailed": "Nie udało się pobrać kolejnych produktów",

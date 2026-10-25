@@ -153,6 +153,7 @@
   "recipeIngredients.close": "Close search",
   "recipeIngredients.searchPlaceholder": "Search for a product...",
   "recipeIngredients.minChars": "Type at least 3 characters",
+  "recipeIngredients.recentTitle": "Recent",
   "recipeIngredients.searching": "Searching for products...",
   "recipeIngredients.searchFailed": "Could not load products",
   "recipeIngredients.loadMoreFailed": "Could not load more products",

@@ -72,3 +72,28 @@ export function recentMealItems<R extends KnownRecipe>(meals: MealWithProduct[],
   }
   return result;
 }
+
+interface RecipeWithIngredients {
+  own?: boolean;
+  created_at?: string;
+  ingredients?: { product?: SavedProduct | null; created_at?: string }[] | null;
+}
+
+export function recentIngredientProducts(meals: MealWithProduct[], recipes: RecipeWithIngredients[], limit: number): Product[] {
+  const ingredientUses = recipes
+    .filter(recipe => recipe.own)
+    .flatMap(recipe => (recipe.ingredients ?? []).map(ingredient => ({
+      product: ingredient.product,
+      created_at: ingredient.created_at ?? recipe.created_at,
+    })));
+  const seen = new Set<string>();
+  const result: Product[] = [];
+  for (const use of newestFirst([...meals, ...ingredientUses])) {
+    const product = withNutrition(use);
+    if (!product || product.deleted || seen.has(product.id)) continue;
+    seen.add(product.id);
+    result.push(product);
+    if (result.length === limit) break;
+  }
+  return result;
+}
