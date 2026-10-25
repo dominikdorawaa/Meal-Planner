@@ -1,0 +1,9 @@
+en:milks
+en:creams
+en:yogurts
+en:kefir
+en:kefirs
+en:buttermilks
+en:quarks
+en:cottage-cheeses
+en:butters

@@ -22,6 +22,17 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             AND (CAST(:maxCarbs AS double precision) IS NULL OR p.carbs <= CAST(:maxCarbs AS double precision))
             """;
 
+    String DUPLICATE_COLUMNS = "lower(p.name), lower(coalesce(p.brand, '')), p.kcal, p.protein, p.fat, p.carbs";
+
+    String DUPLICATE_KEY = "(" + DUPLICATE_COLUMNS + ")";
+
+    String RANKED_PRODUCTS = "SELECT p.*, row_number() OVER (PARTITION BY "
+            + "CASE WHEN p.source = 'OPEN_FOOD_FACTS' THEN NULL ELSE p.id END, " + DUPLICATE_COLUMNS
+            + " ORDER BY EXISTS (SELECT 1 FROM product_measures m WHERE m.product_id = p.id AND m.kind_code = 'package')"
+            + " DESC, p.created_at, p.id) AS duplicate_rank FROM products p WHERE ";
+
+    String FIRST_OF_DUPLICATES = ") p WHERE p.duplicate_rank = 1 ";
+
     Optional<Product> findByBarCodeAndStatusAndDeletedAtIsNull(String barCode, ProductStatus status);
 
     Optional<Product> findFirstByBarCodeAndStatusAndCreatedByAndDeletedAtIsNullOrderByCreatedAtDesc(
@@ -42,7 +53,8 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     String SIMILAR_MATCH = " AND :query <% p.search_text AND NOT (" + CONTAINS_EVERY_WORD + ")"
             + " AND p.bar_code IS DISTINCT FROM :rawQuery ";
 
-    @Query(nativeQuery = true, value = "SELECT p.* FROM products p WHERE " + VISIBLE_PRODUCTS + EXACT_MATCH + """
+    @Query(nativeQuery = true, value = "SELECT p.* FROM (" + RANKED_PRODUCTS + VISIBLE_PRODUCTS + EXACT_MATCH
+            + FIRST_OF_DUPLICATES + """
             ORDER BY (p.bar_code = :rawQuery) IS TRUE DESC,
                      (p.search_text LIKE CONCAT(:query, '%')) DESC,
                      (p.source = 'BASIC') DESC,
@@ -57,14 +69,16 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
                               @Param("maxFat") Double maxFat, @Param("maxCarbs") Double maxCarbs,
                               @Param("limit") int limit, @Param("offset") long offset);
 
-    @Query(nativeQuery = true, value = "SELECT COUNT(*) FROM products p WHERE " + VISIBLE_PRODUCTS + EXACT_MATCH)
+    @Query(nativeQuery = true, value = "SELECT COUNT(*) FROM (" + RANKED_PRODUCTS + VISIBLE_PRODUCTS + EXACT_MATCH
+            + FIRST_OF_DUPLICATES)
     long countExact(@Param("query") String query, @Param("keyword") String keyword,
                     @Param("rawQuery") String rawQuery,
                     @Param("userId") String userId,
                     @Param("maxKcal") Double maxKcal, @Param("minProtein") Double minProtein,
                     @Param("maxFat") Double maxFat, @Param("maxCarbs") Double maxCarbs);
 
-    @Query(nativeQuery = true, value = "SELECT p.* FROM products p WHERE " + VISIBLE_PRODUCTS + SIMILAR_MATCH + """
+    @Query(nativeQuery = true, value = "SELECT p.* FROM (" + RANKED_PRODUCTS + VISIBLE_PRODUCTS + SIMILAR_MATCH
+            + FIRST_OF_DUPLICATES + """
             ORDER BY (p.source = 'BASIC') DESC, word_similarity(:query, p.search_text) DESC, p.name, p.id
             LIMIT :limit OFFSET :offset
             """)
@@ -74,7 +88,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
                                 @Param("maxFat") Double maxFat, @Param("maxCarbs") Double maxCarbs,
                                 @Param("limit") int limit, @Param("offset") long offset);
 
-    @Query(nativeQuery = true, value = "SELECT p.* FROM products p WHERE " + VISIBLE_PRODUCTS + """
+    @Query(nativeQuery = true, value = "SELECT p.* FROM (" + RANKED_PRODUCTS + VISIBLE_PRODUCTS + FIRST_OF_DUPLICATES + """
             ORDER BY p.name, p.id
             LIMIT :limit OFFSET :offset
             """)

@@ -1,0 +1,12 @@
+test
+testowy
+produkt
+product
+unknown
+nieznany
+brak
+brak nazwy
+bez nazwy
+null
+none
+xxx

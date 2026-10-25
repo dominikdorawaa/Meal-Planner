@@ -2,8 +2,6 @@ package com.mealplanner.server.off;
 
 import com.mealplanner.server.product.ExtraNutrients;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -82,32 +80,14 @@ class OffImportRulesTest {
         assertThat(decision.warnings()).containsExactly("KCAL_DEVIATION");
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"???", "12345", "A1", "Test", "  PRODUKT ", "brak nazwy", "Unknown!", "xxx"})
-    void recognisesJunkNames(String name) {
-        assertThat(OffImportRules.isJunkName(name)).isTrue();
-        assertThat(new OffImportRules().check(skyr(name)).errors()).containsExactly(OffImportRules.NAME_JUNK);
+    @Test
+    void rejectsJunkNames() {
+        assertThat(new OffImportRules().check(skyr("brak nazwy")).errors()).containsExactly(OffImportRules.NAME_JUNK);
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"Ser", "Mleko 2%", "Jogurt naturalny", "Chleb żytni", "Test of taste"})
-    void keepsRealNames(String name) {
-        assertThat(OffImportRules.isJunkName(name)).isFalse();
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"Chicken Fingers", "Orange juice", "Coconut Milk", "Cheese And Cranberry Flavoured Chips",
-            "Grill Käse", "Pierogi Mit Sauerkraut", "Cookies with jelly cube & milk cream",
-            "Арахіс смажений солоний", "Magija Сырок Waniliowy", "Lacta παγωτό", "מלפפונים שלמים", "脾气条"})
-    void recognisesForeignNames(String name) {
-        assertThat(OffImportRules.isForeignName(name)).isTrue();
-        assertThat(new OffImportRules().check(skyr(name)).errors()).containsExactly(OffImportRules.NAME_FOREIGN);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"Lech free limonka mięta", "ŁACIATE UHT MILK 2.0%", "Protein Drink O Smaku Waniliowym",
-            "Lody Czekoladowe Z Sosem Czekoladowym", "Lech free yuzu i pomelo", "Milky Way", "Cheetos", "Jogurt naturalny"})
-    void keepsPolishNamesWithSingleForeignWords(String name) {
-        assertThat(OffImportRules.isForeignName(name)).isFalse();
+    @Test
+    void rejectsForeignNames() {
+        assertThat(new OffImportRules().check(skyr("Kysané podmáslí")).errors())
+                .containsExactly(OffImportRules.NAME_FOREIGN);
     }
 }

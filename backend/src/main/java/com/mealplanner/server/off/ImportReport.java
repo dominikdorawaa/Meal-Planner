@@ -4,7 +4,8 @@ import java.util.Locale;
 import java.util.Map;
 
 public record ImportReport(long read, long soldInPoland, long inserted, long updated, long unchanged,
-                           long skipped, Map<String, Long> skippedByReason, long tableRows, long tableBytes) {
+                           long skipped, Map<String, Long> skippedByReason, long removed, long hiddenInUse,
+                           long duplicates, long tableRows, long tableBytes) {
 
     public String describe() {
         StringBuilder text = new StringBuilder()
@@ -16,6 +17,9 @@ public record ImportReport(long read, long soldInPoland, long inserted, long upd
                 .append("Skipped: ").append(skipped).append(" (one product can have several reasons)").append('\n');
         skippedByReason.forEach((reason, count) -> text.append("  ").append(reason).append(": ").append(count).append('\n'));
         return text
+                .append("Removed outdated: ").append(removed).append('\n')
+                .append("Hidden because used in meals: ").append(hiddenInUse).append('\n')
+                .append("Duplicates hidden in search: ").append(duplicates).append('\n')
                 .append("Products in table: ").append(tableRows).append('\n')
                 .append(String.format(Locale.ROOT, "Products table size: %.1f MB%n", tableBytes / 1_000_000.0))
                 .toString();
