@@ -19,6 +19,7 @@ import { AMOUNT_LIMITS, acceptsLimitedNumber, numberFieldProps } from '../lib/in
 import { formatCompactNumber } from '../lib/compactNumber';
 import { KCAL_HERO_SIZES, RING_VALUE_SIZES, fitTextClass } from '../lib/fitText';
 import { MonthCalendar } from '../components/MonthCalendar';
+import { OPEN_HEADER_CLASS, OutsidePressLayer } from '../components/OutsidePressLayer';
 
 const DEFAULT_RECIPE_WEIGHT = 300;
 
@@ -306,7 +307,7 @@ export function RecipeDetails() {
           <span className="font-headline font-bold text-sm tracking-wide">{successToast}</span>
         </div>
       </div>
-      <header className="sticky top-0 w-full z-40 bg-surface/90 backdrop-blur-xl px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10">
+      <header className={`sticky top-0 w-full ${showMealPicker || showDatePicker ? OPEN_HEADER_CLASS : 'z-40'} bg-surface/90 backdrop-blur-xl px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10`}>
         <button
           onClick={() => navigate(-1)}
           aria-label={t('recipeDetails.back')}
@@ -327,7 +328,7 @@ export function RecipeDetails() {
                 {!mealId && <span className={`material-symbols-outlined text-[14px] text-primary transition-transform ${showMealPicker ? 'rotate-180' : ''}`}>expand_more</span>}
               </button>
               {showMealPicker && (
-                <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
+                <div className="absolute top-full left-0 mt-1 z-[200] pointer-events-auto bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
                   {visibleMealTypes.map(meal => (
                     <button
                       key={meal.id}
@@ -352,7 +353,7 @@ export function RecipeDetails() {
                 {!mealId && <span className={`material-symbols-outlined text-[11px] text-primary/70 transition-transform ${showDatePicker ? 'rotate-180' : ''}`}>expand_more</span>}
               </button>
               {showDatePicker && (
-                <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
+                <div className="absolute top-full left-0 mt-1 z-[200] pointer-events-auto bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
                   <div className="flex items-center justify-between mb-2 px-1">
                     <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} aria-label={t('recipeDetails.previousMonth')} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
                       <span className="material-symbols-outlined text-[18px]">chevron_left</span>
@@ -395,29 +396,19 @@ export function RecipeDetails() {
             </div>
 
             {(showMealPicker || showDatePicker) && (
-              <div data-scroll-lock className="fixed inset-0 z-[199]" onClick={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
+              <OutsidePressLayer onClose={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
             )}
           </div>
         ) : (
           <h1 className="font-headline font-bold text-[15px] sm:text-base text-on-surface leading-tight flex-1">{t('recipeDetails.title')}</h1>
         )}
-        {isOwn ? (
+        {isOwn && (
           <button
             onClick={() => setShowMenu(true)}
             aria-label={t('recipeDetails.menu')}
             className="w-10 h-10 ml-auto rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform hover:bg-surface-container-highest shrink-0"
           >
             <span className="material-symbols-outlined">more_vert</span>
-          </button>
-        ) : (
-          <button
-            onClick={toggleSaved}
-            disabled={isTogglingSaved}
-            aria-pressed={saved}
-            aria-label={t(saved ? 'recipeDetails.unsave' : 'recipeDetails.save')}
-            className={`w-10 h-10 ml-auto rounded-full flex items-center justify-center active:scale-90 transition-all hover:bg-surface-container-highest shrink-0 ${saved ? 'text-rose-500' : 'text-on-surface-variant'}`}
-          >
-            <span className="material-symbols-outlined" style={saved ? { fontVariationSettings: "'FILL' 1" } : undefined}>favorite</span>
           </button>
         )}
       </header>
@@ -429,6 +420,15 @@ export function RecipeDetails() {
           className="absolute inset-0 w-full h-full"
           imgClassName="w-full h-full object-cover"
         />
+        <button
+          onClick={toggleSaved}
+          disabled={isTogglingSaved}
+          aria-pressed={saved}
+          aria-label={t(saved ? 'recipeDetails.unsave' : 'recipeDetails.save')}
+          className={`absolute top-3 right-3 w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center active:scale-90 transition-transform ${saved ? 'text-rose-400' : 'text-white'}`}
+        >
+          <span className="material-symbols-outlined text-[22px]" style={saved ? { fontVariationSettings: "'FILL' 1" } : undefined}>favorite</span>
+        </button>
       </div>
 
       <div className="max-w-xl mx-auto w-full px-4 pt-3">
