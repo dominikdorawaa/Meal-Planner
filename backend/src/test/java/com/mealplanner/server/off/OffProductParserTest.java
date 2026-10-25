@@ -96,4 +96,33 @@ class OffProductParserTest {
         assertThat(product.kcal()).isEqualTo(70.0);
         assertThat(product.protein()).isEqualTo(12.0);
     }
+
+    @Test
+    void normalizesTheNameAndAddsFatPercentFromTheCategory() {
+        OffProduct product = OffProductParser.parse("{\"code\":\"5901432003117\",\"product_name_pl\":\"MLEKO  UHT\","
+                + "\"countries_tags\":[\"en:poland\"],\"categories_tags\":[\"en:dairies\",\"en:milks\",7],"
+                + "\"nutriments\":{\"fat_100g\":3.2}}").orElseThrow();
+
+        assertThat(product.name()).isEqualTo("Mleko uht 3,2%");
+        assertThat(product.fat()).isEqualTo(3.2);
+    }
+
+    @Test
+    void keepsThePercentAlreadyInTheName() {
+        OffProduct product = OffProductParser.parse("{\"code\":\"5901432003117\",\"product_name_pl\":\"Mleko 3.2%\","
+                + "\"countries_tags\":[\"en:poland\"],\"categories_tags\":[\"en:milks\"],"
+                + "\"nutriments\":{\"fat_100g\":3.2}}").orElseThrow();
+
+        assertThat(product.name()).isEqualTo("Mleko 3,2%");
+    }
+
+    @Test
+    void doesNotAddFatPercentToJunkNames() {
+        OffProduct product = OffProductParser.parse("{\"code\":\"5901432003117\",\"product_name_pl\":\"Test\","
+                + "\"countries_tags\":[\"en:poland\"],\"categories_tags\":[\"en:milks\"],"
+                + "\"nutriments\":{\"fat_100g\":3.2}}").orElseThrow();
+
+        assertThat(product.name()).isEqualTo("Test");
+        assertThat(new OffImportRules().check(product).errors()).contains(OffImportRules.NAME_JUNK);
+    }
 }

@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.zip.GZIPOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -101,7 +102,7 @@ class OffImportIntegrationTest {
     void importsValidPolishProductsFromTheDumpAndMakesThemSearchable() throws IOException {
         ImportReport report = importService.importDump(dump(
                 skyr("Skyr naturalny", 64.6),
-                product("5901234123457", "Jogurt naturalny", "Bakoma", "400 g", 61, 4.3, 3, 4.5),
+                product("5901234123457", "Jogurt  naturalny", "Bakoma", "400 g", 61, 4.3, 3, 4.5),
                 product("5900512000015", "Mleko 2%", "Mlekovita", "1 l", 50, 3.2, 2, 4.8),
                 product("96385074", "Napój w kJ", "", "", 180, 0, 0, 11),
                 product("5900820000325", "???", "", "", 950, 12, 0, 4.2),
@@ -136,7 +137,7 @@ class OffImportIntegrationTest {
         assertThat(report.tableRows()).isEqualTo(3);
         assertThat(report.tableBytes()).isPositive();
 
-        assertThat(searchNames("jogurt")).containsExactly("Jogurt naturalny");
+        assertThat(searchNames("jogurt")).containsExactly("Jogurt naturalny 3%");
         assertThat(searchNames("mleko")).containsExactly("Mleko 2%");
         assertThat(searchNames("piatnica")).containsExactly("Skyr naturalny");
     }
@@ -268,5 +269,106 @@ class OffImportIntegrationTest {
 
         assertThat(report.unchanged()).isEqualTo(1);
         assertThat(byBarCode("5900820000318").getSugars()).isEqualTo(4.0);
+    }
+
+    private Product storedOffProduct(String barCode, String name) {
+        Product product = new Product();
+        product.setName(name);
+        product.setBarCode(barCode);
+        product.setKcal(65.0);
+        product.setProtein(12.0);
+        product.setFat(0.0);
+        product.setCarbs(4.2);
+        product.setStatus(ProductStatus.VERIFIED);
+        product.setSource(ProductSource.OPEN_FOOD_FACTS);
+        return productRepository.save(product);
+    }
+
+    private void eat(Product product) {
+        UUID userId = UUID.randomUUID();
+        jdbcTemplate.update("insert into app_users (id, email, password_hash) values (?, ?, 'hash')",
+                userId, userId + "@example.com");
+        jdbcTemplate.update("insert into user_meals (id, user_id, product_id, meal_date, meal_type) "
+                + "values (?, ?, ?, current_date, 'BREAKFAST')", UUID.randomUUID(), userId, product.getId());
+    }
+
+    @Test
+    void removesProductsThatNoLongerPassTheRules() throws IOException {
+        importService.importDump(dump(skyr("Skyr naturalny", 64.6)));
+        Product foreign = storedOffProduct("5901234123457", "Kysané podmáslí");
+        Product scanned = storedOffProduct("5900512000015", "Kefir naturalny");
+        Product own = userProduct("5900820000325", ProductStatus.VERIFIED);
+        own.setName("Barre céréales");
+        productRepository.save(own);
+
+        ImportReport report = importService.importDump(dump(skyr("Skyr naturalny", 950)));
+
+        assertThat(report.removed()).isEqualTo(2);
+        assertThat(report.hiddenInUse()).isZero();
+        assertThat(report.describe()).contains("Removed outdated: 2");
+        assertThat(productRepository.findAll()).extracting(Product::getId)
+                .containsExactlyInAnyOrder(scanned.getId(), own.getId());
+        assertThat(productRepository.findById(foreign.getId())).isEmpty();
+    }
+
+    @Test
+    void keepsTheProductWhenAnotherEntryWithTheSameCodeIsRejected() throws IOException {
+        ImportReport report = importService.importDump(dump(
+                skyr("Skyr naturalny", 64.6),
+                skyr("Skyr naturalny", 950)));
+
+        assertThat(report.removed()).isZero();
+        assertThat(byBarCode("5900820000318").getName()).isEqualTo("Skyr naturalny");
+    }
+
+    @Test
+    void hidesOutdatedProductsThatAreUsedInMeals() throws IOException {
+        Product eaten = storedOffProduct("5901234123457", "Kysané podmáslí");
+        eat(eaten);
+
+        ImportReport report = importService.importDump(dump(skyr("Skyr naturalny", 64.6)));
+
+        assertThat(report.hiddenInUse()).isEqualTo(1);
+        assertThat(report.removed()).isZero();
+        assertThat(productRepository.findById(eaten.getId()).orElseThrow().getDeletedAt()).isNotNull();
+        assertThat(searchNames("podmasli")).isEmpty();
+    }
+
+    @Test
+    void removesOutdatedProductsInBatches() throws IOException {
+        for (int i = 0; i < OffImportService.BATCH_SIZE + 5; i++) {
+            storedOffProduct(withCheckDigit(String.format("590%09d", i)), "Barre céréales " + i);
+        }
+
+        ImportReport report = importService.importDump(dump(skyr("Skyr naturalny", 64.6)));
+
+        assertThat(report.removed()).isEqualTo(OffImportService.BATCH_SIZE + 5);
+        assertThat(productRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void showsOnlyOneOfDuplicatedProductsInSearch() throws IOException {
+        ImportReport report = importService.importDump(dump(
+                product("5900512000015", "Mleko 2%", "Mlekovita", "", 50, 3.2, 2, 4.8),
+                product("5900512000022", "MLEKO 2%", "MLEKOVITA", "1000 g", 50, 3.2, 2, 4.8),
+                product("5900512000039", "Mleko 2%", "Mlekovita", "", 51, 3.2, 2, 4.8),
+                product("5900512000046", "Mleko 2%", "Łaciate", "", 50, 3.2, 2, 4.8)));
+
+        assertThat(report.duplicates()).isEqualTo(1);
+        assertThat(report.describe()).contains("Duplicates hidden in search: 1");
+        List<Product> found = productService.search("mleko", NO_FILTERS, 0, 20, null).items();
+        assertThat(found).extracting(Product::getBarCode)
+                .containsExactlyInAnyOrder("5900512000022", "5900512000039", "5900512000046");
+        assertThat(productService.search("", NO_FILTERS, 0, 20, null).items()).hasSize(3);
+        assertThat(productService.search("5900512000015", NO_FILTERS, 0, 20, null).items())
+                .extracting(Product::getBarCode).containsExactly("5900512000015");
+    }
+
+    @Test
+    void neverHidesProductsAddedByUsersAsDuplicates() throws IOException {
+        importService.importDump(dump(product("5900820000318", "User product", "", "", 65, 12, 0, 4.2)));
+        userProduct("5900820000325", ProductStatus.VERIFIED);
+
+        assertThat(searchNames("user product")).hasSize(2);
     }
 }

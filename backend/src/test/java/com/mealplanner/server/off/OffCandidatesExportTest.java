@@ -158,7 +158,7 @@ class OffCandidatesExportTest {
 
         List<String> lines = readCsv(csv);
         assertThat(lines.get(1)).startsWith("'=1+1;\"'=HYPERLINK(\"\"http://example.com\"\")\";'+48 Foods;;;;;;;;;100g;'=1+1;");
-        assertThat(lines.get(2)).startsWith("\"=\"\"5900820000318\"\"\";'@SUM;'-Brand;;;;;;;;;100g;''quoted;");
+        assertThat(lines.get(2)).startsWith("\"=\"\"5900820000318\"\"\";'@Sum;'-Brand;;;;;;;;;100g;''quoted;");
     }
 
     @Test
@@ -205,6 +205,6 @@ class OffCandidatesExportTest {
 
         OffCandidatesExport.export(dump, csv);
 
-        assertThat(readCsv(csv).get(1)).contains(";Śmietanka;;186;2,6;18;3,4;12;;;0,1;100g;;OK;;yes;");
+        assertThat(readCsv(csv).get(1)).contains(";Śmietanka 18%;;186;2,6;18;3,4;12;;;0,1;100g;;OK;;yes;");
     }
 }

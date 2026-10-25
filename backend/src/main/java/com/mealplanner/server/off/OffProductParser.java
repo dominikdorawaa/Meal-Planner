@@ -4,6 +4,8 @@ import com.mealplanner.server.product.ExtraNutrients;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -36,13 +38,14 @@ public final class OffProductParser {
 
     public static OffProduct fromNode(JsonNode node) {
         PolishName name = polishName(node);
+        Double fat = nutrient(node, "fat");
         return new OffProduct(
                 text(node, "code"),
-                name.text(),
+                OffNameRules.withFatPercent(OffNameRules.normalize(name.text()), fat, categories(node)),
                 firstBrand(text(node, "brands")),
                 kcal(node),
                 nutrient(node, "proteins"),
-                nutrient(node, "fat"),
+                fat,
                 nutrient(node, "carbohydrates"),
                 new ExtraNutrients(
                         nutrient(node, "saturated-fat"),
@@ -94,6 +97,16 @@ public final class OffProductParser {
         boolean genericAddsDetails = genericName.length() > name.length()
                 && genericName.toLowerCase(Locale.ROOT).startsWith(name.toLowerCase(Locale.ROOT));
         return genericAddsDetails ? genericName : name;
+    }
+
+    private static List<String> categories(JsonNode node) {
+        List<String> categories = new ArrayList<>();
+        for (JsonNode tag : node.path("categories_tags")) {
+            if (tag.isString()) {
+                categories.add(tag.asString());
+            }
+        }
+        return categories;
     }
 
     private static boolean isSoldInPoland(JsonNode node) {
@@ -149,7 +162,6 @@ public final class OffProductParser {
         JsonNode value = node.path(field);
         return value.isString() ? value.asString().trim() : "";
     }
-
 
     private static String firstBrand(String brands) {
         int comma = brands.indexOf(',');

@@ -54,7 +54,7 @@ UPDATE app_users SET role = 'ADMIN' WHERE email = 'admin@example.com';
 
 Dane produktów pochodzą z [Open Food Facts](https://world.openfoodfacts.org) i są dostępne na licencji [ODbL](https://opendatacommons.org/licenses/odbl/1-0/). Aplikacja pokazuje tę informację na ekranie profilu.
 
-Import czyta zrzut JSONL z [Open Food Facts](https://world.openfoodfacts.org/data) (`openfoodfacts-products.jsonl.gz`) i sam odfiltrowuje produkty: zostają tylko sprzedawane w Polsce, z polską nazwą, poprawnymi wartościami odżywczymi i unikalnym kodem kreskowym. Reguły są w `OffImportRules`. Import można powtarzać: nie tworzy duplikatów, nie nadpisuje produktów dodanych przez użytkowników i nie przywraca produktów usuniętych w aplikacji. Na końcu wypisuje raport z liczbą produktów, powodami pominięcia i rozmiarem tabeli.
+Import czyta zrzut JSONL z [Open Food Facts](https://world.openfoodfacts.org/data) (`openfoodfacts-products.jsonl.gz`) i sam odfiltrowuje produkty: zostają tylko sprzedawane w Polsce, z polską nazwą, poprawnymi wartościami odżywczymi i unikalnym kodem kreskowym. Reguły są w `OffImportRules` i `OffNameRules`, a listy słów do rozpoznawania nazw w `backend/src/main/resources/off/`. Import można powtarzać: nie tworzy duplikatów, nie nadpisuje produktów dodanych przez użytkowników i nie przywraca produktów usuniętych w aplikacji. Usuwa produkty z Open Food Facts, które nie spełniają już reguł (te użyte w dzienniku tylko ukrywa). Na końcu wypisuje raport z liczbą produktów, powodami pominięcia i rozmiarem tabeli.
 
 Lokalnie (baza z `docker compose`, dane z `.env`) w katalogu `backend`:
 
