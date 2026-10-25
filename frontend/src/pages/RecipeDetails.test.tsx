@@ -127,6 +127,26 @@ describe('RecipeDetails loading', () => {
     expect(screen.getByText('5 tbsp')).toBeTruthy();
   });
 
+  it('shows the nutrition of each ingredient for the chosen portions', async () => {
+    mocks.getRecipe.mockResolvedValue({
+      ...OWN_RECIPE,
+      ingredients: [
+        ...OWN_RECIPE.ingredients,
+        { id: 'i2', name: 'Miód', amount: 20, unit: 'g', product: null },
+      ],
+    });
+    renderDetails();
+    await screen.findByRole('heading', { name: 'Owsianka bananowa' });
+
+    const [banana, honey] = screen.getAllByTestId('recipe-ingredient');
+    expect(within(banana).getByText('89 kcal')).toBeTruthy();
+    expect(within(banana).getByText('B 1.1 g · T 0.3 g · W 23 g')).toBeTruthy();
+    expect(within(honey).getByText(t('nutrients.noData'))).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.morePortions') }));
+    expect(within(screen.getAllByTestId('recipe-ingredient')[0]).getByText('111 kcal')).toBeTruthy();
+  });
+
   it('recalculates calories for the typed weight', async () => {
     renderDetails();
     const grams = await screen.findByLabelText(t('recipeDetails.gramsInput'));

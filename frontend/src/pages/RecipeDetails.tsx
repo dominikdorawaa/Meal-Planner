@@ -9,7 +9,7 @@ import { RecipeMoreNutrients } from '../components/RecipeMoreNutrients';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { useBottomSheet } from '../lib/bottomSheet';
-import { ingredientGrams, ingredientUnitLabel } from '../lib/recipeIngredient';
+import { ingredientGrams, ingredientNutrition, ingredientUnitLabel } from '../lib/recipeIngredient';
 import { profileMealTypes } from '../lib/mealTypes';
 import { announceDeletedRecipe } from '../lib/deletedRecipe';
 import { RecipeDeleteSheet } from '../components/RecipeDeleteSheet';
@@ -605,10 +605,24 @@ export function RecipeDetails() {
 
             <div className="flex flex-col gap-3">
               {ingredients.map((ing, idx) => {
-                const scaledAmount = ((Number(ing.amount) || 0) * (activeIngredientPortions / basePortions)).toFixed(1).replace(/\.0$/, '');
+                const exactAmount = (Number(ing.amount) || 0) * (activeIngredientPortions / basePortions);
+                const scaledAmount = exactAmount.toFixed(1).replace(/\.0$/, '');
+                const nutrition = ingredientNutrition({ ...ing, amount: exactAmount });
                 return (
-                  <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-surface-container-lowest border border-outline-variant/10">
-                    <span className="font-bold text-sm text-on-surface capitalize min-w-0 break-words">{ing.name}</span>
+                  <div key={idx} data-testid="recipe-ingredient" className="flex items-center justify-between p-3 rounded-2xl bg-surface-container-lowest border border-outline-variant/10">
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="font-bold text-sm text-on-surface capitalize break-words">{ing.name}</span>
+                      {nutrition ? (
+                        <span className="flex flex-wrap items-baseline gap-x-2 leading-tight">
+                          <span className="text-xs font-bold text-primary tabular-nums whitespace-nowrap">{formatCompactNumber(nutrition.kcal)} kcal</span>
+                          <span className="text-[10px] font-medium text-on-surface-variant tabular-nums whitespace-nowrap">
+                            {t('plan.summary.proteinShort')} {formatCompactNumber(nutrition.protein, 1)} g · {t('plan.summary.fatShort')} {formatCompactNumber(nutrition.fat, 1)} g · {t('plan.summary.carbsShort')} {formatCompactNumber(nutrition.carbs, 1)} g
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-[11px] italic text-on-surface-variant/70">{t('nutrients.noData')}</span>
+                      )}
+                    </div>
                     <span className="text-xs font-bold text-on-surface-variant bg-surface-container-highest px-3 py-1 rounded-lg whitespace-nowrap shrink-0 ml-2">
                       {scaledAmount} {ingredientUnitLabel(ing.unit, Number(scaledAmount), ing.product)}
                     </span>

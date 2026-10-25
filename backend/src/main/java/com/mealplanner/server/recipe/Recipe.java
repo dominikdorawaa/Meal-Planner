@@ -10,6 +10,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Entity
@@ -69,4 +70,31 @@ public class Recipe {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
+
+    public Double getKcal() {
+        return nutrition().map(RecipeNutrition::kcal).orElse(kcal);
+    }
+
+    public Double getProtein() {
+        return nutrition().map(RecipeNutrition::protein).orElse(protein);
+    }
+
+    public Double getFat() {
+        return nutrition().map(RecipeNutrition::fat).orElse(fat);
+    }
+
+    public Double getCarbs() {
+        return nutrition().map(RecipeNutrition::carbs).orElse(carbs);
+    }
+
+    void copyStoredNutrition(Recipe source) {
+        kcal = source.kcal;
+        protein = source.protein;
+        fat = source.fat;
+        carbs = source.carbs;
+    }
+
+    private Optional<RecipeNutrition> nutrition() {
+        return RecipeNutrition.perPortion(ingredients, portions);
+    }
 }

@@ -5,6 +5,7 @@ import {
   ingredientGrams,
   ingredientAmountLabel,
   ingredientMacros,
+  ingredientNutrition,
   ingredientUnits,
   supportedIngredientUnit,
   recipeMacrosPerPortion,
@@ -100,6 +101,21 @@ describe('ingredientMacros', () => {
     expect(ingredientMacros({ amount: 1, unit: 'g', product: { id: 'p9', name: 'Empty', unit: '100g' } as never })).toEqual({
       kcal: 0, protein: 0, fat: 0, carbs: 0,
     });
+  });
+});
+
+describe('ingredientNutrition', () => {
+  it('scales the product nutrition including products without calories', () => {
+    expect(ingredientNutrition({ amount: 1, unit: 'package', product: skyrIn(measure('package', 450)) })?.kcal).toBe(293);
+    expect(ingredientNutrition({ amount: 250, unit: 'ml', product: { id: 'w', name: 'Water', unit: '100ml', kcal: 0 } as never })).toEqual({
+      kcal: 0, protein: 0, fat: 0, carbs: 0,
+    });
+  });
+
+  it('has no data without a product, calories or a known measure', () => {
+    expect(ingredientNutrition({ amount: 20, unit: 'g', product: null })).toBeNull();
+    expect(ingredientNutrition({ amount: 1, unit: 'package', product: skyr })).toBeNull();
+    expect(ingredientNutrition({ amount: 1, unit: 'g', product: { id: 'p9', name: 'Empty', unit: '100g' } as never })).toBeNull();
   });
 });
 
