@@ -1,17 +1,17 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useId, useState, useMemo } from 'react';
 import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type Product } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, firstDayOfMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { productDisplayName } from '../lib/productName';
 import { canEditProduct, isOwnItem, isUnverified } from '../lib/productPermissions';
-import { ProductNutritionTable } from '../components/ProductNutritionTable';
+import { NutritionFactsTable } from '../components/NutritionFactsTable';
 import { ItemBadges, SaveHeartButton } from '../components/FoodRows';
 import { OPEN_HEADER_CLASS, OutsidePressLayer } from '../components/OutsidePressLayer';
 import { NewProductSheet, type ProductFormMode } from '../components/NewProductSheet';
 import { draftFromProduct } from '../lib/productDraft';
 import { MeasureAmountRows } from '../components/MeasureAmountRows';
-import { measureUnit, scaleNutritionFacts } from '../lib/nutrients';
+import { NUTRITION_TABLE_FACTS, measureUnit } from '../lib/nutrients';
 import { ingredientAmountLabel, ingredientFactor } from '../lib/recipeIngredient';
 import { baseMeasureCode, defaultMeasure, findMeasure, initialMeasureValues, isBaseMeasure, measureBaseAmount, type MeasureValues } from '../lib/measures';
 import { t } from '../i18n';
@@ -44,6 +44,8 @@ export function ProductDetails() {
 
   const [activeCode, setActiveCode] = useState('');
   const [values, setValues] = useState<MeasureValues>({});
+  const [showNutritionTable, setShowNutritionTable] = useState(false);
+  const nutritionTableId = useId();
   const [savedAmount, setSavedAmount] = useState<{ weight: number; code: string } | null>(null);
 
   const [activeDate, setActiveDate] = useState(selectDate || '');
@@ -467,8 +469,15 @@ export function ProductDetails() {
               <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Tłuszcz</span>
             </div>
 
-            {/* Węglowodany */}
-            <div className="flex flex-col items-center gap-3">
+            <button
+              type="button"
+              aria-expanded={showNutritionTable}
+              aria-controls={nutritionTableId}
+              aria-label={showNutritionTable ? t('nutrients.hideTable') : t('nutrients.showTable')}
+              onClick={() => setShowNutritionTable(open => !open)}
+              className="flex items-start"
+            >
+              <span className="flex flex-col items-center gap-3">
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#10B981 ${pctC}%, #10B98110 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
@@ -476,22 +485,20 @@ export function ProductDetails() {
                  </div>
               </div>
               <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Węgle</span>
-            </div>
+              </span>
+              <span aria-hidden="true" className={`material-symbols-outlined h-16 min-[360px]:h-[72px] flex items-center -mr-2 text-[28px] text-primary transition-transform ${showNutritionTable ? 'rotate-180' : ''}`}>expand_more</span>
+            </button>
           </div>
-        </section>
 
-        <ProductNutritionTable
-          title={t('nutrients.productTitle')}
-          unit={measureUnit(product.unit)}
-          per100={product}
-          columns={[
-            { label: t('nutrients.per100', { unit: measureUnit(product.unit) }), values: product },
-            {
-              label: t('nutrients.perPortion', { amount: chosenLabel }),
-              values: scaleNutritionFacts(product, chosenFactor),
-            },
-          ]}
-        />
+          {showNutritionTable && (
+            <div id={nutritionTableId}>
+              <NutritionFactsTable
+                columns={[{ label: t('nutrients.per100', { unit: measureUnit(product.unit) }), values: product }]}
+                facts={NUTRITION_TABLE_FACTS}
+              />
+            </div>
+          )}
+        </section>
 
         {/* Podgląd bilansu */}
         {selectDate && (
