@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useId, useState, useMemo } from 'react';
 import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, firstDayOfMonth, formatDayMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { targetRange } from '../lib/macros';
-import { RecipeMoreNutrients } from '../components/RecipeMoreNutrients';
+import { NutritionFactsTable } from '../components/NutritionFactsTable';
+import { NUTRITION_TABLE_FACTS, recipeExtraNutrientsPerPortion } from '../lib/nutrients';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { useBottomSheet } from '../lib/bottomSheet';
@@ -78,6 +79,8 @@ export function RecipeDetails() {
   const [notice, setNotice] = useState<string | null>(null);
   const closeNotice = useCallback(() => setNotice(null), []);
   const [showAddToPlan, setShowAddToPlan] = useState(false);
+  const [showNutritionTable, setShowNutritionTable] = useState(false);
+  const nutritionTableId = useId();
   const [quickDate, setQuickDate] = useState('');
   const [quickDateInput, setQuickDateInput] = useState('');
   const [showSheetCalendar, setShowSheetCalendar] = useState(false);
@@ -559,7 +562,15 @@ export function RecipeDetails() {
               <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">{t('recipeDetails.fat')}</span>
             </div>
 
-            <div className="flex flex-col items-center gap-3">
+            <button
+              type="button"
+              aria-expanded={showNutritionTable}
+              aria-controls={nutritionTableId}
+              aria-label={t(showNutritionTable ? 'nutrients.hideTable' : 'nutrients.showTable', { value: gramsLabel(currentC) })}
+              onClick={() => setShowNutritionTable(open => !open)}
+              className="flex items-start"
+            >
+              <span className="flex flex-col items-center gap-3">
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#10B981 ${pctC}%, #10B98110 0)` }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
@@ -567,12 +578,24 @@ export function RecipeDetails() {
                  </div>
               </div>
               <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">{t('recipeDetails.carbs')}</span>
-            </div>
+              </span>
+              <span aria-hidden="true" className={`material-symbols-outlined h-16 min-[360px]:h-[72px] flex items-center -mr-2 text-[28px] text-primary transition-transform ${showNutritionTable ? 'rotate-180' : ''}`}>expand_more</span>
+            </button>
 
           </div>
-        </section>
 
-        <RecipeMoreNutrients ingredients={ingredients} portions={basePortions} />
+          {showNutritionTable && (
+            <div id={nutritionTableId}>
+              <NutritionFactsTable
+                columns={[{
+                  label: t('nutrients.recipePortion'),
+                  values: { kcal: recipe.kcal, protein: recipe.protein, fat: recipe.fat, carbs: recipe.carbs, ...recipeExtraNutrientsPerPortion(ingredients, basePortions) },
+                }]}
+                facts={NUTRITION_TABLE_FACTS}
+              />
+            </div>
+          )}
+        </section>
 
         {ingredients && ingredients.length > 0 && (
           <section className="flex flex-col gap-4">

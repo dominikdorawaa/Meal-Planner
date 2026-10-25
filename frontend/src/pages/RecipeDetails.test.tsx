@@ -147,6 +147,40 @@ describe('RecipeDetails loading', () => {
     expect(within(screen.getAllByTestId('recipe-ingredient')[0]).getByText('111 kcal')).toBeTruthy();
   });
 
+  it('opens one table per portion from the carbs ring, whatever amount is chosen', async () => {
+    const banana = { ...BANANA, saturated_fat: 0.1, sugars: 12, fiber: 2.6, salt: 0 };
+    mocks.getRecipe.mockResolvedValue({ ...OWN_RECIPE, ingredients: [{ ...OWN_RECIPE.ingredients[0], product: banana }] });
+    renderDetails();
+    await screen.findByRole('heading', { name: 'Owsianka bananowa' });
+    expect(screen.queryByRole('table')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.morePortions') }));
+    const toggle = screen.getByRole('button', { name: t('nutrients.showTable', { value: '23g' }) });
+    fireEvent.click(toggle);
+
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('columnheader', { name: t('nutrients.recipePortion') })).toBeTruthy();
+    const cells = screen.getAllByRole('row').slice(1).map(row => within(row).getByRole('cell').textContent);
+    expect(cells).toEqual(['89 kcal', '1.1 g', '0.3 g', '0.1 g', '23 g', '12 g', '2.6 g', '0 g']);
+
+    fireEvent.click(screen.getByRole('button', { name: t('nutrients.hideTable', { value: '23g' }) }));
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('shows a dash for nutrients that an ingredient has no data for', async () => {
+    mocks.getRecipe.mockResolvedValue({
+      ...OWN_RECIPE,
+      ingredients: [...OWN_RECIPE.ingredients, { id: 'i2', name: 'Miód', amount: 20, unit: 'g', product: null }],
+    });
+    renderDetails();
+
+    fireEvent.click(await screen.findByRole('button', { name: t('nutrients.showTable', { value: '23g' }) }));
+    expect(within(screen.getByRole('row', { name: /Wartość energetyczna/ })).getByRole('cell').textContent).toBe('89 kcal');
+    for (const name of [/nasycone/, /Cukry/, /Błonnik/, /Sól/]) {
+      expect(within(screen.getByRole('row', { name })).getByRole('cell').textContent).toBe('-');
+    }
+  });
+
   it('recalculates calories for the typed weight', async () => {
     renderDetails();
     const grams = await screen.findByLabelText(t('recipeDetails.gramsInput'));

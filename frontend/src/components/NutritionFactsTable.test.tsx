@@ -27,11 +27,12 @@ describe('NutritionFactsTable', () => {
 
   it('marks missing values and can show only selected nutrients', () => {
     render(
-      <NutritionFactsTable title="Więcej" columns={[{ label: '1 porcja', values: { fiber: 2 } }]} facts={['sugars', 'fiber']} />
+      <NutritionFactsTable columns={[{ label: '1 porcja', values: { fiber: 2 } }]} facts={['sugars', 'fiber']} />
     );
 
+    expect(screen.queryByRole('heading')).toBeNull();
     expect(screen.getAllByRole('row')).toHaveLength(3);
-    expect(within(screen.getByRole('row', { name: /Cukry/ })).getByRole('cell').textContent).toBe('brak');
+    expect(within(screen.getByRole('row', { name: /Cukry/ })).getByRole('cell').textContent).toBe('-');
     expect(within(screen.getByRole('row', { name: /Błonnik/ })).getByRole('cell').textContent).toBe('2 g');
   });
 });

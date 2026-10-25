@@ -14,7 +14,7 @@ export interface NutritionFactsColumn {
 }
 
 interface NutritionFactsTableProps {
-  title: string;
+  title?: string;
   columns: NutritionFactsColumn[];
   facts?: readonly NutritionFact[];
 }
@@ -22,7 +22,7 @@ interface NutritionFactsTableProps {
 export function NutritionFactsTable({ title, columns, facts = NUTRITION_FACTS }: NutritionFactsTableProps) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-[10px] font-black uppercase tracking-widest text-on-surface opacity-40">{title}</h2>
+      {title && <h2 className="text-[10px] font-black uppercase tracking-widest text-on-surface opacity-40">{title}</h2>}
       <table className="w-full text-sm">
         <thead>
           <tr className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">

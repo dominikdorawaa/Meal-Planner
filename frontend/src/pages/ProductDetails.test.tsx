@@ -221,32 +221,37 @@ describe('ProductDetails measures', () => {
 });
 
 describe('ProductDetails nutrition table', () => {
-  it('keeps extra nutrients folded under carbs and shows them per 100 g', async () => {
+  it('opens one table per 100 g from the carbs ring', async () => {
     mocks.getProduct.mockResolvedValue({ ...SKYR, saturated_fat: 0.1, sugars: 2.5, fiber: 0, salt: 0.12 });
     renderDetails();
 
-    const toggle = await screen.findByRole('button', { name: t('nutrients.showMore', { unit: 'g' }) });
-    expect(screen.queryByText(t('nutrients.sugars'))).toBeNull();
-    expect(screen.queryByText(t('nutrients.someMissing'))).toBeNull();
+    const toggle = await screen.findByRole('button', { name: t('nutrients.showTable', { value: '3g' }) });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('table')).toBeNull();
 
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByText(t('nutrients.sugars'))).toBeTruthy();
-    expect(screen.getByText('2.5 g')).toBeTruthy();
-    expect(screen.getByText('0.12 g')).toBeTruthy();
+    expect(toggle.getAttribute('aria-label')).toBe(t('nutrients.hideTable', { value: '3g' }));
+    expect(screen.getAllByRole('table')).toHaveLength(1);
+    expect(screen.getAllByRole('columnheader').map(header => header.textContent)).toEqual([t('nutrients.name'), '100 g']);
+    expect(screen.getAllByRole('rowheader').map(header => header.textContent)).toEqual([
+      'Wartość energetyczna', 'Białko', 'Tłuszcz', 'Kwasy tłuszczowe nasycone', 'Węglowodany', 'Cukry', 'Błonnik', 'Sól',
+    ]);
+    expect(within(screen.getByRole('row', { name: /Cukry/ })).getByRole('cell').textContent).toBe('2.5 g');
+    expect(within(screen.getByRole('row', { name: /Sól/ })).getByRole('cell').textContent).toBe('0.12 g');
 
-    fireEvent.click(screen.getByRole('button', { name: t('nutrients.showLess') }));
-    expect(screen.queryByText(t('nutrients.sugars'))).toBeNull();
+    fireEvent.click(toggle);
+    expect(screen.queryByRole('table')).toBeNull();
   });
 
-  it('marks missing values and adds one quiet note under the table', async () => {
-    mocks.getProduct.mockResolvedValue({ ...SKYR, fat: null });
+  it('shows a dash for missing values and per 100 ml for liquids', async () => {
+    mocks.getProduct.mockResolvedValue({ ...SKYR, unit: '100ml', fat: null });
     renderDetails();
 
-    await screen.findByText(t('nutrients.someMissing'));
-    expect(screen.getAllByText(t('nutrients.noData'))).toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', { name: t('nutrients.showMore', { unit: 'g' }) }));
-    expect(screen.getAllByText(t('nutrients.noData'))).toHaveLength(6);
+    fireEvent.click(await screen.findByRole('button', { name: t('nutrients.showTable', { value: '3g' }) }));
+    expect(screen.getByRole('columnheader', { name: '100 ml' })).toBeTruthy();
+    expect(within(screen.getByRole('row', { name: /^Tłuszcz/ })).getByRole('cell').textContent).toBe('-');
+    expect(screen.getAllByText('-')).toHaveLength(5);
   });
 });
 

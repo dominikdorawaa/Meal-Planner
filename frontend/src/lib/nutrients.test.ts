@@ -38,6 +38,8 @@ describe('formatNutritionFact', () => {
 });
 
 describe('recipeExtraNutrientsPerPortion', () => {
+  const NO_VALUES = { saturated_fat: null, sugars: null, fiber: null, salt: null };
+
   it('sums every ingredient and divides by the number of portions', () => {
     expect(recipeExtraNutrientsPerPortion([
       { amount: 200, unit: 'g', product: cream },
@@ -48,19 +50,22 @@ describe('recipeExtraNutrientsPerPortion', () => {
     });
   });
 
-  it('returns nothing when an ingredient has no product or misses a value', () => {
-    expect(recipeExtraNutrientsPerPortion([{ amount: 200, unit: 'g', product: cream }, { amount: 1, unit: 'g' }], 1)).toBeNull();
-    expect(recipeExtraNutrientsPerPortion([{ amount: 200, unit: 'g', product: { ...cream, salt: null } }], 1)).toBeNull();
+  it('leaves out only the nutrient that an ingredient misses', () => {
+    expect(recipeExtraNutrientsPerPortion([{ amount: 200, unit: 'g', product: { ...cream, salt: null } }], 2)).toEqual({
+      saturated_fat: expect.closeTo(12), sugars: expect.closeTo(3.4), fiber: 0, salt: null,
+    });
+    expect(recipeExtraNutrientsPerPortion([{ amount: 200, unit: 'g', product: cream }, { amount: 1, unit: 'g' }], 1))
+      .toEqual(NO_VALUES);
   });
 
-  it('returns nothing when the amount cannot be converted to the product unit', () => {
-    expect(recipeExtraNutrientsPerPortion([{ amount: 1, unit: 'szt', product: cream }], 1)).toBeNull();
-    expect(recipeExtraNutrientsPerPortion([{ amount: 50, unit: 'g', product: egg }], 1)).toBeNull();
+  it('leaves out every nutrient when an amount cannot be converted to the product unit', () => {
+    expect(recipeExtraNutrientsPerPortion([{ amount: 1, unit: 'szt', product: cream }], 1)).toEqual(NO_VALUES);
+    expect(recipeExtraNutrientsPerPortion([{ amount: 50, unit: 'g', product: egg }], 1)).toEqual(NO_VALUES);
   });
 
-  it('returns nothing without ingredients or portions', () => {
-    expect(recipeExtraNutrientsPerPortion([], 1)).toBeNull();
-    expect(recipeExtraNutrientsPerPortion([{ amount: 200, unit: 'g', product: cream }], 0)).toBeNull();
+  it('leaves out every nutrient without ingredients or portions', () => {
+    expect(recipeExtraNutrientsPerPortion([], 1)).toEqual(NO_VALUES);
+    expect(recipeExtraNutrientsPerPortion([{ amount: 200, unit: 'g', product: cream }], 0)).toEqual(NO_VALUES);
   });
 
   it('treats a missing amount as zero', () => {
