@@ -566,7 +566,7 @@ export function RecipeDetails() {
               type="button"
               aria-expanded={showNutritionTable}
               aria-controls={nutritionTableId}
-              aria-label={showNutritionTable ? t('nutrients.hideTable') : t('nutrients.showTable')}
+              aria-label={t(showNutritionTable ? 'nutrients.hideTable' : 'nutrients.showTable', { value: gramsLabel(currentC) })}
               onClick={() => setShowNutritionTable(open => !open)}
               className="flex items-start"
             >

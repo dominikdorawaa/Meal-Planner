@@ -155,7 +155,7 @@ describe('RecipeDetails loading', () => {
     expect(screen.queryByRole('table')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.morePortions') }));
-    const toggle = screen.getByRole('button', { name: t('nutrients.showTable') });
+    const toggle = screen.getByRole('button', { name: t('nutrients.showTable', { value: '23g' }) });
     fireEvent.click(toggle);
 
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
@@ -163,7 +163,7 @@ describe('RecipeDetails loading', () => {
     const cells = screen.getAllByRole('row').slice(1).map(row => within(row).getByRole('cell').textContent);
     expect(cells).toEqual(['89 kcal', '1.1 g', '0.3 g', '0.1 g', '23 g', '12 g', '2.6 g', '0 g']);
 
-    fireEvent.click(screen.getByRole('button', { name: t('nutrients.hideTable') }));
+    fireEvent.click(screen.getByRole('button', { name: t('nutrients.hideTable', { value: '23g' }) }));
     expect(screen.queryByRole('table')).toBeNull();
   });
 
@@ -174,7 +174,7 @@ describe('RecipeDetails loading', () => {
     });
     renderDetails();
 
-    fireEvent.click(await screen.findByRole('button', { name: t('nutrients.showTable') }));
+    fireEvent.click(await screen.findByRole('button', { name: t('nutrients.showTable', { value: '23g' }) }));
     expect(within(screen.getByRole('row', { name: /Wartość energetyczna/ })).getByRole('cell').textContent).toBe('89 kcal');
     for (const name of [/nasycone/, /Cukry/, /Błonnik/, /Sól/]) {
       expect(within(screen.getByRole('row', { name })).getByRole('cell').textContent).toBe('-');

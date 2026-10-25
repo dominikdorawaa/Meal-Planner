@@ -225,13 +225,13 @@ describe('ProductDetails nutrition table', () => {
     mocks.getProduct.mockResolvedValue({ ...SKYR, saturated_fat: 0.1, sugars: 2.5, fiber: 0, salt: 0.12 });
     renderDetails();
 
-    const toggle = await screen.findByRole('button', { name: t('nutrients.showTable') });
+    const toggle = await screen.findByRole('button', { name: t('nutrients.showTable', { value: '3g' }) });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByRole('table')).toBeNull();
 
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(toggle.getAttribute('aria-label')).toBe(t('nutrients.hideTable'));
+    expect(toggle.getAttribute('aria-label')).toBe(t('nutrients.hideTable', { value: '3g' }));
     expect(screen.getAllByRole('table')).toHaveLength(1);
     expect(screen.getAllByRole('columnheader').map(header => header.textContent)).toEqual([t('nutrients.name'), '100 g']);
     expect(screen.getAllByRole('rowheader').map(header => header.textContent)).toEqual([
@@ -248,7 +248,7 @@ describe('ProductDetails nutrition table', () => {
     mocks.getProduct.mockResolvedValue({ ...SKYR, unit: '100ml', fat: null });
     renderDetails();
 
-    fireEvent.click(await screen.findByRole('button', { name: t('nutrients.showTable') }));
+    fireEvent.click(await screen.findByRole('button', { name: t('nutrients.showTable', { value: '3g' }) }));
     expect(screen.getByRole('columnheader', { name: '100 ml' })).toBeTruthy();
     expect(within(screen.getByRole('row', { name: /^Tłuszcz/ })).getByRole('cell').textContent).toBe('-');
     expect(screen.getAllByText('-')).toHaveLength(5);

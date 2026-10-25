@@ -473,7 +473,7 @@ export function ProductDetails() {
               type="button"
               aria-expanded={showNutritionTable}
               aria-controls={nutritionTableId}
-              aria-label={showNutritionTable ? t('nutrients.hideTable') : t('nutrients.showTable')}
+              aria-label={t(showNutritionTable ? 'nutrients.hideTable' : 'nutrients.showTable', { value: gramsLabel(currentMacros.carbs) })}
               onClick={() => setShowNutritionTable(open => !open)}
               className="flex items-start"
             >
