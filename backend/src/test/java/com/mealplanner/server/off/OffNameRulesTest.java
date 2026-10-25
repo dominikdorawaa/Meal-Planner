@@ -38,7 +38,8 @@ class OffNameRulesTest {
     @ValueSource(strings = {"Lech free limonka mięta", "ŁACIATE UHT MILK 2.0%", "Protein Drink O Smaku Waniliowym",
             "Lody Czekoladowe Z Sosem Czekoladowym", "Lech free yuzu i pomelo", "Milky Way", "Cheetos", "Jogurt naturalny",
             "Nestlé Corn Flakes", "Chipsy Jalapeño", "Serek Président", "Crème brûlée z wanilią", "Budyń •z cukrem•",
-            "Roślinna kiełbaska à la Śląska", "Sos z jalapeño"})
+            "Roślinna kiełbaska à la Śląska", "Sos z jalapeño",
+            "Müllermilch Zero Truskawkowy", "Nescafé Crema"})
     void keepsPolishNamesWithSingleForeignWordsOrLetters(String name) {
         assertThat(OffNameRules.isForeignName(name)).isFalse();
     }
