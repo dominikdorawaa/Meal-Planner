@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   refreshRecipes: vi.fn(),
   uploadImage: vi.fn(),
   resizeRecipePhoto: vi.fn(),
+  appData: { userMeals: [] as unknown[], recipes: [] as unknown[], loading: false },
 }));
 
 vi.mock('../lib/apiClient', async importOriginal => ({
@@ -32,7 +33,7 @@ vi.mock('../lib/recipePhoto', () => ({
 }));
 
 vi.mock('../lib/AppDataContext', () => ({
-  useAppData: () => ({ user: { userId: 'user-1' }, refreshRecipes: mocks.refreshRecipes }),
+  useAppData: () => ({ user: { userId: 'user-1' }, refreshRecipes: mocks.refreshRecipes, ...mocks.appData }),
 }));
 
 vi.mock('../lib/barcodeLookup', async importOriginal => ({
@@ -89,6 +90,7 @@ function ingredientRow(name: string) {
 
 beforeEach(() => {
   vi.stubGlobal('alert', alertMock);
+  mocks.appData = { userMeals: [], recipes: [], loading: false };
   vi.spyOn(console, 'error').mockImplementation(() => {});
   mocks.searchProducts.mockImplementation(async ({ query }: { query: string }) => ({
     items: [SKYR, OATS, EGG].filter(product => product.name.toLowerCase().includes(query.toLowerCase())),
@@ -127,6 +129,44 @@ describe('AddRecipe ingredient search', () => {
     expect(await screen.findByRole('button', { name: /Skyr/ })).toBeTruthy();
     expect(mocks.searchProducts).toHaveBeenCalledWith(expect.objectContaining({ query: 'sky' }));
     expect(openSearch().getAttribute('autocomplete')).toBe('off');
+  });
+
+  it('shows recently used products before searching and adds one through the amount screen', async () => {
+    mocks.appData = {
+      userMeals: [{ created_at: '2026-10-02T08:00:00Z', product: OATS }],
+      recipes: [{ own: true, created_at: '2026-10-01T08:00:00Z', ingredients: [{ created_at: '2026-10-03T08:00:00Z', product: EGG }] }],
+      loading: false,
+    };
+    renderAddRecipe();
+
+    const field = openSearch();
+    const recent = screen.getByRole('region', { name: t('recipeIngredients.recentTitle') });
+    expect(within(recent).getAllByRole('button').map(button => button.textContent)).toEqual([
+      expect.stringContaining('Jajko'),
+      expect.stringContaining('Płatki owsiane'),
+    ]);
+    expect(screen.getByText(t('recipeIngredients.minChars'))).toBeTruthy();
+
+    fireEvent.change(field, { target: { value: 'ja' } });
+    expect(screen.getByRole('region', { name: t('recipeIngredients.recentTitle') })).toBeTruthy();
+
+    fireEvent.change(field, { target: { value: 'sky' } });
+    expect(screen.queryByRole('region', { name: t('recipeIngredients.recentTitle') })).toBeNull();
+
+    fireEvent.change(field, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /Płatki owsiane/ }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.add') }));
+    expect(ingredientRow('Płatki owsiane')).toBeTruthy();
+  });
+
+  it('shows only the search hint while there is no history or it is still loading', () => {
+    mocks.appData = { userMeals: [{ product: OATS }], recipes: [], loading: true };
+    renderAddRecipe();
+    openSearch();
+
+    expect(screen.getByText(t('recipeIngredients.minChars'))).toBeTruthy();
+    expect(screen.queryByRole('region', { name: t('recipeIngredients.recentTitle') })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Płatki owsiane/ })).toBeNull();
   });
 
   it('adds a product only after choosing its amount, in packages when the package weight is known', async () => {

@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Product } from '../lib/apiClient';
+import { useAppData } from '../lib/AppDataContext';
+import { recentIngredientProducts } from '../lib/mealProducts';
 import { measureUnit } from '../lib/nutrients';
 import { productDisplayName } from '../lib/productName';
 import { useProductSearch } from '../lib/useProductSearch';
@@ -9,9 +11,30 @@ import { LoadMoreTrigger } from './LoadMoreTrigger';
 export const MIN_SEARCH_LENGTH = 3;
 const NO_FILTERS = {};
 const PER_PIECE_UNIT = 'pc';
+const RECENT_PRODUCTS_LIMIT = 15;
 
 function nutritionBasis(product: Product): string {
   return product.unit === PER_PIECE_UNIT ? `1 ${t('units.szt')}` : `100 ${measureUnit(product.unit)}`;
+}
+
+function ProductRow({ product, onSelect }: { product: Product; onSelect: (product: Product) => void }) {
+  return (
+    <button
+      onClick={() => onSelect(product)}
+      className="flex items-center text-left bg-surface-container-lowest p-3 rounded-[20px] shadow-sm border border-outline-variant/10 active:scale-[0.98] transition-all"
+    >
+      <span className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+        <span className="material-symbols-outlined text-[24px]">nutrition</span>
+      </span>
+      <span className="flex-1 min-w-0 px-3 font-bold text-[13px] leading-relaxed line-clamp-2">{productDisplayName(product)}</span>
+      <span className="flex flex-col items-end shrink-0 pr-1">
+        <span className="text-xs font-black">{product.kcal} kcal</span>
+        <span className="text-[9px] font-bold text-on-surface-variant uppercase">
+          {t('recipeIngredients.perAmount', { amount: nutritionBasis(product) })}
+        </span>
+      </span>
+    </button>
+  );
 }
 
 interface IngredientSearchProps {
@@ -23,6 +46,11 @@ interface IngredientSearchProps {
 
 export function IngredientSearch({ onClose, onSelect, onAddProduct, onScan }: IngredientSearchProps) {
   const [query, setQuery] = useState('');
+  const { userMeals, recipes, loading } = useAppData();
+  const recentProducts = useMemo(
+    () => (loading ? [] : recentIngredientProducts(userMeals, recipes, RECENT_PRODUCTS_LIMIT)),
+    [userMeals, recipes, loading],
+  );
   const longEnough = query.trim().length >= MIN_SEARCH_LENGTH;
   const search = useProductSearch({ query: query.trim(), filters: NO_FILTERS, enabled: longEnough });
   const items = longEnough && search.resultsMatchQuery ? search.items : [];
@@ -64,28 +92,28 @@ export function IngredientSearch({ onClose, onSelect, onAddProduct, onScan }: In
 
       <main className="flex-1 overflow-y-auto p-4 flex flex-col w-full max-w-xl mx-auto">
         {!longEnough && (
-          <p className="py-8 text-center text-sm font-medium text-on-surface-variant/60">{t('recipeIngredients.minChars')}</p>
+          <p className={`${recentProducts.length > 0 ? 'pt-2 pb-6' : 'py-8'} text-center text-sm font-medium text-on-surface-variant/60`}>
+            {t('recipeIngredients.minChars')}
+          </p>
+        )}
+
+        {!longEnough && recentProducts.length > 0 && (
+          <section aria-labelledby="recent-ingredients-title">
+            <h2 id="recent-ingredients-title" className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/50 mb-3 pl-1">
+              {t('recipeIngredients.recentTitle')}
+            </h2>
+            <div className="flex flex-col gap-3">
+              {recentProducts.map(product => (
+                <ProductRow key={product.id} product={product} onSelect={onSelect} />
+              ))}
+            </div>
+          </section>
         )}
 
         {items.length > 0 && (
           <div className="flex flex-col gap-3">
             {items.map(product => (
-              <button
-                key={product.id}
-                onClick={() => onSelect(product)}
-                className="flex items-center text-left bg-surface-container-lowest p-3 rounded-[20px] shadow-sm border border-outline-variant/10 active:scale-[0.98] transition-all"
-              >
-                <span className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                  <span className="material-symbols-outlined text-[24px]">nutrition</span>
-                </span>
-                <span className="flex-1 min-w-0 px-3 font-bold text-[13px] leading-relaxed line-clamp-2">{productDisplayName(product)}</span>
-                <span className="flex flex-col items-end shrink-0 pr-1">
-                  <span className="text-xs font-black">{product.kcal} kcal</span>
-                  <span className="text-[9px] font-bold text-on-surface-variant uppercase">
-                    {t('recipeIngredients.perAmount', { amount: nutritionBasis(product) })}
-                  </span>
-                </span>
-              </button>
+              <ProductRow key={product.id} product={product} onSelect={onSelect} />
             ))}
             {search.error && (
               <p className="pt-3 text-center text-sm font-medium text-error">{t('recipeIngredients.loadMoreFailed')}</p>

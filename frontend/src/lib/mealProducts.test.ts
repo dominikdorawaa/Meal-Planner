@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recentMealItems, resolveMealProduct } from './mealProducts';
+import { recentIngredientProducts, recentMealItems, resolveMealProduct } from './mealProducts';
 
 const skyr = { id: 'skyr', name: 'Skyr', kcal: 65 };
 const oats = { id: 'oats', name: 'Oats', kcal: 370 };
@@ -74,5 +74,60 @@ describe('recentMealItems', () => {
     const meals = [{ product: skyr }, { product: oats }];
 
     expect(recentMealItems(meals, recipes, 1)).toHaveLength(1);
+  });
+});
+
+describe('recentIngredientProducts', () => {
+  const milk = { id: 'milk', name: 'Milk', kcal: 50 };
+
+  it('merges products from meals and own recipe ingredients, newest first and without repeats', () => {
+    const meals = [
+      { created_at: '2026-10-01T08:00:00Z', product: skyr },
+      { created_at: '2026-10-05T08:00:00Z', product: oats },
+      { created_at: '2026-10-06T08:00:00Z', recipe: { id: 'omelette' } },
+    ];
+    const recipes = [
+      {
+        own: true,
+        created_at: '2026-09-01T08:00:00Z',
+        ingredients: [
+          { created_at: '2026-10-03T08:00:00Z', product: skyr },
+          { created_at: '2026-10-04T08:00:00Z', product: milk },
+          { created_at: '2026-10-02T08:00:00Z', product: oats },
+        ],
+      },
+    ];
+
+    expect(recentIngredientProducts(meals, recipes, 5)).toEqual([oats, milk, skyr]);
+  });
+
+  it('uses the recipe date for ingredients without their own date', () => {
+    const meals = [{ created_at: '2026-10-02T08:00:00Z', product: skyr }];
+    const recipes = [{ own: true, created_at: '2026-10-03T08:00:00Z', ingredients: [{ product: milk }] }];
+
+    expect(recentIngredientProducts(meals, recipes, 5)).toEqual([milk, skyr]);
+  });
+
+  it('ignores recipes of other people and recipes without ingredients', () => {
+    const recipes = [
+      { own: false, ingredients: [{ product: milk }] },
+      { own: true, ingredients: null },
+      { own: true },
+    ];
+
+    expect(recentIngredientProducts([], recipes, 5)).toEqual([]);
+  });
+
+  it('skips deleted products, products without calories and missing products', () => {
+    const deleted = { id: 'deleted', name: 'Deleted', kcal: 100, deleted: true };
+    const noCalories = { id: 'old', name: 'Old product', kcal: null };
+    const meals = [{ product: deleted }, { product: noCalories }, { product: 'skyr' }, { product: null }];
+    const recipes = [{ own: true, ingredients: [{ product: null }, { product: oats }] }];
+
+    expect(recentIngredientProducts(meals, recipes, 5)).toEqual([oats]);
+  });
+
+  it('stops at the limit', () => {
+    expect(recentIngredientProducts([{ product: skyr }, { product: oats }], [], 1)).toEqual([skyr]);
   });
 });
