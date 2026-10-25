@@ -7,6 +7,7 @@ import { productDisplayName } from '../lib/productName';
 import { canEditProduct, isOwnItem, isUnverified } from '../lib/productPermissions';
 import { ProductNutritionTable } from '../components/ProductNutritionTable';
 import { ItemBadges, SaveHeartButton } from '../components/FoodRows';
+import { OPEN_HEADER_CLASS, OutsidePressLayer } from '../components/OutsidePressLayer';
 import { NewProductSheet, type ProductFormMode } from '../components/NewProductSheet';
 import { draftFromProduct } from '../lib/productDraft';
 import { MeasureAmountRows } from '../components/MeasureAmountRows';
@@ -224,7 +225,7 @@ export function ProductDetails() {
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
       
       {/* Top Header - Zgodny ze screenem */}
-      <header className="sticky top-0 w-full z-40 bg-surface-container-lowest px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10">
+      <header className={`sticky top-0 w-full ${showMealPicker || showDatePicker || showMenu ? OPEN_HEADER_CLASS : 'z-40'} bg-surface-container-lowest px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10`}>
         <button onClick={() => navigate(-1)} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 shrink-0">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
@@ -241,7 +242,7 @@ export function ProductDetails() {
               {!mealId && <span className={`material-symbols-outlined text-[14px] text-primary transition-transform ${showMealPicker ? 'rotate-180' : ''}`}>expand_more</span>}
             </button>
             {showMealPicker && (
-              <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
+              <div className="absolute top-full left-0 mt-1 z-[200] pointer-events-auto bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
                 {availableMealTypes.map((meal: any) => (
                   <button
                     key={meal.id}
@@ -267,7 +268,7 @@ export function ProductDetails() {
               {!mealId && <span className={`material-symbols-outlined text-[11px] text-primary/70 transition-transform ${showDatePicker ? 'rotate-180' : ''}`}>expand_more</span>}
             </button>
             {showDatePicker && (
-              <div className="absolute top-full left-0 mt-1 z-[200] bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
+              <div className="absolute top-full left-0 mt-1 z-[200] pointer-events-auto bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
                 <div className="flex items-center justify-between mb-2 px-1">
                   <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
                     <span className="material-symbols-outlined text-[18px]">chevron_left</span>
@@ -310,13 +311,13 @@ export function ProductDetails() {
           </div>
 
            {(showMealPicker || showDatePicker) && (
-            <div data-scroll-lock className="fixed inset-0 z-[199]" onClick={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
+            <OutsidePressLayer onClose={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
           )}
         </div>
 
         {user && !product.deleted && (
         <div className="relative ml-auto flex items-center">
-          {!own && <SaveHeartButton saved={saved} name={productDisplayName(product)} onToggle={toggleSaved} className="w-10 h-10" />}
+          <SaveHeartButton saved={saved} name={productDisplayName(product)} onToggle={toggleSaved} className="w-10 h-10" />
           <button
             onClick={() => setShowMenu(!showMenu)}
             aria-label={t('product.menu')}
@@ -328,11 +329,8 @@ export function ProductDetails() {
 
           {showMenu && (
             <>
-              <div
-                data-scroll-lock className="fixed inset-0 z-40"
-                onClick={() => setShowMenu(false)}
-              />
-              <div role="menu" className="absolute right-0 top-12 w-56 bg-surface-container border border-outline-variant/10 rounded-xl shadow-lg z-50 overflow-hidden text-sm py-1 animate-fade-in">
+              <OutsidePressLayer onClose={() => setShowMenu(false)} />
+              <div role="menu" className="absolute right-0 top-12 pointer-events-auto w-56 bg-surface-container border border-outline-variant/10 rounded-xl shadow-lg z-50 overflow-hidden text-sm py-1 animate-fade-in">
                 {editable ? (
                   <>
                     <button

@@ -57,12 +57,11 @@ interface FoodRowProps {
   own: boolean;
   unverified: boolean;
   selected: boolean;
-  heart?: { saved: boolean; onToggle: () => void } | null;
   onOpen: () => void;
   onToggleSelected: () => void;
 }
 
-function FoodRow({ name, kcal, amount, own, unverified, selected, heart, onOpen, onToggleSelected, children }: FoodRowProps & { children: ReactNode }) {
+function FoodRow({ name, kcal, amount, own, unverified, selected, onOpen, onToggleSelected, children }: FoodRowProps & { children: ReactNode }) {
   return (
     <div
       onClick={onOpen}
@@ -85,7 +84,6 @@ function FoodRow({ name, kcal, amount, own, unverified, selected, heart, onOpen,
           <span className="text-xs font-black whitespace-nowrap max-w-full truncate">{kcal} kcal</span>
           <span className="text-[9px] font-bold text-on-surface-variant uppercase whitespace-nowrap max-w-full truncate">{amount}</span>
         </div>
-        {heart && <SaveHeartButton saved={heart.saved} name={name} onToggle={heart.onToggle} className="shrink-0" />}
         <div className="flex items-center justify-center pl-1 border-l border-outline-variant/10 ml-1 shrink-0">
           <SelectionCheckbox checked={selected} label={name} onToggle={onToggleSelected} />
         </div>
