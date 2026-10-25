@@ -68,7 +68,7 @@ public final class OffNameRules {
     }
 
     public static String withFatPercent(String name, Double fat, Collection<String> categories) {
-        if (name.isEmpty() || fat == null || name.contains("%")) {
+        if (fat == null || name.contains("%") || isJunkName(name)) {
             return name;
         }
         boolean dairyName = Arrays.stream(NOT_LETTER.split(name.toLowerCase(Locale.ROOT)))

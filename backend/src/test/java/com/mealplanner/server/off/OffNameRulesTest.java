@@ -99,5 +99,6 @@ class OffNameRulesTest {
         assertThat(OffNameRules.withFatPercent("Mleko", null, List.of("en:milks"))).isEqualTo("Mleko");
         assertThat(OffNameRules.withFatPercent("", 3.2, List.of("en:milks"))).isEmpty();
         assertThat(OffNameRules.withFatPercent("Mleko", 3.2, List.of("en:cheeses"))).isEqualTo("Mleko");
+        assertThat(OffNameRules.withFatPercent("Test", 3.2, List.of("en:milks"))).isEqualTo("Test");
     }
 }

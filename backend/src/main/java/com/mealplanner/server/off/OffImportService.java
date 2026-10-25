@@ -44,6 +44,7 @@ public class OffImportService {
             SELECT id, bar_code, name FROM products
             WHERE source = 'OPEN_FOOD_FACTS' AND deleted_at IS NULL
             """;
+    static final String LOCK_PRODUCTS = "SELECT id FROM products WHERE id IN (%s) FOR UPDATE";
     static final String HIDE_USED = """
             UPDATE products SET deleted_at = now()
             WHERE id IN (%s) AND EXISTS (SELECT 1 FROM user_meals m WHERE m.product_id = products.id)
@@ -111,6 +112,7 @@ public class OffImportService {
             String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
             Object[] arguments = ids.toArray();
             transactionTemplate.executeWithoutResult(status -> {
+                jdbcTemplate.queryForList(LOCK_PRODUCTS.formatted(placeholders), UUID.class, arguments);
                 progress.hiddenInUse += jdbcTemplate.update(HIDE_USED.formatted(placeholders), arguments);
                 progress.removed += jdbcTemplate.update(DELETE_UNUSED.formatted(placeholders), arguments);
             });
