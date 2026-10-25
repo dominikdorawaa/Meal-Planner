@@ -22,8 +22,8 @@ record RecipeNutrition(double kcal, double protein, double fat, double carbs) {
         }
         RecipeNutrition total = known.stream().reduce(ZERO, RecipeNutrition::plus);
         double count = portions != null && portions > 0 ? portions : 1;
-        return Optional.of(new RecipeNutrition(Math.round(total.kcal / count), tenths(total.protein / count),
-                tenths(total.fat / count), tenths(total.carbs / count)));
+        return Optional.of(new RecipeNutrition(total.kcal / count, total.protein / count, total.fat / count,
+                total.carbs / count));
     }
 
     static Optional<RecipeNutrition> of(RecipeIngredient ingredient) {
@@ -35,9 +35,8 @@ record RecipeNutrition(double kcal, double protein, double fat, double carbs) {
         if (factor == null) {
             return Optional.empty();
         }
-        return Optional.of(new RecipeNutrition(Math.round(product.getKcal() * factor),
-                tenths(valueOf(product.getProtein()) * factor), tenths(valueOf(product.getFat()) * factor),
-                tenths(valueOf(product.getCarbs()) * factor)));
+        return Optional.of(new RecipeNutrition(product.getKcal() * factor, valueOf(product.getProtein()) * factor,
+                valueOf(product.getFat()) * factor, valueOf(product.getCarbs()) * factor));
     }
 
     private RecipeNutrition plus(RecipeNutrition other) {
@@ -46,9 +45,5 @@ record RecipeNutrition(double kcal, double protein, double fat, double carbs) {
 
     private static double valueOf(Double value) {
         return value == null ? 0 : value;
-    }
-
-    private static double tenths(double value) {
-        return Math.round(value * 10) / 10.0;
     }
 }

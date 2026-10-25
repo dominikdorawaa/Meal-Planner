@@ -299,7 +299,7 @@ export function ShoppingList() {
                     <div key={idx} className="flex flex-col gap-4 p-4 rounded-2xl bg-surface-container-low border border-outline-variant/10 mb-6 relative">
                        <div className="absolute top-3 right-3 bg-surface/80 backdrop-blur-md px-2 py-1 rounded-lg border border-outline-variant/20 z-10 flex items-center gap-0.5 shadow-sm">
                           <span className="material-symbols-outlined text-[12px] text-primary">local_fire_department</span>
-                          <span className="text-[10px] uppercase font-bold text-primary leading-none">{r.recipe?.kcal || r.kcal} kcal</span>
+                          <span className="text-[10px] uppercase font-bold text-primary leading-none">{Math.round(Number(r.recipe?.kcal || r.kcal) || 0)} kcal</span>
                        </div>
                        <div className="absolute top-3 left-3 bg-primary text-on-primary px-2.5 py-1 rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.15)] z-10 flex items-center gap-1.5 border border-primary-container/20">
                           <span className="material-symbols-outlined text-[14px]">restaurant</span>

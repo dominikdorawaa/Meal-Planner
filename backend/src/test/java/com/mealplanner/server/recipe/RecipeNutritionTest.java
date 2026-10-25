@@ -6,8 +6,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 class RecipeNutritionTest {
 
@@ -41,12 +43,21 @@ class RecipeNutritionTest {
         return kind;
     }
 
+    private static void assertNutrition(Optional<RecipeNutrition> actual, double kcal, double protein, double fat,
+            double carbs) {
+        assertThat(actual).isPresent();
+        RecipeNutrition nutrition = actual.get();
+        assertThat(nutrition.kcal()).isCloseTo(kcal, within(1e-9));
+        assertThat(nutrition.protein()).isCloseTo(protein, within(1e-9));
+        assertThat(nutrition.fat()).isCloseTo(fat, within(1e-9));
+        assertThat(nutrition.carbs()).isCloseTo(carbs, within(1e-9));
+    }
+
     @Test
     void scalesProductNutritionToTheAmountInGrams() {
         Product oats = product("100g", 370.0, 13.2, 7.0, 60.0);
 
-        assertThat(RecipeNutrition.of(ingredient(oats, 50.0, "g")))
-                .contains(new RecipeNutrition(185, 6.6, 3.5, 30));
+        assertNutrition(RecipeNutrition.of(ingredient(oats, 50.0, "g")), 185, 6.6, 3.5, 30);
     }
 
     @Test
@@ -55,17 +66,15 @@ class RecipeNutritionTest {
         banana.addMeasure(kind("piece"), 120);
         Product egg = product("pc", 70.0, 6.0, 5.0, 0.5);
 
-        assertThat(RecipeNutrition.of(ingredient(banana, 2.0, "piece")))
-                .contains(new RecipeNutrition(214, 2.6, 0.7, 55.2));
-        assertThat(RecipeNutrition.of(ingredient(egg, 3.0, "piece")))
-                .contains(new RecipeNutrition(210, 18, 15, 1.5));
+        assertNutrition(RecipeNutrition.of(ingredient(banana, 2.0, "piece")), 213.6, 2.64, 0.72, 55.2);
+        assertNutrition(RecipeNutrition.of(ingredient(egg, 3.0, "piece")), 210, 18, 15, 1.5);
     }
 
     @Test
     void treatsMissingMacrosAsZero() {
         Product water = product("100ml", 0.0, null, null, null);
 
-        assertThat(RecipeNutrition.of(ingredient(water, 250.0, "ml"))).contains(new RecipeNutrition(0, 0, 0, 0));
+        assertNutrition(RecipeNutrition.of(ingredient(water, 250.0, "ml")), 0, 0, 0, 0);
     }
 
     @Test
@@ -85,12 +94,21 @@ class RecipeNutritionTest {
         List<RecipeIngredient> ingredients = List.of(
                 ingredient(oats, 100.0, "g"), ingredient(milk, 300.0, "ml"), ingredient(null, 5.0, "g"));
 
-        assertThat(RecipeNutrition.perPortion(ingredients, 2.0))
-                .contains(new RecipeNutrition(281, 11.6, 8.3, 37.2));
-        assertThat(RecipeNutrition.perPortion(ingredients, 0.0))
-                .contains(new RecipeNutrition(562, 23.2, 16.6, 74.4));
-        assertThat(RecipeNutrition.perPortion(ingredients, null))
-                .contains(new RecipeNutrition(562, 23.2, 16.6, 74.4));
+        assertNutrition(RecipeNutrition.perPortion(ingredients, 2.0), 281, 11.6, 8.3, 37.2);
+        assertNutrition(RecipeNutrition.perPortion(ingredients, 0.0), 562, 23.2, 16.6, 74.4);
+        assertNutrition(RecipeNutrition.perPortion(ingredients, null), 562, 23.2, 16.6, 74.4);
+    }
+
+    @Test
+    void keepsFullPrecisionSoAllPortionsMatchTheIngredientTotals() {
+        Product banana = product("100g", 89.0, 1.1, 0.3, 23.0);
+        List<RecipeIngredient> ingredients = List.of(ingredient(banana, 100.0, "g"));
+
+        RecipeNutrition portion = RecipeNutrition.perPortion(ingredients, 2.0).orElseThrow();
+
+        assertThat(portion.kcal()).isEqualTo(44.5);
+        assertThat(Math.round(portion.kcal() * 2)).isEqualTo(89);
+        assertThat(Math.round(RecipeNutrition.perPortion(ingredients, 3.0).orElseThrow().kcal() * 3)).isEqualTo(89);
     }
 
     @Test
