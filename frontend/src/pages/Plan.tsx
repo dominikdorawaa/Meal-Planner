@@ -523,7 +523,7 @@ export function Plan() {
           </div>
         </div>
         <div ref={scrollRef} className="w-full overflow-x-auto overflow-y-hidden no-scrollbar snap-x snap-mandatory scroll-smooth">
-          <div className="w-max flex flex-col pb-2">
+          <div className="w-max flex flex-col pb-6">
 
             {/* ROW 1: Dni Tygodnia Główka Makro */}
             <section className="flex mb-8 pt-1">

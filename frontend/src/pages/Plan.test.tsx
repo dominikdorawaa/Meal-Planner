@@ -711,13 +711,13 @@ describe('Plan last meal of the day', () => {
     expect(scroller.className).toContain('overflow-y-hidden')
   })
 
-  it('leaves room below the last row for the highlight of today', () => {
+  it('leaves room below the last row for the highlight of today and its ring', () => {
     const { container } = renderPlan()
 
     const todayLastSlot = container.querySelector('[data-slot="2026-10-12_lunch"]') as HTMLElement
     const scroller = todayLastSlot.closest('.overflow-x-auto') as HTMLElement
 
     expect(todayLastSlot.querySelector('.-my-2')).not.toBeNull()
-    expect((scroller.firstElementChild as HTMLElement).className).toContain('pb-2')
+    expect((scroller.firstElementChild as HTMLElement).className).toContain('pb-6')
   })
 })
