@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildDaySummary } from './daySummary'
+import { addConsumed, buildDaySummary } from './daySummary'
 
 const targets = { target_kcal: 2200, target_protein: 150, target_fat: 70, target_carbs: 250 }
 const nothing = { kcal: 0, protein: 0, fat: 0, carbs: 0 }
@@ -66,5 +66,12 @@ describe('buildDaySummary', () => {
 
     expect(kcal).toMatchObject({ fillPercent: 0, overflowPercent: 0 })
     expect(protein).toMatchObject({ fillPercent: 0, overflowPercent: 0 })
+  })
+})
+
+describe('addConsumed', () => {
+  it('adds an item to the day keeping whole calories and one decimal for macros', () => {
+    expect(addConsumed({ kcal: 1000, protein: 50.1, fat: 30.2, carbs: 100 }, { kcal: 177.6, protein: 2.2, fat: 0.06, carbs: 46 }))
+      .toEqual({ kcal: 1178, protein: 52.3, fat: 30.3, carbs: 146 })
   })
 })

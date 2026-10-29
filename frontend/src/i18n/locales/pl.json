@@ -300,12 +300,6 @@
   "recipeDetails.ingredientsFor": "Składniki na {portions}",
   "recipeDetails.fewerPortions": "Mniej porcji",
   "recipeDetails.morePortions": "Więcej porcji",
-  "recipeDetails.showPreview": "Sprawdź wpływ na bilans dnia",
-  "recipeDetails.hidePreview": "Ukryj podgląd dnia",
-  "recipeDetails.previewAfterTitle": "Bilans po dodaniu",
-  "recipeDetails.previewBeforeTitle": "Aktualny bilans",
-  "recipeDetails.previewBefore": "Przed",
-  "recipeDetails.previewAfter": "Po",
   "recipeDetails.steps": "Przygotowanie",
   "recipeDetails.fewerDays": "Mniej dni",
   "recipeDetails.moreDays": "Więcej dni",
@@ -391,5 +385,13 @@
   "nav.recipes": "Przepisy",
   "nav.shopping": "Zakupy",
   "nav.more": "Więcej",
-  "product.nutritionFor": "Wartości odżywcze: {amount}"
+  "product.nutritionFor": "Wartości odżywcze: {amount}",
+  "dayBalance.show": "Sprawdź wpływ na bilans dnia",
+  "dayBalance.hide": "Ukryj podgląd dnia",
+  "dayBalance.before": "Przed",
+  "dayBalance.after": "Po",
+  "dayBalance.beforeTitle": "Aktualny bilans",
+  "dayBalance.afterTitle": "Bilans po dodaniu",
+  "dayBalance.beforeEditTitle": "Dzień bez tej pozycji",
+  "dayBalance.afterEditTitle": "Bilans po zmianie"
 }
