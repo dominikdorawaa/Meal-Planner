@@ -5,6 +5,7 @@ import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, firstDayOfMonth, formatDayMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { targetRange } from '../lib/macros';
+import { macroRingBackground } from '../lib/macroColors';
 import { NutritionFactsTable } from '../components/NutritionFactsTable';
 import { NUTRITION_TABLE_FACTS, recipeExtraNutrientsPerPortion } from '../lib/nutrients';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
@@ -544,7 +545,7 @@ export function RecipeDetails() {
 
             <div className="flex flex-col items-center gap-3">
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
-                 <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#4F46E5 ${pctP}%, #4F46E510 0)` }}></div>
+                 <div className="absolute inset-0 rounded-full" style={{ background: macroRingBackground('protein', pctP) }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span data-testid="protein-value" className={`font-black ${fitTextClass(gramsLabel(currentP), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentP)}</span>
                  </div>
@@ -554,7 +555,7 @@ export function RecipeDetails() {
 
             <div className="flex flex-col items-center gap-3">
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
-                 <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#F59E0B ${pctF}%, #F59E0B10 0)` }}></div>
+                 <div className="absolute inset-0 rounded-full" style={{ background: macroRingBackground('fat', pctF) }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span data-testid="fat-value" className={`font-black ${fitTextClass(gramsLabel(currentF), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentF)}</span>
                  </div>
@@ -572,7 +573,7 @@ export function RecipeDetails() {
             >
               <span className="flex flex-col items-center gap-3">
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
-                 <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#10B981 ${pctC}%, #10B98110 0)` }}></div>
+                 <div className="absolute inset-0 rounded-full" style={{ background: macroRingBackground('carbs', pctC) }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span data-testid="carbs-value" className={`font-black ${fitTextClass(gramsLabel(currentC), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentC)}</span>
                  </div>

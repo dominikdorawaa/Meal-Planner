@@ -561,7 +561,7 @@ export function Plan() {
                           ) : <div className="w-6 h-6 shrink-0"></div>}
 
                         </div>
-                        <span className="uppercase text-[8px] font-extrabold tracking-widest text-on-surface-variant font-body line-clamp-1 mt-2 pl-0.5">{day.name}</span>
+                        <span className="uppercase text-[clamp(10px,2.9vw,11px)] font-extrabold tracking-wide text-on-surface-variant font-body line-clamp-1 mt-2 pl-0.5">{day.name}</span>
                       </div>
                       <DaySummary consumed={consumed} targets={profile} dayLabel={`${day.name}, ${formatDayMonth(day.date)}`} interactive={!isDayCopyMode && !copyModeMeal} />
                     </div>

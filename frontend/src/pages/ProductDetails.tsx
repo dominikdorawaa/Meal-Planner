@@ -19,6 +19,7 @@ import { useCloseOnBack } from '../lib/backNavigation';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { KCAL_HERO_SIZES, RING_VALUE_SIZES, fitTextClass } from '../lib/fitText';
+import { macroRingBackground } from '../lib/macroColors';
 
 function gramsLabel(value: number): string {
   return `${formatCompactNumber(value, 1)}g`;
@@ -450,7 +451,7 @@ export function ProductDetails() {
             {/* Białko */}
             <div className="flex flex-col items-center gap-3">
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
-                 <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#4F46E5 ${pctP}%, #4F46E510 0)` }}></div>
+                 <div className="absolute inset-0 rounded-full" style={{ background: macroRingBackground('protein', pctP) }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span data-testid="protein-value" className={`font-black ${fitTextClass(gramsLabel(currentMacros.protein), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentMacros.protein)}</span>
                  </div>
@@ -461,7 +462,7 @@ export function ProductDetails() {
             {/* Tłuszcz */}
             <div className="flex flex-col items-center gap-3">
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
-                 <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#F59E0B ${pctF}%, #F59E0B10 0)` }}></div>
+                 <div className="absolute inset-0 rounded-full" style={{ background: macroRingBackground('fat', pctF) }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span data-testid="fat-value" className={`font-black ${fitTextClass(gramsLabel(currentMacros.fat), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentMacros.fat)}</span>
                  </div>
@@ -479,7 +480,7 @@ export function ProductDetails() {
             >
               <span className="flex flex-col items-center gap-3">
               <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
-                 <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#10B981 ${pctC}%, #10B98110 0)` }}></div>
+                 <div className="absolute inset-0 rounded-full" style={{ background: macroRingBackground('carbs', pctC) }}></div>
                  <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
                    <span data-testid="carbs-value" className={`font-black ${fitTextClass(gramsLabel(currentMacros.carbs), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentMacros.carbs)}</span>
                  </div>
@@ -583,7 +584,7 @@ export function ProductDetails() {
                               </span>
                             </div>
                             <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
-                               <div className="absolute top-0 left-0 h-full bg-[#4F46E5] rounded-full transition-all duration-300" style={{ width: profile && profile.target_protein > 0 ? `${Math.min(100, (currentData.protein / profile.target_protein) * 100)}%` : '0%' }}></div>
+                               <div className="absolute top-0 left-0 h-full bg-macro-protein rounded-full transition-all duration-300" style={{ width: profile && profile.target_protein > 0 ? `${Math.min(100, (currentData.protein / profile.target_protein) * 100)}%` : '0%' }}></div>
                             </div>
                           </div>
                           {/* Tłuszcz */}
@@ -595,7 +596,7 @@ export function ProductDetails() {
                               </span>
                             </div>
                             <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
-                               <div className="absolute top-0 left-0 h-full bg-[#F59E0B] rounded-full transition-all duration-300" style={{ width: profile && profile.target_fat > 0 ? `${Math.min(100, (currentData.fat / profile.target_fat) * 100)}%` : '0%' }}></div>
+                               <div className="absolute top-0 left-0 h-full bg-macro-fat rounded-full transition-all duration-300" style={{ width: profile && profile.target_fat > 0 ? `${Math.min(100, (currentData.fat / profile.target_fat) * 100)}%` : '0%' }}></div>
                             </div>
                           </div>
                           {/* Węgle */}
@@ -607,7 +608,7 @@ export function ProductDetails() {
                               </span>
                             </div>
                             <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
-                               <div className="absolute top-0 left-0 h-full bg-[#10B981] rounded-full transition-all duration-300" style={{ width: profile && profile.target_carbs > 0 ? `${Math.min(100, (currentData.carbs / profile.target_carbs) * 100)}%` : '0%' }}></div>
+                               <div className="absolute top-0 left-0 h-full bg-macro-carbs rounded-full transition-all duration-300" style={{ width: profile && profile.target_carbs > 0 ? `${Math.min(100, (currentData.carbs / profile.target_carbs) * 100)}%` : '0%' }}></div>
                             </div>
                           </div>
                         </div>

@@ -26,7 +26,10 @@ export default {
         'on-surface-variant': token('on-surface-variant'),
         'outline-variant': token('outline-variant'),
         error: token('error'),
-        'on-error': token('on-error')
+        'on-error': token('on-error'),
+        'macro-protein': token('macro-protein'),
+        'macro-fat': token('macro-fat'),
+        'macro-carbs': token('macro-carbs')
       },
       fontFamily: {
         headline: ['"Plus Jakarta Sans"', 'sans-serif'],

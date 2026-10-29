@@ -19,6 +19,9 @@
     --color-outline-variant: 63 73 69;
     --color-error: 186 26 26;
     --color-on-error: 255 255 255;
+    --color-macro-protein: 79 70 229;
+    --color-macro-fat: 245 158 11;
+    --color-macro-carbs: 16 185 129;
     --color-shadow: 0 52 43;
     --shadow-ambient-opacity: 0.06;
   }
@@ -39,6 +42,9 @@
     --color-outline-variant: 184 184 184;
     --color-error: 255 180 171;
     --color-on-error: 105 0 5;
+    --color-macro-protein: 129 140 248;
+    --color-macro-fat: 251 191 36;
+    --color-macro-carbs: 52 211 153;
     --color-shadow: 0 0 0;
     --shadow-ambient-opacity: 0.4;
   }
