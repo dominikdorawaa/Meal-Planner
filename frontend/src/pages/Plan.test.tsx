@@ -691,3 +691,25 @@ describe('Plan cards with very large values', () => {
     expect(card.getByText('B 5000g · T 12,3 tys.g · W 900g').className).toContain('max-w-full')
   })
 })
+
+describe('Plan last meal of the day', () => {
+  it('keeps the vertical scroll on the page when today has an item in the last meal', () => {
+    const { container } = renderPlan()
+
+    const todayLastSlot = container.querySelector('[data-slot="2026-10-12_lunch"]') as HTMLElement
+    const scroller = todayLastSlot.closest('.overflow-x-auto') as HTMLElement
+
+    expect(slot(container, '2026-10-12', 'lunch').getByText('Coffee')).toBeTruthy()
+    expect(scroller.className).toContain('overflow-y-hidden')
+  })
+
+  it('leaves room below the last row for the highlight of today', () => {
+    const { container } = renderPlan()
+
+    const todayLastSlot = container.querySelector('[data-slot="2026-10-12_lunch"]') as HTMLElement
+    const scroller = todayLastSlot.closest('.overflow-x-auto') as HTMLElement
+
+    expect(todayLastSlot.querySelector('.-my-2')).not.toBeNull()
+    expect((scroller.firstElementChild as HTMLElement).className).toContain('pb-2')
+  })
+})

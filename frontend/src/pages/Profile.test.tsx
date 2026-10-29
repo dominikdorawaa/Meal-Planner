@@ -99,3 +99,18 @@ describe('Profile manual macros limits', () => {
     expect(percent.value).toBe('35');
   });
 });
+
+describe('Profile meal settings', () => {
+  it('keeps the last meal above the save bar and the system navigation bar', () => {
+    render(
+      <MemoryRouter>
+        <Profile />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByText('Ustawienia Posiłków'));
+
+    const list = screen.getByText('Dostosuj nazwy i wybierz aktywne posiłki.').closest('.overflow-y-auto') as HTMLElement;
+    expect(list.className).toContain('pb-[calc(8rem+env(safe-area-inset-bottom))]');
+    expect(list.className).not.toContain('pb-32');
+  });
+});
