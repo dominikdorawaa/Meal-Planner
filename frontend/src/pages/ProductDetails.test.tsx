@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   createOwnVersion: vi.fn(),
   deleteProduct: vi.fn(),
   user: { userId: 'user-1' } as { userId: string; role?: string } | null,
+  profile: null as unknown,
+  getConsumedForDay: vi.fn(),
 }));
 
 vi.mock('../lib/apiClient', () => ({
@@ -42,9 +44,9 @@ vi.mock('../lib/useExistingBarCodeProduct', () => ({
 vi.mock('../lib/AppDataContext', () => ({
   useAppData: () => ({
     user: mocks.user,
-    profile: null,
+    profile: mocks.profile,
     refreshMeals: vi.fn().mockResolvedValue(undefined),
-    getConsumedForDay: () => ({ kcal: 0, protein: 0, fat: 0, carbs: 0 }),
+    getConsumedForDay: mocks.getConsumedForDay,
   }),
 }));
 
@@ -71,6 +73,8 @@ function openMenu() {
 }
 
 beforeEach(() => {
+  mocks.profile = null;
+  mocks.getConsumedForDay.mockImplementation(() => ({ kcal: 0, protein: 0, fat: 0, carbs: 0 }));
   mocks.addMeal.mockResolvedValue({});
   mocks.updateMeal.mockResolvedValue({});
   mocks.getAllMeals.mockResolvedValue([]);
@@ -479,5 +483,45 @@ describe('ProductDetails amount limits', () => {
     expect(protein.className).toContain('text-sm');
     const gramsRow = grams.closest('[data-amount-row]') as HTMLElement;
     expect(within(gramsRow).getByText('45 tys.')).toBeTruthy();
+  });
+});
+
+describe('ProductDetails day balance preview', () => {
+  const TARGETS = { target_kcal: 2000, target_protein: 100, target_fat: 60, target_carbs: 250 };
+
+  beforeEach(() => {
+    mocks.profile = TARGETS;
+    mocks.getProduct.mockResolvedValue(SKYR);
+  });
+
+  it('counts the day picked in the header', async () => {
+    mocks.getConsumedForDay.mockImplementation((date: string) =>
+      date === '2026-10-18' ? { kcal: 1400, protein: 70, fat: 40, carbs: 150 } : { kcal: 500, protein: 20, fat: 10, carbs: 60 });
+    renderDetails();
+    fireEvent.click(await screen.findByRole('button', { name: /17 października/ }));
+    fireEvent.click(screen.getByRole('button', { name: '18 października' }));
+
+    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.show') }));
+    expect(screen.getByText(t('dayBalance.afterTitle'))).toBeTruthy();
+    expect(screen.getByRole('button', { name: /18 października/ })).toBeTruthy();
+    expect(screen.getByText('18.10')).toBeTruthy();
+    expect(screen.getByText('1460')).toBeTruthy();
+    expect(mocks.getConsumedForDay).toHaveBeenLastCalledWith('2026-10-18', null);
+  });
+
+  it('shows the current day as the balance after opening a plan item without changes', async () => {
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 200 }]);
+    mocks.getConsumedForDay.mockImplementation((_date: string, excludedMealId: string | null) =>
+      excludedMealId === 'm1' ? { kcal: 880, protein: 26, fat: 30, carbs: 94 } : { kcal: 1000, protein: 50, fat: 30, carbs: 100 });
+    renderDetails('?selectDate=2026-10-17&selectType=lunch&mealId=m1');
+    await waitFor(() => expect((screen.getByLabelText(t('amount.grams')) as HTMLInputElement).value).toBe('200'));
+
+    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.show') }));
+    expect(screen.getByText(t('dayBalance.afterEditTitle'))).toBeTruthy();
+    expect(screen.getByText('1000')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.before') }));
+    expect(screen.getByText(t('dayBalance.beforeEditTitle'))).toBeTruthy();
+    expect(screen.getByText('880')).toBeTruthy();
   });
 });

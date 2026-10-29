@@ -4,7 +4,7 @@ import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, formatDayMonth, formatShortDayLabel, todayIsoDate } from '../lib/planDates';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
-import { targetRange } from '../lib/macros';
+import { DayBalancePreview } from '../components/DayBalancePreview';
 import { macroRingBackground } from '../lib/macroColors';
 import { NutritionFactsTable } from '../components/NutritionFactsTable';
 import { NUTRITION_TABLE_FACTS, recipeExtraNutrientsPerPortion } from '../lib/nutrients';
@@ -43,8 +43,6 @@ export function RecipeDetails() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user, refreshMeals, refreshRecipes, getConsumedForDay, profile } = useAppData();
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewMode, setPreviewMode] = useState<'before' | 'after'>('after');
 
   const selectDate = searchParams.get('selectDate');
   const selectType = searchParams.get('selectType');
@@ -150,6 +148,8 @@ export function RecipeDetails() {
   const unchangedPlanItem = Boolean(mealId) && (savedPortions === null || (
     inputType === 'grams' ? gramInput === savedGrams : Math.abs(consumedPortions - savedPortions) < 1e-9
   ));
+
+  const nutritionPortions = unchangedPlanItem && savedPortions !== null ? savedPortions : consumedPortions;
 
   const activeIngredientPortions = ingredientPortions !== null ? ingredientPortions : consumedPortions;
 
@@ -266,10 +266,10 @@ export function RecipeDetails() {
     inputType === 'portions' ? t('recipeDetails.nutritionForPortions', { count: Number(portionInput) || 0, portions: portionWord(Number(portionInput) || 0) }) :
     inputType === 'grams' ? t('recipeDetails.nutritionForGrams', { grams: gramInput === '' ? 0 : Math.round(Number(gramInput)) }) :
     '';
-  const currentKcal = Math.round(recipe.kcal * consumedPortions);
-  const currentP = parseFloat((recipe.protein * consumedPortions).toFixed(1));
-  const currentF = parseFloat((recipe.fat * consumedPortions).toFixed(1));
-  const currentC = parseFloat((recipe.carbs * consumedPortions).toFixed(1));
+  const currentKcal = Math.round(recipe.kcal * nutritionPortions);
+  const currentP = parseFloat((recipe.protein * nutritionPortions).toFixed(1));
+  const currentF = parseFloat((recipe.fat * nutritionPortions).toFixed(1));
+  const currentC = parseFloat((recipe.carbs * nutritionPortions).toFixed(1));
 
   const calP = recipe.protein * 4;
   const calF = recipe.fat * 9;
@@ -280,7 +280,7 @@ export function RecipeDetails() {
   const pctF = Math.round((calF / totalCal) * 100);
   const pctC = Math.round((calC / totalCal) * 100);
 
-  const dateDisplay = formatShortDayLabel(selectDate || '');
+  const activeDateDisplay = formatShortDayLabel(activeDate || selectDate || '');
 
   const isOwn = recipe.own !== false;
 
@@ -564,140 +564,14 @@ export function RecipeDetails() {
           </section>
         )}
 
-        {selectDate && !loading && (
-          <section className="mt-4">
-            <button
-              onClick={() => setShowPreview(!showPreview)}
-              className={`w-full py-4 px-6 rounded-3xl flex items-center justify-between transition-all duration-300 border ${showPreview ? 'bg-primary/5 border-primary/20 mb-4' : 'bg-surface-container-highest/30 border-transparent hover:bg-surface-container-highest/50'}`}
-            >
-              <div className="flex items-center gap-3 text-primary">
-                <span className="material-symbols-outlined text-[22px]">{showPreview ? 'visibility_off' : 'analytics'}</span>
-                <span className="font-headline font-bold text-sm tracking-tight">
-                  {showPreview ? t('recipeDetails.hidePreview') : t('recipeDetails.showPreview')}
-                </span>
-              </div>
-              <span className={`material-symbols-outlined transition-transform duration-300 ${showPreview ? 'rotate-180 text-primary' : 'text-on-surface-variant'}`}>
-                expand_more
-              </span>
-            </button>
-
-            {showPreview && (() => {
-              const consumed = getConsumedForDay(selectDate);
-              const after = {
-                kcal: Math.round(consumed.kcal + currentKcal),
-                protein: parseFloat((consumed.protein + currentP).toFixed(1)),
-                fat: parseFloat((consumed.fat + currentF).toFixed(1)),
-                carbs: parseFloat((consumed.carbs + currentC).toFixed(1))
-              };
-
-              const currentData = previewMode === 'after' ? after : consumed;
-
-              return (
-                <div className="bg-surface-container-low rounded-[32px] p-6 border border-outline-variant/10 shadow-sm animate-slide-up">
-                  <div className="flex items-center justify-between gap-3 mb-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined text-[20px]">calendar_today</span>
-                      </div>
-                      <div>
-                        <h3 className="font-headline font-bold text-sm text-on-surface leading-tight">
-                          {previewMode === 'after' ? t('recipeDetails.previewAfterTitle') : t('recipeDetails.previewBeforeTitle')}
-                        </h3>
-                        <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">{dateDisplay}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex bg-surface-container-highest p-1 rounded-2xl border border-outline-variant/5">
-                      <button
-                        onClick={() => setPreviewMode('before')}
-                        className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${previewMode === 'before' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
-                      >
-                        {t('recipeDetails.previewBefore')}
-                      </button>
-                      <button
-                        onClick={() => setPreviewMode('after')}
-                        className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${previewMode === 'after' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
-                      >
-                        {t('recipeDetails.previewAfter')}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-5">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex justify-between items-baseline leading-none gap-1">
-                        <span className="text-primary uppercase tracking-normal text-[8px] font-bold">{t('recipeDetails.kcalTitle')}</span>
-                        <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                          <span className={`text-[10px] font-extrabold ${profile && currentData.kcal > profile.target_kcal ? 'text-error' : 'text-primary'}`}>
-                            {formatCompactNumber(currentData.kcal)}
-                          </span>
-                          <span className="mx-0.5 opacity-50">/</span>
-                          {profile?.target_kcal || '···'} kcal
-                        </span>
-                      </div>
-                      <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
-                        <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-300" style={{ width: profile && profile.target_kcal > 0 ? `${Math.min(100, (currentData.kcal / profile.target_kcal) * 100)}%` : '0%' }}></div>
-                        <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-300" style={{ width: profile && profile.target_kcal > 0 ? `${Math.max(0, Math.min(100, ((currentData.kcal / profile.target_kcal) * 100) - 100))}%` : '0%' }}></div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex justify-between items-baseline leading-none gap-1">
-                          <span className="text-primary uppercase tracking-normal text-[7px] font-bold">{t('recipeDetails.protein')}</span>
-                          <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                            <span className={`text-[9px] font-extrabold ${profile && currentData.protein > (profile.target_protein_max || profile.target_protein * 1.1) ? 'text-error' : 'text-primary'}`}>
-                              {formatCompactNumber(currentData.protein, 1)}
-                            </span>
-                            <span className="mx-0.5 opacity-50">/</span>
-                            {profile ? targetRange(profile.target_protein, profile.target_protein_min, profile.target_protein_max) : '··'}g
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative text-primary">
-                          <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-300" style={{ width: profile && (profile.target_protein_max || profile.target_protein * 1.1) > 0 ? `${Math.min(100, (currentData.protein / (profile.target_protein_max || profile.target_protein * 1.1)) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-300" style={{ width: profile && (profile.target_protein_max || profile.target_protein * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((currentData.protein / (profile.target_protein_max || profile.target_protein * 1.1)) * 100) - 100))}%` : '0%' }}></div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <div className="flex justify-between items-baseline leading-none gap-1">
-                          <span className="text-primary uppercase tracking-normal text-[7px] font-bold">{t('recipeDetails.fat')}</span>
-                          <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                             <span className={`text-[9px] font-extrabold ${profile && currentData.fat > (profile.target_fat_max || profile.target_fat * 1.1) ? 'text-error' : 'text-primary'}`}>
-                              {formatCompactNumber(currentData.fat, 1)}
-                            </span>
-                            <span className="mx-0.5 opacity-50">/</span>
-                            {profile ? targetRange(profile.target_fat, profile.target_fat_min, profile.target_fat_max) : '··'}g
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
-                          <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-300" style={{ width: profile && (profile.target_fat_max || profile.target_fat * 1.1) > 0 ? `${Math.min(100, (currentData.fat / (profile.target_fat_max || profile.target_fat * 1.1)) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-300" style={{ width: profile && (profile.target_fat_max || profile.target_fat * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((currentData.fat / (profile.target_fat_max || profile.target_fat * 1.1)) * 100) - 100))}%` : '0%' }}></div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <div className="flex justify-between items-baseline leading-none gap-1">
-                          <span className="text-primary uppercase tracking-normal text-[7px] font-bold">{t('recipeDetails.carbs')}</span>
-                          <span className="text-[7px] text-on-surface-variant font-bold uppercase">
-                             <span className={`text-[9px] font-extrabold ${profile && currentData.carbs > (profile.target_carbs_max || profile.target_carbs * 1.1) ? 'text-error' : 'text-primary'}`}>
-                              {formatCompactNumber(currentData.carbs, 1)}
-                            </span>
-                            <span className="mx-0.5 opacity-50">/</span>
-                            {profile ? targetRange(profile.target_carbs, profile.target_carbs_min, profile.target_carbs_max) : '··'}g
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
-                          <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-300" style={{ width: profile && (profile.target_carbs_max || profile.target_carbs * 1.1) > 0 ? `${Math.min(100, (currentData.carbs / (profile.target_carbs_max || profile.target_carbs * 1.1)) * 100)}%` : '0%' }}></div>
-                          <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-300" style={{ width: profile && (profile.target_carbs_max || profile.target_carbs * 1.1) > 0 ? `${Math.max(0, Math.min(100, ((currentData.carbs / (profile.target_carbs_max || profile.target_carbs * 1.1)) * 100) - 100))}%` : '0%' }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-          </section>
+        {selectDate && profile && (
+          <DayBalancePreview
+            dayLabel={activeDateDisplay}
+            dayWithoutItem={getConsumedForDay(activeDate || selectDate, mealId)}
+            item={{ kcal: currentKcal, protein: currentP, fat: currentF, carbs: currentC }}
+            targets={profile}
+            editing={Boolean(mealId)}
+          />
         )}
 
         {recipe.instructions && recipe.instructions.length > 0 && (

@@ -12,6 +12,7 @@ import { PlanTargetPicker } from '../components/PlanTargetPicker';
 import { NewProductSheet, type ProductFormMode } from '../components/NewProductSheet';
 import { draftFromProduct } from '../lib/productDraft';
 import { MeasureAmountRows } from '../components/MeasureAmountRows';
+import { DayBalancePreview } from '../components/DayBalancePreview';
 import { NUTRITION_TABLE_FACTS, measureUnit } from '../lib/nutrients';
 import { ingredientAmountLabel, ingredientFactor } from '../lib/recipeIngredient';
 import { baseMeasureCode, defaultMeasure, findMeasure, initialMeasureValues, isBaseMeasure, measureBaseAmount, type MeasureValues } from '../lib/measures';
@@ -36,8 +37,6 @@ export function ProductDetails() {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewMode, setPreviewMode] = useState<'before' | 'after'>('after');
   const [daysToAdd, setDaysToAdd] = useState(1);
 
   const selectDate = searchParams.get('selectDate');
@@ -416,124 +415,14 @@ export function ProductDetails() {
           )}
         </section>
 
-        {/* Podgląd bilansu */}
-        {selectDate && (
-          <div className="flex flex-col gap-4">
-            <button
-              onClick={() => setShowPreview(!showPreview)}
-              className={`w-full py-4 px-6 rounded-3xl flex items-center justify-between transition-all duration-300 border ${showPreview ? 'bg-primary/5 border-primary/20 shadow-sm' : 'bg-surface-container-low border-transparent'}`}
-            >
-              <div className="flex items-center gap-3 text-primary">
-                <span className="material-symbols-outlined text-[22px]">analytics</span>
-                <span className="font-headline font-bold text-sm">Sprawdź wpływ na bilans dnia</span>
-              </div>
-              <span className={`material-symbols-outlined transition-transform duration-300 ${showPreview ? 'rotate-180' : ''}`}>expand_more</span>
-            </button>
-
-            {showPreview && (
-              <div className="bg-surface-container-lowest rounded-[32px] p-6 border border-outline-variant/10 shadow-sm animate-fade-in">
-                {(() => {
-                  const before = getConsumedForDay(selectDate);
-                  const currentData = {
-                    kcal: Math.round((before?.kcal || 0) + (previewMode === 'after' ? currentMacros.kcal : 0)),
-                    protein: parseFloat(((before?.protein || 0) + (previewMode === 'after' ? currentMacros.protein : 0)).toFixed(1)),
-                    fat: parseFloat(((before?.fat || 0) + (previewMode === 'after' ? currentMacros.fat : 0)).toFixed(1)),
-                    carbs: parseFloat(((before?.carbs || 0) + (previewMode === 'after' ? currentMacros.carbs : 0)).toFixed(1))
-                  };
-
-                  return (
-                    <div className="flex flex-col gap-8">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                            <span className="material-symbols-outlined text-[20px]">calendar_today</span>
-                          </div>
-                          <div>
-                            <h3 className="font-headline font-bold text-sm text-on-surface leading-tight">
-                              {previewMode === 'after' ? 'Bilans po dodaniu' : 'Aktualny bilans'}
-                            </h3>
-                            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">{activeDateDisplay}</p>
-                          </div>
-                        </div>
-
-                        {/* Switcher */}
-                        <div className="flex bg-surface-container-highest p-1 rounded-2xl border border-outline-variant/5">
-                          <button 
-                            onClick={() => setPreviewMode('before')}
-                            className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${previewMode === 'before' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
-                          >
-                            Przed
-                          </button>
-                          <button 
-                            onClick={() => setPreviewMode('after')}
-                            className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${previewMode === 'after' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
-                          >
-                            Po
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-6">
-                        {/* Kcal */}
-                        <div className="flex flex-col gap-2">
-                          <div className="flex justify-between items-baseline leading-none">
-                            <span className="text-on-surface uppercase tracking-widest text-[8px] font-black">Kalorie</span>
-                            <span className="text-[10px] font-black text-on-surface">
-                              {formatCompactNumber(currentData.kcal)} / <span className="opacity-40">{profile?.target_kcal || '···'} kcal</span>
-                            </span>
-                          </div>
-                          <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
-                             <div className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-300" style={{ width: profile && profile.target_kcal > 0 ? `${Math.min(100, (currentData.kcal / profile.target_kcal) * 100)}%` : '0%' }}></div>
-                             <div className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-300" style={{ width: profile && profile.target_kcal > 0 ? `${Math.max(0, Math.min(100, ((currentData.kcal / profile.target_kcal) * 100) - 100))}%` : '0%' }}></div>
-                          </div>
-                        </div>
-
-                        {/* Macro Bars */}
-                        <div className="grid grid-cols-1 gap-5">
-                          {/* Białko */}
-                          <div className="flex flex-col gap-2">
-                            <div className="flex justify-between items-baseline leading-none">
-                              <span className="text-on-surface uppercase tracking-widest text-[8px] font-black">Białka</span>
-                              <span className="text-[10px] font-black text-on-surface">
-                                {gramsLabel(currentData.protein)} / <span className="opacity-40">{profile?.target_protein || '···'}g</span>
-                              </span>
-                            </div>
-                            <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
-                               <div className="absolute top-0 left-0 h-full bg-macro-protein rounded-full transition-all duration-300" style={{ width: profile && profile.target_protein > 0 ? `${Math.min(100, (currentData.protein / profile.target_protein) * 100)}%` : '0%' }}></div>
-                            </div>
-                          </div>
-                          {/* Tłuszcz */}
-                          <div className="flex flex-col gap-2">
-                            <div className="flex justify-between items-baseline leading-none">
-                              <span className="text-on-surface uppercase tracking-widest text-[8px] font-black">Tłuszcze</span>
-                              <span className="text-[10px] font-black text-on-surface">
-                                {gramsLabel(currentData.fat)} / <span className="opacity-40">{profile?.target_fat || '···'}g</span>
-                              </span>
-                            </div>
-                            <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
-                               <div className="absolute top-0 left-0 h-full bg-macro-fat rounded-full transition-all duration-300" style={{ width: profile && profile.target_fat > 0 ? `${Math.min(100, (currentData.fat / profile.target_fat) * 100)}%` : '0%' }}></div>
-                            </div>
-                          </div>
-                          {/* Węgle */}
-                          <div className="flex flex-col gap-2">
-                            <div className="flex justify-between items-baseline leading-none">
-                              <span className="text-on-surface uppercase tracking-widest text-[8px] font-black">Węglowodany</span>
-                              <span className="text-[10px] font-black text-on-surface">
-                                {gramsLabel(currentData.carbs)} / <span className="opacity-40">{profile?.target_carbs || '···'}g</span>
-                              </span>
-                            </div>
-                            <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden relative">
-                               <div className="absolute top-0 left-0 h-full bg-macro-carbs rounded-full transition-all duration-300" style={{ width: profile && profile.target_carbs > 0 ? `${Math.min(100, (currentData.carbs / profile.target_carbs) * 100)}%` : '0%' }}></div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-          </div>
+        {selectDate && profile && (
+          <DayBalancePreview
+            dayLabel={activeDateDisplay}
+            dayWithoutItem={getConsumedForDay(activeDate || selectDate, mealId)}
+            item={currentMacros}
+            targets={profile}
+            editing={Boolean(mealId)}
+          />
         )}
       </main>
 

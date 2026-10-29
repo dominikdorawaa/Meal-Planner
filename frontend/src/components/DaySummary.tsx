@@ -92,6 +92,22 @@ function statusLabel(metric: SummaryMetric) {
   return t('plan.summary.onTarget');
 }
 
+export function SummaryMetricRow({ metric }: { metric: SummaryMetric }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-sm font-bold text-on-surface">{t(fullLabel[metric.key])}</span>
+        <span className="text-sm tabular-nums whitespace-nowrap">
+          <span className={`font-extrabold ${valueTone[metric.status]}`}>{formatCompactNumber(metric.value)}</span>
+          <span className="text-on-surface-variant"> / {metric.target} {metric.unit}</span>
+        </span>
+      </div>
+      <ProgressBar metric={metric} className="h-1.5" />
+      <span className={`text-xs font-semibold ${metric.status === 'over' ? 'text-error' : 'text-on-surface-variant'}`}>{statusLabel(metric)}</span>
+    </div>
+  );
+}
+
 function SummaryDetails({ metrics, dayLabel, onClose }: { metrics: SummaryMetric[]; dayLabel: string; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useBottomSheet(true, onClose);
@@ -112,19 +128,7 @@ function SummaryDetails({ metrics, dayLabel, onClose }: { metrics: SummaryMetric
         <h3 className="font-headline font-bold text-xl text-on-surface tracking-tight text-center">{t('plan.summary.title')}</h3>
         <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant text-center mt-1 mb-6">{dayLabel}</p>
         <div className="flex flex-col gap-4 mb-6">
-          {metrics.map(metric => (
-            <div key={metric.key} className="flex flex-col gap-1.5">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-sm font-bold text-on-surface">{t(fullLabel[metric.key])}</span>
-                <span className="text-sm tabular-nums whitespace-nowrap">
-                  <span className={`font-extrabold ${valueTone[metric.status]}`}>{formatCompactNumber(metric.value)}</span>
-                  <span className="text-on-surface-variant"> / {metric.target} {metric.unit}</span>
-                </span>
-              </div>
-              <ProgressBar metric={metric} className="h-1.5" />
-              <span className={`text-xs font-semibold ${metric.status === 'over' ? 'text-error' : 'text-on-surface-variant'}`}>{statusLabel(metric)}</span>
-            </div>
-          ))}
+          {metrics.map(metric => <SummaryMetricRow key={metric.key} metric={metric} />)}
         </div>
         <button ref={closeRef} type="button" onClick={onClose} className="w-full py-4 bg-surface-container-low hover:bg-surface-container-highest text-on-surface font-bold rounded-2xl transition-colors active:scale-95">
           {t('plan.summary.close')}

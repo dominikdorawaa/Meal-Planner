@@ -29,7 +29,7 @@ const oldConfig = [
   { id: 'lunch', name: 'Lunch', visible: true },
 ]
 
-function AppDataProbe({ changes = {}, date = '2026-10-17', onError = () => {} }: { changes?: Record<string, unknown>, date?: string, onError?: (error: Error) => void }) {
+function AppDataProbe({ changes = {}, date = '2026-10-17', excludedMealId, onError = () => {} }: { changes?: Record<string, unknown>, date?: string, excludedMealId?: string, onError?: (error: Error) => void }) {
   const data = useAppData()
   const meals = Array.isArray(data.profile?.meal_config) ? data.profile.meal_config : []
   return (
@@ -39,7 +39,7 @@ function AppDataProbe({ changes = {}, date = '2026-10-17', onError = () => {} }:
       <p data-testid="status">{data.profileStatus}</p>
       <p data-testid="profile">{JSON.stringify(data.profile)}</p>
       <p data-testid="counts">{`recipes ${data.recipes.length}, meals ${data.userMeals.length}, items ${data.shoppingList.length}, list recipes ${data.shoppingListRecipes.map(recipe => `${recipe.id}x${recipe.portions}`).join(' ')}`}</p>
-      <p data-testid="consumed">{JSON.stringify(data.getConsumedForDay(date))}</p>
+      <p data-testid="consumed">{JSON.stringify(data.getConsumedForDay(date, excludedMealId))}</p>
       <button onClick={() => data.saveProfile(changes).catch(onError)}>Save</button>
       <button onClick={() => data.refreshProfile()}>Refresh profile</button>
       <button onClick={() => data.reload()}>Reload</button>
@@ -298,6 +298,18 @@ describe('AppDataProvider getConsumedForDay', () => {
     renderProvider({ date })
 
     await waitFor(() => expect(JSON.parse(text('consumed') ?? '')).toEqual({ kcal: 1560, protein: 63, fat: 37.5, carbs: 184 }))
+  })
+
+  it('leaves out the given plan entry from the day totals', async () => {
+    mocks.getProfile.mockResolvedValue({ visible_meals: ['breakfast'] })
+    mocks.getRecipes.mockResolvedValue([])
+    mocks.getMeals.mockResolvedValue([
+      { id: 'm1', meal_date: date, meal_type: 'breakfast', manual_kcal: 300, manual_protein: 10 },
+      { id: 'm2', meal_date: date, meal_type: 'breakfast', manual_kcal: 200, manual_protein: 5 },
+    ])
+    renderProvider({ date, excludedMealId: 'm1' })
+
+    await waitFor(() => expect(JSON.parse(text('consumed') ?? '')).toEqual({ kcal: 200, protein: 5, fat: 0, carbs: 0 }))
   })
 
   it('counts recipes that are no longer on the recipe list with the data stored in the plan entry', async () => {

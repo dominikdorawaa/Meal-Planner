@@ -298,12 +298,6 @@
   "recipeDetails.ingredientsFor": "Składniki na {portions}",
   "recipeDetails.fewerPortions": "Mniej porcji",
   "recipeDetails.morePortions": "Więcej porcji",
-  "recipeDetails.showPreview": "Sprawdź wpływ na bilans dnia",
-  "recipeDetails.hidePreview": "Ukryj podgląd dnia",
-  "recipeDetails.previewAfterTitle": "Bilans po dodaniu",
-  "recipeDetails.previewBeforeTitle": "Aktualny bilans",
-  "recipeDetails.previewBefore": "Przed",
-  "recipeDetails.previewAfter": "Po",
   "recipeDetails.steps": "Przygotowanie",
   "recipeDetails.fewerDays": "Mniej dni",
   "recipeDetails.moreDays": "Więcej dni",
@@ -401,5 +395,13 @@
   "food.filters.maxKcal": "Max kcal",
   "food.filters.minProtein": "Min białko (g)",
   "food.filters.maxFat": "Max tłuszcz (g)",
-  "food.filters.maxCarbs": "Max węgle (g)"
+  "food.filters.maxCarbs": "Max węgle (g)",
+  "dayBalance.show": "Sprawdź wpływ na bilans dnia",
+  "dayBalance.hide": "Ukryj podgląd dnia",
+  "dayBalance.before": "Przed",
+  "dayBalance.after": "Po",
+  "dayBalance.beforeTitle": "Aktualny bilans",
+  "dayBalance.afterTitle": "Bilans po dodaniu",
+  "dayBalance.beforeEditTitle": "Dzień bez tej pozycji",
+  "dayBalance.afterEditTitle": "Bilans po zmianie"
 }
