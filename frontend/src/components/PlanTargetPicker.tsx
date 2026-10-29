@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { t } from '../i18n';
-import { mealTargetLabel } from '../lib/mealTargetLabel';
 import { formatLocalizedDayLabel } from '../lib/planDates';
 import { BottomPanel } from './BottomPanel';
 import { MonthCalendar } from './MonthCalendar';
@@ -23,7 +22,6 @@ export function PlanTargetPicker({ meals, mealType, date, editing, onMealTypeCha
   const [open, setOpen] = useState<'meal' | 'date' | null>(null);
   const close = () => setOpen(null);
   const mealName = meals.find(meal => meal.id === mealType)?.name || mealType;
-  const label = mealTargetLabel(mealName, editing);
 
   return (
     <div className="flex flex-col min-w-0 flex-1 pt-0.5">
@@ -34,7 +32,7 @@ export function PlanTargetPicker({ meals, mealType, date, editing, onMealTypeCha
         aria-haspopup="dialog"
         className="flex items-center gap-1 min-w-0 w-fit max-w-full font-headline font-bold text-base text-on-surface leading-tight active:scale-95 transition-transform disabled:active:scale-100"
       >
-        <span className="truncate">{label.prefix} <span className="text-primary">{label.meal}</span></span>
+        <span className="truncate">{t(editing ? 'planTarget.editing' : 'planTarget.adding')} <span className="text-primary">{mealName}</span></span>
         {!editing && <span className="material-symbols-outlined shrink-0 text-[16px] text-primary">expand_more</span>}
       </button>
       <button

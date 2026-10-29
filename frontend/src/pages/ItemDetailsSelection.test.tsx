@@ -170,7 +170,7 @@ describe('adding from item details', () => {
 describe('meal and day in item details', () => {
   it.each(['/product/p1', '/recipe/r1'])('lets the user pick them when adding from %s', async (pathname) => {
     renderDetails(pathname);
-    const mealButton = await screen.findByRole('button', { name: /Dodajesz do lunchu/ }) as HTMLButtonElement;
+    const mealButton = await screen.findByRole('button', { name: /Dodajesz do: Lunch/ }) as HTMLButtonElement;
 
     expect(mealButton.disabled).toBe(false);
     fireEvent.click(mealButton);
@@ -180,7 +180,7 @@ describe('meal and day in item details', () => {
 
   it.each(['/product/p1', '/recipe/r1'])('shows them only as information when editing from %s', async (pathname) => {
     renderDetails(pathname, `${SEARCH}&mealId=m1`);
-    const mealButton = await screen.findByRole('button', { name: /Edytujesz w lunchu/ }) as HTMLButtonElement;
+    const mealButton = await screen.findByRole('button', { name: /Edytujesz w: Lunch/ }) as HTMLButtonElement;
     const dayButton = screen.getByRole('button', { name: /17 października/ }) as HTMLButtonElement;
 
     expect(mealButton.disabled).toBe(true);

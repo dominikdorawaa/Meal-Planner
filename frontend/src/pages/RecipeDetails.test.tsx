@@ -419,7 +419,7 @@ describe('RecipeDetails adding to the plan', () => {
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast');
     await screen.findByRole('heading', { name: 'Owsianka bananowa' });
 
-    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do śniadania/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do: Śniadanie/ }));
     expect(screen.getByRole('button', { name: 'Kolacja' })).toBeTruthy();
     tapOutside();
     expect(screen.queryByRole('button', { name: 'Kolacja' })).toBeNull();
@@ -435,9 +435,9 @@ describe('RecipeDetails adding to the plan', () => {
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast');
     await screen.findByRole('heading', { name: 'Owsianka bananowa' });
 
-    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do śniadania/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do: Śniadanie/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Kolacja' }));
-    expect(screen.getByRole('button', { name: /Dodajesz do kolacji/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Dodajesz do: Kolacja/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /17/ }));
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.nextMonth') }));
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.previousMonth') }));

@@ -266,7 +266,7 @@ describe('AddFood selection', () => {
   it('opens the meal time and date pickers as bottom panels and closes them when tapping outside', () => {
     renderAddFood();
 
-    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do lunchu/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do: Lunch/ }));
     expect(screen.getByRole('dialog', { name: t('planTarget.chooseMeal') })).toBeTruthy();
     fireEvent.click(screen.getByRole('dialog').parentElement!);
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -280,7 +280,7 @@ describe('AddFood selection', () => {
 
   it('keeps the meal picked in the header after coming back from details', async () => {
     renderAddFood();
-    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do lunchu/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do: Lunch/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Obiad' }));
     fireEvent.click(checkbox('Owsianka'));
 
@@ -288,7 +288,7 @@ describe('AddFood selection', () => {
     await screen.findByText('details /recipe/r2?selectDate=2026-10-17&selectType=dinner');
     fireEvent.click(screen.getByText('back'));
 
-    expect(await screen.findByRole('button', { name: /Dodajesz do obiadu/ })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /Dodajesz do: Obiad/ })).toBeTruthy();
     expect(checkbox('Owsianka')).toHaveProperty('ariaChecked', 'true');
   });
 
