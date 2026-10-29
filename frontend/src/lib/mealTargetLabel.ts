@@ -1,6 +1,6 @@
 import { getLanguage, t, type Language } from '../i18n';
 
-const POLISH_MEAL_CASES: Record<string, { genitive: string; locative: string }> = {
+const POLISH_MEAL_CASES = new Map<string, { genitive: string; locative: string }>(Object.entries({
   'śniadanie': { genitive: 'śniadania', locative: 'śniadaniu' },
   '2 śniadanie': { genitive: '2 śniadania', locative: '2 śniadaniu' },
   'ii śniadanie': { genitive: 'II śniadania', locative: 'II śniadaniu' },
@@ -11,7 +11,7 @@ const POLISH_MEAL_CASES: Record<string, { genitive: string; locative: string }> 
   'podwieczorek': { genitive: 'podwieczorku', locative: 'podwieczorku' },
   'kolacja': { genitive: 'kolacji', locative: 'kolacji' },
   'deser': { genitive: 'deseru', locative: 'deserze' },
-};
+}));
 
 export interface MealTargetLabel {
   prefix: string;
@@ -21,7 +21,7 @@ export interface MealTargetLabel {
 export function mealTargetLabel(mealName: string, editing: boolean, language: Language = getLanguage()): MealTargetLabel {
   const prefix = t(editing ? 'planTarget.editing' : 'planTarget.adding', {}, language);
   if (language !== 'pl') return { prefix, meal: mealName };
-  const cases = POLISH_MEAL_CASES[mealName.trim().toLowerCase()];
+  const cases = POLISH_MEAL_CASES.get(mealName.trim().toLowerCase());
   if (!cases) return { prefix: `${prefix}:`, meal: mealName };
   return { prefix, meal: editing ? cases.locative : cases.genitive };
 }

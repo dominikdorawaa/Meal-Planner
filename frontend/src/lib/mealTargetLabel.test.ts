@@ -22,6 +22,10 @@ describe('mealTargetLabel', () => {
     expect(mealTargetLabel('Posiłek po treningu', false, 'pl')).toEqual({ prefix: 'Dodajesz do:', meal: 'Posiłek po treningu' });
   });
 
+  it.each(['constructor', '__proto__', 'toString'])('keeps a meal named %s as typed', name => {
+    expect(mealTargetLabel(name, false, 'pl')).toEqual({ prefix: 'Dodajesz do:', meal: name });
+  });
+
   it('keeps the meal name unchanged in English', () => {
     expect(mealTargetLabel('Kolacja', false, 'en')).toEqual({ prefix: 'Adding to', meal: 'Kolacja' });
     expect(mealTargetLabel('Kolacja', true, 'en')).toEqual({ prefix: 'Editing in', meal: 'Kolacja' });

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { t } from '../i18n';
 import { mealTargetLabel } from '../lib/mealTargetLabel';
-import { formatRelativeDayLabel } from '../lib/planDates';
+import { formatLocalizedDayLabel } from '../lib/planDates';
 import { BottomPanel } from './BottomPanel';
 import { MonthCalendar } from './MonthCalendar';
 
@@ -44,7 +44,7 @@ export function PlanTargetPicker({ meals, mealType, date, editing, onMealTypeCha
         aria-haspopup="dialog"
         className="flex items-center gap-1 min-w-0 w-fit max-w-full mt-0.5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest leading-tight active:scale-95 transition-transform disabled:active:scale-100"
       >
-        <span className="truncate">{formatRelativeDayLabel(date)}</span>
+        <span className="truncate">{formatLocalizedDayLabel(date, t('recipeDetails.locale'), { yesterday: t('planTarget.yesterday'), today: t('planTarget.today'), tomorrow: t('planTarget.tomorrow') })}</span>
         {!editing && <span className="material-symbols-outlined shrink-0 text-[14px] text-primary/70">expand_more</span>}
       </button>
 

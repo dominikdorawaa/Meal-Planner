@@ -8,11 +8,11 @@ afterEach(() => {
   document.body.style.overflow = '';
 });
 
-function renderPanel(onClose = vi.fn()) {
+function renderPanel(onClose = vi.fn(), children = <button type="button">Inside</button>) {
   return render(
     <MemoryRouter>
       <BottomPanel title="Panel" onClose={onClose}>
-        <button type="button">Inside</button>
+        {children}
       </BottomPanel>
     </MemoryRouter>
   );
@@ -38,5 +38,49 @@ describe('BottomPanel', () => {
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('dialog', { name: 'Panel' }).parentElement!);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves focus into the panel and gives it back to the opener after closing', () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+
+    const { unmount } = renderPanel();
+    expect(document.activeElement).toBe(screen.getByRole('dialog'));
+    unmount();
+
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
+  it('closes with Escape', () => {
+    const onClose = vi.fn();
+    renderPanel(onClose);
+
+    fireEvent.keyDown(document, { key: 'Enter' });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps Tab inside the panel', () => {
+    renderPanel(vi.fn(), <><button type="button">First</button><button type="button">Last</button></>);
+    const first = screen.getByRole('button', { name: 'First' });
+    const last = screen.getByRole('button', { name: 'Last' });
+
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
+  });
+
+  it('keeps focus on the panel when it has nothing to focus', () => {
+    renderPanel(vi.fn(), <p>Text</p>);
+
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(screen.getByRole('dialog'));
   });
 });
