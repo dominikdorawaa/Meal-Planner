@@ -483,6 +483,24 @@ describe('RecipeDetails adding to the plan', () => {
     expect(screen.getByText('822')).toBeTruthy();
   });
 
+  it('uses the saved portions of an unchanged plan entry when its grams were rounded', async () => {
+    mocks.profile = { target_kcal: 2000, target_protein: 100, target_fat: 60, target_carbs: 250 };
+    mocks.getRecipe.mockResolvedValue({
+      ...OWN_RECIPE,
+      kcal: 300,
+      ingredients: [{ id: 'i1', name: 'Banan', amount: 150, unit: 'g', product: BANANA }],
+    });
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 1 }]);
+    mocks.getConsumedForDay.mockImplementation((_date: string, excludedMealId: string | null) =>
+      excludedMealId === 'm1' ? { kcal: 700, protein: 40, fat: 20, carbs: 80 } : { kcal: 1000, protein: 41.1, fat: 20.3, carbs: 103 });
+    renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
+    await waitFor(() => expect((screen.getByLabelText(t('recipeDetails.gramsInput')) as HTMLInputElement).value).toBe('38'));
+
+    expect(screen.getByTestId('kcal-value').textContent).toBe('300');
+    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.show') }));
+    expect(screen.getByText('1000')).toBeTruthy();
+  });
+
   it('skips the day preview when there are no nutrition targets', async () => {
     mocks.profile = null;
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast');

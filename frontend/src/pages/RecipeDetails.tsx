@@ -163,6 +163,8 @@ export function RecipeDetails() {
     inputType === 'grams' ? gramInput === savedGrams : Math.abs(consumedPortions - savedPortions) < 1e-9
   ));
 
+  const nutritionPortions = unchangedPlanItem && savedPortions !== null ? savedPortions : consumedPortions;
+
   const activeIngredientPortions = ingredientPortions !== null ? ingredientPortions : consumedPortions;
 
   const handleAddMeal = async (overrideDate?: string, overrideMealType?: string) => {
@@ -278,10 +280,10 @@ export function RecipeDetails() {
     inputType === 'portions' ? t('recipeDetails.nutritionForPortions', { count: Number(portionInput) || 0, portions: portionWord(Number(portionInput) || 0) }) :
     inputType === 'grams' ? t('recipeDetails.nutritionForGrams', { grams: gramInput === '' ? 0 : Math.round(Number(gramInput)) }) :
     '';
-  const currentKcal = Math.round(recipe.kcal * consumedPortions);
-  const currentP = parseFloat((recipe.protein * consumedPortions).toFixed(1));
-  const currentF = parseFloat((recipe.fat * consumedPortions).toFixed(1));
-  const currentC = parseFloat((recipe.carbs * consumedPortions).toFixed(1));
+  const currentKcal = Math.round(recipe.kcal * nutritionPortions);
+  const currentP = parseFloat((recipe.protein * nutritionPortions).toFixed(1));
+  const currentF = parseFloat((recipe.fat * nutritionPortions).toFixed(1));
+  const currentC = parseFloat((recipe.carbs * nutritionPortions).toFixed(1));
 
   const calP = recipe.protein * 4;
   const calF = recipe.fat * 9;
