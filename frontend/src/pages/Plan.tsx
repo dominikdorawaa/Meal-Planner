@@ -350,7 +350,7 @@ export function Plan() {
     if (validMeals.length > 0) {
       return (
         <div className={CARD_WRAPPER}>
-          <div className={`flex flex-col gap-3 w-full max-w-[130px] h-full transition-all duration-300 ${isToday ? 'ring-2 ring-[#ff9800]/30 bg-[#ff9800]/[0.05] p-2 -mx-2 -my-2 rounded-3xl shadow-[0_0_15px_rgba(255,152,0,0.05)]' : ''}`}>
+          <div className={`flex flex-col gap-3 w-full max-w-[130px] h-full transition-all duration-300 ${isToday ? 'ring-2 ring-today/30 bg-today/[0.05] p-2 -mx-2 -my-2 rounded-3xl shadow-[0_0_15px_rgb(var(--color-today)/0.05)]' : ''}`}>
             {validMeals.map(assignedMeal => {
               const rid = assignedMeal.recipe?.id || assignedMeal.recipe;
               const pid = assignedMeal.product?.id || assignedMeal.product;
@@ -540,13 +540,13 @@ export function Plan() {
                           setSelectedCopyDays(prev => prev.includes(day.date) ? prev.filter(d => d !== day.date) : [...prev, day.date]);
                         }
                       }}
-                      className={`w-full max-w-[130px] bg-surface-container-lowest rounded-3xl p-2.5 sm:p-3 shadow-ambient flex flex-col gap-2 relative transition-all duration-300 ${day.isToday ? 'ring-2 ring-[#ff9800] bg-[#ff9800]/[0.04] shadow-lg shadow-[#ff9800]/10' : ''} ${!day.active ? 'opacity-80 scale-[0.98]' : ''} ${copyModeMeal ? 'opacity-40 grayscale-[30%]' : ''} ${isDayCopyMode ? 'cursor-pointer hover:bg-primary/5 ring-inset' : ''} ${isSelectedCopyDay ? 'bg-primary/10 ring-2 ring-primary' : ''}`}
+                      className={`w-full max-w-[130px] bg-surface-container-lowest rounded-3xl p-2.5 sm:p-3 shadow-ambient flex flex-col gap-2 relative transition-all duration-300 ${day.isToday ? 'ring-2 ring-today bg-today/[0.04] shadow-lg shadow-today/10' : ''} ${!day.active ? 'opacity-80 scale-[0.98]' : ''} ${copyModeMeal ? 'opacity-40 grayscale-[30%]' : ''} ${isDayCopyMode ? 'cursor-pointer hover:bg-primary/5 ring-inset' : ''} ${isSelectedCopyDay ? 'bg-primary/10 ring-2 ring-primary' : ''}`}
                     >
                       {!day.active && <div className="absolute inset-0 bg-surface/30 rounded-3xl pointer-events-none z-10 transition-all"></div>}
 
                       <div className="flex flex-col w-full">
                         <div className="flex justify-between items-center w-full">
-                          <div className={`w-11 h-11 rounded-full text-[13px] font-headline font-extrabold flex items-center justify-center shadow-md transition-all duration-500 ${day.isToday ? 'bg-[#ff9800] text-white ring-4 ring-[#ff9800]/20' : (day.active ? 'bg-primary text-on-primary' : 'bg-primary/10 text-primary')}`}>
+                          <div className={`w-11 h-11 rounded-full text-[13px] font-headline font-extrabold flex items-center justify-center shadow-md transition-all duration-500 ${day.isToday ? 'bg-today text-on-today ring-4 ring-today/20' : (day.active ? 'bg-primary/20 text-primary' : 'bg-surface-container-highest text-on-surface-variant')}`}>
                             {formatDayMonth(day.date)}
                           </div>
 
@@ -902,7 +902,7 @@ function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick
 
 function PlanCard({ onClick, isCopyMode, copyLabel, isSelected, disabled, isToday, noWrap }: { onClick: () => void, isCopyMode?: boolean, copyLabel: string, isSelected?: boolean, disabled?: boolean, isToday?: boolean, noWrap?: boolean }) {
   const content = (
-    <div onClick={disabled ? undefined : onClick} className={`relative w-full max-w-[130px] h-[120px] sm:h-[135px] rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-300 group overflow-hidden ${disabled ? 'opacity-30 bg-surface-container-highest/10 pointer-events-none' : isCopyMode ? 'bg-surface-container-highest/20 cursor-pointer' : 'bg-transparent border border-dashed border-outline-variant/20 hover:bg-surface-container-highest/30 hover:border-primary/30 cursor-pointer active:scale-95'} ${isSelected ? '!bg-primary/10 border-solid border-primary ring-2 ring-primary' : ''} ${isToday ? 'ring-2 ring-[#ff9800]/25 bg-[#ff9800]/[0.01]' : ''}`}>
+    <div onClick={disabled ? undefined : onClick} className={`relative w-full max-w-[130px] h-[120px] sm:h-[135px] rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-300 group overflow-hidden ${disabled ? 'opacity-30 bg-surface-container-highest/10 pointer-events-none' : isCopyMode ? 'bg-surface-container-highest/20 cursor-pointer' : 'bg-transparent border border-dashed border-outline-variant/20 hover:bg-surface-container-highest/30 hover:border-primary/30 cursor-pointer active:scale-95'} ${isSelected ? '!bg-primary/10 border-solid border-primary ring-2 ring-primary' : ''} ${isToday ? 'ring-2 ring-today/25 bg-today/[0.01]' : ''}`}>
 
       {isCopyMode && (
         <div className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors ${isSelected ? 'bg-primary border-primary text-on-primary' : 'bg-surface-container-highest border-primary/30 text-transparent'}`}>

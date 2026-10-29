@@ -29,7 +29,9 @@ export default {
         'on-error': token('on-error'),
         'macro-protein': token('macro-protein'),
         'macro-fat': token('macro-fat'),
-        'macro-carbs': token('macro-carbs')
+        'macro-carbs': token('macro-carbs'),
+        today: token('today'),
+        'on-today': token('on-today')
       },
       fontFamily: {
         headline: ['"Plus Jakarta Sans"', 'sans-serif'],

@@ -497,6 +497,14 @@ describe('Plan start date', () => {
     expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).not.toBeNull()
   })
 
+  it('marks only today with a filled date circle', () => {
+    renderPlan()
+
+    expect(screen.getAllByText('12.10')[0].className).toContain('bg-today')
+    expect(screen.getAllByText('13.10')[0].className).toContain('bg-primary/20')
+    expect(screen.getAllByText('13.10')[0].className).not.toContain('bg-today')
+  })
+
   it('keeps the week when returning from the add screen on the same day', () => {
     rememberPlanReturnPosition({ startDate: '2026-10-19', scrollLeft: 0 })
     const { container } = renderPlan()

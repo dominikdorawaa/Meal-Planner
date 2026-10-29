@@ -22,6 +22,8 @@
     --color-macro-protein: 79 70 229;
     --color-macro-fat: 245 158 11;
     --color-macro-carbs: 16 185 129;
+    --color-today: 0 52 43;
+    --color-on-today: 255 255 255;
     --color-shadow: 0 52 43;
     --shadow-ambient-opacity: 0.06;
   }
@@ -45,6 +47,8 @@
     --color-macro-protein: 129 140 248;
     --color-macro-fat: 251 191 36;
     --color-macro-carbs: 52 211 153;
+    --color-today: 159 212 154;
+    --color-on-today: 13 58 20;
     --color-shadow: 0 0 0;
     --shadow-ambient-opacity: 0.4;
   }
