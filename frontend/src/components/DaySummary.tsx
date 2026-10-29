@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { t, type MessageKey } from '../i18n';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { formatCompactNumber } from '../lib/compactNumber';
+import { macroFillClass } from '../lib/macroColors';
 import { COMPACT_KCAL_SIZES, COMPACT_MACRO_SIZES, fitTextClass } from '../lib/fitText';
 import {
   buildDaySummary,
@@ -34,6 +35,11 @@ const fullLabel: Record<SummaryMetricKey, MessageKey> = {
   carbs: 'plan.summary.carbs',
 };
 
+const fillTone: Record<SummaryMetricKey, string> = {
+  kcal: 'bg-primary',
+  ...macroFillClass,
+};
+
 const valueTone: Record<SummaryStatus, string> = {
   under: 'text-on-surface',
   ok: 'text-primary',
@@ -43,7 +49,7 @@ const valueTone: Record<SummaryStatus, string> = {
 function ProgressBar({ metric, className = '' }: { metric: SummaryMetric; className?: string }) {
   return (
     <span className={`block h-1 w-full bg-surface-container-highest rounded-full overflow-hidden relative ${className}`}>
-      <span data-testid={`${metric.key}-fill`} className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-1000" style={{ width: `${metric.fillPercent}%` }}></span>
+      <span data-testid={`${metric.key}-fill`} className={`absolute top-0 left-0 h-full ${fillTone[metric.key]} rounded-full transition-all duration-1000`} style={{ width: `${metric.fillPercent}%` }}></span>
       <span data-testid={`${metric.key}-overflow`} className="absolute top-0 right-0 h-full bg-error rounded-full transition-all duration-1000" style={{ width: `${metric.overflowPercent}%` }}></span>
     </span>
   );

@@ -31,6 +31,16 @@ describe('DaySummary', () => {
     expect(screen.getByTestId('protein-overflow').style.width).toBe('0%')
   })
 
+  it('colors the macro bars like the recipe rings and keeps kcal in the primary color', () => {
+    renderSummary()
+
+    expect(screen.getByTestId('kcal-fill').className).toContain('bg-primary')
+    expect(screen.getByTestId('protein-fill').className).toContain('bg-macro-protein')
+    expect(screen.getByTestId('fat-fill').className).toContain('bg-macro-fat')
+    expect(screen.getByTestId('carbs-fill').className).toContain('bg-macro-carbs')
+    expect(screen.getByTestId('carbs-overflow').className).toContain('bg-error')
+  })
+
   it('explains every value with full names after a tap', () => {
     const onParentClick = vi.fn()
     render(
