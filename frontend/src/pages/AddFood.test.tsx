@@ -263,23 +263,24 @@ describe('AddFood selection', () => {
     expect(mocks.addMeal).not.toHaveBeenCalled();
   });
 
-  it('closes the meal time and date pickers when tapping outside them', () => {
+  it('opens the meal time and date pickers as bottom panels and closes them when tapping outside', () => {
     renderAddFood();
 
-    fireEvent.click(screen.getByText(/Dodaj do:/));
-    expect(screen.getByRole('button', { name: 'Obiad' })).toBeTruthy();
-    fireEvent.click(document.querySelector('[data-outside-press-layer]')!);
-    expect(screen.queryByRole('button', { name: 'Obiad' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do lunchu/ }));
+    expect(screen.getByRole('dialog', { name: t('planTarget.chooseMeal') })).toBeTruthy();
+    fireEvent.click(screen.getByRole('dialog').parentElement!);
+    expect(screen.queryByRole('dialog')).toBeNull();
 
-    fireEvent.click(screen.getByText(/Dodaj do:/).closest('div')!.nextElementSibling!.querySelector('button')!);
-    expect(screen.getByText('Pn')).toBeTruthy();
-    fireEvent.click(document.querySelector('[data-outside-press-layer]')!);
-    expect(screen.queryByText('Pn')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /17 października/ }));
+    expect(screen.getByRole('dialog', { name: t('planTarget.chooseDay') })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '20 października' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('button', { name: /20 października/ })).toBeTruthy();
   });
 
   it('keeps the meal picked in the header after coming back from details', async () => {
     renderAddFood();
-    fireEvent.click(screen.getByText(/Dodaj do:/));
+    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do lunchu/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Obiad' }));
     fireEvent.click(checkbox('Owsianka'));
 
@@ -287,7 +288,7 @@ describe('AddFood selection', () => {
     await screen.findByText('details /recipe/r2?selectDate=2026-10-17&selectType=dinner');
     fireEvent.click(screen.getByText('back'));
 
-    expect(await screen.findByText('Dodaj do: Obiad')).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /Dodajesz do obiadu/ })).toBeTruthy();
     expect(checkbox('Owsianka')).toHaveProperty('ariaChecked', 'true');
   });
 
@@ -445,6 +446,31 @@ describe('AddFood item cards', () => {
     const search = screen.getByPlaceholderText(t('food.searchPlaceholder'));
     expect(search.getAttribute('autocomplete')).toBe('off');
     expect(search.getAttribute('inputmode')).toBe('search');
+  });
+
+  it('shows the filters in a bottom panel that can clear them and go back to results', () => {
+    renderAddFood();
+    fireEvent.click(screen.getByRole('button', { name: t('food.filters.open') }));
+
+    const clear = screen.getByRole('button', { name: new RegExp(t('food.filters.clear')) }) as HTMLButtonElement;
+    expect(screen.getByRole('dialog', { name: t('food.filters.title') })).toBeTruthy();
+    expect(clear.disabled).toBe(true);
+
+    fireEvent.change(screen.getByLabelText(new RegExp(t('food.filters.maxKcal'))), { target: { value: '400' } });
+    expect(clear.disabled).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: t('food.filters.show') }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByText('Owsianka')).toBeTruthy();
+    expect(screen.queryByText('Omlet')).toBeNull();
+    expect(screen.getByRole('button', { name: t('food.filters.open') }).textContent).toContain('1');
+
+    fireEvent.click(screen.getByRole('button', { name: t('food.filters.open') }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('food.filters.clear')) }));
+    fireEvent.click(screen.getByRole('dialog').parentElement!);
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByText('Omlet')).toBeTruthy();
   });
 
   it('does not accept filter values above the limit', () => {

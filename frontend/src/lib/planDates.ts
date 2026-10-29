@@ -39,15 +39,34 @@ export const formatDayWithMonthName = (dayName: string, isoDate: string) => {
   return date ? `${dayName}, ${date.getDate()} ${MONTH_NAMES[date.getMonth()]}` : `${dayName} (${isoDate})`;
 };
 
+const daysFromToday = (date: Date, today: Date) => {
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((date.getTime() - todayStart.getTime()) / DAY_IN_MS);
+};
+
 export const formatRelativeDayLabel = (isoDate: string, today: Date = new Date()) => {
   const date = parseIsoDate(isoDate);
   if (!date) return isoDate;
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const diffDays = Math.round((date.getTime() - todayStart.getTime()) / DAY_IN_MS);
+  const diffDays = daysFromToday(date, today);
   if (diffDays === 0) return 'Dzisiaj';
   if (diffDays === 1) return 'Jutro';
   if (diffDays === -1) return 'Wczoraj';
   return formatDayWithMonthName(DAY_NAMES[date.getDay()], isoDate);
+};
+
+export interface RelativeDayNames {
+  yesterday: string;
+  today: string;
+  tomorrow: string;
+}
+
+export const formatLocalizedDayLabel = (isoDate: string, locale: string, names: RelativeDayNames, today: Date = new Date()) => {
+  const date = parseIsoDate(isoDate);
+  if (!date) return isoDate;
+  const relative = { [-1]: names.yesterday, 0: names.today, 1: names.tomorrow }[daysFromToday(date, today)];
+  if (relative) return relative;
+  const label = date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
+  return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
 export const firstDayOfMonth = (isoDate: string | null | undefined) => {

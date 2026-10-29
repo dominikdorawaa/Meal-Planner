@@ -2,12 +2,13 @@ import { useEffect, useId, useState, useMemo } from 'react';
 import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type Product } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
-import { addDaysToIsoDate, firstDayOfMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
+import { addDaysToIsoDate, formatShortDayLabel } from '../lib/planDates';
 import { productDisplayName } from '../lib/productName';
 import { canEditProduct, isOwnItem, isUnverified } from '../lib/productPermissions';
 import { NutritionFactsTable } from '../components/NutritionFactsTable';
 import { ItemBadges, SaveHeartButton } from '../components/FoodRows';
 import { OPEN_HEADER_CLASS, OutsidePressLayer } from '../components/OutsidePressLayer';
+import { PlanTargetPicker } from '../components/PlanTargetPicker';
 import { NewProductSheet, type ProductFormMode } from '../components/NewProductSheet';
 import { draftFromProduct } from '../lib/productDraft';
 import { MeasureAmountRows } from '../components/MeasureAmountRows';
@@ -50,15 +51,11 @@ export function ProductDetails() {
 
   const [activeDate, setActiveDate] = useState(selectDate || '');
   const [activeMealType, setActiveMealType] = useState(selectType || '');
-  const [showMealPicker, setShowMealPicker] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [saved, setSaved] = useState(false);
   const [formMode, setFormMode] = useState<ProductFormMode | null>(null);
-  const [calendarDate, setCalendarDate] = useState(() => firstDayOfMonth(selectDate));
 
-  useCloseOnBack(showMealPicker || showDatePicker, () => { setShowMealPicker(false); setShowDatePicker(false); });
   useCloseOnBack(showMenu, () => setShowMenu(false));
   useCloseOnBack(showDeleteConfirm, () => setShowDeleteConfirm(false));
 
@@ -214,108 +211,26 @@ export function ProductDetails() {
     return <div className="min-h-screen bg-surface flex items-center justify-center">Ładowanie...</div>;
   }
 
-  const MEAL_TYPE_LABELS: Record<string, string> = {
-    breakfast: 'Śniadanie', snack1: '2 Śniadanie', lunch: 'Lunch', snack2: 'Przekąska', dinner: 'Obiad', supper: 'Kolacja',
-  };
   const own = isOwnItem(product, user);
   const editable = canEditProduct(product, user);
-  const mealLabel = availableMealTypes.find((m: any) => m.id === activeMealType)?.name || MEAL_TYPE_LABELS[activeMealType] || activeMealType;
-  const todayStr = todayIsoDate();
   const activeDateDisplay = formatShortDayLabel(activeDate || selectDate || '');
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
       
       {/* Top Header - Zgodny ze screenem */}
-      <header className={`sticky top-0 w-full ${showMealPicker || showDatePicker || showMenu ? OPEN_HEADER_CLASS : 'z-40'} bg-surface-container-lowest px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10`}>
+      <header className={`sticky top-0 w-full ${showMenu ? OPEN_HEADER_CLASS : 'z-40'} bg-surface-container-lowest px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10`}>
         <button onClick={() => navigate(-1)} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 shrink-0">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
-        <div className="flex flex-col pt-0.5 flex-1 relative">
-
-          {/* Meal picker */}
-          <div className="relative">
-            <button
-              disabled={Boolean(mealId)}
-              onClick={() => { setShowMealPicker(v => !v); setShowDatePicker(false); }}
-              className="flex items-center gap-1 font-headline font-bold text-base text-on-surface leading-tight active:scale-95 transition-transform"
-            >
-              <span>{mealId ? 'Edytujesz w: ' : 'Dodajesz do: '} <span className="text-primary">{mealLabel}</span></span>
-              {!mealId && <span className={`material-symbols-outlined text-[14px] text-primary transition-transform ${showMealPicker ? 'rotate-180' : ''}`}>expand_more</span>}
-            </button>
-            {showMealPicker && (
-              <div className="absolute top-full left-0 mt-1 z-[200] pointer-events-auto bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
-                {availableMealTypes.map((meal: any) => (
-                  <button
-                    key={meal.id}
-                    onClick={() => { setActiveMealType(meal.id); setShowMealPicker(false); }}
-                    className={`flex items-center justify-between w-full px-4 py-2.5 text-sm font-bold transition-colors hover:bg-surface-container ${activeMealType === meal.id ? 'text-primary' : 'text-on-surface'}`}
-                  >
-                    <span>{meal.name}</span>
-                    {activeMealType === meal.id && <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Date picker */}
-          <div className="relative">
-            <button
-              disabled={Boolean(mealId)}
-              onClick={() => { setShowDatePicker(v => !v); setShowMealPicker(false); }}
-              className="flex items-center gap-1 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest leading-tight active:scale-95 transition-transform w-fit"
-            >
-              <span>{activeDateDisplay}</span>
-              {!mealId && <span className={`material-symbols-outlined text-[11px] text-primary/70 transition-transform ${showDatePicker ? 'rotate-180' : ''}`}>expand_more</span>}
-            </button>
-            {showDatePicker && (
-              <div className="absolute top-full left-0 mt-1 z-[200] pointer-events-auto bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
-                <div className="flex items-center justify-between mb-2 px-1">
-                  <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
-                    <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-                  </button>
-                  <span className="text-xs font-black text-on-surface uppercase tracking-widest">{calendarDate.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}</span>
-                  <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
-                    <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-                  </button>
-                </div>
-                <div className="grid grid-cols-7 mb-1">
-                  {['Pn','Wt','Śr','Cz','Pt','So','Nd'].map(d => (
-                    <span key={d} className="text-center text-[9px] font-bold text-on-surface-variant/50 py-0.5">{d}</span>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7 gap-0.5">
-                  {(() => {
-                    const year = calendarDate.getFullYear();
-                    const month = calendarDate.getMonth();
-                    const firstDay = new Date(year, month, 1).getDay();
-                    const offset = firstDay === 0 ? 6 : firstDay - 1;
-                    const daysInMonth = new Date(year, month + 1, 0).getDate();
-                    const cells = [];
-                    for (let i = 0; i < offset; i++) cells.push(<span key={`e${i}`} />);
-                    for (let d = 1; d <= daysInMonth; d++) {
-                      const ds = toIsoDate(new Date(year, month, d));
-                      const isActive = activeDate === ds;
-                      const isTodayDay = todayStr === ds;
-                      cells.push(
-                        <button key={d} onClick={() => { setActiveDate(ds); setShowDatePicker(false); }}
-                          className={`w-full aspect-square flex items-center justify-center rounded-full text-xs font-bold transition-all active:scale-90 ${isActive ? 'bg-primary text-on-primary' : isTodayDay ? 'border border-primary text-primary' : 'text-on-surface hover:bg-surface-container'}`}>
-                          {d}
-                        </button>
-                      );
-                    }
-                    return cells;
-                  })()}
-                </div>
-              </div>
-            )}
-          </div>
-
-           {(showMealPicker || showDatePicker) && (
-            <OutsidePressLayer onClose={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
-          )}
-        </div>
+        <PlanTargetPicker
+          meals={availableMealTypes}
+          mealType={activeMealType}
+          date={activeDate}
+          editing={Boolean(mealId)}
+          onMealTypeChange={setActiveMealType}
+          onDateChange={setActiveDate}
+        />
 
         {user && !product.deleted && (
         <div className="relative ml-auto flex items-center">

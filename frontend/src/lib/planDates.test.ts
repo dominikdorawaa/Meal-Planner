@@ -5,6 +5,7 @@ import {
   formatDayMonth,
   formatDayWithMonthName,
   formatRelativeDayLabel,
+  formatLocalizedDayLabel,
   formatShortDayLabel,
   parseIsoDate,
   planDays,
@@ -151,5 +152,25 @@ describe('planDays', () => {
     const days = planDays(new Date(2026, 0, 1), 1, new Date(2027, 0, 1))
 
     expect(days[0].isToday).toBe(false)
+  })
+})
+
+describe('formatLocalizedDayLabel', () => {
+  const names = { yesterday: 'Yesterday', today: 'Today', tomorrow: 'Tomorrow' }
+  const today = new Date(2026, 9, 29)
+
+  it('uses the given names for the nearest days', () => {
+    expect(formatLocalizedDayLabel('2026-10-28', 'en-GB', names, today)).toBe('Yesterday')
+    expect(formatLocalizedDayLabel('2026-10-29', 'en-GB', names, today)).toBe('Today')
+    expect(formatLocalizedDayLabel('2026-10-30', 'en-GB', names, today)).toBe('Tomorrow')
+  })
+
+  it('writes other days in the chosen language starting with a capital letter', () => {
+    expect(formatLocalizedDayLabel('2026-10-31', 'en-GB', names, today)).toBe('Saturday 31 October')
+    expect(formatLocalizedDayLabel('2026-10-31', 'pl-PL', names, today)).toBe('Sobota, 31 października')
+  })
+
+  it('returns text that is not a date unchanged', () => {
+    expect(formatLocalizedDayLabel('', 'en-GB', names, today)).toBe('')
   })
 })

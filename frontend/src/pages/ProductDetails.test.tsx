@@ -273,9 +273,9 @@ describe('ProductDetails saving and ownership', () => {
     tapOutside();
     expect(screen.queryByRole('menu')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /Lunch/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do lunchu/ }));
     expect(screen.getByRole('button', { name: 'Kolacja' })).toBeTruthy();
-    tapOutside();
+    fireEvent.click(screen.getByRole('dialog').parentElement!);
     expect(screen.queryByRole('button', { name: 'Kolacja' })).toBeNull();
   });
 
@@ -498,12 +498,13 @@ describe('ProductDetails day balance preview', () => {
     mocks.getConsumedForDay.mockImplementation((date: string) =>
       date === '2026-10-18' ? { kcal: 1400, protein: 70, fat: 40, carbs: 150 } : { kcal: 500, protein: 20, fat: 10, carbs: 60 });
     renderDetails();
-    fireEvent.click(await screen.findByRole('button', { name: /17\.10/ }));
-    fireEvent.click(screen.getByRole('button', { name: '18' }));
+    fireEvent.click(await screen.findByRole('button', { name: /17 października/ }));
+    fireEvent.click(screen.getByRole('button', { name: '18 października' }));
 
     fireEvent.click(screen.getByRole('button', { name: t('dayBalance.show') }));
     expect(screen.getByText(t('dayBalance.afterTitle'))).toBeTruthy();
-    expect(screen.getAllByText('18.10')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: /18 października/ })).toBeTruthy();
+    expect(screen.getByText('18.10')).toBeTruthy();
     expect(screen.getByText('1460')).toBeTruthy();
     expect(mocks.getConsumedForDay).toHaveBeenLastCalledWith('2026-10-18', null);
   });
