@@ -2,14 +2,13 @@ import { useCallback, useEffect, useId, useState, useMemo } from 'react';
 import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
-import { addDaysToIsoDate, firstDayOfMonth, formatDayMonth, formatShortDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
+import { addDaysToIsoDate, formatDayMonth, formatShortDayLabel, todayIsoDate } from '../lib/planDates';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { targetRange } from '../lib/macros';
 import { macroRingBackground } from '../lib/macroColors';
 import { NutritionFactsTable } from '../components/NutritionFactsTable';
 import { NUTRITION_TABLE_FACTS, recipeExtraNutrientsPerPortion } from '../lib/nutrients';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
-import { useCloseOnBack } from '../lib/backNavigation';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { ingredientGrams, ingredientNutrition, ingredientUnitLabel } from '../lib/recipeIngredient';
 import { profileMealTypes } from '../lib/mealTypes';
@@ -21,7 +20,7 @@ import { AMOUNT_LIMITS, acceptsLimitedNumber, numberFieldProps } from '../lib/in
 import { formatCompactNumber } from '../lib/compactNumber';
 import { KCAL_HERO_SIZES, RING_VALUE_SIZES, fitTextClass } from '../lib/fitText';
 import { MonthCalendar } from '../components/MonthCalendar';
-import { OPEN_HEADER_CLASS, OutsidePressLayer } from '../components/OutsidePressLayer';
+import { PlanTargetPicker } from '../components/PlanTargetPicker';
 
 const DEFAULT_RECIPE_WEIGHT = 300;
 
@@ -29,15 +28,6 @@ function gramsLabel(value: number): string {
   return `${formatCompactNumber(value, 1)}g`;
 }
 const QUICK_PICK_MULTIPLIERS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75];
-const WEEKDAY_KEYS: MessageKey[] = [
-  'recipeDetails.weekday.mon',
-  'recipeDetails.weekday.tue',
-  'recipeDetails.weekday.wed',
-  'recipeDetails.weekday.thu',
-  'recipeDetails.weekday.fri',
-  'recipeDetails.weekday.sat',
-  'recipeDetails.weekday.sun',
-];
 
 function portionForm(count: number): string {
   return Number.isInteger(count) ? pluralForm(count) : 'fraction';
@@ -92,11 +82,7 @@ export function RecipeDetails() {
 
   const [activeDate, setActiveDate] = useState(selectDate || '');
   const [activeMealType, setActiveMealType] = useState(selectType || '');
-  const [showMealPicker, setShowMealPicker] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [calendarDate, setCalendarDate] = useState(() => firstDayOfMonth(selectDate));
 
-  useCloseOnBack(showMealPicker || showDatePicker, () => { setShowMealPicker(false); setShowDatePicker(false); });
   const addToPlanSheetRef = useBottomSheet(showAddToPlan, () => setShowAddToPlan(false));
   const menuSheetRef = useBottomSheet(showMenu, () => setShowMenu(false));
 
@@ -294,13 +280,9 @@ export function RecipeDetails() {
   const pctF = Math.round((calF / totalCal) * 100);
   const pctC = Math.round((calC / totalCal) * 100);
 
-  const todayStr = todayIsoDate();
   const dateDisplay = formatShortDayLabel(selectDate || '');
 
-  const mealLabel = mealTypes.find(m => m.id === activeMealType)?.name || activeMealType || selectType || '';
   const isOwn = recipe.own !== false;
-
-  const activeDateDisplay = activeDate ? formatShortDayLabel(activeDate) : dateDisplay;
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
@@ -311,7 +293,7 @@ export function RecipeDetails() {
           <span className="font-headline font-bold text-sm tracking-wide">{successToast}</span>
         </div>
       </div>
-      <header className={`sticky top-0 w-full ${showMealPicker || showDatePicker ? OPEN_HEADER_CLASS : 'z-40'} bg-surface/90 backdrop-blur-xl px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10`}>
+      <header className={`sticky top-0 w-full z-40 bg-surface/90 backdrop-blur-xl px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10`}>
         <button
           onClick={() => navigate(-1)}
           aria-label={t('recipeDetails.back')}
@@ -320,89 +302,14 @@ export function RecipeDetails() {
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
         {selectType && selectDate ? (
-          <div className="flex flex-col pt-0.5 flex-1 relative">
-
-            <div className="relative">
-              <button
-                disabled={Boolean(mealId)}
-                onClick={() => { setShowMealPicker(v => !v); setShowDatePicker(false); }}
-                className="flex items-center gap-1 font-headline font-bold text-[15px] sm:text-base text-on-surface leading-tight active:scale-95 transition-transform"
-              >
-                <span>{t(mealId ? 'recipeDetails.editingIn' : 'recipeDetails.addingTo')} <span className="text-primary">{mealLabel}</span></span>
-                {!mealId && <span className={`material-symbols-outlined text-[14px] text-primary transition-transform ${showMealPicker ? 'rotate-180' : ''}`}>expand_more</span>}
-              </button>
-              {showMealPicker && (
-                <div className="absolute top-full left-0 mt-1 z-[200] pointer-events-auto bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
-                  {visibleMealTypes.map(meal => (
-                    <button
-                      key={meal.id}
-                      onClick={() => { setActiveMealType(meal.id); setShowMealPicker(false); }}
-                      className={`flex items-center justify-between w-full px-4 py-2.5 text-sm font-bold transition-colors hover:bg-surface-container ${activeMealType === meal.id ? 'text-primary' : 'text-on-surface'}`}
-                    >
-                      <span>{meal.name}</span>
-                      {activeMealType === meal.id && <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="relative">
-              <button
-                disabled={Boolean(mealId)}
-                onClick={() => { setShowDatePicker(v => !v); setShowMealPicker(false); }}
-                className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-on-surface-variant uppercase tracking-widest leading-tight active:scale-95 transition-transform w-fit"
-              >
-                <span>{activeDateDisplay}</span>
-                {!mealId && <span className={`material-symbols-outlined text-[11px] text-primary/70 transition-transform ${showDatePicker ? 'rotate-180' : ''}`}>expand_more</span>}
-              </button>
-              {showDatePicker && (
-                <div className="absolute top-full left-0 mt-1 z-[200] pointer-events-auto bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
-                  <div className="flex items-center justify-between mb-2 px-1">
-                    <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} aria-label={t('recipeDetails.previousMonth')} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
-                      <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-                    </button>
-                    <span className="text-xs font-black text-on-surface uppercase tracking-widest">{calendarDate.toLocaleDateString(t('recipeDetails.locale'), { month: 'long', year: 'numeric' })}</span>
-                    <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} aria-label={t('recipeDetails.nextMonth')} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90">
-                      <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-7 mb-1">
-                    {WEEKDAY_KEYS.map(key => (
-                      <span key={key} className="text-center text-[9px] font-bold text-on-surface-variant/50 py-0.5">{t(key)}</span>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 gap-0.5">
-                    {(() => {
-                      const year = calendarDate.getFullYear();
-                      const month = calendarDate.getMonth();
-                      const firstDay = new Date(year, month, 1).getDay();
-                      const offset = firstDay === 0 ? 6 : firstDay - 1;
-                      const daysInMonth = new Date(year, month + 1, 0).getDate();
-                      const cells = [];
-                      for (let i = 0; i < offset; i++) cells.push(<span key={`e${i}`} />);
-                      for (let d = 1; d <= daysInMonth; d++) {
-                        const ds = toIsoDate(new Date(year, month, d));
-                        const isActive = activeDate === ds;
-                        const isTodayDay = todayStr === ds;
-                        cells.push(
-                          <button key={d} onClick={() => { setActiveDate(ds); setShowDatePicker(false); }}
-                            className={`w-full aspect-square flex items-center justify-center rounded-full text-xs font-bold transition-all active:scale-90 ${isActive ? 'bg-primary text-on-primary' : isTodayDay ? 'border border-primary text-primary' : 'text-on-surface hover:bg-surface-container'}`}>
-                            {d}
-                          </button>
-                        );
-                      }
-                      return cells;
-                    })()}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {(showMealPicker || showDatePicker) && (
-              <OutsidePressLayer onClose={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
-            )}
-          </div>
+          <PlanTargetPicker
+            meals={visibleMealTypes}
+            mealType={activeMealType}
+            date={activeDate}
+            editing={Boolean(mealId)}
+            onMealTypeChange={setActiveMealType}
+            onDateChange={setActiveDate}
+          />
         ) : (
           <h1 className="font-headline font-bold text-[15px] sm:text-base text-on-surface leading-tight flex-1">{t('recipeDetails.title')}</h1>
         )}

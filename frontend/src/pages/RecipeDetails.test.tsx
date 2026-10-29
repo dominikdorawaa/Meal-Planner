@@ -96,7 +96,7 @@ afterEach(() => {
 });
 
 function tapOutside() {
-  fireEvent.click(document.querySelector('[data-outside-press-layer]')!);
+  fireEvent.click(screen.getByRole('dialog').parentElement!);
 }
 
 describe('RecipeDetails loading', () => {
@@ -417,7 +417,7 @@ describe('RecipeDetails adding to the plan', () => {
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast');
     await screen.findByRole('heading', { name: 'Owsianka bananowa' });
 
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeDetails.addingTo')) }));
+    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do śniadania/ }));
     expect(screen.getByRole('button', { name: 'Kolacja' })).toBeTruthy();
     tapOutside();
     expect(screen.queryByRole('button', { name: 'Kolacja' })).toBeNull();
@@ -433,12 +433,13 @@ describe('RecipeDetails adding to the plan', () => {
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast');
     await screen.findByRole('heading', { name: 'Owsianka bananowa' });
 
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeDetails.addingTo')) }));
+    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do śniadania/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Kolacja' }));
+    expect(screen.getByRole('button', { name: /Dodajesz do kolacji/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /17/ }));
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.nextMonth') }));
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.previousMonth') }));
-    fireEvent.click(screen.getByRole('button', { name: '18' }));
+    fireEvent.click(screen.getByRole('button', { name: '18 października' }));
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.moreDays') }));
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.moreDays') }));
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.fewerDays') }));

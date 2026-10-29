@@ -10,7 +10,8 @@ import { useProductSearch } from '../lib/useProductSearch';
 import { useSavedFood } from '../lib/useSavedFood';
 import { isOwnItem, isUnverified } from '../lib/productPermissions';
 import { ProductRow, RecipeRow } from '../components/FoodRows';
-import { OPEN_HEADER_CLASS, OutsidePressLayer } from '../components/OutsidePressLayer';
+import { BottomPanel } from '../components/BottomPanel';
+import { PlanTargetPicker } from '../components/PlanTargetPicker';
 import type { MessageKey } from '../i18n';
 import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
 import { useBarcodeLookup } from '../lib/useBarcodeLookup';
@@ -18,9 +19,8 @@ import { missingProductMessage } from '../lib/barcodeLookup';
 import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
 import { NewProductSheet, type NewProductDraft } from '../components/NewProductSheet';
 import { t } from '../i18n';
-import { useCloseOnBack } from '../lib/backNavigation';
 import { useBottomSheet } from '../lib/bottomSheet';
-import { firstDayOfMonth, formatRelativeDayLabel, toIsoDate, todayIsoDate } from '../lib/planDates';
+import { profileMealTypes } from '../lib/mealTypes';
 import {
   DEFAULT_PRODUCT_GRAMS,
   DEFAULT_RECIPE_PORTIONS,
@@ -78,14 +78,15 @@ function FoodSection({ title, empty, children }: { title: string; empty: string 
     </section>
   );
 }
-const MEAL_TYPE_LABELS: Record<string, string> = {
-  breakfast: 'Śniadanie',
-  second_breakfast: '2 Śniadanie',
-  lunch: 'Lunch',
-  snack: 'Przekąska',
-  dinner: 'Obiad',
-  supper: 'Kolacja',
-};
+
+const EMPTY_FILTERS: NutritionFiltersValues = { maxKcal: '', minProtein: '', maxFat: '', maxCarbs: '' };
+
+const FILTER_FIELDS: { key: keyof NutritionFiltersValues; label: MessageKey; icon: string; placeholder: string; max: number }[] = [
+  { key: 'maxKcal', label: 'food.filters.maxKcal', icon: 'local_fire_department', placeholder: 'np. 500', max: MEAL_LIMITS.kcal },
+  { key: 'minProtein', label: 'food.filters.minProtein', icon: 'fitness_center', placeholder: 'np. 20', max: MEAL_LIMITS.grams },
+  { key: 'maxFat', label: 'food.filters.maxFat', icon: 'water_drop', placeholder: 'np. 15', max: MEAL_LIMITS.grams },
+  { key: 'maxCarbs', label: 'food.filters.maxCarbs', icon: 'grain', placeholder: 'np. 50', max: MEAL_LIMITS.grams },
+];
 
 export function AddFood() {
   const navigate = useNavigate();
@@ -99,14 +100,11 @@ export function AddFood() {
 
   const [activeDate, setActiveDate] = useState(selectDate || '');
   const [activeMealType, setActiveMealType] = useState(selectType || '');
-  const [showMealPicker, setShowMealPicker] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [calendarDate, setCalendarDate] = useState(() => firstDayOfMonth(selectDate));
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<FoodTab>('recent');
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState<NutritionFiltersValues>({ maxKcal: '', minProtein: '', maxFat: '', maxCarbs: '' });
+  const [filters, setFilters] = useState<NutritionFiltersValues>(EMPTY_FILTERS);
 
   const hasActiveFilters = Object.values(filters).some(v => v !== '');
   const searching = searchQuery.trim() !== '' || hasActiveFilters;
@@ -146,7 +144,6 @@ export function AddFood() {
   const [quickAddInitial, setQuickAddInitial] = useState(quickAddForm);
   const quickAddChanged = (Object.keys(quickAddForm) as (keyof typeof quickAddForm)[]).some(key => quickAddForm[key] !== quickAddInitial[key]);
 
-  useCloseOnBack(showMealPicker || showDatePicker, () => { setShowMealPicker(false); setShowDatePicker(false); });
   const quickAddSheetRef = useBottomSheet(showQuickAdd && !mealId, () => setShowQuickAdd(false));
 
   useEffect(() => {
@@ -174,14 +171,6 @@ export function AddFood() {
   }, [mealId]);
 
 
-
-  const getMealLabel = (type: string) => {
-    if (profile?.meal_config) {
-      const config = profile.meal_config.find((m: any) => m.id === type);
-      if (config) return config.name;
-    }
-    return MEAL_TYPE_LABELS[type] || type;
-  };
 
   const searchedRecipes = useMemo(() => {
     const lowerQ = searchQuery.trim().toLowerCase();
@@ -260,12 +249,7 @@ export function AddFood() {
 
 
 
-  const availableMealTypes = useMemo(() => {
-    if (profile?.meal_config && profile.meal_config.length > 0) {
-      return profile.meal_config.map((m: any) => ({ id: m.id, name: m.name }));
-    }
-    return Object.entries(MEAL_TYPE_LABELS).map(([id, name]) => ({ id, name }));
-  }, [profile]);
+  const availableMealTypes = useMemo(() => profileMealTypes(profile).filter(meal => meal.visible !== false), [profile]);
 
   const handleQuickAddSubmit = async () => {
     if (!selectDate || !selectType || isAdding) return;
@@ -317,117 +301,21 @@ export function AddFood() {
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col">
-      {/* Sticky Header & Search */}
-      <header className={`sticky top-0 w-full ${showMealPicker || showDatePicker ? OPEN_HEADER_CLASS : 'z-50'} bg-surface/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/10 pt-safe`}>
+      <header className={`sticky top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/10 pt-safe`}>
         <div className="max-w-xl mx-auto px-4 py-4 space-y-4">
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button onClick={() => navigate('/')} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform">
-                <span className="material-symbols-outlined">arrow_back</span>
-              </button>
-              <div className="flex flex-col gap-0.5">
-
-                {/* Meal type selector */}
-                <div className="relative">
-                  <button
-                    onClick={() => { if (!mealId) { setShowMealPicker(v => !v); setShowDatePicker(false); } }}
-                    className={`flex items-center gap-1 font-headline font-bold text-lg text-on-surface tracking-tight leading-tight ${!mealId ? 'active:scale-95 transition-transform' : ''}`}
-                  >
-                    <span>{mealId ? 'Edytuj w:' : 'Dodaj do:'} {getMealLabel(activeMealType)}</span>
-                    {!mealId && <span className={`material-symbols-outlined text-[16px] text-primary transition-transform ${showMealPicker ? 'rotate-180' : ''}`}>expand_more</span>}
-                  </button>
-                  {showMealPicker && (
-                    <div className="absolute top-full left-0 mt-1 z-[200] pointer-events-auto bg-surface rounded-2xl shadow-xl border border-outline-variant/20 py-1 min-w-[180px]">
-                      {availableMealTypes.map((meal: any) => (
-                        <button
-                          key={meal.id}
-                          onClick={() => { setActiveMealType(meal.id); setShowMealPicker(false); }}
-                          className={`flex items-center justify-between w-full px-4 py-2.5 text-sm font-bold transition-colors hover:bg-surface-container ${activeMealType === meal.id ? 'text-primary' : 'text-on-surface'}`}
-                        >
-                          <span>{meal.name}</span>
-                          {activeMealType === meal.id && <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Date selector */}
-                <div className="relative">
-                  <button
-                    onClick={() => { if (!mealId) { setShowDatePicker(v => !v); setShowMealPicker(false); } }}
-                    className={`flex items-center gap-1 text-sm font-bold text-primary w-fit ${!mealId ? 'active:scale-95 transition-transform' : ''}`}
-                  >
-                    <span>{formatRelativeDayLabel(activeDate)}</span>
-                    {!mealId && <span className={`material-symbols-outlined text-[16px] text-primary/70 transition-transform ${showDatePicker ? 'rotate-180' : ''}`}>expand_more</span>}
-                  </button>
-                  {showDatePicker && (
-                    <div className="absolute top-full left-0 mt-1 z-[200] pointer-events-auto bg-surface rounded-2xl shadow-xl border border-outline-variant/20 p-3 w-[260px]">
-                      {/* Month nav */}
-                      <div className="flex items-center justify-between mb-2 px-1">
-                        <button
-                          onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-                          className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-                        </button>
-                        <span className="text-xs font-black text-on-surface uppercase tracking-widest">
-                          {calendarDate.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
-                        </span>
-                        <button
-                          onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-                          className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant active:scale-90"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-                        </button>
-                      </div>
-                      {/* Day headers */}
-                      <div className="grid grid-cols-7 mb-1">
-                        {['Pn','Wt','Śr','Cz','Pt','So','Nd'].map(d => (
-                          <span key={d} className="text-center text-[9px] font-bold text-on-surface-variant/50 py-0.5">{d}</span>
-                        ))}
-                      </div>
-                      {/* Days grid */}
-                      <div className="grid grid-cols-7 gap-0.5">
-                        {(() => {
-                          const year = calendarDate.getFullYear();
-                          const month = calendarDate.getMonth();
-                          const firstDay = new Date(year, month, 1).getDay();
-                          // Monday-first offset
-                          const offset = (firstDay === 0 ? 6 : firstDay - 1);
-                          const daysInMonth = new Date(year, month + 1, 0).getDate();
-                          const todayStr = todayIsoDate();
-                          const cells = [];
-                          for (let i = 0; i < offset; i++) cells.push(<span key={`e${i}`} />);
-                          for (let d = 1; d <= daysInMonth; d++) {
-                            const dateStr = toIsoDate(new Date(year, month, d));
-                            const isActive = activeDate === dateStr;
-                            const isToday = todayStr === dateStr;
-                            cells.push(
-                              <button
-                                key={d}
-                                onClick={() => { setActiveDate(dateStr); setShowDatePicker(false); }}
-                                className={`w-full aspect-square flex items-center justify-center rounded-full text-xs font-bold transition-all active:scale-90
-                                  ${isActive ? 'bg-primary text-on-primary' : isToday ? 'border border-primary text-primary' : 'text-on-surface hover:bg-surface-container'}`}
-                              >
-                                {d}
-                              </button>
-                            );
-                          }
-                          return cells;
-                        })()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-              </div>
-            </div>
-            {/* Close dropdowns on outside click */}
-            {(showMealPicker || showDatePicker) && (
-              <OutsidePressLayer onClose={() => { setShowMealPicker(false); setShowDatePicker(false); }} />
-            )}
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/')} aria-label={t('recipeDetails.back')} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform shrink-0">
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <PlanTargetPicker
+              meals={availableMealTypes}
+              mealType={activeMealType}
+              date={activeDate}
+              editing={Boolean(mealId)}
+              onMealTypeChange={setActiveMealType}
+              onDateChange={setActiveDate}
+            />
           </div>
 
           {!mealId && (
@@ -462,7 +350,8 @@ export function AddFood() {
               <button
                 onClick={() => setShowFilters(v => !v)}
                 className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors active:scale-95 shrink-0 shadow-sm relative ${showFilters || hasActiveFilters ? 'bg-primary text-on-primary' : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'}`}
-                title="Filtruj wyniki"
+                title={t('food.filters.open')}
+                aria-label={t('food.filters.open')}
               >
                 <span className="material-symbols-outlined text-xl">tune</span>
                 {hasActiveFilters && !showFilters && (
@@ -474,46 +363,46 @@ export function AddFood() {
             </div>
           )}
 
-          {/* Filter panel */}
           {showFilters && !mealId && (
-            <div className="bg-surface-container-low rounded-2xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-widest text-on-surface-variant">Filtruj wyniki</span>
-                {hasActiveFilters && (
-                  <button
-                    onClick={() => setFilters({ maxKcal: '', minProtein: '', maxFat: '', maxCarbs: '' })}
-                    className="flex items-center gap-1 text-[11px] font-bold text-primary active:scale-95"
-                  >
-                    <span className="material-symbols-outlined text-[13px]">filter_alt_off</span>
-                    Wyczyść filtry
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { key: 'maxKcal', label: 'Max kcal', icon: 'local_fire_department', placeholder: 'np. 500', max: MEAL_LIMITS.kcal },
-                  { key: 'minProtein', label: 'Min białko (g)', icon: 'fitness_center', placeholder: 'np. 20', max: MEAL_LIMITS.grams },
-                  { key: 'maxFat', label: 'Max tłuszcz (g)', icon: 'water_drop', placeholder: 'np. 15', max: MEAL_LIMITS.grams },
-                  { key: 'maxCarbs', label: 'Max węgle (g)', icon: 'grain', placeholder: 'np. 50', max: MEAL_LIMITS.grams },
-                ].map(f => (
+            <BottomPanel title={t('food.filters.title')} onClose={() => setShowFilters(false)}>
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                {FILTER_FIELDS.map(f => (
                   <div key={f.key} className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
+                    <label htmlFor={`filter-${f.key}`} className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
                       <span className="material-symbols-outlined text-[12px]">{f.icon}</span>
-                      {f.label}
+                      {t(f.label)}
                     </label>
                     <input
                       {...numberFieldProps(f.max, 0)}
-                      aria-label={f.label}
-                      value={filters[f.key as keyof typeof filters]}
+                      id={`filter-${f.key}`}
+                      value={filters[f.key]}
                       onChange={e => acceptsLimitedNumber(e.target.value, f.max, 0) && setFilters(prev => ({ ...prev, [f.key]: e.target.value }))}
                       onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
                       placeholder={f.placeholder}
-                      className="w-full bg-surface rounded-xl py-2.5 px-3 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-full bg-surface-container-low rounded-xl py-3 px-3 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                 ))}
               </div>
-            </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  disabled={!hasActiveFilters}
+                  onClick={() => setFilters(EMPTY_FILTERS)}
+                  className="flex-1 py-4 bg-surface-container-low text-on-surface font-bold text-sm rounded-2xl active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-[18px]">filter_alt_off</span>
+                  {t('food.filters.clear')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(false)}
+                  className="flex-1 py-4 bg-primary text-on-primary font-black text-sm rounded-2xl active:scale-95 transition-transform"
+                >
+                  {t('food.filters.show')}
+                </button>
+              </div>
+            </BottomPanel>
           )}
 
           {/* Segmented Control */}

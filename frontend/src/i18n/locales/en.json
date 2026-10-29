@@ -266,8 +266,6 @@
   "recipeDetails.save": "Save recipe",
   "recipeDetails.unsave": "Remove from saved",
   "recipeDetails.savedFailed": "Could not update your saved recipes.",
-  "recipeDetails.addingTo": "Adding to:",
-  "recipeDetails.editingIn": "Editing in:",
   "recipeDetails.previousMonth": "Previous month",
   "recipeDetails.nextMonth": "Next month",
   "recipeDetails.locale": "en-GB",
@@ -391,5 +389,17 @@
   "nav.recipes": "Recipes",
   "nav.shopping": "Shopping",
   "nav.more": "More",
-  "product.nutritionFor": "Nutrition: {amount}"
+  "product.nutritionFor": "Nutrition: {amount}",
+  "planTarget.adding": "Adding to",
+  "planTarget.editing": "Editing in",
+  "planTarget.chooseMeal": "Choose a meal",
+  "planTarget.chooseDay": "Choose a day",
+  "food.filters.open": "Filter results",
+  "food.filters.title": "Filter results",
+  "food.filters.clear": "Clear filters",
+  "food.filters.show": "Show results",
+  "food.filters.maxKcal": "Max kcal",
+  "food.filters.minProtein": "Min protein (g)",
+  "food.filters.maxFat": "Max fat (g)",
+  "food.filters.maxCarbs": "Max carbs (g)"
 }
