@@ -300,12 +300,6 @@
   "recipeDetails.ingredientsFor": "Ingredients for {portions}",
   "recipeDetails.fewerPortions": "Fewer portions",
   "recipeDetails.morePortions": "More portions",
-  "recipeDetails.showPreview": "Check the effect on the day",
-  "recipeDetails.hidePreview": "Hide day preview",
-  "recipeDetails.previewAfterTitle": "After adding",
-  "recipeDetails.previewBeforeTitle": "Current balance",
-  "recipeDetails.previewBefore": "Before",
-  "recipeDetails.previewAfter": "After",
   "recipeDetails.steps": "Preparation",
   "recipeDetails.fewerDays": "Fewer days",
   "recipeDetails.moreDays": "More days",
@@ -391,5 +385,13 @@
   "nav.recipes": "Recipes",
   "nav.shopping": "Shopping",
   "nav.more": "More",
-  "product.nutritionFor": "Nutrition: {amount}"
+  "product.nutritionFor": "Nutrition: {amount}",
+  "dayBalance.show": "Check the effect on the day",
+  "dayBalance.hide": "Hide day preview",
+  "dayBalance.before": "Before",
+  "dayBalance.after": "After",
+  "dayBalance.beforeTitle": "Current balance",
+  "dayBalance.afterTitle": "After adding",
+  "dayBalance.beforeEditTitle": "Day without this item",
+  "dayBalance.afterEditTitle": "After the change"
 }

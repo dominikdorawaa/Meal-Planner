@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   refreshRecipes: vi.fn(),
   announceDeletedRecipe: vi.fn(),
   profile: null as unknown,
+  getConsumedForDay: vi.fn(),
 }));
 
 vi.mock('../lib/apiClient', () => ({
@@ -33,7 +34,7 @@ vi.mock('../lib/AppDataContext', () => ({
     profile: mocks.profile,
     refreshMeals: mocks.refreshMeals,
     refreshRecipes: mocks.refreshRecipes,
-    getConsumedForDay: () => ({ kcal: 1000, protein: 50, fat: 30, carbs: 100 }),
+    getConsumedForDay: mocks.getConsumedForDay,
   }),
 }));
 
@@ -78,6 +79,7 @@ async function openMenu() {
 beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   mocks.profile = null;
+  mocks.getConsumedForDay.mockImplementation(() => ({ kcal: 1000, protein: 50, fat: 30, carbs: 100 }));
   mocks.getRecipe.mockResolvedValue(OWN_RECIPE);
   mocks.archive.mockResolvedValue({ ...OWN_RECIPE, is_archived: true });
   mocks.save.mockResolvedValue(undefined);
@@ -456,17 +458,37 @@ describe('RecipeDetails adding to the plan', () => {
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast');
     await screen.findByRole('heading', { name: 'Owsianka bananowa' });
 
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeDetails.showPreview')) }));
-    expect(screen.getByText(t('recipeDetails.previewAfterTitle'))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.show') }));
+    expect(screen.getByText(t('dayBalance.afterTitle'))).toBeTruthy();
     expect(screen.getByText('1089')).toBeTruthy();
+    expect(mocks.getConsumedForDay).toHaveBeenLastCalledWith('2026-10-17', null);
 
-    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.previewBefore') }));
-    expect(screen.getByText(t('recipeDetails.previewBeforeTitle'))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.before') }));
+    expect(screen.getByText(t('dayBalance.beforeTitle'))).toBeTruthy();
+    expect(screen.getByText('1000')).toBeTruthy();
+  });
+
+  it('shows the current day as the balance after opening a plan entry without changes', async () => {
+    mocks.profile = { target_kcal: 2000, target_protein: 100, target_fat: 60, target_carbs: 250 };
+    mocks.getConsumedForDay.mockImplementation((_date: string, excludedMealId: string | null) =>
+      excludedMealId === 'm1' ? { kcal: 822, protein: 47.8, fat: 29.4, carbs: 54 } : { kcal: 1000, protein: 50, fat: 30, carbs: 100 });
+    renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
+    await waitFor(() => expect((screen.getByLabelText(t('recipeDetails.gramsInput')) as HTMLInputElement).value).toBe('200'));
+
+    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.show') }));
+    expect(screen.getByText(t('dayBalance.afterEditTitle'))).toBeTruthy();
     expect(screen.getByText('1000')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.previewAfter') }));
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeDetails.hidePreview')) }));
-    expect(screen.queryByText(t('recipeDetails.previewAfterTitle'))).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.before') }));
+    expect(screen.getByText('822')).toBeTruthy();
+  });
+
+  it('skips the day preview when there are no nutrition targets', async () => {
+    mocks.profile = null;
+    renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast');
+    await screen.findByRole('heading', { name: 'Owsianka bananowa' });
+
+    expect(screen.queryByRole('button', { name: t('dayBalance.show') })).toBeNull();
   });
 });
 

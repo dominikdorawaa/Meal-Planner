@@ -22,7 +22,7 @@ interface AppData {
   refreshRecipes: () => Promise<void>;
   refreshMeals: () => Promise<void>;
   refreshShoppingList: () => Promise<void>;
-  getConsumedForDay: (date: string) => { kcal: number, protein: number, fat: number, carbs: number };
+  getConsumedForDay: (date: string, excludedMealId?: string | null) => { kcal: number, protein: number, fat: number, carbs: number };
   setUserMeals: React.Dispatch<React.SetStateAction<any[]>>;
   setShoppingList: React.Dispatch<React.SetStateAction<any[]>>;
 }
@@ -187,12 +187,12 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
     }
   }, [user]);
 
-  const getConsumedForDay = useCallback((date: string) => {
+  const getConsumedForDay = useCallback((date: string, excludedMealId?: string | null) => {
     const visibleMealsList = Array.isArray(profile?.meal_config)
       ? profile.meal_config.filter((m: any) => m.visible).map((m: any) => m.id)
       : (profile?.visible_meals || ['breakfast', 'lunch', 'dinner', 'supper', 'snack1', 'snack2']);
 
-    const mealsToday = userMeals.filter(m => m.meal_date === date && visibleMealsList.includes(m.meal_type));
+    const mealsToday = userMeals.filter(m => m.meal_date === date && m.id !== excludedMealId && visibleMealsList.includes(m.meal_type));
     let kcal = 0, protein = 0, fat = 0, carbs = 0;
 
     mealsToday.forEach(meal => {

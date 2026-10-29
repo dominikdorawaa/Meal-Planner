@@ -57,3 +57,8 @@ export function buildDaySummary(consumed: DayConsumed, targets: SummaryTargets):
   });
   return [metric('kcal', consumed.kcal, kcalTarget * 0.9, kcalTarget, String(kcalTarget)), ...macros];
 }
+
+export function addConsumed(day: DayConsumed, item: DayConsumed): DayConsumed {
+  const sum = (key: SummaryMetricKey) => parseFloat((day[key] + item[key]).toFixed(1));
+  return { kcal: Math.round(day.kcal + item.kcal), protein: sum('protein'), fat: sum('fat'), carbs: sum('carbs') };
+}
