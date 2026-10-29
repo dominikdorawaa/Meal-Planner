@@ -1266,7 +1266,7 @@ export function Profile() {
             <h2 className="font-headline font-bold text-2xl text-on-surface tracking-tight">Ustawienia Posiłków</h2>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar pb-32">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar pb-[calc(8rem+env(safe-area-inset-bottom))]">
             <div className="flex items-center justify-between mb-2">
               <p className="text-on-surface-variant text-sm italic leading-relaxed opacity-80">
                 {isReordering ? "Przeciągnij posiłek za uchwyt, aby zmienić jego pozycję." : "Dostosuj nazwy i wybierz aktywne posiłki."}
