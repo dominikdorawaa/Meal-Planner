@@ -449,7 +449,7 @@ describe('Plan item deletion', () => {
     openMealMenu(container, '2026-10-12', 'lunch')
     click(/Usuń posiłek/)
 
-    expect(await screen.findByText('Usunięto Coffee z Lunch')).toBeTruthy()
+    expect(await screen.findByText('Usunięto Coffee z II śniadanie')).toBeTruthy()
     expect(mocks.refreshMeals).toHaveBeenCalledTimes(2)
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.queryByRole('alertdialog')).toBeNull()
@@ -459,7 +459,7 @@ describe('Plan item deletion', () => {
     click('Cofnij')
 
     await waitFor(() => expect(mocks.add).toHaveBeenCalledWith(expect.objectContaining({ meal_date: '2026-10-12', meal_type: 'lunch', manual_name: 'Coffee' })))
-    expect(screen.queryByText('Usunięto Coffee z Lunch')).toBeNull()
+    expect(screen.queryByText('Usunięto Coffee z II śniadanie')).toBeNull()
   })
 
   it('hides the deletion message after five seconds', async () => {
@@ -472,10 +472,10 @@ describe('Plan item deletion', () => {
     await act(async () => {})
 
     act(() => { vi.advanceTimersByTime(4999) })
-    expect(screen.getByText('Usunięto Coffee z Lunch')).toBeTruthy()
+    expect(screen.getByText('Usunięto Coffee z II śniadanie')).toBeTruthy()
 
     act(() => { vi.advanceTimersByTime(1) })
-    expect(screen.queryByText('Usunięto Coffee z Lunch')).toBeNull()
+    expect(screen.queryByText('Usunięto Coffee z II śniadanie')).toBeNull()
   })
 
   it('shows an error without undo when deleting an item fails', async () => {

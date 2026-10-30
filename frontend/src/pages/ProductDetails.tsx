@@ -22,6 +22,7 @@ import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { KCAL_HERO_SIZES, RING_VALUE_SIZES, fitTextClass } from '../lib/fitText';
 import { macroRingBackground } from '../lib/macroColors';
+import { profileMealTypes } from '../lib/mealTypes';
 
 function gramsLabel(value: number): string {
   return `${formatCompactNumber(value, 1)}g`;
@@ -59,19 +60,7 @@ export function ProductDetails() {
   useCloseOnBack(showMenu, () => setShowMenu(false));
   useCloseOnBack(showDeleteConfirm, () => setShowDeleteConfirm(false));
 
-  const availableMealTypes = useMemo(() => {
-    if (profile?.meal_config && profile.meal_config.length > 0) {
-      return profile.meal_config.map((m: any) => ({ id: m.id, name: m.name }));
-    }
-    return [
-      { id: 'breakfast', name: 'Śniadanie' },
-      { id: 'snack1', name: '2 Śniadanie' },
-      { id: 'lunch', name: 'Lunch' },
-      { id: 'snack2', name: 'Przekąska' },
-      { id: 'dinner', name: 'Obiad' },
-      { id: 'supper', name: 'Kolacja' },
-    ];
-  }, [profile]);
+  const availableMealTypes = useMemo(() => profileMealTypes(profile), [profile]);
 
   useEffect(() => {
     async function loadProduct() {

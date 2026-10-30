@@ -268,7 +268,7 @@ describe('AddFood selection', () => {
   it('opens the meal time and date pickers as bottom panels and closes them when tapping outside', () => {
     renderAddFood();
 
-    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do: Lunch/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do: II śniadanie/ }));
     expect(screen.getByRole('dialog', { name: t('planTarget.chooseMeal') })).toBeTruthy();
     fireEvent.click(screen.getByRole('dialog').parentElement!);
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -282,7 +282,7 @@ describe('AddFood selection', () => {
 
   it('keeps the meal picked in the header after coming back from details', async () => {
     renderAddFood();
-    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do: Lunch/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do: II śniadanie/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Obiad' }));
     fireEvent.click(checkbox('Owsianka'));
 

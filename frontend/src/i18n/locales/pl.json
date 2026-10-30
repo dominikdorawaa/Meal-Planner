@@ -296,6 +296,8 @@
   "recipeDetails.fat": "Tłuszcz",
   "recipeDetails.carbs": "Węgle",
   "recipeDetails.ingredientsFor": "Składniki na {portions}",
+  "recipeDetails.recipeFor": "Przepis na {portions}",
+  "recipeDetails.wholeRecipe": "Cały przepis",
   "recipeDetails.fewerPortions": "Mniej porcji",
   "recipeDetails.morePortions": "Więcej porcji",
   "recipeDetails.steps": "Przygotowanie",
@@ -406,5 +408,11 @@
   "dayBalance.beforeTitle": "Aktualny bilans",
   "dayBalance.afterTitle": "Bilans po dodaniu",
   "dayBalance.beforeEditTitle": "Dzień bez tej pozycji",
-  "dayBalance.afterEditTitle": "Bilans po zmianie"
+  "dayBalance.afterEditTitle": "Bilans po zmianie",
+  "mealType.breakfast": "Śniadanie",
+  "mealType.lunch": "II śniadanie",
+  "mealType.dinner": "Obiad",
+  "mealType.snack1": "Przekąska",
+  "mealType.snack2": "Podwieczorek",
+  "mealType.supper": "Kolacja"
 }

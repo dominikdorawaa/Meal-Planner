@@ -8,17 +8,9 @@ import { ThemeCard } from '../components/ThemeCard';
 import { ProductDataAttribution } from '../components/ProductDataAttribution';
 import { MealSettingsList } from '../components/MealSettingsList';
 import type { MealSetting } from '../lib/mealSettings';
+import { profileMealTypes } from '../lib/mealTypes';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { PROFILE_LIMITS, acceptsLimitedNumber, isPositiveWithinLimit, numberFieldProps } from '../lib/inputLimits';
-
-const MEAL_TYPES = [
-  { id: 'breakfast', name: 'Śniadanie', icon: 'light_mode' },
-  { id: 'snack1', name: '2 Śniadanie', icon: 'bakery_dining' },
-  { id: 'lunch', name: 'Lunch', icon: 'lunch_dining' },
-  { id: 'snack2', name: 'Przekąska', icon: 'nutrition' },
-  { id: 'dinner', name: 'Obiad', icon: 'restaurant' },
-  { id: 'supper', name: 'Kolacja', icon: 'dark_mode' },
-];
 
 export function Profile() {
   const navigate = useNavigate();
@@ -123,15 +115,7 @@ export function Profile() {
         try { vm = JSON.parse(vm); } catch (e) { console.error("Error parsing visible_meals", e); vm = null; }
       }
 
-      if (mc && Array.isArray(mc)) {
-        setMealConfig(mc);
-      } else {
-        const defaultConfig = MEAL_TYPES.map(m => ({
-          ...m,
-          visible: Array.isArray(vm) ? vm.includes(m.id) : true
-        }));
-        setMealConfig(defaultConfig);
-      }
+      setMealConfig(profileMealTypes({ meal_config: mc, visible_meals: vm }));
     }
   }, [cachedProfile]);
 
@@ -176,15 +160,7 @@ export function Profile() {
           try { vm = JSON.parse(vm); } catch (e) { console.error("Error parsing visible_meals", e); vm = null; }
         }
 
-        if (mc && Array.isArray(mc)) {
-          setMealConfig(mc);
-        } else {
-          const defaultConfig = MEAL_TYPES.map(m => ({
-            ...m,
-            visible: Array.isArray(vm) ? vm.includes(m.id) : true
-          }));
-          setMealConfig(defaultConfig);
-        }
+        setMealConfig(profileMealTypes({ meal_config: mc, visible_meals: vm }));
       }
     };
     loadProfile();
