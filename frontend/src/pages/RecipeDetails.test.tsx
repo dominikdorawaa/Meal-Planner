@@ -126,7 +126,7 @@ describe('RecipeDetails loading', () => {
     });
     renderDetails();
 
-    expect(await screen.findByText('8 sztuk')).toBeTruthy();
+    expect(await screen.findByText('8 sztuk (960 g)')).toBeTruthy();
     expect(screen.getByText('20 tbsp')).toBeTruthy();
   });
 

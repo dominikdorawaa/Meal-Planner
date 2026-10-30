@@ -115,7 +115,8 @@ export function measureRowLabel(product: MeasuredProduct, measure: ProductMeasur
 
 export function measureRowUnit(product: MeasuredProduct, measure: ProductMeasure, amount: number): string {
   if (isBaseMeasure(product, measure.code)) return isPerPiece(product) ? t('units.szt') : measure.code;
-  const base = `${formatCompactNumber(measure.base_amount, 1)} ${baseMeasureCode(product)}`;
+  const total = amount > 0 ? amount * measure.base_amount : measure.base_amount;
+  const base = `${formatCompactNumber(total, 1)} ${baseMeasureCode(product)}`;
   return t('amount.measureOf', { name: measureLabel(measure, amount), amount: base });
 }
 

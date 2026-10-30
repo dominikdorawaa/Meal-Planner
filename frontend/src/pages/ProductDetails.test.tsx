@@ -107,7 +107,7 @@ describe('ProductDetails package amount', () => {
 
     fireEvent.change(packages, { target: { value: '2' } });
     expect(within(packageRow).getByText('540')).toBeTruthy();
-    expect(within(packageRow).getByText(t('amount.measureOf', { name: 'opakowania', amount: '450 g' }))).toBeTruthy();
+    expect(within(packageRow).getByText(t('amount.measureOf', { name: 'opakowania', amount: '900 g' }))).toBeTruthy();
     expect(screen.getByText(t('product.nutritionFor', { amount: '2 opakowania (900 g)' }))).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));

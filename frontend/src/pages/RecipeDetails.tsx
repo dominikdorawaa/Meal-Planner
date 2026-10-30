@@ -10,7 +10,7 @@ import { NutritionFactsTable } from '../components/NutritionFactsTable';
 import { NUTRITION_TABLE_FACTS, recipeExtraNutrientsPerPortion } from '../lib/nutrients';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 import { useBottomSheet } from '../lib/bottomSheet';
-import { ingredientGrams, ingredientNutrition, ingredientUnitLabel } from '../lib/recipeIngredient';
+import { ingredientBaseAmountLabel, ingredientGrams, ingredientNutrition, ingredientUnitLabel } from '../lib/recipeIngredient';
 import { profileMealTypes } from '../lib/mealTypes';
 import { announceDeletedRecipe } from '../lib/deletedRecipe';
 import { RecipeDeleteSheet } from '../components/RecipeDeleteSheet';
@@ -585,6 +585,7 @@ export function RecipeDetails() {
                 const exactAmount = (Number(ing.amount) || 0) * (activeIngredientPortions / basePortions);
                 const scaledAmount = exactAmount.toFixed(1).replace(/\.0$/, '');
                 const nutrition = ingredientNutrition({ ...ing, amount: exactAmount });
+                const baseAmount = ingredientBaseAmountLabel({ ...ing, amount: exactAmount });
                 return (
                   <div key={idx} data-testid="recipe-ingredient" className="flex items-center justify-between p-3 rounded-2xl bg-surface-container-lowest border border-outline-variant/10">
                     <div className="flex flex-col gap-0.5 min-w-0">
@@ -602,6 +603,7 @@ export function RecipeDetails() {
                     </div>
                     <span className="text-xs font-bold text-on-surface-variant bg-surface-container-highest px-3 py-1 rounded-lg whitespace-nowrap shrink-0 ml-2">
                       {scaledAmount} {ingredientUnitLabel(ing.unit, Number(scaledAmount), ing.product)}
+                      {baseAmount && ` (${baseAmount})`}
                     </span>
                   </div>
                 );

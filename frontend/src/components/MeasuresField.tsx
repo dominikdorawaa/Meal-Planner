@@ -80,7 +80,7 @@ export function MeasuresField({ rows, baseUnit, kinds, kindsFailed = false, onRe
               </button>
             </div>
             {!valid && (
-              <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-error/10 text-error">{t('productForm.measureInvalid', { max: max / 1000 })}</p>
+              <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-error/10 text-error">{t('productForm.measureInvalid', { max, unit: baseUnit })}</p>
             )}
           </div>
         );

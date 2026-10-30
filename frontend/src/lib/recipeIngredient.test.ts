@@ -145,6 +145,7 @@ describe('ingredientAmountLabel', () => {
     expect(ingredientAmountLabel({ amount: 1, unit: 'package', product: juice })).toBe('1 opakowanie (1000 ml)');
     expect(ingredientAmountLabel({ amount: 1.5, unit: 'tbsp', product: skyrIn(measure('tbsp', 20)) })).toBe('1.5 łyżki (30 g)');
     expect(ingredientAmountLabel({ amount: 5, unit: 'tbsp', product: skyrIn(measure('tbsp', 20)) })).toBe('5 łyżek (100 g)');
+    expect(ingredientAmountLabel({ amount: 2, unit: 'tbsp', product: withMeasures({ unit: '100ml' }, measure('tbsp', 15)) })).toBe('2 łyżki (30 ml)');
   });
 
   it('shows the plain amount for base units, pieces of products counted per piece and old ingredients', () => {

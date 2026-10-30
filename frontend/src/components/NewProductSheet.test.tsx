@@ -320,7 +320,7 @@ describe('NewProductSheet measures', () => {
     await addMeasure();
     fireEvent.change(amountField('sztuka'), { target: { value: '0' } });
 
-    expect(screen.getByText(t('productForm.measureInvalid', { max: 5 }))).toBeTruthy();
+    expect(screen.getByText(t('productForm.measureInvalid', { max: 5000, unit: 'g' }))).toBeTruthy();
     expect(saveButton().disabled).toBe(true);
     fireEvent.change(amountField('sztuka'), { target: { value: '5001' } });
     expect(amountField('sztuka').value).toBe('0');
@@ -353,7 +353,7 @@ describe('NewProductSheet measures', () => {
     renderSheet(draftFromProduct(source as never), { mode: 'edit', source: source as never });
 
     const alert = await screen.findByText(t('productForm.measureKindsFailed'));
-    expect(screen.queryByText(t('productForm.measureInvalid', { max: 5 }))).toBeNull();
+    expect(screen.queryByText(t('productForm.measureInvalid', { max: 5000, unit: 'g' }))).toBeNull();
     expect((screen.getByRole('button', { name: /Zapisz zmiany/ }) as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByRole('button', { name: /Dodaj miarę/ })).toBeNull();
 
@@ -364,11 +364,40 @@ describe('NewProductSheet measures', () => {
     expect(mocks.listMeasureKinds).toHaveBeenCalledTimes(2);
   });
 
+  it('creates a drink counted in millilitres with a cup of 250 ml', async () => {
+    mocks.createProduct.mockResolvedValue({ id: 'p1', ...SKYR });
+    renderSheet({ prefill: SKYR });
+
+    expect(screen.getByText(t('productForm.per100', { unit: 'g' }))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '100 ml' }));
+    expect(screen.getByRole('button', { name: '100 ml' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText(t('productForm.per100', { unit: 'ml' }))).toBeTruthy();
+    await addMeasure();
+    fireEvent.change(screen.getByLabelText(t('productForm.measureKind', { index: 1 })), { target: { value: 'cup' } });
+    fireEvent.change(amountField('szklanka', 'ml'), { target: { value: '250' } });
+    fireEvent.change(amountField('szklanka', 'ml'), { target: { value: '0' } });
+    expect(screen.getByText(t('productForm.measureInvalid', { max: 5000, unit: 'ml' }))).toBeTruthy();
+    fireEvent.change(amountField('szklanka', 'ml'), { target: { value: '250' } });
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(mocks.createProduct).toHaveBeenCalledWith(expect.objectContaining({
+      unit: '100ml', measures: [{ code: 'cup', base_amount: 250, default: false }],
+    })));
+  });
+
+  it('keeps the unit of an edited product without offering to change it', () => {
+    renderSheet(draftFromProduct({ id: 'p2', ...SKYR, unit: '100ml' } as never), { mode: 'edit', source: { id: 'p2', ...SKYR, unit: '100ml' } as never });
+
+    expect(screen.queryByRole('group', { name: t('productForm.unit') })).toBeNull();
+    expect(screen.getByText(t('productForm.per100', { unit: 'ml' }))).toBeTruthy();
+  });
+
   it('has no measures for products counted per piece and works without the list of kinds', async () => {
     mocks.listMeasureKinds.mockRejectedValue(new Error('offline'));
     renderSheet({ prefill: SKYR }, { mode: 'edit', source: { id: 'p9', ...SKYR, unit: 'pc' } as never });
 
     await waitFor(() => expect(mocks.listMeasureKinds).toHaveBeenCalled());
     expect(screen.queryByText(t('productForm.measures'))).toBeNull();
+    expect(screen.getByText(t('productForm.perPiece'))).toBeTruthy();
   });
 });
