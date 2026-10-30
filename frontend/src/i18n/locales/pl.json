@@ -296,6 +296,8 @@
   "recipeDetails.fat": "Tłuszcz",
   "recipeDetails.carbs": "Węgle",
   "recipeDetails.ingredientsFor": "Składniki na {portions}",
+  "recipeDetails.recipeFor": "Przepis na {portions}",
+  "recipeDetails.wholeRecipe": "Cały przepis",
   "recipeDetails.fewerPortions": "Mniej porcji",
   "recipeDetails.morePortions": "Więcej porcji",
   "recipeDetails.steps": "Przygotowanie",

@@ -108,8 +108,9 @@ describe('RecipeDetails loading', () => {
     expect(await screen.findByRole('heading', { name: 'Owsianka bananowa' })).toBeTruthy();
     expect(screen.getByText(t('recipeDetails.kcalPortion', { grams: 100 }))).toBeTruthy();
     expect(screen.getByText(`${t('recipeDetails.nutritionTitle')} ${t('recipeDetails.nutritionForPortions', { count: 1, portions: 'porcja' })}`)).toBeTruthy();
-    expect(screen.getByText(t('recipeDetails.ingredientsFor', { portions: t('recipeDetails.portionsAccusative.one', { count: 1 }) }))).toBeTruthy();
-    expect(screen.getByText('100 g')).toBeTruthy();
+    expect(screen.getByText(t('recipeDetails.ingredientsFor', { portions: t('recipeDetails.portionsAccusative.few', { count: 4 }) }))).toBeTruthy();
+    expect(screen.getByText(t('recipeDetails.recipeFor', { portions: t('recipeDetails.portionsAccusative.few', { count: 4 }) }))).toBeTruthy();
+    expect(screen.getByText('400 g')).toBeTruthy();
     expect(screen.getByText('Pokrój banana')).toBeTruthy();
     expect(mocks.getRecipe).toHaveBeenCalledTimes(1);
   });
@@ -125,8 +126,8 @@ describe('RecipeDetails loading', () => {
     });
     renderDetails();
 
-    expect(await screen.findByText('2 sztuki')).toBeTruthy();
-    expect(screen.getByText('5 tbsp')).toBeTruthy();
+    expect(await screen.findByText('8 sztuk')).toBeTruthy();
+    expect(screen.getByText('20 tbsp')).toBeTruthy();
   });
 
   it('shows the nutrition of each ingredient for the chosen portions', async () => {
@@ -141,12 +142,12 @@ describe('RecipeDetails loading', () => {
     await screen.findByRole('heading', { name: 'Owsianka bananowa' });
 
     const [banana, honey] = screen.getAllByTestId('recipe-ingredient');
-    expect(within(banana).getByText('89 kcal')).toBeTruthy();
-    expect(within(banana).getByText('B 1.1 g · T 0.3 g · W 23 g')).toBeTruthy();
+    expect(within(banana).getByText('356 kcal')).toBeTruthy();
+    expect(within(banana).getByText('B 4.4 g · T 1.2 g · W 92 g')).toBeTruthy();
     expect(within(honey).getByText(t('nutrients.noData'))).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.morePortions') }));
-    expect(within(screen.getAllByTestId('recipe-ingredient')[0]).getByText('111 kcal')).toBeTruthy();
+    expect(within(screen.getAllByTestId('recipe-ingredient')[0]).getByText('401 kcal')).toBeTruthy();
   });
 
   it('opens one table per portion from the carbs ring, whatever amount is chosen', async () => {
@@ -197,15 +198,24 @@ describe('RecipeDetails loading', () => {
     renderDetails();
     await screen.findByRole('heading', { name: 'Owsianka bananowa' });
 
+    expect(screen.queryByRole('button', { name: t('recipeDetails.wholeRecipe') })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.morePortions') }));
-    expect(screen.getByText('125 g')).toBeTruthy();
-    expect(screen.getByText(t('recipeDetails.ingredientsFor', { portions: t('recipeDetails.portionsAccusative.fraction', { count: 1.25 }) }))).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.fewerPortions') }));
-    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.fewerPortions') }));
-    expect(screen.getByText('75 g')).toBeTruthy();
+    expect(screen.getByText('450 g')).toBeTruthy();
+    expect(screen.getByText(t('recipeDetails.ingredientsFor', { portions: t('recipeDetails.portionsAccusative.fraction', { count: 4.5 }) }))).toBeTruthy();
+    for (let i = 0; i < 10; i++) {
+      fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.fewerPortions') }));
+    }
+    expect(screen.getByText('50 g')).toBeTruthy();
+    expect(screen.getByText(t('recipeDetails.ingredientsFor', { portions: t('recipeDetails.portionsAccusative.fraction', { count: 0.5 }) }))).toBeTruthy();
 
+    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.wholeRecipe') }));
+    expect(screen.getByText('400 g')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: t('recipeDetails.wholeRecipe') })).toBeNull();
+
+    expect(screen.getAllByRole('button', { name: /kcal$/ }).map(button => button.textContent)).toEqual(['45 kcal', '89 kcal', '134 kcal', '178 kcal']);
     fireEvent.click(screen.getByRole('button', { name: '45 kcal' }));
     expect(screen.getByText(t('recipeDetails.kcalPortion', { grams: 50 }))).toBeTruthy();
+    expect(screen.getByText('400 g')).toBeTruthy();
   });
 
   it('uses the plural form of portions in the calculator', async () => {
@@ -424,7 +434,7 @@ describe('RecipeDetails adding to the plan', () => {
     tapOutside();
     expect(screen.queryByRole('button', { name: 'Kolacja' })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /17/ }));
+    fireEvent.click(screen.getByRole('button', { name: /17 października/ }));
     expect(screen.getByRole('button', { name: t('recipeDetails.nextMonth') })).toBeTruthy();
     tapOutside();
     expect(screen.queryByRole('button', { name: t('recipeDetails.nextMonth') })).toBeNull();
@@ -438,7 +448,7 @@ describe('RecipeDetails adding to the plan', () => {
     fireEvent.click(screen.getByRole('button', { name: /Dodajesz do: Śniadanie/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Kolacja' }));
     expect(screen.getByRole('button', { name: /Dodajesz do: Kolacja/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /17/ }));
+    fireEvent.click(screen.getByRole('button', { name: /17 października/ }));
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.nextMonth') }));
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.previousMonth') }));
     fireEvent.click(screen.getByRole('button', { name: '18 października' }));

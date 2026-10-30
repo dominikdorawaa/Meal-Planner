@@ -296,6 +296,8 @@
   "recipeDetails.fat": "Fat",
   "recipeDetails.carbs": "Carbs",
   "recipeDetails.ingredientsFor": "Ingredients for {portions}",
+  "recipeDetails.recipeFor": "Recipe for {portions}",
+  "recipeDetails.wholeRecipe": "Whole recipe",
   "recipeDetails.fewerPortions": "Fewer portions",
   "recipeDetails.morePortions": "More portions",
   "recipeDetails.steps": "Preparation",

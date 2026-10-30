@@ -27,7 +27,8 @@ const DEFAULT_RECIPE_WEIGHT = 300;
 function gramsLabel(value: number): string {
   return `${formatCompactNumber(value, 1)}g`;
 }
-const QUICK_PICK_MULTIPLIERS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75];
+const QUICK_PICK_MULTIPLIERS = [0.5, 1, 1.5, 2];
+const PORTION_STEP = 0.5;
 
 function portionForm(count: number): string {
   return Number.isInteger(count) ? pluralForm(count) : 'fraction';
@@ -35,6 +36,10 @@ function portionForm(count: number): string {
 
 function portionWord(count: number): string {
   return t(`recipeDetails.portionWord.${portionForm(count)}` as MessageKey);
+}
+
+function portionsAccusative(count: number): string {
+  return t(`recipeDetails.portionsAccusative.${portionForm(count)}` as MessageKey, { count: Math.round(count * 100) / 100 });
 }
 
 export function RecipeDetails() {
@@ -151,7 +156,7 @@ export function RecipeDetails() {
 
   const nutritionPortions = unchangedPlanItem && savedPortions !== null ? savedPortions : consumedPortions;
 
-  const activeIngredientPortions = ingredientPortions !== null ? ingredientPortions : consumedPortions;
+  const activeIngredientPortions = ingredientPortions !== null ? ingredientPortions : basePortions;
 
   const handleAddMeal = async (overrideDate?: string, overrideMealType?: string) => {
     const targetDate = overrideDate || activeDate || selectDate;
@@ -509,13 +514,13 @@ export function RecipeDetails() {
           <section className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-[11px] sm:text-xs font-bold uppercase tracking-wide text-on-surface-variant flex items-center gap-1 flex-wrap leading-tight">
-                <span>{t('recipeDetails.ingredientsFor', { portions: t(`recipeDetails.portionsAccusative.${portionForm(activeIngredientPortions)}` as MessageKey, { count: Math.round(activeIngredientPortions * 100) / 100 }) })}</span>
+                <span>{t('recipeDetails.ingredientsFor', { portions: portionsAccusative(activeIngredientPortions) })}</span>
                 <span className="normal-case opacity-70">({formatCompactNumber(activeIngredientPortions * gramsPerPortion)}g)</span>
               </h2>
 
               <div className="flex items-center bg-surface-container-low rounded-xl p-1 shadow-sm border border-outline-variant/10">
                 <button
-                  onClick={() => setIngredientPortions(p => Math.max(0.25, (p !== null ? p : consumedPortions) - 0.25))}
+                  onClick={() => setIngredientPortions(Math.max(PORTION_STEP, activeIngredientPortions - PORTION_STEP))}
                   aria-label={t('recipeDetails.fewerPortions')}
                   className="w-8 h-8 flex items-center justify-center text-on-surface hover:bg-surface-container-highest rounded-lg transition-colors font-bold active:scale-95"
                 >
@@ -525,13 +530,27 @@ export function RecipeDetails() {
                   {Math.round(activeIngredientPortions * 100) / 100}
                 </div>
                 <button
-                  onClick={() => setIngredientPortions(p => (p !== null ? p : consumedPortions) + 0.25)}
+                  onClick={() => setIngredientPortions(activeIngredientPortions + PORTION_STEP)}
                   aria-label={t('recipeDetails.morePortions')}
                   className="w-8 h-8 flex items-center justify-center text-on-surface hover:bg-surface-container-highest rounded-lg transition-colors font-bold active:scale-95"
                 >
                   <span className="material-symbols-outlined text-[18px]">add</span>
                 </button>
               </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 -mt-2 min-h-8">
+              <span className="text-xs text-on-surface-variant">{t('recipeDetails.recipeFor', { portions: portionsAccusative(basePortions) })}</span>
+              {Math.abs(activeIngredientPortions - basePortions) > 1e-9 && (
+                <button
+                  type="button"
+                  onClick={() => setIngredientPortions(null)}
+                  className="flex items-center gap-1 text-xs font-bold text-primary px-2 py-1.5 rounded-lg hover:bg-primary/10 active:scale-95 transition-all"
+                >
+                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">restart_alt</span>
+                  {t('recipeDetails.wholeRecipe')}
+                </button>
+              )}
             </div>
 
             <div className="flex flex-col gap-3">
