@@ -451,6 +451,7 @@ export function RecipeDetails() {
         <NutritionSummary
           title={`${t('recipeDetails.nutritionTitle')} ${displaySuffix}`}
           values={currentMacros}
+          macroSplit={recipe}
           tableColumns={[{
             label: t('nutrients.recipePortion'),
             values: { kcal: recipe.kcal, protein: recipe.protein, fat: recipe.fat, carbs: recipe.carbs, ...recipeExtraNutrientsPerPortion(ingredients, basePortions) },

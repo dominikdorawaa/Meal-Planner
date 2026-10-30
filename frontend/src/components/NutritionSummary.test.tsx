@@ -13,6 +13,7 @@ function renderSummary() {
     <NutritionSummary
       title="Wartości odżywcze: 100 g"
       values={values}
+      macroSplit={values}
       tableColumns={[{ label: '100 g', values: { ...values, sugars: 4 } }]}
     />
   );
@@ -29,6 +30,20 @@ describe('NutritionSummary', () => {
     for (const label of ['kcal', 'Białko', 'Tłuszcz', 'Węgle']) expect(screen.getByText(label)).toBeTruthy();
     expect(screen.getByTestId('fat-ring').style.background).toBe(macroRingBackground('fat', 53));
     expect(screen.getByTestId('protein-ring').style.background).toBe(macroRingBackground('protein', 23));
+  });
+
+  it('splits the rings by the full macros even when the shown grams round to zero', () => {
+    render(
+      <NutritionSummary
+        title="Wartości odżywcze: 0.1 porcji"
+        values={{ kcal: 1, protein: 0.1, fat: 0, carbs: 0.1 }}
+        macroSplit={{ protein: 1, fat: 0.4, carbs: 1 }}
+        tableColumns={[]}
+      />
+    );
+
+    expect(screen.getByTestId('fat-value').textContent).toBe('0g');
+    expect(screen.getByTestId('fat-ring').style.background).toBe(macroRingBackground('fat', 31));
   });
 
   it('opens and closes the full table under the carbs ring', () => {

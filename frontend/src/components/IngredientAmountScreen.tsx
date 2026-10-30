@@ -72,6 +72,7 @@ export function IngredientAmountScreen({ product, initial, submitLabel, onSubmit
         <NutritionSummary
           title={t('product.nutritionFor', { amount: ingredientAmountLabel(current) })}
           values={scaleMacros(product, factor)}
+          macroSplit={product}
           tableColumns={[
             {
               label: perPiece ? `1 ${t('units.szt')}` : t('nutrients.per100', { unit: measureUnit(product.unit) }),

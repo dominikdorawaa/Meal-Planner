@@ -321,6 +321,7 @@ export function ProductDetails() {
         <NutritionSummary
           title={t('product.nutritionFor', { amount: chosenLabel })}
           values={currentMacros}
+          macroSplit={product}
           tableColumns={[{ label: t('nutrients.per100', { unit: measureUnit(product.unit) }), values: product }]}
         />
 

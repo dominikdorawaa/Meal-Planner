@@ -3,13 +3,14 @@ import { t, type MessageKey } from '../i18n';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { KCAL_HERO_SIZES, RING_VALUE_SIZES, fitTextClass } from '../lib/fitText';
 import { macroRingBackground, type MacroKey } from '../lib/macroColors';
-import { macroEnergyPercents, type MacroValues } from '../lib/macros';
+import { macroEnergyPercents, type MacroGrams, type MacroValues } from '../lib/macros';
 import { NUTRITION_TABLE_FACTS } from '../lib/nutrients';
 import { NutritionFactsTable, type NutritionFactsColumn } from './NutritionFactsTable';
 
 interface NutritionSummaryProps {
   title: string;
   values: MacroValues;
+  macroSplit: MacroGrams;
   tableColumns: NutritionFactsColumn[];
 }
 
@@ -41,10 +42,10 @@ function MacroRing({ macro, grams, percent }: { macro: MacroKey; grams: number; 
   );
 }
 
-export function NutritionSummary({ title, values, tableColumns }: NutritionSummaryProps) {
+export function NutritionSummary({ title, values, macroSplit, tableColumns }: NutritionSummaryProps) {
   const [showTable, setShowTable] = useState(false);
   const tableId = useId();
-  const percents = macroEnergyPercents(values);
+  const percents = macroEnergyPercents(macroSplit);
   const kcal = formatCompactNumber(values.kcal);
 
   return (
