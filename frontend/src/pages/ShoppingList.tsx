@@ -8,7 +8,7 @@ import { useCloseOnBack } from '../lib/backNavigation';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { ShoppingFromPlanPicker } from '../components/ShoppingFromPlanPicker';
 import { t } from '../i18n';
-import { ingredientUnitLabel } from '../lib/recipeIngredient';
+import { ingredientBaseAmountLabel, ingredientUnitLabel } from '../lib/recipeIngredient';
 import { profileMealTypes } from '../lib/mealTypes';
 import { addPlanMealsToShoppingList, type PlanMeal, type ShoppingFromPlanResult } from '../lib/shoppingFromPlan';
 import { AMOUNT_LIMITS, acceptsLimitedNumber } from '../lib/inputLimits';
@@ -172,6 +172,11 @@ export function ShoppingList() {
       return { title: 'Dodatki i Sosy', icon: 'local_dining' };
       
     return { title: 'Inne', icon: 'shopping_basket' };
+  };
+
+  const baseAmountSuffix = (ingredient: Parameters<typeof ingredientBaseAmountLabel>[0]) => {
+    const base = ingredientBaseAmountLabel(ingredient);
+    return base ? ` (${base})` : '';
   };
 
   const formatIngredientAmount = (amount: number, unit: string) => {
@@ -345,6 +350,7 @@ export function ShoppingList() {
                                   </div>
                                   <span className={`font-bold text-sm shrink-0 transition-opacity duration-300 ${shopItem?.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-primary'}`}>
                                     {formatIngredientAmount(Number(ing.amount) * r.portions, ing.unit)} {ingredientUnitLabel(ing.unit, Number(ing.amount) * r.portions, ing.product)}
+                                    {baseAmountSuffix({ amount: Number(ing.amount) * r.portions, unit: ing.unit, product: ing.product })}
                                   </span>
                                 </label>
                               );

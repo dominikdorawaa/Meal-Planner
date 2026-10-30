@@ -6,6 +6,7 @@ const NAMES: Record<string, MeasureNames> = {
   tbsp: { pl: { one: 'łyżka', few: 'łyżki', many: 'łyżek', other: 'łyżki' }, en: { one: 'tablespoon', other: 'tablespoons' } },
   tsp: { pl: { one: 'łyżeczka', few: 'łyżeczki', many: 'łyżeczek', other: 'łyżeczki' }, en: { one: 'teaspoon', other: 'teaspoons' } },
   cup: { pl: { one: 'szklanka', few: 'szklanki', many: 'szklanek', other: 'szklanki' }, en: { one: 'cup', other: 'cups' } },
+  pinch: { pl: { one: 'szczypta', few: 'szczypty', many: 'szczypt', other: 'szczypty' }, en: { one: 'pinch', other: 'pinches' } },
   package: { pl: { one: 'opakowanie', few: 'opakowania', many: 'opakowań', other: 'opakowania' }, en: { one: 'package', other: 'packages' } },
 };
 

@@ -715,11 +715,11 @@ describe('AddFood new product form', () => {
     fireEvent.click(screen.getByText('detect code'));
 
     fireEvent.change(await packageField(), { target: { value: '0' } });
-    expect(screen.getByText(t('productForm.measureInvalid', { max: 50 }))).toBeTruthy();
+    expect(screen.getByText(t('productForm.measureInvalid', { max: 50000, unit: 'g' }))).toBeTruthy();
     expect((addProductButton() as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.change(await packageField(), { target: { value: '450' } });
-    expect(screen.queryByText(t('productForm.measureInvalid', { max: 50 }))).toBeNull();
+    expect(screen.queryByText(t('productForm.measureInvalid', { max: 50000, unit: 'g' }))).toBeNull();
     expect((addProductButton() as HTMLButtonElement).disabled).toBe(false);
   });
 });

@@ -182,8 +182,8 @@ class ProductSearchIntegrationTest {
         mockMvc.perform(search("mleko 3,2%"))
                 .andExpect(jsonPath("$.items[0].name").value("Mleko 3,2%"))
                 .andExpect(jsonPath("$.items[0].unit").value("100ml"))
-                .andExpect(jsonPath("$.items[0].measures[*].code", contains("ml", "cup", "package")))
-                .andExpect(jsonPath("$.items[0].measures[*].base_amount", contains(1.0, 250.0, 1000.0)));
+                .andExpect(jsonPath("$.items[0].measures[*].code", contains("ml", "cup", "package", "mug")))
+                .andExpect(jsonPath("$.items[0].measures[*].base_amount", contains(1.0, 250.0, 1000.0, 300.0)));
     }
 
     @Test

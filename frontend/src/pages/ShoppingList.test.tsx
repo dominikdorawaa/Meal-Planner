@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { MemoryRouter } from 'react-router-dom';
 import { ShoppingList } from './ShoppingList';
 import { t } from '../i18n';
+import { measure, withMeasures } from '../lib/measureFixtures';
 
 const mocks = vi.hoisted(() => ({
   addPlanMeals: vi.fn(),
@@ -20,8 +21,8 @@ const MEALS = [
 ];
 
 const APP_DATA = {
-  shoppingList: [],
-  shoppingListRecipes: [],
+  shoppingList: [] as unknown[],
+  shoppingListRecipes: [] as unknown[],
   refreshShoppingList: mocks.refreshShoppingList,
   setShoppingList: vi.fn(),
   userMeals: MEALS,
@@ -144,5 +145,30 @@ describe('ShoppingList add product form', () => {
     fireEvent.change(amount, { target: { value: '5001' } });
     expect(amount.value).toBe('2,5');
     expect(document.querySelector('[data-scroll-lock]')).not.toBeNull();
+  });
+});
+
+describe('ShoppingList by recipes', () => {
+  afterEach(() => {
+    APP_DATA.shoppingListRecipes = [];
+    APP_DATA.shoppingList = [];
+  });
+
+  it('shows the total amount of kitchen measures in the base unit', () => {
+    APP_DATA.shoppingList = [{ id: 's1', ingredient_name: 'Olej', quantity: 2, unit: 'łyżki', is_checked: false }];
+    const oil = withMeasures({ unit: '100ml' }, measure('tbsp', 15));
+    APP_DATA.shoppingListRecipes = [{
+      id: 'r1', name: 'Omelette', portions: 2,
+      ingredients: [
+        { name: 'Olej', amount: 1, unit: 'tbsp', product: oil },
+        { name: 'Mleko', amount: 100, unit: 'ml', product: oil },
+      ],
+    }];
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Według Przepisów' }));
+
+    expect(screen.getByText('2 łyżki (30 ml)')).toBeTruthy();
+    expect(screen.getByText('200 ml')).toBeTruthy();
   });
 });

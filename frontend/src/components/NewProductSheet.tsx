@@ -14,6 +14,7 @@ import { isEmptyMeasure, isValidMeasure, useMeasureKinds, type MeasureInput } fr
 import { NUTRITION_DECIMALS, NUTRITION_LIMITS, acceptsLimitedNumber, numberFieldProps } from '../lib/inputLimits';
 
 const PER_PIECE_UNIT = 'pc';
+const SELECTABLE_UNITS = ['100g', '100ml'] as const;
 
 export interface NewProductDraft {
   name?: string;
@@ -73,7 +74,7 @@ function formFrom({ name, barCode, prefill }: NewProductDraft, unit: string) {
 }
 
 export function NewProductSheet({ draft, onClose, onCreated, existingProductAction, mode = 'create', source = null }: NewProductSheetProps) {
-  const unit = source?.unit ?? '100g';
+  const [unit, setUnit] = useState(source?.unit ?? '100g');
   const [form, setForm] = useState(() => formFrom(draft, unit));
   const { kinds, failed: kindsFailed, retry: retryKinds } = useMeasureKinds();
   const [scanMessage, setScanMessage] = useState(draft.message ?? null);
@@ -145,7 +146,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
             </div>
             <div>
               <h2 className="font-headline font-bold text-lg text-on-surface leading-tight">{t(texts.title)}</h2>
-              <span className="text-[11px] font-medium text-on-surface-variant">{t('productForm.per100')}</span>
+              <span className="text-[11px] font-medium text-on-surface-variant">{per100 ? t('productForm.per100', { unit: measureUnit(unit) }) : t('productForm.perPiece')}</span>
             </div>
           </div>
           <button onClick={() => onClose()} aria-label={t('productForm.close')} className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors active:scale-90">
@@ -185,6 +186,24 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
               placeholder={t('productForm.brandPlaceholder')}
             />
           </div>
+          {mode === 'create' && (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('productForm.unit')}</span>
+              <div role="group" aria-label={t('productForm.unit')} className="flex shrink-0 bg-surface-container-highest p-1 rounded-2xl border border-outline-variant/5">
+                {SELECTABLE_UNITS.map(option => (
+                  <button
+                    key={option}
+                    type="button"
+                    aria-pressed={unit === option}
+                    onClick={() => setUnit(option)}
+                    className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all ${unit === option ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+                  >
+                    {t('nutrients.per100', { unit: measureUnit(option) })}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('productForm.kcal')}</label>
             <div className="relative flex items-center rounded-2xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">

@@ -85,8 +85,11 @@ describe('labels', () => {
     expect(measureRowLabel(banana, banana.measures[2])).toBe(t('amount.grams'));
     expect(measureRowLabel(egg, productMeasures(egg)[0])).toBe(t('amount.pieces'));
     expect(measureRowLabel(banana, { code: 'handful', base_amount: 30, max_amount: 10 })).toBe(t('amount.countOf', { name: 'handful' }));
-    expect(measureRowUnit(banana, banana.measures[0], 2)).toBe(t('amount.measureOf', { name: 'sztuki', amount: '120 g' }));
+    expect(measureRowUnit(banana, banana.measures[0], 2)).toBe(t('amount.measureOf', { name: 'sztuki', amount: '240 g' }));
     expect(measureRowUnit(milk, milk.measures[1], 1)).toBe(t('amount.measureOf', { name: 'szklanka', amount: '250 ml' }));
+    expect(measureRowUnit(milk, milk.measures[1], 0)).toBe(t('amount.measureOf', { name: 'szklanek', amount: '250 ml' }));
+    expect(measureRowUnit({ unit: '100ml' }, measure('tbsp', 15), 2)).toBe(t('amount.measureOf', { name: 'łyżki', amount: '30 ml' }));
+    expect(measureRowUnit(banana, measure('pinch', 0.5), 3)).toBe(t('amount.measureOf', { name: 'szczypty', amount: '1.5 g' }));
     expect(measureRowUnit(banana, banana.measures[2], 100)).toBe('g');
     expect(measureRowUnit(egg, productMeasures(egg)[0], 2)).toBe(t('units.szt'));
   });

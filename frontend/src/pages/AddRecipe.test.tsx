@@ -354,7 +354,7 @@ describe('AddRecipe editing an ingredient', () => {
     expect(spoons.value).toBe('1');
     expect(screen.getByText(t('amount.measureOf', { name: 'łyżka', amount: '25 g' }))).toBeTruthy();
     fireEvent.change(spoons, { target: { value: '2' } });
-    expect(screen.getByText(t('amount.measureOf', { name: 'łyżki', amount: '25 g' }))).toBeTruthy();
+    expect(screen.getByText(t('amount.measureOf', { name: 'łyżki', amount: '50 g' }))).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.add') }));
 
     const row = ingredientRow('Miód');

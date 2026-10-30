@@ -109,6 +109,20 @@ class ProductMeasuresIntegrationTest {
     }
 
     @Test
+    void storesKitchenMeasuresOfOwnProducts() throws Exception {
+        create(saveUser(UserRole.USER), "100g", "[{\"code\":\"pinch\",\"base_amount\":0.5},"
+                + "{\"code\":\"tsp\",\"base_amount\":6}]")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.measures[*].code", contains("g", "pinch", "tsp")))
+                .andExpect(jsonPath("$.measures[*].base_amount", contains(1.0, 0.5, 6.0)))
+                .andExpect(jsonPath("$.measures[1].names.pl.few").value("szczypty"));
+        create(saveUser(UserRole.USER), "100ml", "[{\"code\":\"mug\",\"base_amount\":300,\"default\":true}]")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.measures[*].code", contains("mug", "ml")))
+                .andExpect(jsonPath("$.measures[0].names.pl.one").value("kubek"));
+    }
+
+    @Test
     void countsPerPieceProductsOnlyInPieces() throws Exception {
         create(saveUser(UserRole.USER), "pc", "[{\"code\":\"package\",\"base_amount\":500,\"default\":true}]")
                 .andExpect(status().isOk())
@@ -128,6 +142,7 @@ class ProductMeasuresIntegrationTest {
                 "[{\"code\":\"piece\",\"base_amount\":120},{\"code\":\"piece\",\"base_amount\":130}]",
                 "[{\"code\":\"piece\",\"base_amount\":120,\"default\":true},{\"code\":\"g\",\"default\":true}]",
                 "[{\"code\":\"piece\",\"base_amount\":0}]",
+                "[{\"code\":\"pinch\",\"base_amount\":60}]",
                 "[{\"code\":\"piece\",\"base_amount\":0.04}]",
                 "[{\"code\":\"piece\"}]",
                 "[{\"code\":\"piece\",\"base_amount\":5001}]",
@@ -216,9 +231,11 @@ class ProductMeasuresIntegrationTest {
     void listsMeasureKindsInTheirOrder() throws Exception {
         mockMvc.perform(get("/api/measure-kinds"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].code", contains("piece", "slice", "tbsp", "tsp", "cup", "package")))
-                .andExpect(jsonPath("$[2].names.pl.many").value("łyżek"))
-                .andExpect(jsonPath("$[4].max_amount").value(50.0))
-                .andExpect(jsonPath("$[5].max_base_amount").value(50000.0));
+                .andExpect(jsonPath("$[*].code", contains("piece", "slice", "bread_slice", "tbsp", "tsp", "pinch", "cup",
+                        "mug", "serving", "bar", "package")))
+                .andExpect(jsonPath("$[3].names.pl.many").value("łyżek"))
+                .andExpect(jsonPath("$[5].names.pl.one").value("szczypta"))
+                .andExpect(jsonPath("$[6].max_amount").value(50.0))
+                .andExpect(jsonPath("$[10].max_base_amount").value(50000.0));
     }
 }

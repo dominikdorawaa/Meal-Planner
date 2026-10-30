@@ -65,7 +65,7 @@ class DatabaseMigrationTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "select version, success from flyway_schema_history where version is not null order by installed_rank");
 
-        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13", "14", "15");
+        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13", "14", "15", "16");
         assertThat(history).allSatisfy(row -> assertThat(row.get("success")).isEqualTo(true));
     }
 
@@ -245,13 +245,50 @@ class DatabaseMigrationTest {
         assertThat(basicMeasures("Banan")).containsExactly("piece 120 default");
         assertThat(basicMeasures("Jajko")).containsExactly("piece 50 default");
         assertThat(basicMeasures("Truskawki")).containsExactly("piece 12", "cup 150");
-        assertThat(basicMeasures("Mleko 3,2%")).containsExactly("cup 250", "package 1000");
+        assertThat(basicMeasures("Mleko 3,2%")).containsExactly("cup 250", "package 1000", "mug 300");
         assertThat(basicMeasures("Masło")).containsExactly("tsp 5", "tbsp 15", "package 200");
+        assertThat(basicMeasures("Sól")).containsExactly("tsp 6", "pinch 0.5", "tbsp 18");
+        assertThat(basicMeasures("Chleb pszenny")).containsExactly("bread_slice 35 default");
         assertThat(basicMeasures("Brokuł")).isEmpty();
         assertThat(jdbcTemplate.queryForObject("select count(*) from product_measures m join products p on p.id = m.product_id "
-                + "where p.source = 'BASIC'", Integer.class)).isEqualTo(124);
+                + "where p.source = 'BASIC'", Integer.class)).isEqualTo(138);
         assertThat(jdbcTemplate.queryForObject("select count(*) from (select product_id from product_measures "
                 + "where is_default group by product_id having count(*) > 1) duplicated", Integer.class)).isZero();
+    }
+
+    @Test
+    void addsKitchenMeasureKindsAndMovesBreadSlicesToTheirOwnKind() {
+        String schema = "kitchen_measures_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("15").load().migrate();
+        UUID bread = jdbcTemplate.queryForObject("select id from " + schema + ".products where name = 'Chleb pszenny'", UUID.class);
+        UUID cheese = jdbcTemplate.queryForObject("select id from " + schema + ".products where name = 'Ser gouda'", UUID.class);
+        UUID userId = UUID.randomUUID();
+        jdbcTemplate.update("insert into " + schema + ".app_users (id, email, password_hash) values (?, ?, ?)",
+                userId, "measures@example.com", "hash");
+        String insertMeal = "insert into " + schema + ".user_meals (id, user_id, product_id, meal_date, meal_type, "
+                + "portions_consumed, measure_code, measure_amount) values (?, ?, ?, '2026-10-30', 'breakfast', ?, 'slice', 2)";
+        jdbcTemplate.update(insertMeal, UUID.randomUUID(), userId, bread, 70.0);
+        jdbcTemplate.update(insertMeal, UUID.randomUUID(), userId, cheese, 30.0);
+        UUID recipeId = UUID.randomUUID();
+        jdbcTemplate.update("insert into " + schema + ".recipes (id, name) values (?, ?)", recipeId, "Sandwich");
+        String insertIngredient = "insert into " + schema + ".recipe_ingredients (id, recipe_id, name, amount, unit, product_id) "
+                + "values (?, ?, ?, 2, 'slice', ?)";
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), recipeId, "Bread", bread);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), recipeId, "Cheese", cheese);
+
+        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+
+        assertThat(jdbcTemplate.queryForList("select code from " + schema + ".measure_kinds order by sort_order", String.class))
+                .containsExactly("piece", "slice", "bread_slice", "tbsp", "tsp", "pinch", "cup", "mug", "serving", "bar", "package");
+        assertThat(jdbcTemplate.queryForList("select measure_code from " + schema + ".user_meals order by portions_consumed desc",
+                String.class)).containsExactly("bread_slice", "slice");
+        assertThat(jdbcTemplate.queryForList("select unit from " + schema + ".recipe_ingredients order by name", String.class))
+                .containsExactly("bread_slice", "slice");
+        assertThat(jdbcTemplate.queryForList("select kind_code from " + schema + ".product_measures where product_id = ?",
+                String.class, cheese)).containsExactly("slice");
+        assertThat(jdbcTemplate.queryForObject("select max_base_amount from " + schema + ".measure_kinds where code = 'pinch'",
+                Double.class)).isEqualTo(50.0);
+        jdbcTemplate.execute("drop schema " + schema + " cascade");
     }
 
     private List<String> basicMeasures(String name) {

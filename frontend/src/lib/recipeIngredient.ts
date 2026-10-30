@@ -114,11 +114,16 @@ export function ingredientUnitLabel(unit: string, amount = 1, product?: Scalable
   return unitLabel(unit, amount, product);
 }
 
+export function ingredientBaseAmountLabel(ingredient: IngredientAmount): string | null {
+  const product = ingredient.product;
+  if (!product || isBaseMeasure(product, ingredient.unit)) return null;
+  const grams = ingredientGrams(ingredient);
+  return grams == null ? null : `${formatCompactNumber(grams, 1)} ${baseMeasureCode(product)}`;
+}
+
 export function ingredientAmountLabel(ingredient: IngredientAmount): string {
   const amount = Number(ingredient.amount) || 0;
-  const product = ingredient.product;
-  const label = `${formatCompactNumber(amount, 1)} ${ingredientUnitLabel(ingredient.unit, amount, product)}`;
-  if (!product || isBaseMeasure(product, ingredient.unit)) return label;
-  const grams = ingredientGrams(ingredient);
-  return grams == null ? label : `${label} (${formatCompactNumber(grams)} ${baseMeasureCode(product)})`;
+  const label = `${formatCompactNumber(amount, 1)} ${ingredientUnitLabel(ingredient.unit, amount, ingredient.product)}`;
+  const base = ingredientBaseAmountLabel(ingredient);
+  return base ? `${label} (${base})` : label;
 }
