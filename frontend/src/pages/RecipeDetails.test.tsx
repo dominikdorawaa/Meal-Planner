@@ -391,7 +391,7 @@ describe('RecipeDetails adding to the plan', () => {
     fireEvent.click(await screen.findByRole('button', { name: new RegExp(t('recipeDetails.addToPlan')) }));
 
     fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeDetails.today')) }));
-    fireEvent.click(screen.getByRole('button', { name: '2 Śniadanie' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Przekąska' }));
     const sheetButtons = screen.getAllByRole('button', { name: t('recipeDetails.addToPlan') });
     fireEvent.click(sheetButtons.at(-1)!);
 

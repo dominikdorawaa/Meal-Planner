@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { type AuthUser, ApiError, api } from './apiClient';
 import { resolveMealProduct } from './mealProducts';
+import { profileMealTypes } from './mealTypes';
 
 export type ProfileStatus = 'loading' | 'failed' | 'needsOnboarding' | 'ready';
 
@@ -188,9 +189,7 @@ export function AppDataProvider({ children, user, onLogout }: AppDataProviderPro
   }, [user]);
 
   const getConsumedForDay = useCallback((date: string, excludedMealId?: string | null) => {
-    const visibleMealsList = Array.isArray(profile?.meal_config)
-      ? profile.meal_config.filter((m: any) => m.visible).map((m: any) => m.id)
-      : (profile?.visible_meals || ['breakfast', 'lunch', 'dinner', 'supper', 'snack1', 'snack2']);
+    const visibleMealsList = profileMealTypes(profile).filter(meal => meal.visible).map(meal => meal.id);
 
     const mealsToday = userMeals.filter(m => m.meal_date === date && m.id !== excludedMealId && visibleMealsList.includes(m.meal_type));
     let kcal = 0, protein = 0, fat = 0, carbs = 0;

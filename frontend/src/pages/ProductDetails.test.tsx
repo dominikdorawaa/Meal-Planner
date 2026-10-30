@@ -273,7 +273,7 @@ describe('ProductDetails saving and ownership', () => {
     tapOutside();
     expect(screen.queryByRole('menu')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do: Lunch/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do: II śniadanie/ }));
     expect(screen.getByRole('button', { name: 'Kolacja' })).toBeTruthy();
     fireEvent.click(screen.getByRole('dialog').parentElement!);
     expect(screen.queryByRole('button', { name: 'Kolacja' })).toBeNull();

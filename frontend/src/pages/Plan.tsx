@@ -10,7 +10,7 @@ import { formatMacrosShort } from '../lib/macros';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { DaySummary } from '../components/DaySummary';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
-import { MEAL_TYPES, profileMealTypes } from '../lib/mealTypes';
+import { mealTypeName, profileMealTypes } from '../lib/mealTypes';
 import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, formatRelativeDayLabel, parseIsoDate, planDays, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { forgetPlanReturnPosition, readPlanReturnPosition, rememberPlanReturnPosition } from '../lib/planPosition';
 import { PlanConflictDialog } from '../components/PlanConflictDialog';
@@ -58,14 +58,6 @@ const startOfToday = () => {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
   return date;
-};
-
-const getMealTypeName = (type: string, mealConfig?: any[]) => {
-  if (mealConfig) {
-    const config = mealConfig.find(m => m.id === type);
-    if (config) return config.name;
-  }
-  return MEAL_TYPES.find(m => m.id === type)?.name || type;
 };
 
 export function Plan() {
@@ -178,7 +170,7 @@ export function Plan() {
       return;
     }
     await refreshMeals();
-    const message = t('plan.snackbar.deleted', { name: mealTitle(meal), meal: getMealTypeName(meal.meal_type, profile?.meal_config) });
+    const message = t('plan.snackbar.deleted', { name: mealTitle(meal), meal: mealTypeName(meal.meal_type, profileMealTypes(profile)) });
     showSnackbar(message, { created: [], removed: [meal], complete: true }, DELETED_MEAL_SNACKBAR_DURATION_MS);
   };
 
@@ -771,7 +763,7 @@ export function Plan() {
           conflicts={pendingTransfer.conflicts.map(meal => ({
             id: meal.id,
             title: mealTitle(meal),
-            detail: `${formatRelativeDayLabel(meal.meal_date)} • ${getMealTypeName(meal.meal_type, profile?.meal_config)}`,
+            detail: `${formatRelativeDayLabel(meal.meal_date)} • ${mealTypeName(meal.meal_type, profileMealTypes(profile))}`,
           }))}
           busy={transferBusy}
           onOverwrite={() => runTransfer(pendingTransfer, 'overwrite')}

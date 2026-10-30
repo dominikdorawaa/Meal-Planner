@@ -408,5 +408,11 @@
   "dayBalance.beforeTitle": "Current balance",
   "dayBalance.afterTitle": "After adding",
   "dayBalance.beforeEditTitle": "Day without this item",
-  "dayBalance.afterEditTitle": "After the change"
+  "dayBalance.afterEditTitle": "After the change",
+  "mealType.breakfast": "Breakfast",
+  "mealType.lunch": "Second breakfast",
+  "mealType.dinner": "Dinner",
+  "mealType.snack1": "Snack",
+  "mealType.snack2": "Afternoon snack",
+  "mealType.supper": "Supper"
 }
