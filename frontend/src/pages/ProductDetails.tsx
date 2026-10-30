@@ -1,11 +1,11 @@
-import { useEffect, useId, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type Product } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, formatShortDayLabel } from '../lib/planDates';
 import { productDisplayName } from '../lib/productName';
 import { canEditProduct, isOwnItem, isUnverified } from '../lib/productPermissions';
-import { NutritionFactsTable } from '../components/NutritionFactsTable';
+import { NutritionSummary } from '../components/NutritionSummary';
 import { ItemBadges, SaveHeartButton } from '../components/FoodRows';
 import { OPEN_HEADER_CLASS, OutsidePressLayer } from '../components/OutsidePressLayer';
 import { PlanTargetPicker } from '../components/PlanTargetPicker';
@@ -13,20 +13,14 @@ import { NewProductSheet, type ProductFormMode } from '../components/NewProductS
 import { draftFromProduct } from '../lib/productDraft';
 import { MeasureAmountRows } from '../components/MeasureAmountRows';
 import { DayBalancePreview } from '../components/DayBalancePreview';
-import { NUTRITION_TABLE_FACTS, measureUnit } from '../lib/nutrients';
+import { measureUnit } from '../lib/nutrients';
 import { ingredientAmountLabel, ingredientFactor } from '../lib/recipeIngredient';
 import { baseMeasureCode, defaultMeasure, findMeasure, initialMeasureValues, isBaseMeasure, measureBaseAmount, type MeasureValues } from '../lib/measures';
 import { t } from '../i18n';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
-import { formatCompactNumber } from '../lib/compactNumber';
-import { KCAL_HERO_SIZES, RING_VALUE_SIZES, fitTextClass } from '../lib/fitText';
-import { macroRingBackground } from '../lib/macroColors';
+import { scaleMacros } from '../lib/macros';
 import { profileMealTypes } from '../lib/mealTypes';
-
-function gramsLabel(value: number): string {
-  return `${formatCompactNumber(value, 1)}g`;
-}
 
 export function ProductDetails() {
   const { id } = useParams();
@@ -46,8 +40,6 @@ export function ProductDetails() {
 
   const [activeCode, setActiveCode] = useState('');
   const [values, setValues] = useState<MeasureValues>({});
-  const [showNutritionTable, setShowNutritionTable] = useState(false);
-  const nutritionTableId = useId();
   const [savedAmount, setSavedAmount] = useState<{ weight: number; code: string } | null>(null);
 
   const [activeDate, setActiveDate] = useState(selectDate || '');
@@ -114,17 +106,7 @@ export function ProductDetails() {
   const unchangedPlanItem = Boolean(mealId) && (savedAmount === null
     || (savedAmount.code === activeCode && Math.abs(currentWeight - savedAmount.weight) < 0.001));
 
-  const currentMacros = product ? {
-    kcal: Math.round(product.kcal * chosenFactor),
-    protein: parseFloat((product.protein * chosenFactor).toFixed(1)),
-    fat: parseFloat((product.fat * chosenFactor).toFixed(1)),
-    carbs: parseFloat((product.carbs * chosenFactor).toFixed(1))
-  } : { kcal: 0, protein: 0, fat: 0, carbs: 0 };
-
-  const totalMacros = currentMacros.protein + currentMacros.fat + currentMacros.carbs || 1;
-  const pctP = Math.min(100, (currentMacros.protein / totalMacros) * 100);
-  const pctF = Math.min(100, (currentMacros.fat / totalMacros) * 100);
-  const pctC = Math.min(100, (currentMacros.carbs / totalMacros) * 100);
+  const currentMacros = product ? scaleMacros(product, chosenFactor) : scaleMacros({ kcal: 0, protein: 0, fat: 0, carbs: 0 }, 0);
 
   const handleAddProduct = async () => {
     const targetDate = activeDate || selectDate;
@@ -336,73 +318,11 @@ export function ProductDetails() {
       <main className="w-full max-w-xl mx-auto px-4 py-8 flex flex-col gap-10">
         
 
-        {/* Wartości Odżywcze - Zgodnie ze screenem */}
-        <section className="flex flex-col gap-6">
-          <h2 className="text-[10px] font-black uppercase tracking-widest text-on-surface opacity-40">
-            {t('product.nutritionFor', { amount: chosenLabel })}
-          </h2>
-          
-          <div className="flex items-center justify-between gap-1 sm:gap-4 px-2">
-            {/* Kalorie */}
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px] flex items-center justify-center">
-                 <span data-testid="kcal-value" className={`font-black ${fitTextClass(formatCompactNumber(currentMacros.kcal), KCAL_HERO_SIZES, 3)} text-on-surface leading-none text-center max-w-full break-words`}>{formatCompactNumber(currentMacros.kcal)}</span>
-              </div>
-              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">kcal</span>
-            </div>
-            
-            {/* Białko */}
-            <div className="flex flex-col items-center gap-3">
-              <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
-                 <div className="absolute inset-0 rounded-full" style={{ background: macroRingBackground('protein', pctP) }}></div>
-                 <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span data-testid="protein-value" className={`font-black ${fitTextClass(gramsLabel(currentMacros.protein), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentMacros.protein)}</span>
-                 </div>
-              </div>
-              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Białko</span>
-            </div>
-
-            {/* Tłuszcz */}
-            <div className="flex flex-col items-center gap-3">
-              <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
-                 <div className="absolute inset-0 rounded-full" style={{ background: macroRingBackground('fat', pctF) }}></div>
-                 <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span data-testid="fat-value" className={`font-black ${fitTextClass(gramsLabel(currentMacros.fat), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentMacros.fat)}</span>
-                 </div>
-              </div>
-              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Tłuszcz</span>
-            </div>
-
-            <button
-              type="button"
-              aria-expanded={showNutritionTable}
-              aria-controls={nutritionTableId}
-              aria-label={t(showNutritionTable ? 'nutrients.hideTable' : 'nutrients.showTable', { value: gramsLabel(currentMacros.carbs) })}
-              onClick={() => setShowNutritionTable(open => !open)}
-              className="flex items-start"
-            >
-              <span className="flex flex-col items-center gap-3">
-              <div className="relative w-16 h-16 min-[360px]:w-[72px] min-[360px]:h-[72px]">
-                 <div className="absolute inset-0 rounded-full" style={{ background: macroRingBackground('carbs', pctC) }}></div>
-                 <div className="absolute inset-[6px] bg-surface rounded-full flex flex-col items-center justify-center shadow-inner">
-                   <span data-testid="carbs-value" className={`font-black ${fitTextClass(gramsLabel(currentMacros.carbs), RING_VALUE_SIZES, 4)} text-on-surface leading-none text-center px-1 break-words`}>{gramsLabel(currentMacros.carbs)}</span>
-                 </div>
-              </div>
-              <span className="text-[11px] font-black text-on-surface uppercase tracking-widest leading-none">Węgle</span>
-              </span>
-              <span aria-hidden="true" className={`material-symbols-outlined h-16 min-[360px]:h-[72px] flex items-center -mr-2 text-[28px] text-primary transition-transform ${showNutritionTable ? 'rotate-180' : ''}`}>expand_more</span>
-            </button>
-          </div>
-
-          {showNutritionTable && (
-            <div id={nutritionTableId}>
-              <NutritionFactsTable
-                columns={[{ label: t('nutrients.per100', { unit: measureUnit(product.unit) }), values: product }]}
-                facts={NUTRITION_TABLE_FACTS}
-              />
-            </div>
-          )}
-        </section>
+        <NutritionSummary
+          title={t('product.nutritionFor', { amount: chosenLabel })}
+          values={currentMacros}
+          tableColumns={[{ label: t('nutrients.per100', { unit: measureUnit(product.unit) }), values: product }]}
+        />
 
         {selectDate && profile && (
           <DayBalancePreview

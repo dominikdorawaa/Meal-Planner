@@ -46,6 +46,7 @@ export default defineConfig({
         'src/components/MealSettingsList.tsx',
         'src/lib/nutrients.ts',
         'src/components/NutritionFactsTable.tsx',
+        'src/components/NutritionSummary.tsx',
         'src/components/MoreNutrientsFields.tsx',
         'src/lib/planTransfer.ts',
         'src/lib/planPosition.ts',
