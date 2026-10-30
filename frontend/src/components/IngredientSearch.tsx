@@ -42,10 +42,12 @@ interface IngredientSearchProps {
   onSelect: (product: Product) => void;
   onAddProduct: (name: string) => void;
   onScan: () => void;
+  initialQuery?: string;
+  prompt?: string;
 }
 
-export function IngredientSearch({ onClose, onSelect, onAddProduct, onScan }: IngredientSearchProps) {
-  const [query, setQuery] = useState('');
+export function IngredientSearch({ onClose, onSelect, onAddProduct, onScan, initialQuery = '', prompt }: IngredientSearchProps) {
+  const [query, setQuery] = useState(initialQuery);
   const { userMeals, recipes, loading } = useAppData();
   const recentProducts = useMemo(
     () => (loading ? [] : recentIngredientProducts(userMeals, recipes, RECENT_PRODUCTS_LIMIT)),
@@ -91,6 +93,9 @@ export function IngredientSearch({ onClose, onSelect, onAddProduct, onScan }: In
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 flex flex-col w-full max-w-xl mx-auto">
+        {prompt && (
+          <p role="status" className="mb-4 rounded-2xl px-4 py-3 text-sm font-bold bg-primary/10 text-on-surface">{prompt}</p>
+        )}
         {!longEnough && (
           <p className={`${recentProducts.length > 0 ? 'pt-2 pb-6' : 'py-8'} text-center text-sm font-medium text-on-surface-variant/60`}>
             {t('recipeIngredients.minChars')}

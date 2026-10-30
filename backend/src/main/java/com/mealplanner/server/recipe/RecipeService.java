@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -22,6 +23,7 @@ public class RecipeService {
 
     static final String NOT_FOUND = "error.not-found";
     static final String FORBIDDEN = "error.forbidden";
+    static final String INGREDIENT_PRODUCT_REQUIRED = "recipe.ingredient-product-required";
 
     private final RecipeRepository recipeRepository;
     private final SavedRecipeRepository savedRecipeRepository;
@@ -165,10 +167,10 @@ public class RecipeService {
     private void linkIngredient(Recipe recipe, RecipeIngredient ingredient) {
         ingredient.setId(null);
         ingredient.setRecipe(recipe);
-        if (ingredient.getProduct() != null) {
-            ingredient.setProduct(ingredient.getProduct().getId() == null ? null
-                    : productRepository.findById(ingredient.getProduct().getId()).orElse(null));
-        }
+        UUID productId = ingredient.getProduct() == null ? null : ingredient.getProduct().getId();
+        ingredient.setProduct(Optional.ofNullable(productId)
+                .flatMap(productRepository::findById)
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, INGREDIENT_PRODUCT_REQUIRED)));
     }
 
     private static ApiException notFound() {

@@ -7,6 +7,7 @@ import { missingProductMessage } from '../lib/barcodeLookup';
 import {
   ingredientAmountLabel,
   ingredientMacros,
+  ingredientsWithoutProduct,
   recipeMacrosPerPortion,
   type IngredientDraft,
   type IngredientQuantity,
@@ -74,6 +75,7 @@ export default function AddRecipe() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [showIngredientSearch, setShowIngredientSearch] = useState(false);
+  const [productTarget, setProductTarget] = useState<number | null>(null);
   const [amountTarget, setAmountTarget] = useState<AmountTarget | null>(null);
   const [newProduct, setNewProduct] = useState<NewProductDraft | null>(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -85,12 +87,18 @@ export default function AddRecipe() {
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const missingProducts = ingredientsWithoutProduct(ingredients).length > 0;
   const hasUnsavedChanges = savedSnapshot !== null
     && draftSnapshot({ name, prepTime, portions, imageUrl, ingredients, instructions }) !== savedSnapshot;
 
+  const closeIngredientSearch = () => {
+    setShowIngredientSearch(false);
+    setProductTarget(null);
+  };
+
   useCloseOnBack(hasUnsavedChanges && !showLeaveConfirm && !isSaving && !isUploadingPhoto, () => setShowLeaveConfirm(true));
   useCloseOnBack(showLeaveConfirm, () => setShowLeaveConfirm(false));
-  useCloseOnBack(showIngredientSearch, () => setShowIngredientSearch(false));
+  useCloseOnBack(showIngredientSearch, closeIngredientSearch);
   useCloseOnBack(amountTarget !== null, () => setAmountTarget(null));
   useCloseOnBack(stepToDelete !== null, () => setStepToDelete(null));
   useCloseOnBack(ingredientToDelete !== null, () => setIngredientToDelete(null));
@@ -128,6 +136,11 @@ export default function AddRecipe() {
         setIngredients(loaded.ingredients);
         setBaseMacros({ kcal: recipe.kcal, p: recipe.protein, f: recipe.fat, c: recipe.carbs });
         setSavedSnapshot(draftSnapshot(loaded));
+        const firstWithoutProduct = loaded.ingredients.findIndex(ingredient => !ingredient.product);
+        if (firstWithoutProduct >= 0) {
+          setProductTarget(firstWithoutProduct);
+          setShowIngredientSearch(true);
+        }
       } catch (err) {
         console.error('Error loading recipe:', err);
         navigate('/recipes', { replace: true });
@@ -138,7 +151,12 @@ export default function AddRecipe() {
     loadEditData();
   }, [id, isEditMode, navigate]);
 
-  const openAmount = (product: Product) => setAmountTarget({ product, index: null });
+  const openAmount = (product: Product) => setAmountTarget({ product, index: productTarget });
+
+  const chooseProductFor = (index: number) => {
+    setProductTarget(index);
+    setShowIngredientSearch(true);
+  };
 
   const chooseCreatedOrExistingProduct = (product: Product) => {
     setNewProduct(null);
@@ -151,10 +169,14 @@ export default function AddRecipe() {
     if (index === null) {
       setIngredients(previous => [...previous, { product, name: product.name, amount, unit }]);
     } else {
-      setIngredients(previous => previous.map((ingredient, i) => (i === index ? { ...ingredient, amount, unit } : ingredient)));
+      setIngredients(previous => previous.map((ingredient, i) => (
+        i !== index ? ingredient
+          : ingredient.product ? { ...ingredient, amount, unit }
+          : { ...ingredient, product, name: product.name, amount, unit }
+      )));
     }
     setAmountTarget(null);
-    setShowIngredientSearch(false);
+    closeIngredientSearch();
   };
 
   const barcodeLookup = useBarcodeLookup();
@@ -195,7 +217,7 @@ export default function AddRecipe() {
   };
 
   const handleSaveRecipe = async () => {
-    if (!user || !name.trim() || isUploadingPhoto) return;
+    if (!user || !name.trim() || isUploadingPhoto || missingProducts) return;
     setIsSaving(true);
     setSaveError(null);
 
@@ -217,7 +239,7 @@ export default function AddRecipe() {
           name: ing.name,
           amount: ing.amount,
           unit: ing.unit,
-          product: ing.product ? { id: ing.product.id } : null
+          product: { id: ing.product?.id }
         }))
       };
 
@@ -261,7 +283,7 @@ export default function AddRecipe() {
         </div>
         <button
           onClick={handleSaveRecipe}
-          disabled={!name.trim() || isSaving || isUploadingPhoto || (portions.trim() !== '' && !isPositiveWithinLimit(portions, AMOUNT_LIMITS.portion))}
+          disabled={!name.trim() || isSaving || isUploadingPhoto || missingProducts || (portions.trim() !== '' && !isPositiveWithinLimit(portions, AMOUNT_LIMITS.portion))}
           className="px-5 py-2 bg-primary text-on-primary font-bold text-sm rounded-xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm"
         >
           {isSaving ? t('recipeForm.saving') : t('recipeForm.save')}
@@ -372,6 +394,10 @@ export default function AddRecipe() {
               <p className="text-sm font-medium text-on-surface-variant/70 pl-1">{t('recipeForm.noIngredients')}</p>
             )}
 
+            {missingProducts && (
+              <p role="alert" className="text-sm font-bold text-error bg-error/10 rounded-2xl px-4 py-3">{t('recipeForm.productsMissing')}</p>
+            )}
+
             {ingredients.map((ing, idx) => {
               const kcal = ingredientMacros(ing).kcal;
               const product = ing.product;
@@ -379,13 +405,18 @@ export default function AddRecipe() {
                 <div key={ing.id ?? idx} className="flex items-center gap-1 bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/10 shadow-sm">
                   <button
                     type="button"
-                    disabled={!product}
-                    onClick={() => product && setAmountTarget({ product, index: idx })}
-                    aria-label={t('recipeIngredients.edit', { name: ing.name })}
-                    className="flex flex-1 min-w-0 items-center gap-3 text-left disabled:cursor-default"
+                    onClick={() => (product ? setAmountTarget({ product, index: idx }) : chooseProductFor(idx))}
+                    aria-label={t(product ? 'recipeIngredients.edit' : 'recipeForm.chooseProduct', { name: ing.name })}
+                    className="flex flex-1 min-w-0 items-center gap-3 text-left"
                   >
                     <span className="flex flex-col flex-1 min-w-0 pr-2">
                       <span className="font-bold text-sm text-on-surface truncate">{ing.name}</span>
+                      {!product && (
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-error mt-0.5">
+                          <span aria-hidden="true" className="material-symbols-outlined text-[14px]">error</span>
+                          <span className="truncate">{t('recipeForm.chooseProduct', { name: ing.name })}</span>
+                        </span>
+                      )}
                       {kcal > 0 && <span className="text-[10px] font-bold text-primary mt-0.5 truncate">{formatCompactNumber(kcal)} kcal</span>}
                     </span>
                     <span className="text-xs font-bold text-on-surface-variant bg-surface-container-highest px-3 py-1 rounded-lg shrink-0">
@@ -464,7 +495,10 @@ export default function AddRecipe() {
 
       {showIngredientSearch && (
         <IngredientSearch
-          onClose={() => setShowIngredientSearch(false)}
+          key={productTarget ?? 'new'}
+          initialQuery={productTarget === null ? '' : ingredients[productTarget]?.name}
+          prompt={productTarget === null ? undefined : t('recipeIngredients.chooseFor', { name: ingredients[productTarget]?.name ?? '' })}
+          onClose={closeIngredientSearch}
           onSelect={openAmount}
           onAddProduct={productName => setNewProduct({ name: productName })}
           onScan={() => setShowScanner(true)}

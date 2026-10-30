@@ -58,8 +58,12 @@ class RecipeIngredientProductIntegrationTest {
     }
 
     private Product saveProduct() {
+        return saveProduct("Cream");
+    }
+
+    private Product saveProduct(String name) {
         Product product = new Product();
-        product.setName("Cream");
+        product.setName(name);
         product.setKcal(186.0);
         product.setProtein(2.6);
         product.setFat(18.0);
@@ -71,10 +75,25 @@ class RecipeIngredientProductIntegrationTest {
         return productRepository.save(product);
     }
 
-    private static String recipeJson(String name, String productId) {
+    private Product saveSalt() {
+        Product salt = new Product();
+        salt.setName("Salt");
+        salt.setKcal(0.0);
+        salt.setProtein(0.0);
+        salt.setFat(0.0);
+        salt.setCarbs(0.0);
+        salt.setSalt(100.0);
+        return productRepository.save(salt);
+    }
+
+    private static String recipeJson(String name, String productId, String saltProduct) {
         return "{\"name\":\"" + name + "\",\"portions\":2,\"ingredients\":["
                 + "{\"name\":\"Cream\",\"amount\":200,\"unit\":\"g\",\"product\":{\"id\":\"" + productId + "\"}},"
-                + "{\"name\":\"Salt\",\"amount\":1,\"unit\":\"g\"}]}";
+                + "{\"name\":\"Salt\",\"amount\":1,\"unit\":\"g\"" + saltProduct + "}]}";
+    }
+
+    private String recipeJson(String name, String productId) {
+        return recipeJson(name, productId, ",\"product\":{\"id\":\"" + saveSalt().getId() + "\"}");
     }
 
     private String createRecipe(String token, String productId) throws Exception {
@@ -98,28 +117,76 @@ class RecipeIngredientProductIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ingredients[?(@.name == 'Cream')].product.id").value(product.getId().toString()))
                 .andExpect(jsonPath("$.ingredients[?(@.name == 'Cream')].product.saturated_fat").value(12.0))
-                .andExpect(jsonPath("$.ingredients[?(@.name == 'Salt')].product").value(hasItem(
-                        nullValue())));
+                .andExpect(jsonPath("$.ingredients[?(@.name == 'Salt')].product.name").value("Salt"));
     }
 
     @Test
-    void linksProductsWhenARecipeIsUpdatedAndDropsUnknownOnes() throws Exception {
+    void rejectsANewRecipeWithAnIngredientWithoutAProduct() throws Exception {
+        String token = bearer();
+        String productId = saveProduct().getId().toString();
+
+        mockMvc.perform(post("/api/recipes")
+                        .header(HttpHeaders.AUTHORIZATION, token)
+                        .header(HttpHeaders.ACCEPT_LANGUAGE, "en")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(recipeJson("Sauce", productId, "")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Every recipe ingredient needs a product."));
+        mockMvc.perform(post("/api/recipes")
+                        .header(HttpHeaders.AUTHORIZATION, token)
+                        .header(HttpHeaders.ACCEPT_LANGUAGE, "pl")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(recipeJson("Sauce", productId, ",\"product\":{}")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Każdy składnik przepisu musi mieć wybrany produkt."));
+    }
+
+    @Test
+    void rejectsARecipeWithAnUnknownProduct() throws Exception {
+        String token = bearer();
+
+        mockMvc.perform(post("/api/recipes")
+                        .header(HttpHeaders.AUTHORIZATION, token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(recipeJson("Sauce", UUID.randomUUID().toString())))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsAnEditThatLeavesAnIngredientWithoutAProductAndKeepsTheRecipe() throws Exception {
         String token = bearer();
         Product product = saveProduct();
-        String recipeId = createRecipe(token, UUID.randomUUID().toString());
-
-        mockMvc.perform(get("/api/recipes/" + recipeId).header(HttpHeaders.AUTHORIZATION, token))
-                .andExpect(jsonPath("$.ingredients[?(@.name == 'Cream')].product").value(hasItem(
-                        nullValue())));
+        String recipeId = createRecipe(token, product.getId().toString());
 
         mockMvc.perform(put("/api/recipes/" + recipeId)
                         .header(HttpHeaders.AUTHORIZATION, token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(recipeJson("Sauce", product.getId().toString())))
+                        .content(recipeJson("Renamed", product.getId().toString(), "")))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/api/recipes/" + recipeId).header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(jsonPath("$.name").value("Sauce"))
+                .andExpect(jsonPath("$.ingredients.length()").value(2))
+                .andExpect(jsonPath("$.ingredients[?(@.name == 'Salt')].product.name").value("Salt"));
+    }
+
+    @Test
+    void linksProductsWhenARecipeIsUpdated() throws Exception {
+        String token = bearer();
+        Product product = saveProduct();
+        Product lighterCream = saveProduct("Light cream");
+        lighterCream.setSugars(2.0);
+        productRepository.save(lighterCream);
+        String recipeId = createRecipe(token, product.getId().toString());
+
+        mockMvc.perform(put("/api/recipes/" + recipeId)
+                        .header(HttpHeaders.AUTHORIZATION, token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(recipeJson("Sauce", lighterCream.getId().toString())))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/recipes/" + recipeId).header(HttpHeaders.AUTHORIZATION, token))
-                .andExpect(jsonPath("$.ingredients[?(@.name == 'Cream')].product.sugars").value(3.4));
+                .andExpect(jsonPath("$.ingredients[?(@.name == 'Cream')].product.sugars").value(2.0));
     }
 
     @Test
