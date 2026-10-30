@@ -1,10 +1,10 @@
-import { useId, useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { t, type MessageKey } from '../i18n';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { KCAL_HERO_SIZES, RING_VALUE_SIZES, fitTextClass } from '../lib/fitText';
 import { macroRingBackground, type MacroKey } from '../lib/macroColors';
 import { macroEnergyPercents, type MacroGrams, type MacroValues } from '../lib/macros';
-import { NUTRITION_TABLE_FACTS } from '../lib/nutrients';
+import { NUTRITION_TABLE_FACTS, type NutritionFact } from '../lib/nutrients';
 import { NutritionFactsTable, type NutritionFactsColumn } from './NutritionFactsTable';
 
 interface NutritionSummaryProps {
@@ -12,6 +12,8 @@ interface NutritionSummaryProps {
   values: MacroValues;
   macroSplit: MacroGrams;
   tableColumns: NutritionFactsColumn[];
+  tableNotes?: Partial<Record<NutritionFact, string>>;
+  notice?: ReactNode;
 }
 
 const MACRO_LABELS: Record<MacroKey, MessageKey> = {
@@ -42,7 +44,7 @@ function MacroRing({ macro, grams, percent }: { macro: MacroKey; grams: number; 
   );
 }
 
-export function NutritionSummary({ title, values, macroSplit, tableColumns }: NutritionSummaryProps) {
+export function NutritionSummary({ title, values, macroSplit, tableColumns, tableNotes, notice }: NutritionSummaryProps) {
   const [showTable, setShowTable] = useState(false);
   const tableId = useId();
   const percents = macroEnergyPercents(macroSplit);
@@ -51,6 +53,7 @@ export function NutritionSummary({ title, values, macroSplit, tableColumns }: Nu
   return (
     <section className="flex flex-col gap-6">
       <h2 className="text-[10px] font-black uppercase tracking-widest text-on-surface opacity-40">{title}</h2>
+      {notice}
 
       <div className="flex items-center justify-between gap-1 sm:gap-4 px-2">
         <div className="flex flex-col items-center gap-3">
@@ -78,7 +81,7 @@ export function NutritionSummary({ title, values, macroSplit, tableColumns }: Nu
 
       {showTable && (
         <div id={tableId}>
-          <NutritionFactsTable columns={tableColumns} facts={NUTRITION_TABLE_FACTS} />
+          <NutritionFactsTable columns={tableColumns} facts={NUTRITION_TABLE_FACTS} notes={tableNotes} />
         </div>
       )}
     </section>

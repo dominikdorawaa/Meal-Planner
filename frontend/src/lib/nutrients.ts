@@ -56,30 +56,43 @@ export function formatNutritionFact(fact: NutritionFact, value: number | null | 
 }
 
 export interface IngredientWithProduct {
+  name?: string;
   amount: number;
   unit: string;
   product?: (ExtraNutrientValues & ScalableProduct) | null;
 }
 
-export function recipeExtraNutrientsPerPortion(
-  ingredients: IngredientWithProduct[],
-  portions: number,
-): ExtraNutrientValues {
-  const perPortion: ExtraNutrientValues = {};
-  for (const nutrient of EXTRA_NUTRIENTS) {
-    perPortion[nutrient] = recipeNutrientPerPortion(ingredients, portions, nutrient);
-  }
-  return perPortion;
+export interface RecipeExtraNutrients {
+  values: ExtraNutrientValues;
+  missing: Partial<Record<ExtraNutrient, string[]>>;
 }
 
-function recipeNutrientPerPortion(ingredients: IngredientWithProduct[], portions: number, nutrient: ExtraNutrient): number | null {
-  if (ingredients.length === 0 || !(portions > 0)) return null;
-  let total = 0;
+export function recipeExtraNutrients(ingredients: IngredientWithProduct[], portions: number): RecipeExtraNutrients {
+  const summary: RecipeExtraNutrients = { values: {}, missing: {} };
+  for (const nutrient of EXTRA_NUTRIENTS) {
+    const { value, missing } = recipeNutrientPerPortion(ingredients, portions, nutrient);
+    summary.values[nutrient] = value;
+    if (value != null && missing.length > 0) summary.missing[nutrient] = missing;
+  }
+  return summary;
+}
+
+function recipeNutrientPerPortion(
+  ingredients: IngredientWithProduct[],
+  portions: number,
+  nutrient: ExtraNutrient,
+): { value: number | null; missing: string[] } {
+  const missing: string[] = [];
+  if (!(portions > 0)) return { value: null, missing };
+  let total: number | null = null;
   for (const ingredient of ingredients) {
     const factor = ingredientFactor(ingredient);
     const value = ingredient.product?.[nutrient];
-    if (factor == null || value == null) return null;
-    total += value * factor;
+    if (factor == null || value == null) {
+      missing.push(ingredient.name ?? '');
+    } else {
+      total = (total ?? 0) + value * factor;
+    }
   }
-  return total / portions;
+  return { value: total == null ? null : total / portions, missing };
 }

@@ -318,7 +318,6 @@ describe('AddRecipe saving', () => {
       id: 'r1', name: 'Owsianka', kcal: 500, protein: 20, fat: 10, carbs: 80, portions: 1, instructions: [],
       ingredients: [
         { id: 'i1', name: 'Płatki owsiane', amount: 50, unit: 'g', product: OATS },
-        { id: 'i2', name: 'Miód', amount: 1, unit: 'łyżka', product: null },
       ],
     });
     renderAddRecipe('/edit-recipe/r1');
@@ -334,10 +333,84 @@ describe('AddRecipe saving', () => {
       kcal: 250,
       ingredients: [
         { name: 'Płatki owsiane', amount: 50, unit: 'g', product: { id: 'p2' } },
-        { name: 'Miód', amount: 1, unit: 'łyżka', product: null },
         { name: 'Skyr', amount: 100, unit: 'g', product: { id: 'p1' } },
       ],
     }));
+  });
+});
+
+describe('AddRecipe ingredients without a product', () => {
+  function editRecipeWithLegacyIngredients() {
+    mocks.getRecipe.mockResolvedValue({
+      id: 'r1', name: 'Owsianka', kcal: 500, protein: 20, fat: 10, carbs: 80, portions: 1, instructions: [],
+      ingredients: [
+        { id: 'i1', name: 'Skyr', amount: 150, unit: 'g', product: SKYR },
+        { id: 'i2', name: 'płatki owsiane', amount: 40, unit: 'g', product: null },
+        { id: 'i3', name: 'Jajko', amount: 2, unit: 'szklanka' },
+      ],
+    });
+    renderAddRecipe('/edit-recipe/r1');
+  }
+
+  function missingProductRow(name: string) {
+    return screen.getByRole('button', { name: t('recipeForm.chooseProduct', { name }) });
+  }
+
+  it('opens the product search for the first ingredient without a product and blocks saving', async () => {
+    editRecipeWithLegacyIngredients();
+
+    expect((await screen.findByPlaceholderText(t('recipeIngredients.searchPlaceholder')) as HTMLInputElement).value).toBe('płatki owsiane');
+    expect(screen.getByRole('status').textContent).toBe(t('recipeIngredients.chooseFor', { name: 'płatki owsiane' }));
+    expect(await screen.findByRole('button', { name: /Płatki owsiane/ })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.close') }));
+
+    expect(searchField).toThrow();
+    expect(within(missingProductRow('Jajko')).getByText(t('recipeForm.chooseProduct', { name: 'Jajko' }))).toBeTruthy();
+    expect(screen.getByRole('alert').textContent).toBe(t('recipeForm.productsMissing'));
+    expect((screen.getByRole('button', { name: 'Zapisz' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz' }));
+    expect(mocks.updateRecipe).not.toHaveBeenCalled();
+  });
+
+  it('replaces each ingredient with the chosen product and its amount and then saves', async () => {
+    editRecipeWithLegacyIngredients();
+    fireEvent.click(await screen.findByRole('button', { name: /Płatki owsiane/ }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.save') }));
+
+    expect(searchField).toThrow();
+    expect(within(ingredientRow('Płatki owsiane')).getByText('40 g')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Zapisz' }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(missingProductRow('Jajko'));
+    expect(searchField().value).toBe('Jajko');
+    fireEvent.click(await screen.findByRole('button', { name: /Jajko\s*75 kcal/ }));
+    expect(screen.getByText(t('recipeIngredients.unitUnavailable', { amount: '2 szklanka' }), { exact: false })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.save') }));
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz' }));
+
+    await screen.findByText('recipes screen');
+    expect(mocks.updateRecipe).toHaveBeenCalledWith('r1', expect.objectContaining({
+      ingredients: [
+        { name: 'Skyr', amount: 150, unit: 'g', product: { id: 'p1' } },
+        { name: 'Płatki owsiane', amount: 40, unit: 'g', product: { id: 'p2' } },
+        { name: 'Jajko', amount: 1, unit: 'piece', product: { id: 'p3' } },
+      ],
+    }));
+  });
+
+  it('keeps the ingredient without a product when its search is closed from the amount screen', async () => {
+    editRecipeWithLegacyIngredients();
+    fireEvent.click(await screen.findByRole('button', { name: /Płatki owsiane/ }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.back') }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.close') }));
+
+    expect(missingProductRow('płatki owsiane')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Dodaj składnik/ }));
+    expect(searchField().value).toBe('');
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });
 

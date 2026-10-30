@@ -184,6 +184,56 @@ describe('RecipeDetails loading', () => {
     }
   });
 
+  it('sums nutrients of the ingredients that have them and names the ones that do not', async () => {
+    const banana = { ...BANANA, saturated_fat: 0.1, sugars: 12, fiber: 2.6, salt: 0 };
+    const soySauce = { id: 'p2', name: 'Sos sojowy', kcal: 60, protein: 8, fat: 0, carbs: 6, unit: '100g', saturated_fat: 0, sugars: null, fiber: 0, salt: 14 };
+    mocks.getRecipe.mockResolvedValue({
+      ...OWN_RECIPE,
+      ingredients: [
+        { ...OWN_RECIPE.ingredients[0], product: banana },
+        { id: 'i2', name: 'Miód', amount: 20, unit: 'g', product: null },
+        { id: 'i3', name: 'Sos sojowy', amount: 20, unit: 'g', product: soySauce },
+      ],
+    });
+    renderDetails();
+
+    fireEvent.click(await screen.findByRole('button', { name: t('nutrients.showTable', { value: '23g' }) }));
+    expect(within(screen.getByRole('row', { name: /^Sól/ })).getByRole('cell').textContent).toBe('0.7 g');
+    expect(within(screen.getByRole('row', { name: /^Cukry/ })).getByRole('cell').textContent).toBe('12 g');
+    expect(screen.getByText(t('nutrients.incomplete', { names: 'Miód, Sos sojowy' }))).toBeTruthy();
+    expect(screen.getAllByText(t('nutrients.incomplete', { names: 'Miód' }))).toHaveLength(3);
+  });
+
+  it('tells that nutrition is incomplete and lets the author choose the missing products', async () => {
+    mocks.getRecipe.mockResolvedValue({
+      ...OWN_RECIPE,
+      ingredients: [...OWN_RECIPE.ingredients, { id: 'i2', name: 'Miód', amount: 20, unit: 'g', product: null }, { id: 'i3', name: 'Sól', amount: 1, unit: 'g' }],
+    });
+    renderDetails();
+
+    expect(await screen.findByText(t('recipeDetails.incompleteNutrition', { names: 'Miód, Sól' }))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.completeProducts') }));
+    expect(screen.getByText('edit screen')).toBeTruthy();
+  });
+
+  it('tells others that nutrition is incomplete without offering to edit', async () => {
+    mocks.getRecipe.mockResolvedValue({
+      ...BASE_RECIPE,
+      ingredients: [{ id: 'i2', name: 'Miód', amount: 20, unit: 'g', product: null }],
+    });
+    renderDetails('/recipe/r2');
+
+    expect(await screen.findByText(t('recipeDetails.incompleteNutrition', { names: 'Miód' }))).toBeTruthy();
+    expect(screen.queryByRole('button', { name: t('recipeDetails.completeProducts') })).toBeNull();
+  });
+
+  it('does not warn when every ingredient has a product', async () => {
+    renderDetails();
+    await screen.findByRole('heading', { name: 'Owsianka bananowa' });
+    expect(screen.queryByRole('button', { name: t('recipeDetails.completeProducts') })).toBeNull();
+    expect(screen.queryByText(/Wartości odżywcze nie są pełne/)).toBeNull();
+  });
+
   it('recalculates calories for the typed weight', async () => {
     renderDetails();
     const grams = await screen.findByLabelText(t('recipeDetails.gramsInput'));

@@ -43,6 +43,10 @@ export interface Macros {
 
 const ZERO_MACROS: Macros = { kcal: 0, protein: 0, fat: 0, carbs: 0 };
 
+export function ingredientsWithoutProduct<T extends { name: string; product?: unknown }>(ingredients: T[]): T[] {
+  return ingredients.filter(ingredient => !ingredient.product);
+}
+
 export function ingredientUnits(product: ScalableProduct): IngredientUnit[] {
   return productMeasures(product).map(measure => measure.code);
 }

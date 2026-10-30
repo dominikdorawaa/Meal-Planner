@@ -3,7 +3,8 @@ import {
   extraNutrientInputs,
   formatNutritionFact,
   measureUnit,
-  recipeExtraNutrientsPerPortion,
+  recipeExtraNutrients,
+  type IngredientWithProduct,
   scaleNutritionFacts,
 } from './nutrients';
 
@@ -37,7 +38,10 @@ describe('formatNutritionFact', () => {
   });
 });
 
-describe('recipeExtraNutrientsPerPortion', () => {
+describe('recipeExtraNutrients values', () => {
+  const recipeExtraNutrientsPerPortion = (ingredients: IngredientWithProduct[], portions: number) =>
+    recipeExtraNutrients(ingredients, portions).values;
+
   const NO_VALUES = { saturated_fat: null, sugars: null, fiber: null, salt: null };
 
   it('sums every ingredient and divides by the number of portions', () => {
@@ -54,8 +58,6 @@ describe('recipeExtraNutrientsPerPortion', () => {
     expect(recipeExtraNutrientsPerPortion([{ amount: 200, unit: 'g', product: { ...cream, salt: null } }], 2)).toEqual({
       saturated_fat: expect.closeTo(12), sugars: expect.closeTo(3.4), fiber: 0, salt: null,
     });
-    expect(recipeExtraNutrientsPerPortion([{ amount: 200, unit: 'g', product: cream }, { amount: 1, unit: 'g' }], 1))
-      .toEqual(NO_VALUES);
   });
 
   it('leaves out every nutrient when an amount cannot be converted to the product unit', () => {
@@ -71,6 +73,30 @@ describe('recipeExtraNutrientsPerPortion', () => {
   it('treats a missing amount as zero', () => {
     expect(recipeExtraNutrientsPerPortion([{ amount: Number.NaN, unit: 'g', product: cream }], 1))
       .toEqual({ saturated_fat: 0, sugars: 0, fiber: 0, salt: 0 });
+  });
+});
+
+describe('recipeExtraNutrients', () => {
+  it('sums the ingredients with data and names the ones without it', () => {
+    expect(recipeExtraNutrients([
+      { name: 'Cream', amount: 200, unit: 'g', product: cream },
+      { name: 'Honey', amount: 20, unit: 'g' },
+      { name: 'Salted butter', amount: 10, unit: 'g', product: { unit: '100g', saturated_fat: 50, sugars: null, fiber: null, salt: 1 } },
+    ], 2)).toEqual({
+      values: { saturated_fat: expect.closeTo(14.5), sugars: expect.closeTo(3.4), fiber: 0, salt: expect.closeTo(0.15) },
+      missing: { saturated_fat: ['Honey'], sugars: ['Honey', 'Salted butter'], fiber: ['Honey', 'Salted butter'], salt: ['Honey'] },
+    });
+  });
+
+  it('shows no value and no names when no ingredient has the data', () => {
+    expect(recipeExtraNutrients([{ amount: 20, unit: 'g' }], 1)).toEqual({
+      values: { saturated_fat: null, sugars: null, fiber: null, salt: null },
+      missing: {},
+    });
+  });
+
+  it('names an ingredient without a name as an empty name', () => {
+    expect(recipeExtraNutrients([{ amount: 200, unit: 'g', product: cream }, { amount: 1, unit: 'g' }], 1).missing.salt).toEqual(['']);
   });
 });
 

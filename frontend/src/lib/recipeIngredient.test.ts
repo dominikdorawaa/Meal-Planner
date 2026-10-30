@@ -7,6 +7,7 @@ import {
   ingredientMacros,
   ingredientNutrition,
   ingredientUnits,
+  ingredientsWithoutProduct,
   supportedIngredientUnit,
   recipeMacrosPerPortion,
 } from './recipeIngredient';
@@ -16,6 +17,15 @@ const skyr = { id: 'p1', name: 'Skyr', kcal: 65, protein: 12, fat: 0.2, carbs: 4
 const juice = withMeasures({ id: 'p2', name: 'Sok', kcal: 45, protein: 0, fat: 0, carbs: 11, unit: '100ml' }, measure('package', 1000));
 const skyrIn = (...extra: ReturnType<typeof measure>[]) => withMeasures(skyr, ...extra);
 const egg = { id: 'p3', name: 'Jajko', kcal: 75, protein: 6.3, fat: 5, carbs: 0.4, unit: 'pc' };
+
+describe('ingredientsWithoutProduct', () => {
+  it('lists only ingredients that have no product', () => {
+    const honey = { name: 'Miód', amount: 20, unit: 'g', product: null };
+    const salt = { name: 'Sól', amount: 1, unit: 'g' };
+    const ingredients = [{ name: 'Skyr', amount: 100, unit: 'g', product: skyr }, honey, salt];
+    expect(ingredientsWithoutProduct(ingredients)).toEqual([honey, salt]);
+  });
+});
 
 describe('ingredientUnits', () => {
   it('offers grams for products measured per 100 g', () => {

@@ -71,7 +71,7 @@ class RecipeAccessIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"" + name + "\",\"portions\":2,\"is_archived\":true,\"visibility\":\"PUBLIC\","
-                                + "\"ingredients\":[{\"name\":\"Rice\",\"amount\":100,\"unit\":\"g\"}]}"))
+                                + "\"ingredients\":[]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.own").value(true))
                 .andExpect(jsonPath("$.saved").value(false))

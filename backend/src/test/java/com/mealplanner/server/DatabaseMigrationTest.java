@@ -65,7 +65,7 @@ class DatabaseMigrationTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "select version, success from flyway_schema_history where version is not null order by installed_rank");
 
-        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13", "14", "15", "16");
+        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13", "14", "15", "16", "17");
         assertThat(history).allSatisfy(row -> assertThat(row.get("success")).isEqualTo(true));
     }
 
@@ -171,6 +171,90 @@ class DatabaseMigrationTest {
         assertThat(rows.get("Manual")).containsEntry("kcal", 400.0).containsEntry("carbs", 50.0);
         assertThat(rows.get("Base")).containsEntry("kcal", 500.0);
         jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    @Test
+    void seedsSampleRecipesWithAProductForEveryIngredient() {
+        assertThat(jdbcTemplate.queryForObject("select count(*) from recipe_ingredients", Integer.class)).isPositive();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from recipe_ingredients where product_id is null", Integer.class))
+                .isZero();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from recipes r where not exists "
+                + "(select 1 from recipe_ingredients ri where ri.recipe_id = r.id)", Integer.class)).isZero();
+    }
+
+    @Test
+    void linksIngredientsWithoutAProductToTheOnlyActiveProductWithTheSameNameAndUnit() {
+        String schema = "ingredient_products_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("16").load().migrate();
+        UUID author = UUID.randomUUID();
+        UUID stranger = UUID.randomUUID();
+        jdbcTemplate.update("insert into " + schema + ".app_users (id, email, password_hash) values (?, ?, ?), (?, ?, ?)",
+                author, uniqueEmail(), "hash", stranger, uniqueEmail(), "hash");
+        UUID authorRecipe = UUID.randomUUID();
+        UUID strangerRecipe = UUID.randomUUID();
+        jdbcTemplate.update("insert into " + schema + ".recipes (id, name, created_by) values (?, ?, ?), (?, ?, ?)",
+                authorRecipe, "Author", author, strangerRecipe, "Stranger", stranger);
+        UUID homemadeSausage = insertMigrationProduct(schema, "Kiełbasa domowa", null, "PENDING", author, false);
+        UUID lightKefir = insertMigrationProduct(schema, "Kefir lekki", "Piątnica", "VERIFIED", null, false);
+        jdbcTemplate.update("update " + schema + ".products set unit = '100ml' where id = ?", lightKefir);
+        UUID homemadeRoll = insertMigrationProduct(schema, "Bułka domowa", null, "VERIFIED", null, false);
+        jdbcTemplate.update("update " + schema + ".products set unit = 'pc' where id = ?", homemadeRoll);
+        UUID linkedEarlier = insertMigrationProduct(schema, "Twarożek", null, "VERIFIED", null, false);
+        insertMigrationProduct(schema, "Dżem truskawkowy", null, "VERIFIED", null, false);
+        insertMigrationProduct(schema, "Dżem Truskawkowy", null, "VERIFIED", null, false);
+        insertMigrationProduct(schema, "Ser kozi", null, "VERIFIED", null, true);
+        insertMigrationProduct(schema, "Pasztet", null, "REJECTED", author, false);
+        String insertIngredient = "insert into " + schema + ".recipe_ingredients (id, recipe_id, name, amount, unit, product_id) "
+                + "values (?, ?, ?, ?, ?, ?)";
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "MIOD", 20.0, "g", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "Miód", 1.0, "tbsp", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "miod", 1.0, "łyżka", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "Bułka domowa", 2.0, "piece", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "BUŁKA DOMOWA", 60.0, "g", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "kefir lekki", 1.0, "g", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "kiełbasa  domowa", 100.0, "g", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), strangerRecipe, "Kiełbasa domowa", 100.0, "g", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "Kefir lekki", 200.0, "ml", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "Dżem truskawkowy", 30.0, "g", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "Ser kozi", 50.0, "g", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "Pasztet", 50.0, "g", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "Woda", 100.0, "ml", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "", 1.0, "g", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "Twarożek", 100.0, "g", linkedEarlier);
+
+        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+
+        Map<String, Object> products = new HashMap<>();
+        jdbcTemplate.queryForList("select r.name as recipe, ri.name, ri.product_id from " + schema + ".recipe_ingredients ri "
+                        + "join " + schema + ".recipes r on r.id = ri.recipe_id")
+                .forEach(row -> products.put(row.get("recipe") + "/" + row.get("name"), row.get("product_id")));
+        UUID honey = jdbcTemplate.queryForObject("select id from " + schema + ".products where name = 'Miód' and source = 'BASIC'",
+                UUID.class);
+        assertThat(products).containsEntry("Author/MIOD", honey)
+                .containsEntry("Author/Miód", honey)
+                .containsEntry("Author/miod", null)
+                .containsEntry("Author/Bułka domowa", homemadeRoll)
+                .containsEntry("Author/BUŁKA DOMOWA", null)
+                .containsEntry("Author/kefir lekki", null)
+                .containsEntry("Author/kiełbasa  domowa", homemadeSausage)
+                .containsEntry("Stranger/Kiełbasa domowa", null)
+                .containsEntry("Author/Kefir lekki", lightKefir)
+                .containsEntry("Author/Dżem truskawkowy", null)
+                .containsEntry("Author/Ser kozi", null)
+                .containsEntry("Author/Pasztet", null)
+                .containsEntry("Author/Woda", null)
+                .containsEntry("Author/", null)
+                .containsEntry("Author/Twarożek", linkedEarlier);
+        jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    private UUID insertMigrationProduct(String schema, String name, String brand, String status, UUID createdBy,
+                                        boolean deleted) {
+        UUID id = UUID.randomUUID();
+        jdbcTemplate.update("insert into " + schema + ".products (id, name, brand, search_text, status, created_by, deleted_at) "
+                        + "values (?, ?, ?, ?, ?, ?, case when ? then now() end)",
+                id, name, brand, ProductSearchText.of(name, brand), status, createdBy, deleted);
+        return id;
     }
 
     @Test

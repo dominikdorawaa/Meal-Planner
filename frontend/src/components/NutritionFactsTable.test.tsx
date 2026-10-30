@@ -35,4 +35,19 @@ describe('NutritionFactsTable', () => {
     expect(within(screen.getByRole('row', { name: /Cukry/ })).getByRole('cell').textContent).toBe('-');
     expect(within(screen.getByRole('row', { name: /Błonnik/ })).getByRole('cell').textContent).toBe('2 g');
   });
+
+  it('shows a note under a nutrient that has one', () => {
+    render(
+      <NutritionFactsTable
+        columns={[{ label: '1 porcja', values: { sugars: 4, fiber: 2 } }]}
+        facts={['sugars', 'fiber']}
+        notes={{ sugars: 'niepełne, brak danych: Miód' }}
+      />
+    );
+
+    expect(screen.getAllByRole('row')).toHaveLength(4);
+    const note = screen.getByRole('cell', { name: 'niepełne, brak danych: Miód' });
+    expect(note.getAttribute('colspan')).toBe('2');
+    expect(note.closest('tr')?.previousElementSibling?.textContent).toBe('Cukry4 g');
+  });
 });

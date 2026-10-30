@@ -6,10 +6,10 @@ import { addDaysToIsoDate, formatDayMonth, formatShortDayLabel, todayIsoDate } f
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { DayBalancePreview } from '../components/DayBalancePreview';
 import { NutritionSummary } from '../components/NutritionSummary';
-import { recipeExtraNutrientsPerPortion } from '../lib/nutrients';
+import { recipeExtraNutrients, type ExtraNutrient } from '../lib/nutrients';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 import { useBottomSheet } from '../lib/bottomSheet';
-import { ingredientBaseAmountLabel, ingredientGrams, ingredientNutrition, ingredientUnitLabel } from '../lib/recipeIngredient';
+import { ingredientBaseAmountLabel, ingredientGrams, ingredientNutrition, ingredientsWithoutProduct, ingredientUnitLabel } from '../lib/recipeIngredient';
 import { profileMealTypes } from '../lib/mealTypes';
 import { announceDeletedRecipe } from '../lib/deletedRecipe';
 import { RecipeDeleteSheet } from '../components/RecipeDeleteSheet';
@@ -297,6 +297,11 @@ export function RecipeDetails() {
   const activeDateDisplay = formatShortDayLabel(activeDate || selectDate || '');
 
   const isOwn = recipe.own !== false;
+  const withoutProduct = ingredientsWithoutProduct(ingredients);
+  const extraNutrients = recipeExtraNutrients(ingredients, basePortions);
+  const extraNutrientNotes = Object.fromEntries(
+    Object.entries(extraNutrients.missing).map(([nutrient, names]) => [nutrient as ExtraNutrient, t('nutrients.incomplete', { names: names.join(', ') })]),
+  );
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
@@ -454,8 +459,26 @@ export function RecipeDetails() {
           macroSplit={recipe}
           tableColumns={[{
             label: t('nutrients.recipePortion'),
-            values: { kcal: recipe.kcal, protein: recipe.protein, fat: recipe.fat, carbs: recipe.carbs, ...recipeExtraNutrientsPerPortion(ingredients, basePortions) },
+            values: { kcal: recipe.kcal, protein: recipe.protein, fat: recipe.fat, carbs: recipe.carbs, ...extraNutrients.values },
           }]}
+          tableNotes={extraNutrientNotes}
+          notice={withoutProduct.length > 0 && (
+            <div role="status" className="flex flex-col gap-3 rounded-2xl px-4 py-3 bg-error/10 text-on-surface">
+              <p className="flex items-start gap-2 text-sm font-medium">
+                <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-error">info</span>
+                <span>{t('recipeDetails.incompleteNutrition', { names: withoutProduct.map(ingredient => ingredient.name).join(', ') })}</span>
+              </p>
+              {isOwn && (
+                <button
+                  type="button"
+                  onClick={handleEdit}
+                  className="self-start px-4 py-2 rounded-xl bg-primary text-on-primary text-sm font-bold active:scale-95 transition-transform"
+                >
+                  {t('recipeDetails.completeProducts')}
+                </button>
+              )}
+            </div>
+          )}
         />
 
         {ingredients && ingredients.length > 0 && (
