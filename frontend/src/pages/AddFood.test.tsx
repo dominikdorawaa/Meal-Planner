@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   searchArgs: [] as { query: string; enabled: boolean }[],
   searchItems: [] as object[],
   recipes: [] as object[],
+  existingBarCodeProduct: null as object | null,
 }));
 
 vi.mock('../lib/apiClient', () => ({
@@ -80,7 +81,7 @@ vi.mock('../lib/barcodeLookup', async importOriginal => ({
 }));
 
 vi.mock('../lib/useExistingBarCodeProduct', () => ({
-  useExistingBarCodeProduct: () => ({ checking: false, product: null }),
+  useExistingBarCodeProduct: () => ({ checking: false, product: mocks.existingBarCodeProduct }),
 }));
 
 vi.mock('../components/LazyBarcodeScanner', () => ({
@@ -175,6 +176,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  mocks.existingBarCodeProduct = null;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   sessionStorage.clear();
@@ -658,6 +660,23 @@ describe('AddFood new product form', () => {
 
   beforeEach(() => {
     mocks.createProduct.mockResolvedValue({ id: 'p2' });
+  });
+
+  it('opens an existing product from the new product sheet and comes back to the same tab with the selection', async () => {
+    mocks.existingBarCodeProduct = { id: 'p1', name: 'Jogurt', kcal: 60, protein: 4, fat: 3, carbs: 5 };
+    mocks.findProductByBarCode.mockResolvedValue({ product: null, prefill: SKYR_PREFILL });
+    renderAddFood();
+    await openSavedTab();
+    fireEvent.click(checkbox('Owsianka'));
+
+    fireEvent.click(screen.getByTitle('Skanuj kod'));
+    fireEvent.click(screen.getByText('detect code'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Jogurt' }));
+    await screen.findByDisplayValue('100');
+    fireEvent.click(screen.getByText('arrow_back'));
+
+    expect((await screen.findByRole('tab', { name: /Zapisane/ })).getAttribute('aria-selected')).toBe('true');
+    expect(checkbox('Owsianka')).toHaveProperty('ariaChecked', 'true');
   });
 
   it('fills the package weight from Open Food Facts and sends it with the product', async () => {

@@ -714,7 +714,7 @@ export function AddFood() {
             productSearch.reload();
             savedFood.reload();
           }}
-          existingProductAction={{ href: product => `/product/${product.id}?selectDate=${activeDate}&selectType=${activeMealType}` }}
+          existingProductAction={{ onOpen: handleSelectProduct }}
         />
       )}
 

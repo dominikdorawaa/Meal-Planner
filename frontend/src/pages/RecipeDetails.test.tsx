@@ -86,7 +86,7 @@ beforeEach(() => {
   mocks.unsave.mockResolvedValue(undefined);
   mocks.addMeal.mockResolvedValue({});
   mocks.updateMeal.mockResolvedValue({});
-  mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 2 }]);
+  mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 2, measure_code: 'g', measure_amount: 200 }]);
   mocks.refreshMeals.mockResolvedValue(undefined);
   mocks.refreshRecipes.mockResolvedValue(undefined);
 });
@@ -228,18 +228,18 @@ describe('RecipeDetails loading', () => {
   });
 
   it('opens a plan entry added by weight with its grams and saves a changed amount', async () => {
-    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 2, measure_code: 'g', measure_amount: 200 }]);
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
 
     await waitFor(() => expect((screen.getByLabelText(t('recipeDetails.gramsInput')) as HTMLInputElement).value).toBe('200'));
+    expect((screen.getByLabelText(t('recipeDetails.portionsInput')) as HTMLInputElement).value).toBe('1');
     expect(screen.getByTestId('grams-kcal').className).toContain('text-primary');
     expect(screen.getByTestId('portions-kcal').className).not.toContain('text-primary');
     const update = screen.getByRole('button', { name: t('recipeDetails.update') }) as HTMLButtonElement;
     expect(update.disabled).toBe(true);
 
-    fireEvent.change(screen.getByLabelText(t('recipeDetails.portionsInput')), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText(t('recipeDetails.gramsInput')), { target: { value: '300' } });
     expect(update.disabled).toBe(false);
-    fireEvent.change(screen.getByLabelText(t('recipeDetails.portionsInput')), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText(t('recipeDetails.gramsInput')), { target: { value: '200' } });
     expect(update.disabled).toBe(true);
     fireEvent.change(screen.getByLabelText(t('recipeDetails.portionsInput')), { target: { value: '3' } });
     fireEvent.click(update);
@@ -248,12 +248,45 @@ describe('RecipeDetails loading', () => {
     expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 3, measure_code: 'portion', measure_amount: null });
   });
 
-  it('opens a plan entry added by portions with the portions highlighted', async () => {
+  it('opens a plan entry added by portions with the portions highlighted and the grams left alone', async () => {
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 2, measure_code: 'portion', measure_amount: null }]);
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
 
     await waitFor(() => expect((screen.getByLabelText(t('recipeDetails.portionsInput')) as HTMLInputElement).value).toBe('2'));
+    expect((screen.getByLabelText(t('recipeDetails.gramsInput')) as HTMLInputElement).value).toBe('100');
     expect(screen.getByTestId('portions-kcal').className).toContain('text-primary');
     expect(screen.getByTestId('grams-kcal').className).not.toContain('text-primary');
+  });
+
+  it('opens an older plan entry without a saved method in portions', async () => {
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 2 }]);
+    renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
+
+    await waitFor(() => expect(screen.getByTestId('portions-kcal').className).toContain('text-primary'));
+    expect((screen.getByLabelText(t('recipeDetails.portionsInput')) as HTMLInputElement).value).toBe('2');
+  });
+
+  it('lets a plan entry switch to a quick pick of the same amount', async () => {
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 1, measure_code: 'portion', measure_amount: null }]);
+    renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
+    await waitFor(() => expect(screen.getByTestId('portions-kcal').className).toContain('text-primary'));
+    const update = screen.getByRole('button', { name: t('recipeDetails.update') }) as HTMLButtonElement;
+    expect(update.disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: '89 kcal' }));
+    expect(update.disabled).toBe(false);
+    fireEvent.click(update);
+
+    await screen.findByText('plan screen');
+    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 1, measure_code: 'quick-pick', measure_amount: null });
+  });
+
+  it('calculates the grams again when the recipe weight changed after the entry was saved', async () => {
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 2, measure_code: 'g', measure_amount: 150 }]);
+    renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
+
+    await waitFor(() => expect((screen.getByLabelText(t('recipeDetails.gramsInput')) as HTMLInputElement).value).toBe('200'));
+    expect(screen.getByTestId('kcal-value').textContent).toBe(screen.getByTestId('grams-kcal').textContent);
   });
 
   it('opens a plan entry added by a quick pick with that pick highlighted', async () => {
@@ -266,6 +299,7 @@ describe('RecipeDetails loading', () => {
   });
 
   it('saves how the amount was chosen when changing a plan entry by weight', async () => {
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 2, measure_code: 'portion', measure_amount: null }]);
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
     await waitFor(() => expect((screen.getByLabelText(t('recipeDetails.portionsInput')) as HTMLInputElement).value).toBe('2'));
 
@@ -524,7 +558,7 @@ describe('RecipeDetails adding to the plan', () => {
       kcal: 300,
       ingredients: [{ id: 'i1', name: 'Banan', amount: 150, unit: 'g', product: BANANA }],
     });
-    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 1 }]);
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 1, measure_code: 'g', measure_amount: null }]);
     mocks.getConsumedForDay.mockImplementation((_date: string, excludedMealId: string | null) =>
       excludedMealId === 'm1' ? { kcal: 700, protein: 40, fat: 20, carbs: 80 } : { kcal: 1000, protein: 41.1, fat: 20.3, carbs: 103 });
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
