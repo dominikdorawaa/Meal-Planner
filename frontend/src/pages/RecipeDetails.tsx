@@ -23,6 +23,12 @@ import { MonthCalendar } from '../components/MonthCalendar';
 import { PlanTargetPicker } from '../components/PlanTargetPicker';
 
 const DEFAULT_RECIPE_WEIGHT = 300;
+const GRAMS_MEASURE = 'g';
+const PORTIONS_MEASURE = 'portion';
+const QUICK_PICK_MEASURE = 'quick-pick';
+const SAVED_GRAMS_TOLERANCE = 0.5;
+
+type AmountInputType = 'portions' | 'grams' | 'quick-pick';
 
 function gramsLabel(value: number): string {
   return `${formatCompactNumber(value, 1)}g`;
@@ -59,7 +65,7 @@ export function RecipeDetails() {
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
 
-  const [inputType, setInputType] = useState<'portions' | 'grams' | 'quick-pick'>('portions');
+  const [inputType, setInputType] = useState<AmountInputType>('portions');
   const [portionInput, setPortionInput] = useState<number | ''>(1);
   const [gramInput, setGramInput] = useState<number | ''>(100);
   const [quickPickPortions, setQuickPickPortions] = useState<number | null>(null);
@@ -80,6 +86,7 @@ export function RecipeDetails() {
   const [showSheetCalendar, setShowSheetCalendar] = useState(false);
   const [savedPortions, setSavedPortions] = useState<number | null>(null);
   const [savedGrams, setSavedGrams] = useState<number | null>(null);
+  const [savedInputType, setSavedInputType] = useState<AmountInputType | null>(null);
   const [quickMealType, setQuickMealType] = useState('');
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
@@ -125,11 +132,25 @@ export function RecipeDetails() {
           if (mealData && !cancelled) {
             const portions = mealData.portions_consumed;
             setSavedPortions(portions);
-            setPortionInput(portions);
-            const grams = Math.round(portions * (weight / (loaded.portions || 1)));
-            setSavedGrams(grams);
-            setGramInput(grams);
-            setInputType('grams');
+            if (mealData.measure_code === GRAMS_MEASURE) {
+              const calculatedGrams = portions * (weight / (loaded.portions || 1));
+              const storedGrams = mealData.measure_amount;
+              const grams = storedGrams != null && Math.abs(storedGrams - calculatedGrams) < SAVED_GRAMS_TOLERANCE
+                ? storedGrams
+                : Math.round(calculatedGrams);
+              setSavedGrams(grams);
+              setGramInput(grams);
+              setInputType('grams');
+              setSavedInputType('grams');
+            } else if (mealData.measure_code === QUICK_PICK_MEASURE) {
+              setQuickPickPortions(portions);
+              setInputType('quick-pick');
+              setSavedInputType('quick-pick');
+            } else {
+              setPortionInput(portions);
+              setInputType('portions');
+              setSavedInputType('portions');
+            }
           }
         } catch (err) {
           console.error('Error fetching meal data:', err);
@@ -151,12 +172,17 @@ export function RecipeDetails() {
 
   const gramsPerPortion = safeWeight / basePortions;
   const unchangedPlanItem = Boolean(mealId) && (savedPortions === null || (
-    inputType === 'grams' ? gramInput === savedGrams : Math.abs(consumedPortions - savedPortions) < 1e-9
+    inputType === savedInputType
+    && (inputType === 'grams' ? gramInput === savedGrams : Math.abs(consumedPortions - savedPortions) < 1e-9)
   ));
 
   const nutritionPortions = unchangedPlanItem && savedPortions !== null ? savedPortions : consumedPortions;
 
   const activeIngredientPortions = ingredientPortions !== null ? ingredientPortions : basePortions;
+
+  const amountMeasure = inputType === 'grams'
+    ? { measure_code: GRAMS_MEASURE, measure_amount: Number(String(gramInput).replace(',', '.')) }
+    : { measure_code: inputType === 'quick-pick' ? QUICK_PICK_MEASURE : PORTIONS_MEASURE, measure_amount: null };
 
   const handleAddMeal = async (overrideDate?: string, overrideMealType?: string) => {
     const targetDate = overrideDate || activeDate || selectDate;
@@ -167,7 +193,7 @@ export function RecipeDetails() {
 
     if (mealId) {
       try {
-        await api.meals.update(mealId, { portions_consumed: consumedPortions });
+        await api.meals.update(mealId, { portions_consumed: consumedPortions, ...amountMeasure });
         await refreshMeals();
         navigate('/');
       } catch {
@@ -183,7 +209,8 @@ export function RecipeDetails() {
           recipe: { id: recipe.id },
           meal_date: addDaysToIsoDate(targetDate, i),
           meal_type: targetType,
-          portions_consumed: consumedPortions
+          portions_consumed: consumedPortions,
+          ...amountMeasure
         });
       } catch (err) {
         console.error("Error adding meal:", err);

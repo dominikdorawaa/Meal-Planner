@@ -124,7 +124,7 @@ describe('adding from item details', () => {
 
     await screen.findByText('plan screen');
     expect(addedPayloads()).toEqual([
-      { recipe: { id: 'r1' }, meal_date: '2026-10-17', meal_type: 'lunch', portions_consumed: 2 },
+      { recipe: { id: 'r1' }, meal_date: '2026-10-17', meal_type: 'lunch', portions_consumed: 2, measure_code: 'portion', measure_amount: null },
       ...SELECTION_PAYLOADS,
     ]);
   });
