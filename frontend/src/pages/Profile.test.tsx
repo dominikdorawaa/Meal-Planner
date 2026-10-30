@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Profile } from './Profile';
+import { api } from '../lib/apiClient';
 
 const mocks = vi.hoisted(() => ({
-  profile: {} as Record<string, unknown>,
+  profile: {} as Record<string, unknown> | null,
 }));
 
 vi.mock('../lib/apiClient', () => ({
@@ -27,7 +28,13 @@ vi.mock('../components/BottomNav', () => ({ BottomNav: () => null }));
 vi.mock('../components/InstallAppCard', () => ({ InstallAppCard: () => null }));
 vi.mock('../components/ThemeCard', () => ({ ThemeCard: () => null }));
 vi.mock('../components/ProductDataAttribution', () => ({ ProductDataAttribution: () => null }));
-vi.mock('../components/MealSettingsList', () => ({ MealSettingsList: () => null }));
+vi.mock('../components/MealSettingsList', () => ({
+  MealSettingsList: ({ meals }: { meals: { id: string; name: string; visible: boolean }[] }) => (
+    <ul aria-label="meals">
+      {meals.map(meal => <li key={meal.id}>{`${meal.name}${meal.visible ? '' : ' (hidden)'}`}</li>)}
+    </ul>
+  ),
+}));
 
 function renderMacros() {
   render(
@@ -112,5 +119,39 @@ describe('Profile meal settings', () => {
     const list = screen.getByText('Dostosuj nazwy i wybierz aktywne posiłki.').closest('.overflow-y-auto') as HTMLElement;
     expect(list.className).toContain('pb-[calc(8rem+env(safe-area-inset-bottom))]');
     expect(list.className).not.toContain('pb-32');
+  });
+
+  it('shows the default Polish meal names when the profile has no saved meal settings', () => {
+    mocks.profile = { ...mocks.profile, visible_meals: ['breakfast', 'snack1'] };
+    render(
+      <MemoryRouter>
+        <Profile />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByText('Ustawienia Posiłków'));
+
+    expect(screen.getAllByRole('listitem').map(item => item.textContent)).toEqual([
+      'Śniadanie',
+      'II śniadanie (hidden)',
+      'Obiad (hidden)',
+      'Przekąska',
+      'Podwieczorek (hidden)',
+      'Kolacja (hidden)',
+    ]);
+  });
+
+  it('uses the saved meal settings loaded from the server when nothing is cached', async () => {
+    mocks.profile = null;
+    vi.mocked(api.profile.get).mockResolvedValueOnce({
+      meal_config: JSON.stringify([{ id: 'snack2', name: 'Owoce', icon: 'cookie', visible: true }]),
+    });
+    render(
+      <MemoryRouter>
+        <Profile />
+      </MemoryRouter>
+    );
+    fireEvent.click(await screen.findByText('Ustawienia Posiłków'));
+
+    expect((await screen.findAllByRole('listitem')).map(item => item.textContent)).toEqual(['Owoce']);
   });
 });

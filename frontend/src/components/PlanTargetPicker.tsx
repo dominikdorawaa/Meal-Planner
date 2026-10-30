@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { t } from '../i18n';
 import { formatLocalizedDayLabel } from '../lib/planDates';
+import { mealTypeName } from '../lib/mealTypes';
 import { BottomPanel } from './BottomPanel';
 import { MonthCalendar } from './MonthCalendar';
 
@@ -21,7 +22,7 @@ interface PlanTargetPickerProps {
 export function PlanTargetPicker({ meals, mealType, date, editing, onMealTypeChange, onDateChange }: PlanTargetPickerProps) {
   const [open, setOpen] = useState<'meal' | 'date' | null>(null);
   const close = () => setOpen(null);
-  const mealName = meals.find(meal => meal.id === mealType)?.name || mealType;
+  const mealName = mealTypeName(mealType, meals);
 
   return (
     <div className="flex flex-col min-w-0 flex-1 pt-0.5">
