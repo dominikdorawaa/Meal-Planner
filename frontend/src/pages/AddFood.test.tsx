@@ -498,6 +498,24 @@ describe('AddFood tabs', () => {
     expect(mocks.searchArgs.at(-1)?.enabled).toBe(false);
   });
 
+  it('stays on the open tab after coming back from details', async () => {
+    renderAddFood();
+    await openSavedTab();
+
+    fireEvent.click(screen.getByText('Owsianka'));
+    await screen.findByText(/^details \/recipe\//);
+    fireEvent.click(screen.getByText('back'));
+
+    expect((await screen.findByRole('tab', { name: /Zapisane/ })).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: /Ostatnie/ }).getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('opens the recent tab when the address names an unknown tab', () => {
+    renderAddFood(`${ADD_FOOD_URL}&tab=unknown`);
+
+    expect(screen.getByRole('tab', { name: /Ostatnie/ }).getAttribute('aria-selected')).toBe('true');
+  });
+
   it('shows saved recipes and products in Zapisane', async () => {
     renderAddFood();
     await openSavedTab();

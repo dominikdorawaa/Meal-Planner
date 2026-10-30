@@ -48,6 +48,10 @@ const FOOD_TABS: { id: FoodTab; label: MessageKey; icon: string }[] = [
   { id: 'own', label: 'food.tabOwn', icon: 'person' },
 ];
 
+function readFoodTab(value: string | null): FoodTab {
+  return FOOD_TABS.find(tab => tab.id === value)?.id ?? 'recent';
+}
+
 interface NutritionFiltersValues {
   maxKcal: string;
   minProtein: string;
@@ -102,7 +106,7 @@ export function AddFood() {
   const [activeMealType, setActiveMealType] = useState(selectType || '');
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<FoodTab>('recent');
+  const [activeTab, setActiveTab] = useState<FoodTab>(() => readFoodTab(searchParams.get('tab')));
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<NutritionFiltersValues>(EMPTY_FILTERS);
 
@@ -186,7 +190,7 @@ export function AddFood() {
     if (!activeDate || !activeMealType) return;
     const state = planSelectionState(selection);
     const query = `?selectDate=${activeDate}&selectType=${activeMealType}`;
-    navigate(location.pathname + query, { replace: true, state });
+    navigate(`${location.pathname}${query}&tab=${activeTab}`, { replace: true, state });
     navigate(path + query, { state });
   };
 
