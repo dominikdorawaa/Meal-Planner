@@ -118,7 +118,7 @@ export function ingredientBaseAmountLabel(ingredient: IngredientAmount): string 
   const product = ingredient.product;
   if (!product || isBaseMeasure(product, ingredient.unit)) return null;
   const grams = ingredientGrams(ingredient);
-  return grams == null ? null : `${formatCompactNumber(grams)} ${baseMeasureCode(product)}`;
+  return grams == null ? null : `${formatCompactNumber(grams, 1)} ${baseMeasureCode(product)}`;
 }
 
 export function ingredientAmountLabel(ingredient: IngredientAmount): string {
