@@ -13,7 +13,8 @@ import {
 import { findMeasure, initialMeasureValues, isPerPiece } from '../lib/measures';
 import { t } from '../i18n';
 import { isPositiveWithinLimit } from '../lib/inputLimits';
-import { NutritionFactsTable } from './NutritionFactsTable';
+import { scaleMacros } from '../lib/macros';
+import { NutritionSummary } from './NutritionSummary';
 import { MeasureAmountRows } from './MeasureAmountRows';
 
 interface IngredientAmountScreenProps {
@@ -37,6 +38,7 @@ export function IngredientAmountScreen({ product, initial, submitLabel, onSubmit
   const current = { amount, unit: activeUnit, product };
   const perPiece = isPerPiece(product);
   const maxAmount = findMeasure(product, activeUnit)?.max_amount ?? 0;
+  const factor = ingredientFactor(current) ?? 0;
 
   return (
     <div data-scroll-lock className="fixed inset-0 z-[110] bg-surface flex flex-col animate-fade-in">
@@ -67,16 +69,18 @@ export function IngredientAmountScreen({ product, initial, submitLabel, onSubmit
           />
         </div>
 
-        <NutritionFactsTable
-          title={t('nutrients.productTitle')}
-          columns={[
+        <NutritionSummary
+          title={t('product.nutritionFor', { amount: ingredientAmountLabel(current) })}
+          values={scaleMacros(product, factor)}
+          macroSplit={product}
+          tableColumns={[
             {
               label: perPiece ? `1 ${t('units.szt')}` : t('nutrients.per100', { unit: measureUnit(product.unit) }),
               values: product,
             },
             {
               label: t('nutrients.perPortion', { amount: ingredientAmountLabel(current) }),
-              values: scaleNutritionFacts(product, ingredientFactor(current) ?? 0),
+              values: scaleNutritionFacts(product, factor),
             },
           ]}
         />

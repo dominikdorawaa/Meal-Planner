@@ -4,7 +4,7 @@ import {
   formatNutritionFact,
   measureUnit,
   recipeExtraNutrients,
-  recipeExtraNutrientsPerPortion,
+  type IngredientWithProduct,
   scaleNutritionFacts,
 } from './nutrients';
 
@@ -38,7 +38,10 @@ describe('formatNutritionFact', () => {
   });
 });
 
-describe('recipeExtraNutrientsPerPortion', () => {
+describe('recipeExtraNutrients values', () => {
+  const recipeExtraNutrientsPerPortion = (ingredients: IngredientWithProduct[], portions: number) =>
+    recipeExtraNutrients(ingredients, portions).values;
+
   const NO_VALUES = { saturated_fat: null, sugars: null, fiber: null, salt: null };
 
   it('sums every ingredient and divides by the number of portions', () => {

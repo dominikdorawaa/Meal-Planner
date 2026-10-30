@@ -67,13 +67,6 @@ export interface RecipeExtraNutrients {
   missing: Partial<Record<ExtraNutrient, string[]>>;
 }
 
-export function recipeExtraNutrientsPerPortion(
-  ingredients: IngredientWithProduct[],
-  portions: number,
-): ExtraNutrientValues {
-  return recipeExtraNutrients(ingredients, portions).values;
-}
-
 export function recipeExtraNutrients(ingredients: IngredientWithProduct[], portions: number): RecipeExtraNutrients {
   const summary: RecipeExtraNutrients = { values: {}, missing: {} };
   for (const nutrient of EXTRA_NUTRIENTS) {
