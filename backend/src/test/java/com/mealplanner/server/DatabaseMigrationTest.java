@@ -183,7 +183,7 @@ class DatabaseMigrationTest {
     }
 
     @Test
-    void linksIngredientsWithoutAProductToTheOnlyActiveProductWithTheSameName() {
+    void linksIngredientsWithoutAProductToTheOnlyActiveProductWithTheSameNameAndUnit() {
         String schema = "ingredient_products_" + UUID.randomUUID().toString().replace("-", "");
         Flyway.configure().dataSource(dataSource).schemas(schema).target("16").load().migrate();
         UUID author = UUID.randomUUID();
@@ -196,6 +196,9 @@ class DatabaseMigrationTest {
                 authorRecipe, "Author", author, strangerRecipe, "Stranger", stranger);
         UUID homemadeSausage = insertMigrationProduct(schema, "Kiełbasa domowa", null, "PENDING", author, false);
         UUID lightKefir = insertMigrationProduct(schema, "Kefir lekki", "Piątnica", "VERIFIED", null, false);
+        jdbcTemplate.update("update " + schema + ".products set unit = '100ml' where id = ?", lightKefir);
+        UUID homemadeRoll = insertMigrationProduct(schema, "Bułka domowa", null, "VERIFIED", null, false);
+        jdbcTemplate.update("update " + schema + ".products set unit = 'pc' where id = ?", homemadeRoll);
         UUID linkedEarlier = insertMigrationProduct(schema, "Twarożek", null, "VERIFIED", null, false);
         insertMigrationProduct(schema, "Dżem truskawkowy", null, "VERIFIED", null, false);
         insertMigrationProduct(schema, "Dżem Truskawkowy", null, "VERIFIED", null, false);
@@ -204,6 +207,11 @@ class DatabaseMigrationTest {
         String insertIngredient = "insert into " + schema + ".recipe_ingredients (id, recipe_id, name, amount, unit, product_id) "
                 + "values (?, ?, ?, ?, ?, ?)";
         jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "MIOD", 20.0, "g", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "Miód", 1.0, "tbsp", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "miod", 1.0, "łyżka", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "Bułka domowa", 2.0, "piece", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "BUŁKA DOMOWA", 60.0, "g", null);
+        jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "kefir lekki", 1.0, "g", null);
         jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "kiełbasa  domowa", 100.0, "g", null);
         jdbcTemplate.update(insertIngredient, UUID.randomUUID(), strangerRecipe, "Kiełbasa domowa", 100.0, "g", null);
         jdbcTemplate.update(insertIngredient, UUID.randomUUID(), authorRecipe, "Kefir lekki", 200.0, "ml", null);
@@ -223,6 +231,11 @@ class DatabaseMigrationTest {
         UUID honey = jdbcTemplate.queryForObject("select id from " + schema + ".products where name = 'Miód' and source = 'BASIC'",
                 UUID.class);
         assertThat(products).containsEntry("Author/MIOD", honey)
+                .containsEntry("Author/Miód", honey)
+                .containsEntry("Author/miod", null)
+                .containsEntry("Author/Bułka domowa", homemadeRoll)
+                .containsEntry("Author/BUŁKA DOMOWA", null)
+                .containsEntry("Author/kefir lekki", null)
                 .containsEntry("Author/kiełbasa  domowa", homemadeSausage)
                 .containsEntry("Stranger/Kiełbasa domowa", null)
                 .containsEntry("Author/Kefir lekki", lightKefir)
