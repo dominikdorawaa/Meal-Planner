@@ -1,25 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_RECIPE_IMAGE_URL, recipeImageCandidates } from './recipeImage'
+import { customRecipeImageUrl, DEFAULT_RECIPE_IMAGE_URLS } from './recipeImage'
 
-describe('recipeImageCandidates', () => {
-  it('points the default image at the bundled static file', () => {
-    expect(DEFAULT_RECIPE_IMAGE_URL).toBe('/recipe-images/default.svg')
+describe('recipeImage', () => {
+  it('points the default images for both themes at bundled static files', () => {
+    expect(DEFAULT_RECIPE_IMAGE_URLS).toEqual({
+      light: '/recipe-images/default-light.svg',
+      dark: '/recipe-images/default-dark.svg',
+    })
   })
 
-  it('uses only the default image when the recipe has no image', () => {
-    expect(recipeImageCandidates(undefined)).toEqual([DEFAULT_RECIPE_IMAGE_URL])
-    expect(recipeImageCandidates(null)).toEqual([DEFAULT_RECIPE_IMAGE_URL])
-    expect(recipeImageCandidates('   ')).toEqual([DEFAULT_RECIPE_IMAGE_URL])
+  it('has no custom image when the recipe image is missing or blank', () => {
+    expect(customRecipeImageUrl(undefined)).toBeNull()
+    expect(customRecipeImageUrl(null)).toBeNull()
+    expect(customRecipeImageUrl('   ')).toBeNull()
   })
 
-  it('tries the custom image first and falls back to the default image', () => {
-    expect(recipeImageCandidates(' https://example.com/photo.jpg ')).toEqual([
-      'https://example.com/photo.jpg',
-      DEFAULT_RECIPE_IMAGE_URL,
-    ])
-  })
-
-  it('does not repeat the default image', () => {
-    expect(recipeImageCandidates(DEFAULT_RECIPE_IMAGE_URL)).toEqual([DEFAULT_RECIPE_IMAGE_URL])
+  it('trims the custom image url', () => {
+    expect(customRecipeImageUrl(' https://example.com/photo.jpg ')).toBe('https://example.com/photo.jpg')
   })
 })

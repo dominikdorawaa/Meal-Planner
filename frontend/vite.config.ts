@@ -13,7 +13,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon-180x180.png', 'recipe-images/default.svg'],
+      includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon-180x180.png', 'recipe-images/default-light.svg', 'recipe-images/default-dark.svg'],
       manifest: {
         id: '/',
         name: 'Meal Planner',
