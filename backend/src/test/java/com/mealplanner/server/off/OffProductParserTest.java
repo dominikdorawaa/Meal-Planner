@@ -6,6 +6,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,6 +48,25 @@ class OffProductParserTest {
 
         assertThat(product.name()).isEqualTo(expectedName);
         assertThat(product.polishName()).isEqualTo(expectedPolish);
+    }
+
+    @Test
+    void readsPackageAndServingData() {
+        OffProduct product = OffProductParser.parse("{\"code\":\"5900820000318\",\"product_name_pl\":\"Napój\","
+                + "\"countries_tags\":[\"en:poland\"],\"categories_tags\":[\"en:beverages\",7],\"quantity\":\"0,33 l\","
+                + "\"product_quantity\":\"330\",\"product_quantity_unit\":\"ML\",\"serving_size\":\"1 can (330 ml)\","
+                + "\"serving_quantity\":330,\"serving_quantity_unit\":\"ml\"}").orElseThrow();
+
+        assertThat(product.measureFacts()).isEqualTo(new OffMeasureFacts(330.0, "ml", "1 can (330 ml)", 330.0, "ml",
+                List.of("en:beverages")));
+    }
+
+    @Test
+    void missingPackageAndServingDataStaysEmpty() {
+        OffProduct product = OffProductParser.parse("{\"code\":\"5900820000318\",\"product_name_pl\":\"Napój\","
+                + "\"countries_tags\":[\"en:poland\"]}").orElseThrow();
+
+        assertThat(product.measureFacts()).isEqualTo(OffMeasureFacts.NONE);
     }
 
     private static OffProduct parseNutrition(String nutriments, String per, String preparation, String nutrients) {

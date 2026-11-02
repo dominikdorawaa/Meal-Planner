@@ -1,0 +1,23 @@
+en:eggs piece 60 g
+en:sliced-breads bread_slice 35 g en:flatbreads
+en:white-breads bread_slice 35 g en:flatbreads
+en:wheat-breads bread_slice 35 g en:flatbreads
+en:rye-breads bread_slice 35 g en:flatbreads
+en:wholemeal-breads bread_slice 35 g en:flatbreads
+en:vegetable-oils tbsp 10 *
+en:butters tsp 5 g
+en:honeys tsp 12 g
+en:sugars tsp 5 g
+en:jams tsp 10 g
+en:peanut-butters tbsp 16 g
+en:mayonnaises tbsp 15 g
+en:ketchup tbsp 15 g
+en:mustards tsp 5 g
+en:flours tbsp 10 g
+en:rolled-oats tbsp 6 g
+en:milks cup 250 ml
+en:plant-based-milk-alternatives cup 250 ml
+en:fermented-milk-drinks cup 250 ml
+en:fruit-juices cup 250 ml
+en:vegetable-juices cup 250 ml
+en:beverages cup 250 ml

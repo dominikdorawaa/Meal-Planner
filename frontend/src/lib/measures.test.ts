@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   defaultMeasure,
+  findMeasure,
+  initialMeasureValues,
   measureBaseAmount,
   measureLabel,
   measureListName,
@@ -92,6 +94,19 @@ describe('labels', () => {
     expect(measureRowUnit(banana, measure('pinch', 0.5), 3)).toBe(t('amount.measureOf', { name: 'szczypty', amount: '1.5 g' }));
     expect(measureRowUnit(banana, banana.measures[2], 100)).toBe('g');
     expect(measureRowUnit(egg, productMeasures(egg)[0], 2)).toBe(t('units.szt'));
+  });
+});
+
+describe('findMeasure', () => {
+  it('treats grams and milliliters as the same base measure', () => {
+    expect(findMeasure(milk, 'g')?.code).toBe('ml');
+    expect(findMeasure(banana, 'ml')?.code).toBe('g');
+    expect(findMeasure(egg, 'g')).toBeNull();
+  });
+
+  it('restores an amount saved in the old base unit', () => {
+    expect(initialMeasureValues(milk, { amount: 200, unit: 'g' })).toEqual({ ml: 200, cup: 1 });
+    expect(initialMeasureValues(milk, { amount: 2, unit: 'mug' })).toEqual({ ml: 100, cup: 1 });
   });
 });
 

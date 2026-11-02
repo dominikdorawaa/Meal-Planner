@@ -2,10 +2,9 @@ package com.mealplanner.server.off;
 
 import com.mealplanner.server.product.BarCodes;
 import com.mealplanner.server.product.NutritionValidator;
+import com.mealplanner.server.product.MeasureKind;
 import com.mealplanner.server.product.MeasureKindRepository;
-import com.mealplanner.server.product.PackageWeight;
 import com.mealplanner.server.product.Product;
-import com.mealplanner.server.product.ProductMeasures;
 import com.mealplanner.server.product.ProductRepository;
 import com.mealplanner.server.product.ProductSource;
 import com.mealplanner.server.product.ProductStatus;
@@ -16,13 +15,14 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.Optional;
 
 @Slf4j
 @Service
 public class OffLookupService {
 
-    public static final String UNIT = "100g";
     static final int MAX_TEXT_LENGTH = 255;
     static final int NOT_FOUND_CACHE_SIZE = 10_000;
 
@@ -61,7 +61,7 @@ public class OffLookupService {
         OffProduct offProduct = cleaned(found.get(), barCode);
         boolean valid = offProduct.polishName() && !OffNameRules.isForeignName(offProduct.name())
                 && NutritionValidator.check(offProduct.name(), offProduct.kcal(), offProduct.protein(),
-                offProduct.fat(), offProduct.carbs(), UNIT, barCode).isValid();
+                offProduct.fat(), offProduct.carbs(), OffMeasures.unit(offProduct), barCode).isValid();
         return valid ? OffLookupResult.found(save(offProduct)) : OffLookupResult.incomplete(offProduct);
     }
 
@@ -75,12 +75,9 @@ public class OffLookupService {
         product.setFat(offProduct.fat());
         product.setCarbs(offProduct.carbs());
         offProduct.extras().cleanedFor(offProduct.fat(), offProduct.carbs()).applyTo(product);
-        product.setUnit(UNIT);
-        Double packageWeight = PackageWeight.parse(offProduct.quantity(), UNIT);
-        if (packageWeight != null) {
-            measureKindRepository.findById(ProductMeasures.PACKAGE)
-                    .ifPresent(kind -> product.addMeasure(kind, packageWeight));
-        }
+        product.setUnit(OffMeasures.unit(offProduct));
+        OffMeasures.applyTo(product, OffMeasures.plan(offProduct), measureKindRepository.findAll().stream()
+                .collect(Collectors.toMap(MeasureKind::getCode, Function.identity())));
         product.setStatus(ProductStatus.VERIFIED);
         product.setSource(ProductSource.OPEN_FOOD_FACTS);
         try {
@@ -94,7 +91,8 @@ public class OffLookupService {
     private static OffProduct cleaned(OffProduct product, String barCode) {
         String name = OffNameRules.isJunkName(product.name()) ? "" : product.name();
         return new OffProduct(barCode, name, product.brand(), product.kcal(), product.protein(),
-                product.fat(), product.carbs(), product.extras(), product.quantity(), product.polishName());
+                product.fat(), product.carbs(), product.extras(), product.quantity(), product.polishName(),
+                product.measureFacts());
     }
 
     private static String shorten(String text) {

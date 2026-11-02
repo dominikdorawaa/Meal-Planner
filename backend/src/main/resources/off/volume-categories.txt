@@ -1,0 +1,12 @@
+en:beverages
+en:milks
+en:plant-based-beverages
+en:plant-based-milk-alternatives
+en:fermented-milk-drinks
+en:yogurt-drinks
+en:buttermilks
+en:kefirs
+en:creams
+en:vegetable-oils
+en:vinegars
+en:syrups

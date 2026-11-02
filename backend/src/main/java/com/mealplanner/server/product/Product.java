@@ -122,8 +122,9 @@ public class Product {
 
     public Double nutritionFactor(String measureCode, double amount) {
         double nutritionBase = ProductMeasures.perPiece(unit) ? 1 : 100;
+        String code = ProductMeasures.resolveCode(unit, measureCode);
         return getMeasures().stream()
-                .filter(measure -> measure.code().equals(measureCode))
+                .filter(measure -> measure.code().equals(code))
                 .findFirst()
                 .map(measure -> amount * measure.baseAmount() / nutritionBase)
                 .orElse(null);

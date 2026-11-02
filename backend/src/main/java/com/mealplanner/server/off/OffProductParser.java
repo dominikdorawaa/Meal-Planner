@@ -53,7 +53,14 @@ public final class OffProductParser {
                         nutrient(node, "fiber"),
                         nutrient(node, "salt")),
                 text(node, "quantity"),
-                name.polish());
+                name.polish(),
+                new OffMeasureFacts(
+                        number(node.path("product_quantity")),
+                        text(node, "product_quantity_unit").toLowerCase(Locale.ROOT),
+                        text(node, "serving_size"),
+                        number(node.path("serving_quantity")),
+                        text(node, "serving_quantity_unit").toLowerCase(Locale.ROOT),
+                        categories(node)));
     }
 
     private record PolishName(String text, boolean polish) {

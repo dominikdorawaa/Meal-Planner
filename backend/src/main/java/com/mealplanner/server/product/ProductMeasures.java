@@ -20,11 +20,16 @@ public final class ProductMeasures {
         return NutritionValidator.PER_PIECE_UNIT.equals(unit);
     }
 
-    static String baseCode(String unit) {
+    public static String baseCode(String unit) {
         if (perPiece(unit)) {
             return PIECE;
         }
         return PackageWeight.VOLUME_UNIT.equals(unit) ? MILLILITERS : GRAMS;
+    }
+
+    static String resolveCode(String unit, String code) {
+        boolean baseAlias = !perPiece(unit) && (GRAMS.equals(code) || MILLILITERS.equals(code));
+        return baseAlias ? baseCode(unit) : code;
     }
 
     static List<Measure> describe(String unit, List<ProductMeasure> stored) {

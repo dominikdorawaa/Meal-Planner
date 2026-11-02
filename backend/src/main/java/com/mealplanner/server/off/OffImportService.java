@@ -3,7 +3,6 @@ package com.mealplanner.server.off;
 import com.mealplanner.server.product.MeasureKind;
 import com.mealplanner.server.product.MeasureKindRepository;
 import com.mealplanner.server.product.NutritionRounding;
-import com.mealplanner.server.product.PackageWeight;
 import com.mealplanner.server.product.Product;
 import com.mealplanner.server.product.ProductMeasures;
 import com.mealplanner.server.product.ProductRepository;
@@ -36,6 +35,7 @@ import java.util.stream.Collectors;
 public class OffImportService {
 
     static final int BATCH_SIZE = 500;
+    static final Set<String> SWITCHABLE_UNITS = Set.of(OffMeasures.MASS_UNIT, OffMeasures.VOLUME_UNIT);
     static final int MAX_TEXT_LENGTH = 255;
     static final String UNREADABLE_LINE = "UNREADABLE_LINE";
     static final String ADDED_BY_USER = "ADDED_BY_USER";
@@ -50,6 +50,27 @@ public class OffImportService {
             WHERE id IN (%s) AND EXISTS (SELECT 1 FROM user_meals m WHERE m.product_id = products.id)
             """;
     static final String DELETE_UNUSED = "DELETE FROM products WHERE id IN (%s) AND deleted_at IS NULL";
+    static final String SWITCH_MEAL_MEASURE =
+            "UPDATE user_meals SET measure_code = ? WHERE product_id = ? AND measure_code = ?";
+    static final String SWITCH_INGREDIENT_UNIT =
+            "UPDATE recipe_ingredients SET unit = ? WHERE product_id = ? AND unit = ?";
+    static final String MEASURE_COVERAGE = """
+            SELECT COUNT(*) AS products,
+                   COUNT(*) FILTER (WHERE p.unit = '100ml') AS in_milliliters,
+                   COUNT(*) FILTER (WHERE NOT EXISTS (
+                       SELECT 1 FROM product_measures m WHERE m.product_id = p.id)) AS only_base,
+                   COUNT(*) FILTER (WHERE EXISTS (
+                       SELECT 1 FROM product_measures m WHERE m.product_id = p.id AND m.kind_code = 'package'))
+                       AS with_package,
+                   COUNT(*) FILTER (WHERE EXISTS (
+                       SELECT 1 FROM product_measures m WHERE m.product_id = p.id AND m.kind_code = 'piece'))
+                       AS with_piece,
+                   COUNT(*) FILTER (WHERE EXISTS (
+                       SELECT 1 FROM product_measures m WHERE m.product_id = p.id
+                       AND m.kind_code NOT IN ('package', 'piece'))) AS with_other
+            FROM products p
+            WHERE p.source = 'OPEN_FOOD_FACTS' AND p.deleted_at IS NULL
+            """;
     static final String COUNT_DUPLICATES = "SELECT COUNT(*) - COUNT(DISTINCT " + ProductRepository.DUPLICATE_KEY
             + ") FROM products p WHERE p.source = 'OPEN_FOOD_FACTS' AND p.deleted_at IS NULL AND p.status = 'VERIFIED'";
 
@@ -97,7 +118,13 @@ public class OffImportService {
         return new ImportReport(progress.read, progress.soldInPoland, progress.inserted, progress.updated,
                 progress.unchanged, progress.skipped, progress.skippedByReason, progress.removed,
                 progress.hiddenInUse, duplicates == null ? 0 : duplicates, productRepository.count(),
-                tableBytes == null ? 0 : tableBytes);
+                tableBytes == null ? 0 : tableBytes, measureCoverage());
+    }
+
+    public MeasureCoverage measureCoverage() {
+        return jdbcTemplate.queryForObject(MEASURE_COVERAGE, (row, number) -> new MeasureCoverage(
+                row.getLong("products"), row.getLong("in_milliliters"), row.getLong("only_base"),
+                row.getLong("with_package"), row.getLong("with_piece"), row.getLong("with_other")));
     }
 
     private void removeOutdated(Progress progress) {
@@ -151,17 +178,19 @@ public class OffImportService {
                     .collect(Collectors.toMap(Product::getBarCode, Function.identity(),
                             (first, second) -> first.getDeletedAt() == null ? first : second));
             List<Product> toSave = new ArrayList<>();
-            MeasureKind packageKind = measureKindRepository.findById(ProductMeasures.PACKAGE).orElse(null);
+            List<UnitSwitch> unitSwitches = new ArrayList<>();
+            Map<String, MeasureKind> kinds = measureKindRepository.findAll().stream()
+                    .collect(Collectors.toMap(MeasureKind::getCode, Function.identity()));
             for (OffProduct offProduct : products) {
                 Product product = existing.get(offProduct.code());
                 if (product == null) {
-                    toSave.add(newProduct(offProduct, packageKind));
+                    toSave.add(newProduct(offProduct, kinds));
                     progress.inserted++;
                 } else if (product.getDeletedAt() != null) {
                     progress.skip(List.of(DELETED_IN_APP));
                 } else if (product.getSource() != ProductSource.OPEN_FOOD_FACTS) {
                     progress.skip(List.of(ADDED_BY_USER));
-                } else if (apply(product, offProduct)) {
+                } else if (update(product, offProduct, kinds, unitSwitches)) {
                     toSave.add(product);
                     progress.updated++;
                 } else {
@@ -169,21 +198,44 @@ public class OffImportService {
                 }
             }
             productRepository.saveAll(toSave);
+            switchUnits(unitSwitches);
         });
     }
 
-    private static Product newProduct(OffProduct offProduct, MeasureKind packageKind) {
+    private static Product newProduct(OffProduct offProduct, Map<String, MeasureKind> kinds) {
         Product product = new Product();
         product.setBarCode(offProduct.code());
         product.setStatus(ProductStatus.VERIFIED);
         product.setSource(ProductSource.OPEN_FOOD_FACTS);
         offProduct.extras().cleanedFor(offProduct.fat(), offProduct.carbs()).applyTo(product);
-        Double packageWeight = PackageWeight.parse(offProduct.quantity(), OffImportRules.UNIT);
-        if (packageWeight != null && packageKind != null) {
-            product.addMeasure(packageKind, packageWeight);
-        }
         apply(product, offProduct);
+        OffMeasures.applyTo(product, OffMeasures.plan(offProduct), kinds);
         return product;
+    }
+
+    private static boolean update(Product product, OffProduct offProduct, Map<String, MeasureKind> kinds,
+                                  List<UnitSwitch> unitSwitches) {
+        String previousUnit = product.getUnit();
+        boolean changed = apply(product, offProduct);
+        if (!Objects.equals(previousUnit, product.getUnit()) && SWITCHABLE_UNITS.contains(previousUnit)) {
+            unitSwitches.add(new UnitSwitch(product.getId(), ProductMeasures.baseCode(previousUnit),
+                    ProductMeasures.baseCode(product.getUnit())));
+        }
+        return OffMeasures.applyTo(product, OffMeasures.plan(offProduct), kinds) || changed;
+    }
+
+    private void switchUnits(List<UnitSwitch> unitSwitches) {
+        if (unitSwitches.isEmpty()) {
+            return;
+        }
+        List<Object[]> arguments = unitSwitches.stream()
+                .map(change -> new Object[]{change.to(), change.productId(), change.from()})
+                .toList();
+        jdbcTemplate.batchUpdate(SWITCH_MEAL_MEASURE, arguments);
+        jdbcTemplate.batchUpdate(SWITCH_INGREDIENT_UNIT, arguments);
+    }
+
+    private record UnitSwitch(UUID productId, String from, String to) {
     }
 
     private static boolean apply(Product product, OffProduct offProduct) {
@@ -195,14 +247,14 @@ public class OffImportService {
                 || !Objects.equals(product.getProtein(), NutritionRounding.grams(offProduct.protein()))
                 || !Objects.equals(product.getFat(), NutritionRounding.grams(offProduct.fat()))
                 || !Objects.equals(product.getCarbs(), NutritionRounding.grams(offProduct.carbs()))
-                || !Objects.equals(product.getUnit(), OffImportRules.UNIT);
+                || !Objects.equals(product.getUnit(), OffMeasures.unit(offProduct));
         product.setName(name);
         product.setBrand(brand);
         product.setKcal(NutritionRounding.kcal(offProduct.kcal()));
         product.setProtein(NutritionRounding.grams(offProduct.protein()));
         product.setFat(NutritionRounding.grams(offProduct.fat()));
         product.setCarbs(NutritionRounding.grams(offProduct.carbs()));
-        product.setUnit(OffImportRules.UNIT);
+        product.setUnit(OffMeasures.unit(offProduct));
         return changed;
     }
 
