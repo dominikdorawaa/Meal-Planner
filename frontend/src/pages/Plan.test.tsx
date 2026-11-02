@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { Plan } from './Plan'
 import { readPlanReturnPosition, rememberPlanReturnPosition } from '../lib/planPosition'
 import { installBackNavigation } from '../lib/backNavigation'
+import { DEFAULT_RECIPE_IMAGE_URLS } from '../lib/recipeImage'
 
 const mocks = vi.hoisted(() => ({
   add: vi.fn(),
@@ -719,5 +720,18 @@ describe('Plan last meal of the day', () => {
 
     expect(todayLastSlot.querySelector('.-my-2')).not.toBeNull()
     expect((scroller.firstElementChild as HTMLElement).className).toContain('pb-6')
+  })
+})
+
+describe('Plan recipe images', () => {
+  it('shows the default image for both themes on a recipe without a photo', () => {
+    const { container } = renderPlan()
+
+    const images = slot(container, '2026-10-12', 'breakfast').getAllByRole('img', { name: 'Omelette' })
+
+    expect(images.map((image) => image.getAttribute('src'))).toEqual([
+      DEFAULT_RECIPE_IMAGE_URLS.light,
+      DEFAULT_RECIPE_IMAGE_URLS.dark,
+    ])
   })
 })

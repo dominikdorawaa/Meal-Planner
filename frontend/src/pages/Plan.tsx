@@ -5,7 +5,6 @@ import { useAppData } from '../lib/AppDataContext';
 import { productDisplayName } from '../lib/productName';
 import { resolveMealProduct } from '../lib/mealProducts';
 import { useNavigate } from 'react-router-dom';
-import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage';
 import { formatMacrosShort } from '../lib/macros';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { DaySummary } from '../components/DaySummary';
@@ -359,7 +358,7 @@ export function Plan() {
                     kcal={formatCompactNumber(recipe.kcal * mult)}
                     macros={formatMacrosShort(recipe.protein * mult, recipe.fat * mult, recipe.carbs * mult)}
                     imgSrc={recipe.image_url || PLACEHOLDER_IMAGE}
-                    imageFallbackSrc={DEFAULT_RECIPE_IMAGE_URL}
+                    isRecipe
                     noWrap
                     onClick={() => {
                       if (!copyModeDay && !copyModeMeal) {
@@ -819,33 +818,35 @@ export function Plan() {
   );
 }
 
-function RecipeCard({ title, kcal, macros, imgSrc, imageFallbackSrc, onMenuClick, onClick, isCopyMode, isSelected, noWrap, isProduct, isManual }: { title: string, kcal: string, macros: string, imgSrc: string, imageFallbackSrc?: string, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, noWrap?: boolean, isProduct?: boolean, isManual?: boolean }) {
+function RecipeCard({ title, kcal, macros, imgSrc, isRecipe, onMenuClick, onClick, isCopyMode, isSelected, noWrap, isProduct, isManual }: { title: string, kcal: string, macros: string, imgSrc: string, isRecipe?: boolean, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, noWrap?: boolean, isProduct?: boolean, isManual?: boolean }) {
 
-  const imageUrls = useMemo(() => {
-    if (isProduct) {
-      const primary = imgSrc && !imgSrc.includes('PLAN_PLACEHOLDER_TOKEN') ? imgSrc : null;
-      return primary ? [primary] : [];
-    }
-    const primary = imgSrc && !imgSrc.includes('PLAN_PLACEHOLDER_TOKEN') ? imgSrc : null;
-    const fb = imageFallbackSrc;
-    if (primary && fb && primary !== fb) return [primary, fb];
-    if (primary) return [primary];
-    if (fb) return [fb];
-    return [];
-  }, [isProduct, imgSrc, imageFallbackSrc]);
+  const primaryImageUrl = imgSrc && !imgSrc.includes('PLAN_PLACEHOLDER_TOKEN') ? imgSrc : null;
+  const imageUrls = useMemo(() => (primaryImageUrl ? [primaryImageUrl] : []), [primaryImageUrl]);
 
   const imageUrlsKey = imageUrls.join('|');
   const [failedImages, setFailedImages] = useState({ key: imageUrlsKey, count: 0 });
   const imageUrlIdx = failedImages.key === imageUrlsKey ? failedImages.count : 0;
 
+  const imageClassName = `absolute inset-0 w-full h-full object-cover transition-transform duration-500 ${isCopyMode && !isSelected ? 'grayscale opacity-70' : 'group-hover:scale-105'}`;
+
   const renderImage = () => {
+    if (isRecipe) {
+      return (
+        <RecipeCoverImage
+          recipe={{ image_url: primaryImageUrl }}
+          alt={title}
+          className="absolute inset-0 w-full h-full"
+          imgClassName={imageClassName}
+        />
+      );
+    }
     if (imageUrlIdx < imageUrls.length) {
       return (
         <img
           src={imageUrls[imageUrlIdx]}
           alt={title}
           onError={() => setFailedImages({ key: imageUrlsKey, count: imageUrlIdx + 1 })}
-          className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ${isCopyMode && !isSelected ? 'grayscale opacity-70' : 'group-hover:scale-105'}`}
+          className={imageClassName}
         />
       );
     }

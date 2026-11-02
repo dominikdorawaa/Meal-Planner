@@ -1,33 +1,56 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { RecipeCoverImage } from './RecipeCoverImage'
-import { DEFAULT_RECIPE_IMAGE_URL } from '../lib/recipeImage'
+import { DEFAULT_RECIPE_IMAGE_URLS } from '../lib/recipeImage'
 
 afterEach(cleanup)
 
+function expectDefaultImages(name: string) {
+  const [light, dark] = screen.getAllByRole('img', { name })
+  expect(light.getAttribute('src')).toBe(DEFAULT_RECIPE_IMAGE_URLS.light)
+  expect(light.className).toContain('dark:hidden')
+  expect(dark.getAttribute('src')).toBe(DEFAULT_RECIPE_IMAGE_URLS.dark)
+  expect(dark.className).toContain('hidden dark:block')
+}
+
 describe('RecipeCoverImage', () => {
-  it('shows the default image when the recipe has no image', () => {
+  it('shows the default image for the light and dark theme when the recipe has no image', () => {
     render(<RecipeCoverImage recipe={{ name: 'Pasta Pesto', image_url: null }} alt="Pasta Pesto" />)
 
-    expect(screen.getByRole('img', { name: 'Pasta Pesto' }).getAttribute('src')).toBe(DEFAULT_RECIPE_IMAGE_URL)
+    expectDefaultImages('Pasta Pesto')
   })
 
-  it('falls back to the default image when the custom image fails', () => {
+  it('keeps the image class on the default images', () => {
+    render(<RecipeCoverImage recipe={{}} alt="Soup" imgClassName="cover-image" />)
+
+    screen.getAllByRole('img', { name: 'Soup' }).forEach((image) => expect(image.className).toContain('cover-image'))
+  })
+
+  it('falls back to the default images when the custom image fails', () => {
     render(<RecipeCoverImage recipe={{ image_url: 'https://example.com/broken.jpg' }} alt="Salad" />)
     const image = screen.getByRole('img', { name: 'Salad' })
     expect(image.getAttribute('src')).toBe('https://example.com/broken.jpg')
 
     fireEvent.error(image)
 
-    expect(screen.getByRole('img', { name: 'Salad' }).getAttribute('src')).toBe(DEFAULT_RECIPE_IMAGE_URL)
+    expectDefaultImages('Salad')
   })
 
-  it('shows the placeholder icon when every image fails', () => {
+  it('shows the placeholder icon when the default image fails', () => {
     const { container } = render(<RecipeCoverImage recipe={{}} alt="Soup" className="cover" />)
 
-    fireEvent.error(screen.getByRole('img', { name: 'Soup' }))
+    fireEvent.error(screen.getAllByRole('img', { name: 'Soup' })[1])
 
     expect(screen.queryByRole('img')).toBeNull()
     expect(container.querySelector('.cover')?.textContent).toBe('restaurant')
+  })
+
+  it('tries the new image again after the recipe image changes', () => {
+    const { rerender } = render(<RecipeCoverImage recipe={{ image_url: 'https://example.com/old.jpg' }} alt="Stew" />)
+    fireEvent.error(screen.getByRole('img', { name: 'Stew' }))
+
+    rerender(<RecipeCoverImage recipe={{ image_url: 'https://example.com/new.jpg' }} alt="Stew" />)
+
+    expect(screen.getByRole('img', { name: 'Stew' }).getAttribute('src')).toBe('https://example.com/new.jpg')
   })
 })

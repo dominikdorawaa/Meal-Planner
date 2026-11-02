@@ -1,7 +1,10 @@
-export const DEFAULT_RECIPE_IMAGE_URL = `${import.meta.env.BASE_URL}recipe-images/default.svg`;
+import type { Theme } from './theme';
 
-export function recipeImageCandidates(imageUrl?: string | null): string[] {
-  const custom = imageUrl?.trim();
-  if (custom && custom !== DEFAULT_RECIPE_IMAGE_URL) return [custom, DEFAULT_RECIPE_IMAGE_URL];
-  return [DEFAULT_RECIPE_IMAGE_URL];
+export const DEFAULT_RECIPE_IMAGE_URLS: Record<Theme, string> = {
+  light: `${import.meta.env.BASE_URL}recipe-images/default-light.svg`,
+  dark: `${import.meta.env.BASE_URL}recipe-images/default-dark.svg`,
+};
+
+export function customRecipeImageUrl(imageUrl?: string | null): string | null {
+  return imageUrl?.trim() || null;
 }
