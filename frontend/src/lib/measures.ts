@@ -56,8 +56,13 @@ export function productMeasures(product: MeasuredProduct): ProductMeasure[] {
   return product.measures?.length ? product.measures : [baseMeasure(product)];
 }
 
+function resolveCode(product: MeasuredProduct, code: string): string {
+  return !isPerPiece(product) && (code === 'g' || code === 'ml') ? baseMeasureCode(product) : code;
+}
+
 export function findMeasure(product: MeasuredProduct, code: string): ProductMeasure | null {
-  return productMeasures(product).find(measure => measure.code === code) ?? null;
+  const resolved = resolveCode(product, code);
+  return productMeasures(product).find(measure => measure.code === resolved) ?? null;
 }
 
 export function defaultMeasure(product: MeasuredProduct): ProductMeasure {
@@ -125,7 +130,8 @@ export type MeasureValues = Record<string, number | ''>;
 export function initialMeasureValues(product: MeasuredProduct, saved?: { amount: number; unit: string } | null): MeasureValues {
   const values: MeasureValues = {};
   for (const measure of productMeasures(product)) values[measure.code] = defaultMeasureAmount(product, measure.code);
-  if (saved && saved.unit in values) values[saved.unit] = saved.amount;
+  const savedCode = saved ? findMeasure(product, saved.unit)?.code : undefined;
+  if (saved && savedCode) values[savedCode] = saved.amount;
   return values;
 }
 

@@ -27,6 +27,11 @@ public final class ProductMeasures {
         return PackageWeight.VOLUME_UNIT.equals(unit) ? MILLILITERS : GRAMS;
     }
 
+    static String resolveCode(String unit, String code) {
+        boolean baseAlias = !perPiece(unit) && (GRAMS.equals(code) || MILLILITERS.equals(code));
+        return baseAlias ? baseCode(unit) : code;
+    }
+
     static List<Measure> describe(String unit, List<ProductMeasure> stored) {
         if (perPiece(unit)) {
             return List.of(new Measure(PIECE, 1.0, true, null, MAX_PIECES));

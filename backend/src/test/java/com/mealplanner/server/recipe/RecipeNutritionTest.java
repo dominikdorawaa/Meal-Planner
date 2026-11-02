@@ -54,6 +54,16 @@ class RecipeNutritionTest {
     }
 
     @Test
+    void countsGramsAndMillilitersAsTheSameBaseMeasure() {
+        Product juice = product("100ml", 40.0, 0.0, 0.0, 10.0);
+        Product oats = product("100g", 370.0, 13.2, 7.0, 60.0);
+
+        assertNutrition(RecipeNutrition.of(ingredient(juice, 200.0, "g")), 80, 0, 0, 20);
+        assertNutrition(RecipeNutrition.of(ingredient(oats, 50.0, "ml")), 185, 6.6, 3.5, 30);
+        assertThat(RecipeNutrition.of(ingredient(product("pc", 70.0, 6.0, 5.0, 0.0), 1.0, "g"))).isEmpty();
+    }
+
+    @Test
     void scalesProductNutritionToTheAmountInGrams() {
         Product oats = product("100g", 370.0, 13.2, 7.0, 60.0);
 

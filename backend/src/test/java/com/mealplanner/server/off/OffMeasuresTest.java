@@ -69,6 +69,7 @@ class OffMeasuresTest {
             "zero count of a named piece is ignored|100 g|100.0|g|0 ciastka (10 g)|10.0|g|''|package=100.0",
             "multipack gives a piece|400 g (4 x 100 g)|400.0|g|''|null|''|''|piece=100.0* package=400.0",
             "multipack with comma|30 g (20 x 1,5 g)|30.0|g|''|null|''|''|piece=1.5* package=30.0",
+            "multipack count too long to read is ignored|400 g (999999999999 x 100 g)|400.0|g|''|null|''|''|package=400.0",
             "single pack is not a multipack|1 x 500 g|500.0|g|''|null|''|''|package=500.0",
             "piece and serving with the same weight keep the piece|400 g (4 x 100 g)|400.0|g|100 g|100.0|g|''|piece=100.0* package=400.0",
             "plain serving of 100 g only repeats nutrition per 100 g|500 g|500.0|g|100 g|100.0|g|''|package=500.0",
@@ -154,6 +155,22 @@ class OffMeasuresTest {
 
         assertThat(changed).isFalse();
         assertThat(product.getStoredMeasures()).extracting(ProductMeasure::getBaseAmount).containsExactly(500.0);
+    }
+
+    @Test
+    void skipsMeasuresThatClashWithTheStoredPackage() {
+        Product product = new Product();
+        product.addMeasure(KINDS.get("package"), 500);
+
+        boolean changed = OffMeasures.applyTo(product, List.of(
+                new OffMeasures.PlannedMeasure("piece", 500, true),
+                new OffMeasures.PlannedMeasure("serving", 750, false),
+                new OffMeasures.PlannedMeasure("tbsp", 10, false)), KINDS);
+
+        assertThat(changed).isTrue();
+        assertThat(product.getStoredMeasures())
+                .extracting(stored -> stored.getKind().getCode(), ProductMeasure::getBaseAmount)
+                .containsExactly(tuple("package", 500.0), tuple("tbsp", 10.0));
     }
 
     @Test

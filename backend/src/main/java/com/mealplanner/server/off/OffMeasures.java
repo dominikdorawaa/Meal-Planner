@@ -53,7 +53,7 @@ public final class OffMeasures {
             .toList();
 
     private static final Pattern MULTIPACK =
-            Pattern.compile("(\\d+)\\s*[x×*]\\s*(\\d+(?:\\.\\d+)?)\\s*(kg|g|ml|cl|l)\\b");
+            Pattern.compile("(?<!\\d)(\\d{1,9})\\s*[x×*]\\s*(\\d+(?:\\.\\d+)?)\\s*(kg|g|ml|cl|l)\\b");
     private static final Pattern SERVING_NAME = Pattern.compile("^(?:(\\d+(?:\\.\\d+)?)\\s*)?(\\p{L}+)");
     private static final Pattern SERVING_UNIT = Pattern.compile("\\d\\s*(g|ml)\\b");
 
@@ -110,7 +110,7 @@ public final class OffMeasures {
         for (PlannedMeasure planned : plan) {
             MeasureKind kind = kinds.get(planned.kindCode());
             if (kind != null && find(product, kind.getCode()).isEmpty()
-                    && planned.baseAmount() <= kind.getMaxBaseAmount()) {
+                    && planned.baseAmount() <= kind.getMaxBaseAmount() && fitsStored(product, planned)) {
                 product.addMeasure(kind, planned.baseAmount());
                 changed = true;
             }
@@ -126,6 +126,15 @@ public final class OffMeasures {
             }
         }
         return changed;
+    }
+
+    private static boolean fitsStored(Product product, PlannedMeasure planned) {
+        boolean sameAmount = product.getStoredMeasures().stream()
+                .anyMatch(stored -> stored.getBaseAmount() == planned.baseAmount());
+        boolean biggerThanPackage = !PACKAGE.equals(planned.kindCode()) && find(product, PACKAGE)
+                .filter(stored -> planned.baseAmount() >= stored.getBaseAmount())
+                .isPresent();
+        return !sameAmount && !biggerThanPackage;
     }
 
     private static Optional<ProductMeasure> find(Product product, String kindCode) {
