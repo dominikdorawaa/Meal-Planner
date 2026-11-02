@@ -93,7 +93,7 @@ public final class OffCandidatesExport {
                 decimal(NutritionRounding.kcal(product.kcal())), decimal(NutritionRounding.grams(product.protein())),
                 decimal(NutritionRounding.grams(product.fat())), decimal(NutritionRounding.grams(product.carbs())),
                 decimal(extras.saturatedFat()), decimal(extras.sugars()),
-                decimal(extras.fiber()), decimal(extras.salt()), OffImportRules.UNIT, textCell(product.quantity()),
+                decimal(extras.fiber()), decimal(extras.salt()), OffMeasures.unit(product), textCell(product.quantity()),
                 ok ? "OK" : "REJECTED", String.join(",", reasons), ok ? "yes" : "no", PRODUCT_URL + product.code());
     }
 

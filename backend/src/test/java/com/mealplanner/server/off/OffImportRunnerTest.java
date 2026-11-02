@@ -19,7 +19,8 @@ class OffImportRunnerTest {
     void importsTheConfiguredFileAndPrintsTheReport() throws Exception {
         OffImportService service = mock(OffImportService.class);
         when(service.importDump(Path.of("dump.jsonl.gz")))
-                .thenReturn(new ImportReport(3, 2, 1, 0, 0, 1, Map.of("KCAL_LOOKS_LIKE_KJ", 1L), 4, 1, 2, 40, 2_500_000));
+                .thenReturn(new ImportReport(3, 2, 1, 0, 0, 1, Map.of("KCAL_LOOKS_LIKE_KJ", 1L), 4, 1, 2, 40, 2_500_000,
+                        new MeasureCoverage(40, 5, 10, 25, 3, 8)));
         OffImportRunner runner = new OffImportRunner(service);
         ReflectionTestUtils.setField(runner, "file", "dump.jsonl.gz");
         ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -41,6 +42,11 @@ class OffImportRunnerTest {
                 .contains("Hidden because used in meals: 1")
                 .contains("Duplicates hidden in search: 2")
                 .contains("Products in table: 40")
-                .contains("Products table size: 2.5 MB");
+                .contains("Products table size: 2.5 MB")
+                .contains("  in ml: 5")
+                .contains("  only g or ml: 10")
+                .contains("  with package: 25")
+                .contains("  with piece: 3")
+                .contains("  with serving or other measure: 8");
     }
 }

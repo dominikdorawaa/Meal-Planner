@@ -9,7 +9,8 @@ class OffImportRulesTest {
 
     private static OffProduct product(String code, String name, boolean polishName, Double kcal, Double protein,
                                       Double fat, Double carbs) {
-        return new OffProduct(code, name, "", kcal, protein, fat, carbs, ExtraNutrients.NONE, "", polishName);
+        return new OffProduct(code, name, "", kcal, protein, fat, carbs, ExtraNutrients.NONE, "", polishName,
+                OffMeasureFacts.NONE);
     }
 
     private static OffProduct skyr(String name) {

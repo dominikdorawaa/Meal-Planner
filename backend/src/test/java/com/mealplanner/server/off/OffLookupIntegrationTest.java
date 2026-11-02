@@ -52,6 +52,7 @@ class OffLookupIntegrationTest {
     private static final String NOT_ASKED = "5900000000060";
     private static final String JUNK_NAME = "5900000000077";
     private static final String ENGLISH_NAME = "5900000000084";
+    private static final String DRINK = "5900000000091";
 
     private static final Map<String, Integer> REQUESTS = new ConcurrentHashMap<>();
     private static final List<String> USER_AGENTS = new CopyOnWriteArrayList<>();
@@ -80,6 +81,10 @@ class OffLookupIntegrationTest {
                             + "\"saturated-fat_100g\":13.24,\"sugars_100g\":5,\"fiber_100g\":-1,\"salt_100g\":1.24}}}";
                     case JUNK_NAME -> "{\"status\":1,\"product\":{\"product_name_pl\":\"???\",\"brands\":\"Piątnica\","
                             + "\"nutriments\":{\"energy-kcal_100g\":65,\"proteins_100g\":12,\"fat_100g\":0,\"carbohydrates_100g\":4.2}}}";
+                    case DRINK -> "{\"status\":1,\"product\":{\"product_name_pl\":\"Woda mineralna\",\"quantity\":\"1,5 l\","
+                            + "\"product_quantity\":1500,\"product_quantity_unit\":\"ml\",\"serving_size\":\"1 szklanka (250 ml)\","
+                            + "\"serving_quantity\":250,\"serving_quantity_unit\":\"ml\",\"categories_tags\":[\"en:beverages\",\"en:waters\"],"
+                            + "\"nutriments\":{\"energy-kcal_100g\":0,\"proteins_100g\":0,\"fat_100g\":0,\"carbohydrates_100g\":0}}}";
                     case ENGLISH_NAME -> "{\"status\":1,\"product\":{\"product_name_pl\":\"Chicken Fingers\","
                             + "\"nutriments\":{\"energy-kcal_100g\":250,\"proteins_100g\":15,\"fat_100g\":14,\"carbohydrates_100g\":16}}}";
                     case INCOMPLETE -> "{\"status\":1,\"product\":{\"product_name\":\"Baton\",\"brands\":\"Wedel\","
@@ -150,12 +155,14 @@ class OffLookupIntegrationTest {
                 .andExpect(jsonPath("$.brand").value("Piątnica"))
                 .andExpect(jsonPath("$.status").value("VERIFIED"))
                 .andExpect(jsonPath("$.source").value("OPEN_FOOD_FACTS"))
-                .andExpect(jsonPath("$.measures[0].code").value("g"))
+                .andExpect(jsonPath("$.measures[0].code").value("piece"))
                 .andExpect(jsonPath("$.measures[0].default").value(true))
+                .andExpect(jsonPath("$.measures[0].base_amount").value(125.0))
                 .andExpect(jsonPath("$.measures[1].code").value("package"))
                 .andExpect(jsonPath("$.measures[1].base_amount").value(500.0))
                 .andExpect(jsonPath("$.measures[1].names.pl.one").value("opakowanie"))
-                .andExpect(jsonPath("$.measures.length()").value(2));
+                .andExpect(jsonPath("$.measures[2].code").value("g"))
+                .andExpect(jsonPath("$.measures.length()").value(3));
 
         Product saved = productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(COMPLETE, ProductStatus.VERIFIED).orElseThrow();
         assertThat(saved.getSource()).isEqualTo(ProductSource.OPEN_FOOD_FACTS);
@@ -168,11 +175,22 @@ class OffLookupIntegrationTest {
         assertThat(saved.getFiber()).isNull();
         assertThat(saved.getSalt()).isEqualTo(0.1);
         assertThat(saved.getMeasures()).extracting(Measure::code, Measure::baseAmount)
-                .containsExactly(tuple("g", 1.0), tuple("package", 500.0));
+                .containsExactly(tuple("piece", 125.0), tuple("package", 500.0), tuple("g", 1.0));
         assertThat(USER_AGENTS).containsExactly("MealPlanner-Test/1.0");
 
         mockMvc.perform(get("/api/products/barcode/" + COMPLETE)).andExpect(status().isOk());
         assertThat(REQUESTS.get(COMPLETE)).isEqualTo(1);
+    }
+
+    @Test
+    void savesDrinksInMillilitersWithTheirServing() throws Exception {
+        mockMvc.perform(get("/api/products/barcode/" + DRINK))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unit").value("100ml"));
+
+        Product saved = productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(DRINK, ProductStatus.VERIFIED).orElseThrow();
+        assertThat(saved.getMeasures()).extracting(Measure::code, Measure::baseAmount, Measure::defaultMeasure)
+                .containsExactly(tuple("ml", 1.0, true), tuple("cup", 250.0, false), tuple("package", 1500.0, false));
     }
 
     @Test

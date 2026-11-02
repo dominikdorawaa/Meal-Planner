@@ -5,7 +5,8 @@ import java.util.Map;
 
 public record ImportReport(long read, long soldInPoland, long inserted, long updated, long unchanged,
                            long skipped, Map<String, Long> skippedByReason, long removed, long hiddenInUse,
-                           long duplicates, long tableRows, long tableBytes) {
+                           long duplicates, long tableRows, long tableBytes,
+                           MeasureCoverage measures) {
 
     public String describe() {
         StringBuilder text = new StringBuilder()
@@ -22,6 +23,7 @@ public record ImportReport(long read, long soldInPoland, long inserted, long upd
                 .append("Duplicates hidden in search: ").append(duplicates).append('\n')
                 .append("Products in table: ").append(tableRows).append('\n')
                 .append(String.format(Locale.ROOT, "Products table size: %.1f MB%n", tableBytes / 1_000_000.0))
+                .append(measures.describe())
                 .toString();
     }
 }

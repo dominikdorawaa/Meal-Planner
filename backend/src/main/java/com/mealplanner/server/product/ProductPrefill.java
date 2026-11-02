@@ -1,6 +1,6 @@
 package com.mealplanner.server.product;
 
-import com.mealplanner.server.off.OffLookupService;
+import com.mealplanner.server.off.OffMeasures;
 import com.mealplanner.server.off.OffProduct;
 
 public record ProductPrefill(String name, String brand, Double kcal, Double protein, Double fat, Double carbs,
@@ -11,6 +11,6 @@ public record ProductPrefill(String name, String brand, Double kcal, Double prot
         return new ProductPrefill(product.name(), product.brand(), NutritionRounding.kcal(product.kcal()),
                 NutritionRounding.grams(product.protein()), NutritionRounding.grams(product.fat()),
                 NutritionRounding.grams(product.carbs()), extras.saturatedFat(), extras.sugars(), extras.fiber(),
-                extras.salt(), PackageWeight.parse(product.quantity(), OffLookupService.UNIT));
+                extras.salt(), PackageWeight.parse(product.quantity(), OffMeasures.MASS_UNIT));
     }
 }

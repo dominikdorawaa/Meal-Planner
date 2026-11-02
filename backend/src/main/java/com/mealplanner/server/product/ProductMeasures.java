@@ -20,7 +20,7 @@ public final class ProductMeasures {
         return NutritionValidator.PER_PIECE_UNIT.equals(unit);
     }
 
-    static String baseCode(String unit) {
+    public static String baseCode(String unit) {
         if (perPiece(unit)) {
             return PIECE;
         }

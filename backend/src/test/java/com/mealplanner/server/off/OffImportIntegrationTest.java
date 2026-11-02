@@ -371,4 +371,71 @@ class OffImportIntegrationTest {
 
         assertThat(searchNames("user product")).hasSize(2);
     }
+
+    private static String drink(String code, String name, String quantityFields, String extraFields) {
+        return "{\"code\":\"" + code + "\",\"product_name_pl\":\"" + name + "\",\"countries_tags\":[\"en:poland\"],"
+                + "\"categories_tags\":[\"en:beverages\"]," + quantityFields + extraFields
+                + "\"nutriments\":{\"energy-kcal_100g\":42,\"proteins_100g\":0,\"fat_100g\":0,\"carbohydrates_100g\":10.6}}";
+    }
+
+    @Test
+    void importsDrinksInMillilitersWithServingsAndPieces() throws IOException {
+        ImportReport report = importService.importDump(dump(
+                drink("5449000000996", "Napój gazowany", "\"quantity\":\"6 x 330 ml\",\"product_quantity\":1980,"
+                        + "\"product_quantity_unit\":\"ml\",", "\"serving_size\":\"1 portion (250 ml)\","
+                        + "\"serving_quantity\":250,\"serving_quantity_unit\":\"ml\","),
+                product("5901234123457", "Jogurt naturalny", "Bakoma", "400 g", 61, 4.3, 3, 4.5)));
+
+        Product drink = byBarCode("5449000000996");
+        assertThat(drink.getUnit()).isEqualTo("100ml");
+        assertThat(drink.getMeasures()).extracting(Measure::code, Measure::baseAmount, Measure::defaultMeasure)
+                .containsExactly(tuple("piece", 330.0, true), tuple("serving", 250.0, false),
+                        tuple("package", 1980.0, false), tuple("ml", 1.0, false));
+        assertThat(report.measures()).isEqualTo(new MeasureCoverage(2, 1, 0, 2, 1, 1));
+        assertThat(report.describe()).contains("  in ml: 1");
+    }
+
+    @Test
+    void addsNewMeasuresToProductsImportedBefore() throws IOException {
+        importService.importDump(dump(skyr("Skyr naturalny", 64.6)));
+        assertThat(importService.measureCoverage()).isEqualTo(new MeasureCoverage(1, 0, 0, 1, 0, 0));
+
+        ImportReport report = importService.importDump(dump(skyr("Skyr naturalny", 64.6)
+                .replace("\"quantity\":\"150 g\"", "\"quantity\":\"150 g\",\"serving_size\":\"1 portion (75 g)\","
+                        + "\"serving_quantity\":75")));
+
+        assertThat(report.updated()).isEqualTo(1);
+        assertThat(byBarCode("5900820000318").getMeasures())
+                .extracting(Measure::code, Measure::baseAmount, Measure::defaultMeasure)
+                .containsExactly(tuple("serving", 75.0, true), tuple("package", 150.0, false), tuple("g", 1.0, false));
+        assertThat(importService.importDump(dump(skyr("Skyr naturalny", 64.6))).unchanged()).isEqualTo(1);
+    }
+
+    @Test
+    void switchesMealsAndRecipesToMillilitersWhenAProductBecomesADrink() throws IOException {
+        Product juice = storedOffProduct("5900000000015", "Sok jabłkowy");
+        juice.setUnit("100g");
+        productRepository.save(juice);
+        UUID userId = UUID.randomUUID();
+        jdbcTemplate.update("insert into app_users (id, email, password_hash) values (?, ?, 'hash')",
+                userId, userId + "@example.com");
+        jdbcTemplate.update("insert into user_meals (id, user_id, product_id, meal_date, meal_type, measure_code, "
+                + "measure_amount) values (?, ?, ?, current_date, 'BREAKFAST', 'g', 200)",
+                UUID.randomUUID(), userId, juice.getId());
+        UUID recipeId = UUID.randomUUID();
+        jdbcTemplate.update("insert into recipes (id, name) values (?, 'Koktajl')", recipeId);
+        jdbcTemplate.update("insert into recipe_ingredients (id, recipe_id, name, amount, unit, product_id) "
+                + "values (?, ?, 'Sok', 300, 'g', ?)", UUID.randomUUID(), recipeId, juice.getId());
+
+        importService.importDump(dump(drink("5900000000015", "Sok jabłkowy",
+                "\"quantity\":\"1 l\",\"product_quantity\":1000,\"product_quantity_unit\":\"ml\",", "")));
+
+        assertThat(byBarCode("5900000000015").getUnit()).isEqualTo("100ml");
+        assertThat(jdbcTemplate.queryForObject("select measure_code from user_meals where product_id = ?",
+                String.class, juice.getId())).isEqualTo("ml");
+        assertThat(jdbcTemplate.queryForObject("select unit from recipe_ingredients where product_id = ?",
+                String.class, juice.getId())).isEqualTo("ml");
+        jdbcTemplate.update("delete from recipe_ingredients where recipe_id = ?", recipeId);
+        jdbcTemplate.update("delete from recipes where id = ?", recipeId);
+    }
 }
