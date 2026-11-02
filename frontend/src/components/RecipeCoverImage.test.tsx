@@ -36,13 +36,31 @@ describe('RecipeCoverImage', () => {
     expectDefaultImages('Salad')
   })
 
-  it('shows the placeholder icon when the default image fails', () => {
+  it('keeps the working default image when only the other theme image fails', () => {
     const { container } = render(<RecipeCoverImage recipe={{}} alt="Soup" className="cover" />)
 
     fireEvent.error(screen.getAllByRole('img', { name: 'Soup' })[1])
 
+    const light = screen.getByRole('img', { name: 'Soup' })
+    expect(light.getAttribute('src')).toBe(DEFAULT_RECIPE_IMAGE_URLS.light)
+    expect(light.className).toContain('dark:hidden')
+    const placeholder = container.querySelector('.cover')
+    expect(placeholder?.textContent).toBe('restaurant')
+    expect(placeholder?.className).toContain('hidden dark:flex')
+  })
+
+  it('shows the placeholder icon for both themes when both default images fail', () => {
+    const { container } = render(<RecipeCoverImage recipe={{}} alt="Soup" className="cover" />)
+    const [light, dark] = screen.getAllByRole('img', { name: 'Soup' })
+
+    fireEvent.error(light)
+    fireEvent.error(dark)
+
     expect(screen.queryByRole('img')).toBeNull()
-    expect(container.querySelector('.cover')?.textContent).toBe('restaurant')
+    const placeholders = [...container.querySelectorAll('.cover')]
+    expect(placeholders.map((placeholder) => placeholder.textContent)).toEqual(['restaurant', 'restaurant'])
+    expect(placeholders[0].className).toContain('flex dark:hidden')
+    expect(placeholders[1].className).toContain('hidden dark:flex')
   })
 
   it('tries the new image again after the recipe image changes', () => {
