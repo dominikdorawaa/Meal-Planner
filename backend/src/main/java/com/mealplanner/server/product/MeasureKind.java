@@ -32,4 +32,10 @@ public class MeasureKind {
 
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder;
+
+    @Column(name = "generic_base_amount")
+    private Double genericBaseAmount;
+
+    @Column(name = "generic_by_default", nullable = false)
+    private boolean genericByDefault;
 }

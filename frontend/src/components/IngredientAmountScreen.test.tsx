@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../lib/apiClient';
 import { t } from '../i18n';
-import { measure, withMeasures } from '../lib/measureFixtures';
+import { measure, withGenericMeasures, withMeasures } from '../lib/measureFixtures';
 import { IngredientAmountScreen } from './IngredientAmountScreen';
 
 afterEach(cleanup);
@@ -28,5 +28,19 @@ describe('IngredientAmountScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Zapisz' }));
     expect(onSubmit).toHaveBeenCalledWith({ amount: 2, unit: 'tbsp' });
+  });
+
+  it('saves an ingredient in a kitchen measure the product does not have', () => {
+    const flour = withGenericMeasures(withMeasures({ id: 'p2', name: 'Mąka', kcal: 340, protein: 10, fat: 1, carbs: 72, unit: '100g' })) as unknown as Product;
+    const onSubmit = vi.fn();
+    render(<IngredientAmountScreen product={flour} initial={{ amount: 3, unit: 'tbsp' }} submitLabel="Zapisz" onSubmit={onSubmit} onBack={() => {}} />);
+
+    expect((screen.getByLabelText(t('amount.kitchenMeasure')) as HTMLSelectElement).value).toBe('tbsp');
+    expect(screen.getByText(t('product.nutritionFor', { amount: '3 łyżki (45 g)' }))).toBeTruthy();
+    expect(screen.getByTestId('kcal-value').textContent).toBe('153');
+    expect(screen.queryByText(/niedostępn/i)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz' }));
+    expect(onSubmit).toHaveBeenCalledWith({ amount: 3, unit: 'tbsp' });
   });
 });

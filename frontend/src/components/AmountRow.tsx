@@ -1,10 +1,11 @@
+import type { ReactNode } from 'react';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { acceptsLimitedNumber, numberFieldProps } from '../lib/inputLimits';
 
 interface AmountRowProps {
   label: string;
   max: number;
-  unit: string;
+  unit: ReactNode;
   value: number | '';
   kcal: number;
   active: boolean;
@@ -31,7 +32,7 @@ export function AmountRow({ label, max, unit, value, kcal, active, onActivate, o
           }}
           className={`w-[72px] border rounded-xl py-2 px-2 outline-none transition-all text-on-surface font-bold text-base text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm ${active ? 'bg-surface border-primary/50' : 'bg-surface-container-lowest border-outline-variant/20'}`}
         />
-        <span className="font-bold text-on-surface-variant text-sm whitespace-nowrap truncate">{unit}</span>
+        {typeof unit === 'string' ? <span className="font-bold text-on-surface-variant text-sm whitespace-nowrap truncate">{unit}</span> : unit}
       </div>
       <div className="flex items-baseline gap-1 ml-auto shrink-0">
         <span className={`font-black text-xl tabular-nums whitespace-nowrap transition-colors ${active ? 'text-primary' : 'text-on-surface'}`}>{formatCompactNumber(kcal)}</span>

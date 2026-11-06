@@ -65,7 +65,7 @@ class DatabaseMigrationTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "select version, success from flyway_schema_history where version is not null order by installed_rank");
 
-        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13", "14", "15", "16", "17");
+        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13", "14", "15", "16", "17", "18");
         assertThat(history).allSatisfy(row -> assertThat(row.get("success")).isEqualTo(true));
     }
 
@@ -338,6 +338,21 @@ class DatabaseMigrationTest {
                 + "where p.source = 'BASIC'", Integer.class)).isEqualTo(138);
         assertThat(jdbcTemplate.queryForObject("select count(*) from (select product_id from product_measures "
                 + "where is_default group by product_id having count(*) > 1) duplicated", Integer.class)).isZero();
+    }
+
+    @Test
+    void choosesGenericKitchenMeasuresOfBasicProducts() {
+        String query = "select array_to_string(kitchen_measures, ',') from products where source = 'BASIC' and name = ?";
+        assertThat(jdbcTemplate.queryForObject(query, String.class, "Sól")).isEqualTo("tbsp,tsp,pinch");
+        assertThat(jdbcTemplate.queryForObject(query, String.class, "Masło")).isEqualTo("tbsp,tsp");
+        assertThat(jdbcTemplate.queryForObject(query, String.class, "Mleko 3,2%")).isEqualTo("tbsp,tsp,cup");
+        assertThat(jdbcTemplate.queryForObject(query, String.class, "Batat")).isEmpty();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from products where source = 'BASIC' "
+                + "and kitchen_measures is null", Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForList("select code from measure_kinds where generic_by_default order by sort_order",
+                String.class)).containsExactly("tbsp", "tsp", "cup");
+        assertThat(jdbcTemplate.queryForList("select code from measure_kinds where generic_base_amount is not null "
+                + "order by sort_order", String.class)).containsExactly("tbsp", "tsp", "pinch", "cup");
     }
 
     @Test

@@ -7,4 +7,6 @@ import java.util.List;
 public interface MeasureKindRepository extends JpaRepository<MeasureKind, String> {
 
     List<MeasureKind> findAllByOrderBySortOrderAsc();
+
+    List<MeasureKind> findByGenericBaseAmountIsNotNullOrderBySortOrderAsc();
 }

@@ -74,6 +74,7 @@ public class ProductService {
         }
         copy.setSource(ProductSource.USER);
         copy.setStatus(ProductStatus.PENDING);
+        copy.setKitchenMeasures(original.getKitchenMeasures());
         copy.setCreatedBy(author.getId());
         boolean newMeasures = changes != null && changes.getRequestedMeasures() != null;
         applyMeasures(copy, newMeasures ? changes.getRequestedMeasures() : original.getMeasures());

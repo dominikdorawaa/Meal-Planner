@@ -92,7 +92,7 @@ class RecipeNutritionTest {
         Product oats = product("100g", 370.0, 13.0, 7.0, 60.0);
 
         assertThat(RecipeNutrition.of(ingredient(null, 20.0, "g"))).isEmpty();
-        assertThat(RecipeNutrition.of(ingredient(oats, 2.0, "tbsp"))).isEmpty();
+        assertThat(RecipeNutrition.of(ingredient(oats, 2.0, "slice"))).isEmpty();
         assertThat(RecipeNutrition.of(ingredient(oats, null, "g"))).isEmpty();
         assertThat(RecipeNutrition.of(ingredient(product("100g", null, 1.0, 1.0, 1.0), 20.0, "g"))).isEmpty();
     }
