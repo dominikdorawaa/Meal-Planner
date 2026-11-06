@@ -89,7 +89,7 @@ describe('isPositiveWithinLimit', () => {
 
 describe('numberFieldProps', () => {
   it('describes a decimal field without autofill suggestions', () => {
-    expect(numberFieldProps(5000)).toEqual({ type: 'number', inputMode: 'decimal', autoComplete: 'off', min: 0, max: 5000, step: 0.1 });
+    expect(numberFieldProps(5000)).toMatchObject({ type: 'number', inputMode: 'decimal', autoComplete: 'off', min: 0, max: 5000, step: 0.1 });
   });
 
   it('uses the numeric keyboard for whole numbers', () => {

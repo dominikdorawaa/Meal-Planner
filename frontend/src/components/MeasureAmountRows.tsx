@@ -54,7 +54,7 @@ function GenericMeasureRow({ product, measures, values, activeCode, onActivate, 
           value={measure.code}
           onFocus={() => onActivate(measure.code)}
           onChange={event => choose(event.target.value)}
-          className="min-w-0 bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2 px-1.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary/20"
+          className="pointer-events-auto min-w-0 bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2 px-1.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary/20"
         >
           {measures.map(item => (
             <option key={item.code} value={item.code}>{measureLabel(item, amount)}</option>

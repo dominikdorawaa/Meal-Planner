@@ -162,6 +162,25 @@ describe('ProductDetails kitchen measures', () => {
     }));
   });
 
+  it('picks a kitchen measure with a single tap on its row and saves it', async () => {
+    mocks.getProduct.mockResolvedValue(MILK);
+    renderDetails();
+
+    const choose = await screen.findByRole('button', { name: t('amount.chooseMeasure', { label: t('amount.countOf', { name: 'łyżki' }) }) });
+    const row = choose.closest('[data-amount-row]') as HTMLElement;
+    expect(choose.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(choose);
+    expect(choose.getAttribute('aria-pressed')).toBe('true');
+    expect(row.className).toContain('bg-primary/5');
+    expect(screen.getByLabelText(t('amount.countOf', { name: 'łyżki' }))).toHaveProperty('value', '1');
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+
+    await screen.findByText('plan screen');
+    expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({
+      portions_consumed: 15, measure_code: 'tbsp', measure_amount: 1,
+    }));
+  });
+
   it('activates the kitchen measure row when its list is opened', async () => {
     mocks.getProduct.mockResolvedValue(MILK);
     renderDetails();

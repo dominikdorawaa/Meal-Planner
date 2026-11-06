@@ -144,6 +144,7 @@
   "amount.grams": "Amount in grams or millilitres",
   "amount.pieces": "Number of pieces",
   "amount.countOf": "Amount ({name})",
+  "amount.chooseMeasure": "Choose measure: {label}",
   "amount.kitchenMeasure": "Kitchen measure",
   "amount.measureOf": "{name} ({amount})",
   "units.szt": "pc",

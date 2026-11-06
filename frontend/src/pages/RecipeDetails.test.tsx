@@ -318,6 +318,20 @@ describe('RecipeDetails loading', () => {
     expect(screen.getByTestId('grams-kcal').className).not.toContain('text-primary');
   });
 
+  it('switches a plan entry to grams with a single tap on the grams row', async () => {
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 2, measure_code: 'portion', measure_amount: null }]);
+    renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
+    await waitFor(() => expect(screen.getByTestId('portions-kcal').className).toContain('text-primary'));
+
+    fireEvent.click(screen.getByRole('button', { name: t('amount.chooseMeasure', { label: t('recipeDetails.gramsInput') }) }));
+    expect(screen.getByTestId('grams-kcal').className).toContain('text-primary');
+    expect((screen.getByLabelText(t('recipeDetails.gramsInput')) as HTMLInputElement).value).toBe('100');
+    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.update') }));
+
+    await screen.findByText('plan screen');
+    expect(mocks.updateMeal).toHaveBeenCalledWith('m1', expect.objectContaining({ measure_code: 'g', measure_amount: 100 }));
+  });
+
   it('opens an older plan entry without a saved method in portions', async () => {
     mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 2 }]);
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
