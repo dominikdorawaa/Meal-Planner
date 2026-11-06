@@ -64,6 +64,27 @@ describe('DaySummary', () => {
     expect(within(dialog).getByText('Za dużo o 27 g')).toBeTruthy()
   })
 
+  it('shows the exact calorie difference to the goal', () => {
+    render(<DaySummary consumed={{ ...consumed, kcal: 2243 }} targets={{ ...targets, target_kcal: 3006 }} dayLabel="Niedziela, 18.10" interactive />)
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))
+
+    expect(within(screen.getByRole('dialog')).getByText('Brakuje 763 kcal')).toBeTruthy()
+  })
+
+  it('keeps calories close to the goal green while showing what is left or exceeded', () => {
+    const { unmount } = render(<DaySummary consumed={{ ...consumed, kcal: 2170 }} targets={targets} dayLabel="Niedziela, 18.10" interactive />)
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))
+    expect(within(screen.getByRole('dialog')).getByText('Brakuje 30 kcal')).toBeTruthy()
+    expect(screen.getByTestId('kcal-compact-value').className).toContain('text-primary')
+    unmount()
+
+    render(<DaySummary consumed={{ ...consumed, kcal: 2220 }} targets={targets} dayLabel="Niedziela, 18.10" interactive />)
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))
+    const overLabel = within(screen.getByRole('dialog')).getByText('Za dużo o 20 kcal')
+    expect(overLabel.className).not.toContain('text-error')
+    expect(screen.getByTestId('kcal-compact-value').className).toContain('text-primary')
+  })
+
   it('closes the details with the close button', () => {
     renderSummary()
     fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))

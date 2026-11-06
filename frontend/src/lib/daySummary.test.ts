@@ -43,10 +43,35 @@ describe('buildDaySummary', () => {
   it('measures what is missing to the target range or how much it was exceeded', () => {
     const [kcal, protein, fat, carbs] = buildDaySummary({ kcal: 1240, protein: 100, fat: 80, carbs: 250 }, targets)
 
-    expect(kcal.distance).toBe(740)
+    expect(kcal.distance).toBe(960)
     expect(protein.distance).toBe(35)
     expect(fat.distance).toBe(3)
     expect(carbs.distance).toBe(0)
+  })
+
+  it('counts missing calories exactly to the goal', () => {
+    const [kcal] = buildDaySummary({ ...nothing, kcal: 2243 }, { ...targets, target_kcal: 3006 })
+
+    expect(kcal).toMatchObject({ status: 'under', distance: 763, exceeded: false })
+  })
+
+  it('treats calories within 2 percent of the goal as on target but still shows the exact difference', () => {
+    const [below] = buildDaySummary({ ...nothing, kcal: 2156 }, targets)
+    const [above] = buildDaySummary({ ...nothing, kcal: 2244 }, targets)
+    const [exact] = buildDaySummary({ ...nothing, kcal: 2200 }, targets)
+
+    expect(below).toMatchObject({ status: 'ok', distance: 44, exceeded: false, overflowPercent: 0 })
+    expect(above).toMatchObject({ status: 'ok', distance: 44, exceeded: true, fillPercent: 100, overflowPercent: 0 })
+    expect(exact).toMatchObject({ status: 'ok', distance: 0, exceeded: false })
+  })
+
+  it('marks calories outside the 2 percent band as under or over the goal', () => {
+    const [under] = buildDaySummary({ ...nothing, kcal: 2155 }, targets)
+    const [over] = buildDaySummary({ ...nothing, kcal: 2245 }, targets)
+
+    expect(under).toMatchObject({ status: 'under', distance: 45 })
+    expect(over).toMatchObject({ status: 'over', distance: 45, exceeded: true })
+    expect(over.overflowPercent).toBeGreaterThan(0)
   })
 
   it('fills the bar up to the upper limit and shows the excess as overflow', () => {
