@@ -186,6 +186,23 @@ describe('ProductDetails kitchen measures', () => {
     expect(amount.value).toBe('3');
     expect(amount.closest('[data-amount-row]')?.className).toContain('bg-primary/5');
     expect((screen.getByRole('button', { name: 'Zaktualizuj' }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.focus(screen.getByLabelText(t('amount.grams')));
+    expect(kind.value).toBe('pinch');
+    fireEvent.focus(kind);
+    expect(amount.closest('[data-amount-row]')?.className).toContain('bg-primary/5');
+    expect(screen.getByText(t('product.nutritionFor', { amount: '3 szczypty (1.5 ml)' }))).toBeTruthy();
+  });
+
+  it('keeps the amount within the limit of the newly chosen kitchen measure', async () => {
+    mocks.getProduct.mockResolvedValue(withGenericMeasures(withMeasures({ ...SKYR, unit: '100ml' })));
+    renderDetails();
+
+    fireEvent.change(await screen.findByLabelText(t('amount.countOf', { name: 'łyżki' })), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText(t('amount.kitchenMeasure')), { target: { value: 'cup' } });
+
+    expect(screen.getByLabelText(t('amount.countOf', { name: 'szklanki' }))).toHaveProperty('value', '50');
+    expect((screen.getByRole('button', { name: 'Dodaj' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('offers no kitchen measures for products counted in pieces', async () => {

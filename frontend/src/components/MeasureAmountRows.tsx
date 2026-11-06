@@ -32,14 +32,17 @@ interface GenericMeasureRowProps extends MeasureAmountRowsProps {
 
 function GenericMeasureRow({ product, measures, values, activeCode, onActivate, onChange }: GenericMeasureRowProps) {
   const [chosenCode, setChosenCode] = useState(measures[0].code);
-  const measure = measures.find(item => item.code === activeCode) ?? measures.find(item => item.code === chosenCode) ?? measures[0];
+  const activeMeasure = measures.find(item => item.code === activeCode);
+  if (activeMeasure && activeMeasure.code !== chosenCode) setChosenCode(activeMeasure.code);
+  const measure = activeMeasure ?? measures.find(item => item.code === chosenCode) ?? measures[0];
   const value = values[measure.code] ?? '';
   const amount = Number(value) || 0;
 
   const choose = (code: string) => {
-    setChosenCode(code);
-    onChange(code, value);
-    onActivate(code);
+    const next = measures.find(item => item.code === code) ?? measure;
+    setChosenCode(next.code);
+    onChange(next.code, value === '' ? '' : Math.min(Number(value), next.max_amount));
+    onActivate(next.code);
   };
 
   return (
