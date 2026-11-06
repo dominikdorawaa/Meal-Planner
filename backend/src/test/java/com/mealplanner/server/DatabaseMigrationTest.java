@@ -341,6 +341,21 @@ class DatabaseMigrationTest {
     }
 
     @Test
+    void choosesGenericKitchenMeasuresOfBasicProducts() {
+        String query = "select array_to_string(kitchen_measures, ',') from products where source = 'BASIC' and name = ?";
+        assertThat(jdbcTemplate.queryForObject(query, String.class, "Sól")).isEqualTo("tbsp,tsp,pinch");
+        assertThat(jdbcTemplate.queryForObject(query, String.class, "Masło")).isEqualTo("tbsp,tsp");
+        assertThat(jdbcTemplate.queryForObject(query, String.class, "Mleko 3,2%")).isEqualTo("tbsp,tsp,cup");
+        assertThat(jdbcTemplate.queryForObject(query, String.class, "Batat")).isEmpty();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from products where source = 'BASIC' "
+                + "and kitchen_measures is null", Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForList("select code from measure_kinds where generic_by_default order by sort_order",
+                String.class)).containsExactly("tbsp", "tsp", "cup");
+        assertThat(jdbcTemplate.queryForList("select code from measure_kinds where generic_base_amount is not null "
+                + "order by sort_order", String.class)).containsExactly("tbsp", "tsp", "pinch", "cup");
+    }
+
+    @Test
     void addsKitchenMeasureKindsAndMovesBreadSlicesToTheirOwnKind() {
         String schema = "kitchen_measures_" + UUID.randomUUID().toString().replace("-", "");
         Flyway.configure().dataSource(dataSource).schemas(schema).target("15").load().migrate();

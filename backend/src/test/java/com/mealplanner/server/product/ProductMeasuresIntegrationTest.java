@@ -233,15 +233,46 @@ class ProductMeasuresIntegrationTest {
                 + "{\"code\":\"tsp\",\"base_amount\":4}]")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.measures[*].code", contains("ml", "cup", "tsp")))
-                .andExpect(jsonPath("$.generic_measures[*].code", contains("tbsp", "pinch")))
-                .andExpect(jsonPath("$.generic_measures[*].base_amount", contains(15.0, 0.5)))
-                .andExpect(jsonPath("$.generic_measures[*].default", contains(false, false)))
-                .andExpect(jsonPath("$.generic_measures[*].max_amount", contains(100.0, 100.0)))
+                .andExpect(jsonPath("$.generic_measures[*].code", contains("tbsp")))
+                .andExpect(jsonPath("$.generic_measures[*].base_amount", contains(15.0)))
+                .andExpect(jsonPath("$.generic_measures[*].default", contains(false)))
+                .andExpect(jsonPath("$.generic_measures[*].max_amount", contains(100.0)))
                 .andExpect(jsonPath("$.generic_measures[0].names.pl.few").value("łyżki"));
         create(saveUser(UserRole.USER), "100g", null)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.generic_measures[*].code", contains("tbsp", "tsp", "pinch", "cup")))
-                .andExpect(jsonPath("$.generic_measures[*].base_amount", contains(15.0, 5.0, 0.5, 250.0)));
+                .andExpect(jsonPath("$.generic_measures[*].code", contains("tbsp", "tsp", "cup")))
+                .andExpect(jsonPath("$.generic_measures[*].base_amount", contains(15.0, 5.0, 250.0)));
+    }
+
+    private Product basicProduct(List<String> kitchenMeasures) {
+        Product product = new Product();
+        product.setName("Basic " + UUID.randomUUID());
+        product.setKcal(100.0);
+        product.setProtein(1.0);
+        product.setFat(1.0);
+        product.setCarbs(1.0);
+        product.setUnit("100g");
+        product.setStatus(ProductStatus.VERIFIED);
+        product.setSource(ProductSource.BASIC);
+        product.setKitchenMeasures(kitchenMeasures);
+        return productRepository.save(product);
+    }
+
+    @Test
+    void offersOnlyTheKitchenMeasuresChosenForTheProduct() throws Exception {
+        User user = saveUser(UserRole.USER);
+        UUID spice = basicProduct(List.of("tsp", "pinch")).getId();
+        UUID potato = basicProduct(List.of()).getId();
+
+        perform(user, get("/api/products/" + spice))
+                .andExpect(jsonPath("$.generic_measures[*].code", contains("tsp", "pinch")))
+                .andExpect(jsonPath("$.kitchen_measures").doesNotExist());
+        perform(user, get("/api/products/" + potato))
+                .andExpect(jsonPath("$.generic_measures").isEmpty());
+        perform(user, post("/api/products/" + spice + "/own-version"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.generic_measures[*].code", contains("tsp", "pinch")));
+        assertThat(productRepository.findById(potato).orElseThrow().nutritionFactor("tbsp", 1)).isNull();
     }
 
     @Test
@@ -270,6 +301,7 @@ class ProductMeasuresIntegrationTest {
 
         assertThat(milk.nutritionFactor("tbsp", 2)).isEqualTo(0.3);
         assertThat(milk.nutritionFactor("cup", 1)).isEqualTo(2.5);
+        assertThat(milk.nutritionFactor("pinch", 1)).isNull();
         assertThat(egg.nutritionFactor("tbsp", 2)).isNull();
     }
 

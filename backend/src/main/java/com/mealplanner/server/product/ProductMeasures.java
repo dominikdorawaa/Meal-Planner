@@ -62,12 +62,13 @@ public final class ProductMeasures {
         return measures;
     }
 
-    static List<Measure> generic(String unit, List<ProductMeasure> stored) {
+    static List<Measure> generic(String unit, List<ProductMeasure> stored, List<String> allowed) {
         if (perPiece(unit)) {
             return List.of();
         }
         Set<String> storedCodes = stored.stream().map(measure -> measure.getKind().getCode()).collect(Collectors.toSet());
         return genericKinds.stream()
+                .filter(kind -> allowed == null ? kind.isGenericByDefault() : allowed.contains(kind.getCode()))
                 .filter(kind -> !storedCodes.contains(kind.getCode()))
                 .map(kind -> new Measure(kind.getCode(), kind.getGenericBaseAmount(), false, kind.getNames(),
                         kind.getMaxAmount()))

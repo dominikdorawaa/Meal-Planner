@@ -35,4 +35,7 @@ public class MeasureKind {
 
     @Column(name = "generic_base_amount")
     private Double genericBaseAmount;
+
+    @Column(name = "generic_by_default", nullable = false)
+    private boolean genericByDefault;
 }

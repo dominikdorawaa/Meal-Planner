@@ -11,6 +11,8 @@ import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -71,6 +73,11 @@ public class Product {
     private OffsetDateTime deletedAt;
 
     @JsonIgnore
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "kitchen_measures")
+    private List<String> kitchenMeasures;
+
+    @JsonIgnore
     @Column(name = "search_text", nullable = false)
     private String searchText = "";
 
@@ -123,7 +130,7 @@ public class Product {
 
     @JsonProperty(value = "generic_measures", access = JsonProperty.Access.READ_ONLY)
     public List<Measure> getGenericMeasures() {
-        return ProductMeasures.generic(unit, storedMeasures);
+        return ProductMeasures.generic(unit, storedMeasures, kitchenMeasures);
     }
 
     public Double nutritionFactor(String measureCode, double amount) {
