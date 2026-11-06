@@ -486,7 +486,7 @@ describe('AddRecipe leaving', () => {
   it('asks after a step was written and keeps the recipe when the dialog is dismissed', () => {
     renderAddRecipe();
     fireEvent.click(screen.getByRole('button', { name: /Dodaj krok/ }));
-    fireEvent.change(screen.getByPlaceholderText('Krok 1...'), { target: { value: 'Wymieszaj' } });
+    fireEvent.change(screen.getByLabelText(t('recipeForm.stepText', { number: 1 })), { target: { value: 'Wymieszaj' } });
 
     fireEvent.click(screen.getByRole('button', { name: t('recipe.close') }));
     fireEvent.click(screen.getByRole('alertdialog').parentElement!);
@@ -662,10 +662,10 @@ describe('AddRecipe portions and errors', () => {
   it('removes a step after confirming', () => {
     renderAddRecipe();
     fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeForm.addStep')) }));
-    fireEvent.change(screen.getByLabelText(t('recipeForm.step', { number: 1 })), { target: { value: 'Wymieszaj' } });
+    fireEvent.change(screen.getByLabelText(t('recipeForm.stepText', { number: 1 })), { target: { value: 'Wymieszaj' } });
 
     fireEvent.click(screen.getByRole('button', { name: t('recipeForm.removeStep', { number: 1 }) }));
-    const sheet = within(screen.getByRole('alertdialog', { name: `${t('recipeForm.removeStepTitle')} ${t('recipeForm.removeStepName', { number: 1 })}` }));
+    const sheet = within(screen.getByRole('alertdialog', { name: `${t('recipeForm.removeStepTitle')} ${t('recipeForm.step', { number: 1 })}` }));
     expect(sheet.getByText('Wymieszaj')).toBeTruthy();
     expect(sheet.getByText(t('recipeForm.removeStepText'))).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: t('common.cancel') }));
@@ -674,6 +674,56 @@ describe('AddRecipe portions and errors', () => {
     fireEvent.click(screen.getByRole('button', { name: t('recipeForm.removeStep', { number: 1 }) }));
     fireEvent.click(screen.getByRole('button', { name: t('recipeForm.removeStepConfirm') }));
     expect(screen.queryByDisplayValue('Wymieszaj')).toBeNull();
+  });
+});
+
+describe('AddRecipe steps', () => {
+  it('loads named and plain text steps and saves them with names in order', async () => {
+    mocks.getRecipe.mockResolvedValue({
+      id: 'r1', name: 'Makaron', kcal: 500, protein: 20, fat: 10, carbs: 80, portions: 1, ingredients: [],
+      instructions: [{ name: 'Sos', text: 'Podsmaż czosnek' }, 'Ugotuj makaron', { name: null, text: '' }],
+    });
+    renderAddRecipe('/edit-recipe/r1');
+
+    expect(await screen.findByDisplayValue('Sos')).toBeTruthy();
+    expect(screen.getByDisplayValue('Ugotuj makaron')).toBeTruthy();
+    const secondName = screen.getByLabelText(t('recipeForm.stepName', { number: 2 })) as HTMLInputElement;
+    expect(secondName.placeholder).toBe(t('recipeForm.step', { number: 2 }));
+    expect(secondName.maxLength).toBe(60);
+    fireEvent.change(secondName, { target: { value: '  Makaron ' } });
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeForm.addStep')) }));
+    fireEvent.change(screen.getByLabelText(t('recipeForm.stepName', { number: 4 })), { target: { value: 'Podanie' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz' }));
+
+    await screen.findByText('recipes screen');
+    expect(mocks.updateRecipe).toHaveBeenCalledWith('r1', expect.objectContaining({
+      instructions: [
+        { name: 'Sos', text: 'Podsmaż czosnek' },
+        { name: 'Makaron', text: 'Ugotuj makaron' },
+        { name: 'Podanie', text: '' },
+      ],
+    }));
+  });
+
+  it('names the step in the removal question', () => {
+    renderAddRecipe();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeForm.addStep')) }));
+    fireEvent.change(screen.getByLabelText(t('recipeForm.stepName', { number: 1 })), { target: { value: 'Sos' } });
+
+    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.removeStep', { number: 1 }) }));
+
+    expect(screen.getByRole('alertdialog', { name: `${t('recipeForm.removeStepTitle')} Sos` })).toBeTruthy();
+  });
+
+  it('treats a changed step name as an unsaved change', () => {
+    renderAddRecipe();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipeForm.addStep')) }));
+    fireEvent.change(screen.getByLabelText(t('recipeForm.stepName', { number: 1 })), { target: { value: 'Sos' } });
+
+    fireEvent.click(screen.getByRole('button', { name: t('recipe.close') }));
+
+    expect(screen.getByRole('alertdialog')).toBeTruthy();
   });
 });
 

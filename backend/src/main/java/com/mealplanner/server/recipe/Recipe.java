@@ -43,7 +43,7 @@ public class Recipe {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "instructions")
-    private List<String> instructions;
+    private List<RecipeStep> instructions;
 
     @Column(name = "is_archived", nullable = false)
     private Boolean isArchived = false;
