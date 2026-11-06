@@ -10,7 +10,7 @@ import { formatCompactNumber } from '../lib/compactNumber';
 import { DaySummary } from '../components/DaySummary';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { mealTypeName, profileMealTypes } from '../lib/mealTypes';
-import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, formatRelativeDayLabel, formatRelativeDayWithDate, parseIsoDate, planDays, toIsoDate, todayIsoDate } from '../lib/planDates';
+import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, formatLocalizedDayWithDate, formatRelativeDayLabel, parseIsoDate, planDays, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { forgetPlanReturnPosition, readPlanReturnPosition, rememberPlanReturnPosition } from '../lib/planPosition';
 import { PlanConflictDialog } from '../components/PlanConflictDialog';
 import { PlanDayDeleteSheet } from '../components/PlanDayDeleteSheet';
@@ -795,7 +795,7 @@ export function Plan() {
 
       {dayToDelete && (
         <PlanDayDeleteSheet
-          dayLabel={formatRelativeDayWithDate(dayToDelete)}
+          dayLabel={formatLocalizedDayWithDate(dayToDelete, t('recipeDetails.locale'), { yesterday: t('planTarget.yesterday'), today: t('planTarget.today'), tomorrow: t('planTarget.tomorrow') })}
           items={dayDeleteItems(dayToDelete)}
           onConfirm={ids => handleDeleteDay(dayToDelete, ids)}
           onCancel={() => setDayToDelete(null)}

@@ -54,12 +54,6 @@ export const formatRelativeDayLabel = (isoDate: string, today: Date = new Date()
   return formatDayWithMonthName(DAY_NAMES[date.getDay()], isoDate);
 };
 
-export const formatRelativeDayWithDate = (isoDate: string, today: Date = new Date()) => {
-  const label = formatRelativeDayLabel(isoDate, today);
-  const date = parseIsoDate(isoDate);
-  return date && Math.abs(daysFromToday(date, today)) <= 1 ? formatDayWithMonthName(label, isoDate) : label;
-};
-
 export interface RelativeDayNames {
   yesterday: string;
   today: string;
@@ -73,6 +67,13 @@ export const formatLocalizedDayLabel = (isoDate: string, locale: string, names: 
   if (relative) return relative;
   const label = date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
   return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
+export const formatLocalizedDayWithDate = (isoDate: string, locale: string, names: RelativeDayNames, today: Date = new Date()) => {
+  const label = formatLocalizedDayLabel(isoDate, locale, names, today);
+  const date = parseIsoDate(isoDate);
+  if (!date || Math.abs(daysFromToday(date, today)) > 1) return label;
+  return `${label}, ${date.toLocaleDateString(locale, { day: 'numeric', month: 'long' })}`;
 };
 
 export const firstDayOfMonth = (isoDate: string | null | undefined) => {

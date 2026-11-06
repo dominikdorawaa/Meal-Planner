@@ -12,11 +12,12 @@ interface PlanDayDeleteSheetProps {
 }
 
 export function PlanDayDeleteSheet({ dayLabel, items, onConfirm, onCancel }: PlanDayDeleteSheetProps) {
-  const [selected, setSelected] = useState(() => new Set(items.map(item => item.id)));
-  const count = selected.size;
+  const [unchecked, setUnchecked] = useState<Set<string>>(() => new Set());
+  const selectedItems = items.filter(item => !unchecked.has(item.id));
+  const count = selectedItems.length;
 
   const toggle = (id: string) => {
-    setSelected(previous => {
+    setUnchecked(previous => {
       const next = new Set(previous);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -31,12 +32,12 @@ export function PlanDayDeleteSheet({ dayLabel, items, onConfirm, onCancel }: Pla
       description={t('plan.deleteDay.description')}
       confirmLabel={count === 0 ? t('plan.deleteDay.confirm') : t(`plan.deleteDay.${pluralForm(count)}`, { count })}
       confirmDisabled={count === 0}
-      onConfirm={() => onConfirm(items.filter(item => selected.has(item.id)).map(item => item.id))}
+      onConfirm={() => onConfirm(selectedItems.map(item => item.id))}
       onCancel={onCancel}
     >
       <ul className="flex flex-col -mx-2">
         {items.map(item => {
-          const checked = selected.has(item.id);
+          const checked = !unchecked.has(item.id);
           return (
             <li key={item.id}>
               <label className="flex items-center gap-4 px-2 py-3 rounded-2xl cursor-pointer active:bg-surface-container-low transition-colors">

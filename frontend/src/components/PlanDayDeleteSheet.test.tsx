@@ -67,4 +67,18 @@ describe('PlanDayDeleteSheet', () => {
 
     expect(screen.getByRole('button', { name: 'Usuń 1 pozycję' })).toBeTruthy();
   });
+
+  it('keeps the count and choices in step with items that change while open', () => {
+    const handlers = { onConfirm: vi.fn(), onCancel: vi.fn() };
+    const { rerender } = render(<PlanDayDeleteSheet dayLabel="Dziś" items={items} {...handlers} />);
+
+    fireEvent.click(checkboxes()[1]);
+    rerender(<PlanDayDeleteSheet dayLabel="Dziś" items={[items[1], items[2]]} {...handlers} />);
+    expect(checkboxes().map(box => box.checked)).toEqual([false, true]);
+    fireEvent.click(screen.getByRole('button', { name: 'Usuń 1 pozycję' }));
+    expect(handlers.onConfirm).toHaveBeenCalledWith(['meal-3']);
+
+    rerender(<PlanDayDeleteSheet dayLabel="Dziś" items={[items[1]]} {...handlers} />);
+    expect((screen.getByRole('button', { name: 'Usuń' }) as HTMLButtonElement).disabled).toBe(true);
+  });
 });
