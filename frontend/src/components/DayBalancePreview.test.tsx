@@ -51,7 +51,7 @@ describe('DayBalancePreview', () => {
 
     expect(screen.getByText(t('dayBalance.beforeTitle'))).toBeTruthy()
     expect(screen.getByText('1500')).toBeTruthy()
-    expect(screen.getByText(t('plan.summary.missing', { amount: '300 kcal' }))).toBeTruthy()
+    expect(screen.getByText(t('plan.summary.missing', { amount: '500 kcal' }))).toBeTruthy()
   })
 
   it('names the balances after a change when editing a plan item', () => {

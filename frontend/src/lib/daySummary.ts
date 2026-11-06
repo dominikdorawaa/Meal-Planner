@@ -25,11 +25,13 @@ export type SummaryMetric = {
   target: string;
   status: SummaryStatus;
   distance: number;
+  exceeded: boolean;
   fillPercent: number;
   overflowPercent: number;
 };
 
 const MACRO_KEYS = ['protein', 'fat', 'carbs'] as const;
+const KCAL_TOLERANCE = 0.02;
 
 function metric(key: SummaryMetricKey, consumed: number, min: number, max: number, target: string): SummaryMetric {
   const percent = max > 0 ? (consumed / max) * 100 : 0;
@@ -37,13 +39,31 @@ function metric(key: SummaryMetricKey, consumed: number, min: number, max: numbe
   const gap = status === 'over' ? consumed - max : min - consumed;
   return {
     key,
-    unit: key === 'kcal' ? 'kcal' : 'g',
+    unit: 'g',
     value: Math.round(consumed),
     target,
     status,
     distance: status === 'ok' ? 0 : Math.max(1, Math.round(gap)),
+    exceeded: status === 'over',
     fillPercent: Math.min(100, percent),
     overflowPercent: Math.max(0, Math.min(100, percent - 100)),
+  };
+}
+
+function kcalMetric(consumed: number, goal: number): SummaryMetric {
+  const percent = goal > 0 ? (consumed / goal) * 100 : 0;
+  const status: SummaryStatus = consumed > goal * (1 + KCAL_TOLERANCE) ? 'over' : consumed >= goal * (1 - KCAL_TOLERANCE) ? 'ok' : 'under';
+  const distance = Math.round(Math.abs(consumed - goal));
+  return {
+    key: 'kcal',
+    unit: 'kcal',
+    value: Math.round(consumed),
+    target: String(goal),
+    status,
+    distance: status === 'ok' ? distance : Math.max(1, distance),
+    exceeded: consumed > goal,
+    fillPercent: Math.min(100, percent),
+    overflowPercent: status === 'over' ? Math.max(0, Math.min(100, percent - 100)) : 0,
   };
 }
 
@@ -55,7 +75,7 @@ export function buildDaySummary(consumed: DayConsumed, targets: SummaryTargets):
     const max = Number(targets[`target_${key}_max`]) || target * 1.1;
     return metric(key, consumed[key], min, max, targetRange(target, targets[`target_${key}_min`], targets[`target_${key}_max`]));
   });
-  return [metric('kcal', consumed.kcal, kcalTarget * 0.9, kcalTarget, String(kcalTarget)), ...macros];
+  return [kcalMetric(consumed.kcal, kcalTarget), ...macros];
 }
 
 export function addConsumed(day: DayConsumed, item: DayConsumed): DayConsumed {

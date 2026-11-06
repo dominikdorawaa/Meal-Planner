@@ -87,9 +87,8 @@ function CompactSummary({ metrics }: { metrics: SummaryMetric[] }) {
 
 function statusLabel(metric: SummaryMetric) {
   const amount = `${formatCompactNumber(metric.distance)} ${metric.unit}`;
-  if (metric.status === 'over') return t('plan.summary.over', { amount });
-  if (metric.status === 'under') return t('plan.summary.missing', { amount });
-  return t('plan.summary.onTarget');
+  if (metric.distance === 0) return t('plan.summary.onTarget');
+  return t(metric.exceeded ? 'plan.summary.over' : 'plan.summary.missing', { amount });
 }
 
 export function SummaryMetricRow({ metric }: { metric: SummaryMetric }) {
