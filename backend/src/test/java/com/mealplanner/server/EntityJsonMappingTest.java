@@ -1,6 +1,7 @@
 package com.mealplanner.server;
 
 import com.mealplanner.server.recipe.Recipe;
+import com.mealplanner.server.recipe.RecipeStep;
 import com.mealplanner.server.shoppinglist.ShoppingListItem;
 import com.mealplanner.server.user.UserProfile;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,16 @@ class EntityJsonMappingTest {
         assertThat(recipe.getPortions()).isEqualTo(1.0);
         assertThat(recipe.getPrepTime()).isEqualTo(0);
         assertThat(recipe.getIsArchived()).isFalse();
+    }
+
+    @Test
+    void readsRecipeStepsAsObjectsOrPlainText() {
+        Recipe recipe = objectMapper.readValue(
+                "{\"instructions\":[{\"name\":\" Sauce \",\"text\":\"Fry\"},\"Boil\",{\"name\":\" \"}]}",
+                Recipe.class);
+
+        assertThat(recipe.getInstructions()).containsExactly(
+                new RecipeStep("Sauce", "Fry"), new RecipeStep(null, "Boil"), new RecipeStep(null, ""));
     }
 
     @Test

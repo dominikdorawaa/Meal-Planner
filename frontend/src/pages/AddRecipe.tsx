@@ -21,13 +21,11 @@ import { t } from '../i18n';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { RecipePhotoSheet } from '../components/RecipePhotoSheet';
 import { ConfirmSheet } from '../components/ConfirmSheet';
+import { RecipeStepsEditor } from '../components/RecipeStepsEditor';
+import { newStepDraft, readRecipeSteps, stepTitle, stepsToSave, type RecipeStepDraft } from '../lib/recipeSteps';
 import { resizeRecipePhoto } from '../lib/recipePhoto';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { AMOUNT_LIMITS, RECIPE_LIMITS, acceptsLimitedNumber, isPositiveWithinLimit, numberFieldProps } from '../lib/inputLimits';
-
-interface InstructionStep {
-  text: string;
-}
 
 interface AmountTarget {
   product: Product;
@@ -40,7 +38,7 @@ interface RecipeDraft {
   portions: string;
   imageUrl: string;
   ingredients: IngredientDraft[];
-  instructions: InstructionStep[];
+  instructions: RecipeStepDraft[];
 }
 
 function draftSnapshot(draft: RecipeDraft): string {
@@ -50,7 +48,7 @@ function draftSnapshot(draft: RecipeDraft): string {
     draft.portions,
     draft.imageUrl,
     draft.ingredients.map(({ name, amount, unit, product }) => [name, amount, unit, product?.id ?? null]),
-    draft.instructions.map(step => step.text),
+    draft.instructions.map(step => [step.name, step.text]),
   ]);
 }
 
@@ -70,7 +68,7 @@ export default function AddRecipe() {
   const [baseMacros, setBaseMacros] = useState({ kcal: 0, p: 0, f: 0, c: 0 });
 
   const [ingredients, setIngredients] = useState<IngredientDraft[]>([]);
-  const [instructions, setInstructions] = useState<InstructionStep[]>([]);
+  const [instructions, setInstructions] = useState<RecipeStepDraft[]>([]);
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(() => (isEditMode ? null : draftSnapshot(EMPTY_DRAFT)));
 
   const [isSaving, setIsSaving] = useState(false);
@@ -117,7 +115,7 @@ export default function AddRecipe() {
           prepTime: recipe.prep_time ? recipe.prep_time.toString() : '',
           portions: recipe.portions ? recipe.portions.toString() : '1',
           imageUrl: recipe.image_url || '',
-          instructions: Array.isArray(recipe.instructions) ? recipe.instructions.map((step: string) => ({ text: step })) : [],
+          instructions: readRecipeSteps(recipe.instructions).map(step => newStepDraft(step)),
           ingredients: (recipe.ingredients ?? []).map((ingredient: IngredientDraft) => ({
             id: ingredient.id,
             name: ingredient.name,
@@ -232,7 +230,7 @@ export default function AddRecipe() {
         image_url: imageUrl.trim() || null,
         prep_time: parseInt(prepTime) || 0,
         portions: portionCount,
-        instructions: instructions.map(i => i.text),
+        instructions: stepsToSave(instructions),
         ingredients: ingredients.map(ing => ({
           name: ing.name,
           amount: ing.amount,
@@ -256,11 +254,7 @@ export default function AddRecipe() {
   };
 
   const handleAddStep = () => {
-    setInstructions([...instructions, { text: '' }]);
-  };
-
-  const handleUpdateStep = (index: number, text: string) => {
-    setInstructions(instructions.map((step, i) => (i === index ? { text } : step)));
+    setInstructions([...instructions, newStepDraft()]);
   };
 
   const handleDeleteStepConfirm = (index: number) => {
@@ -452,33 +446,7 @@ export default function AddRecipe() {
             {t('recipeForm.steps')}
           </h2>
 
-          <div className="flex flex-col gap-4">
-            {instructions.map((step, idx) => (
-              <div key={idx} className="flex gap-3 items-start group relative">
-                <div className="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface-variant font-black text-xs flex items-center justify-center shrink-0 mt-1">
-                  {idx + 1}
-                </div>
-                <div className="flex-1 relative">
-                  <textarea
-                    autoComplete="off"
-                    value={step.text}
-                    onChange={(e) => handleUpdateStep(idx, e.target.value)}
-                    placeholder={t('recipeForm.stepPlaceholder', { number: idx + 1 })}
-                    aria-label={t('recipeForm.step', { number: idx + 1 })}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-4 pr-12 min-h-[100px] outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-medium text-sm transition-shadow resize-y"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setStepToDelete(idx)}
-                    aria-label={t('recipeForm.removeStep', { number: idx + 1 })}
-                    className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant/50 hover:text-error hover:bg-error/10 transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <RecipeStepsEditor steps={instructions} onChange={setInstructions} onRemove={setStepToDelete} />
 
           <button
             type="button"
@@ -539,7 +507,7 @@ export default function AddRecipe() {
       {stepToDelete !== null && (
         <ConfirmSheet
           question={t('recipeForm.removeStepTitle')}
-          title={t('recipeForm.removeStepName', { number: stepToDelete + 1 })}
+          title={stepTitle(instructions[stepToDelete] ?? { name: null }, stepToDelete)}
           detail={instructions[stepToDelete]?.text.trim() || undefined}
           description={t('recipeForm.removeStepText')}
           confirmLabel={t('recipeForm.removeStepConfirm')}
