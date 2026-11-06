@@ -25,7 +25,7 @@ function ScannerLoadFailed({ onClose, onRetry }: Omit<ScannerLoadBoundaryProps, 
     >
       <div
         ref={sheetRef}
-        className="bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 w-full max-w-xl mx-auto flex flex-col gap-4"
+        className="bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 w-full sm:max-w-xl mx-auto flex flex-col gap-4"
         onClick={event => event.stopPropagation()}
       >
         <p className="text-sm font-medium text-on-surface">{t('scanner.loadFailed')}</p>

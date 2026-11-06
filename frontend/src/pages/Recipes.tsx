@@ -275,7 +275,7 @@ export function Recipes() {
         >
           <div
             ref={filtersSheetRef}
-            className="w-full max-w-xl bg-surface rounded-t-[32px] animate-slide-up shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
+            className="w-full sm:max-w-xl bg-surface rounded-t-[32px] animate-slide-up shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             <div className="overflow-y-auto flex-1 min-h-0 px-6 pt-6 pb-2">

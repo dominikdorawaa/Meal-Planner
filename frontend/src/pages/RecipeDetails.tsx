@@ -647,7 +647,7 @@ export function RecipeDetails() {
 
       {showAddToPlan && (
         <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowAddToPlan(false)}>
-          <div ref={addToPlanSheetRef} className="w-full max-w-xl max-h-[92dvh] overflow-y-auto overscroll-contain bg-surface rounded-t-[32px] p-6 pb-8 animate-slide-up shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div ref={addToPlanSheetRef} className="w-full sm:max-w-xl max-h-[92dvh] overflow-y-auto overscroll-contain bg-surface rounded-t-[32px] p-6 pb-8 animate-slide-up shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
             <h2 className="font-headline font-bold text-xl text-on-surface mb-5">{t('recipeDetails.planSheetTitle')}</h2>
 
@@ -743,7 +743,7 @@ export function RecipeDetails() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="recipe-menu-title"
-            className="w-full max-w-md bg-surface rounded-t-3xl sm:rounded-3xl px-6 pt-4 pb-safe-6 flex flex-col gap-2 animate-slide-up sm:animate-fade-in relative shadow-ambient"
+            className="w-full sm:max-w-md bg-surface rounded-t-3xl sm:rounded-3xl px-6 pt-4 pb-safe-6 flex flex-col gap-2 animate-slide-up sm:animate-fade-in relative shadow-ambient"
             onClick={e => e.stopPropagation()}
           >
             <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-2 sm:hidden" />

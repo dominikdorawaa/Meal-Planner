@@ -30,7 +30,7 @@ export function RecipePhotoSheet({ hasPhoto, onPick, onRemove, onClose }: Recipe
         role="dialog"
         aria-modal="true"
         aria-labelledby="recipe-photo-title"
-        className="w-full max-w-xl bg-surface rounded-t-[32px] px-6 pt-4 pb-safe-6 animate-slide-up shadow-2xl flex flex-col gap-2"
+        className="w-full sm:max-w-xl bg-surface rounded-t-[32px] px-6 pt-4 pb-safe-6 animate-slide-up shadow-2xl flex flex-col gap-2"
         onClick={event => event.stopPropagation()}
       >
         <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-3" />

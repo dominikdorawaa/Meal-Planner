@@ -136,7 +136,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
 
   return (
     <div data-scroll-lock className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => onClose()}>
-      <div ref={sheetRef} className="bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[92vh] overflow-y-auto animate-slide-up w-full max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative" onClick={e => e.stopPropagation()}>
+      <div ref={sheetRef} className="bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[92vh] overflow-y-auto animate-slide-up w-full sm:max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative" onClick={e => e.stopPropagation()}>
         <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
 
         <div className="flex items-center justify-between mb-6">

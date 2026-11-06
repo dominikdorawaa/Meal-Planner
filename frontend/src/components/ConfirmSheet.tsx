@@ -69,7 +69,7 @@ export function ConfirmSheet({
         aria-labelledby={question ? `${questionId} ${titleId}` : titleId}
         aria-describedby={description ? descriptionId : undefined}
         tabIndex={-1}
-        className="w-full max-w-xl mx-auto bg-surface rounded-t-[32px] pt-4 max-h-[85dvh] flex flex-col animate-slide-up shadow-2xl outline-none"
+        className="w-full sm:max-w-xl mx-auto bg-surface rounded-t-[32px] pt-4 max-h-[85dvh] flex flex-col animate-slide-up shadow-2xl outline-none"
         onClick={event => event.stopPropagation()}
       >
         <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6 shrink-0" />
