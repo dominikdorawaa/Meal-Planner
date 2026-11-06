@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { formatCompactNumber } from '../lib/compactNumber';
-import { acceptsLimitedNumber, numberFieldProps } from '../lib/inputLimits';
-import { selectFieldValue } from '../lib/selectOnFocus';
+import { AMOUNT_DECIMALS, acceptsLimitedNumber, numberFieldProps } from '../lib/inputLimits';
 import { t } from '../i18n';
 
 interface AmountRowProps {
@@ -25,25 +24,21 @@ export function AmountRow({ label, max, unit, value, kcal, active, kcalTestId, o
       <button
         type="button"
         aria-pressed={active}
-        aria-label={t('amount.chooseMeasure', { label })}
+        aria-label={t('amount.chooseRow', { label })}
         onClick={onActivate}
         className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       />
-      <div className="relative flex items-center gap-2 pl-0.5 min-w-0 pointer-events-none">
+      <div className="relative flex items-center gap-2 pl-0.5 min-w-0 pointer-events-none [&_a]:pointer-events-auto [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_select]:pointer-events-auto">
         <input
-          {...numberFieldProps(max)}
+          {...numberFieldProps(max, AMOUNT_DECIMALS, onActivate)}
           aria-label={label}
           value={value}
-          onFocus={event => {
-            selectFieldValue(event);
-            onActivate();
-          }}
           onChange={event => {
             if (!acceptsLimitedNumber(event.target.value, max)) return;
             onActivate();
             onChange(event.target.value === '' ? '' : Number(event.target.value));
           }}
-          className={`pointer-events-auto w-[72px] border rounded-xl py-2 px-2 outline-none transition-all text-on-surface font-bold text-base text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm ${active ? 'bg-surface border-primary/50' : 'bg-surface-container-lowest border-outline-variant/20'}`}
+          className={`w-[72px] border rounded-xl py-2 px-2 outline-none transition-all text-on-surface font-bold text-base text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm ${active ? 'bg-surface border-primary/50' : 'bg-surface-container-lowest border-outline-variant/20'}`}
         />
         {typeof unit === 'string' ? <span className="font-bold text-on-surface-variant text-sm whitespace-nowrap truncate">{unit}</span> : unit}
       </div>

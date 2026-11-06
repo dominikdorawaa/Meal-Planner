@@ -323,7 +323,7 @@ describe('RecipeDetails loading', () => {
     renderDetails('/recipe/r1?selectDate=2026-10-17&selectType=breakfast&mealId=m1');
     await waitFor(() => expect(screen.getByTestId('portions-kcal').className).toContain('text-primary'));
 
-    fireEvent.click(screen.getByRole('button', { name: t('amount.chooseMeasure', { label: t('recipeDetails.gramsInput') }) }));
+    fireEvent.click(screen.getByRole('button', { name: t('amount.chooseRow', { label: t('recipeDetails.gramsInput') }) }));
     expect(screen.getByTestId('grams-kcal').className).toContain('text-primary');
     expect((screen.getByLabelText(t('recipeDetails.gramsInput')) as HTMLInputElement).value).toBe('100');
     fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.update') }));

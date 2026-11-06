@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   AMOUNT_LIMITS,
   NUTRITION_LIMITS,
@@ -94,5 +94,13 @@ describe('numberFieldProps', () => {
 
   it('uses the numeric keyboard for whole numbers', () => {
     expect(numberFieldProps(10000, 0)).toMatchObject({ inputMode: 'numeric', step: 1 });
+  });
+
+  it('selects the value before running the extra focus handler', () => {
+    const onFocus = vi.fn();
+    const select = vi.fn();
+    numberFieldProps(100, 0, onFocus).onFocus({ currentTarget: { select } } as never);
+    expect(select).toHaveBeenCalled();
+    expect(onFocus).toHaveBeenCalled();
   });
 });

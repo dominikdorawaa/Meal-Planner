@@ -166,7 +166,7 @@ describe('ProductDetails kitchen measures', () => {
     mocks.getProduct.mockResolvedValue(MILK);
     renderDetails();
 
-    const choose = await screen.findByRole('button', { name: t('amount.chooseMeasure', { label: t('amount.countOf', { name: 'łyżki' }) }) });
+    const choose = await screen.findByRole('button', { name: t('amount.chooseRow', { label: t('amount.countOf', { name: 'łyżki' }) }) });
     const row = choose.closest('[data-amount-row]') as HTMLElement;
     expect(choose.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(choose);

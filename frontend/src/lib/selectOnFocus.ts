@@ -10,6 +10,13 @@ export function selectFieldValue(event: FocusEvent<HTMLInputElement>) {
   }, 0);
 }
 
+export function selectValueThen(onFocus?: () => void) {
+  return (event: FocusEvent<HTMLInputElement>) => {
+    selectFieldValue(event);
+    onFocus?.();
+  };
+}
+
 function rememberPress(event: PointerEvent<HTMLInputElement>) {
   if (document.activeElement !== event.currentTarget) pressedToFocus.add(event.currentTarget);
 }

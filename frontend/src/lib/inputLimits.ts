@@ -1,4 +1,4 @@
-import { selectOnFocusProps } from './selectOnFocus';
+import { selectOnFocusProps, selectValueThen } from './selectOnFocus';
 
 export const AMOUNT_LIMITS = {
   g: 5000,
@@ -62,7 +62,7 @@ export function isPositiveWithinLimit(value: number | string | null | undefined,
   return Number.isFinite(parsed) && parsed > 0 && parsed <= max;
 }
 
-export function numberFieldProps(max: number, decimals = AMOUNT_DECIMALS) {
+export function numberFieldProps(max: number, decimals = AMOUNT_DECIMALS, onFocus?: () => void) {
   return {
     type: 'number',
     inputMode: decimals > 0 ? 'decimal' : 'numeric',
@@ -71,5 +71,6 @@ export function numberFieldProps(max: number, decimals = AMOUNT_DECIMALS) {
     max,
     step: decimals > 0 ? 10 ** -decimals : 1,
     ...selectOnFocusProps,
+    onFocus: selectValueThen(onFocus),
   } as const;
 }

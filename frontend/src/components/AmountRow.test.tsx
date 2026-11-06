@@ -17,7 +17,7 @@ describe('AmountRow', () => {
 
   it('chooses its measure with a tap anywhere on the row and leaves the amount alone', () => {
     const { onActivate, onChange } = renderRow();
-    const choose = screen.getByRole('button', { name: t('amount.chooseMeasure', { label: LABEL }) });
+    const choose = screen.getByRole('button', { name: t('amount.chooseRow', { label: LABEL }) });
 
     expect(choose.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(choose);
@@ -28,7 +28,7 @@ describe('AmountRow', () => {
   it('marks the chosen measure as pressed and highlights its kcal', () => {
     renderRow(true);
 
-    expect(screen.getByRole('button', { name: t('amount.chooseMeasure', { label: LABEL }) }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: t('amount.chooseRow', { label: LABEL }) }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByTestId('row-kcal').className).toContain('text-primary');
   });
 
