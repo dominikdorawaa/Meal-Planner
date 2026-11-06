@@ -36,7 +36,7 @@ describe('IngredientAmountScreen', () => {
     render(<IngredientAmountScreen product={flour} initial={{ amount: 3, unit: 'tbsp' }} submitLabel="Zapisz" onSubmit={onSubmit} onBack={() => {}} />);
 
     expect((screen.getByLabelText(t('amount.kitchenMeasure')) as HTMLSelectElement).value).toBe('tbsp');
-    expect(screen.getByText('(45 g)')).toBeTruthy();
+    expect(screen.getByText(t('product.nutritionFor', { amount: '3 łyżki (45 g)' }))).toBeTruthy();
     expect(screen.getByTestId('kcal-value').textContent).toBe('153');
     expect(screen.queryByText(/niedostępn/i)).toBeNull();
 

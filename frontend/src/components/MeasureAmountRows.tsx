@@ -5,7 +5,6 @@ import {
   measureLabel,
   measureRowLabel,
   measureRowUnit,
-  measureTotalLabel,
   productMeasures,
   type MeasureValues,
   type ProductMeasure,
@@ -50,20 +49,17 @@ function GenericMeasureRow({ product, measures, values, activeCode, onActivate, 
       label={measureRowLabel(product, measure)}
       max={measure.max_amount}
       unit={
-        <span className="flex items-center gap-1 min-w-0 text-sm font-bold text-on-surface-variant whitespace-nowrap">
-          <select
-            aria-label={t('amount.kitchenMeasure')}
-            value={measure.code}
-            onFocus={() => onActivate(measure.code)}
-            onChange={event => choose(event.target.value)}
-            className="min-w-0 bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2 px-1.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            {measures.map(item => (
-              <option key={item.code} value={item.code}>{measureLabel(item, amount)}</option>
-            ))}
-          </select>
-          <span className="truncate">({measureTotalLabel(product, measure, amount)})</span>
-        </span>
+        <select
+          aria-label={t('amount.kitchenMeasure')}
+          value={measure.code}
+          onFocus={() => onActivate(measure.code)}
+          onChange={event => choose(event.target.value)}
+          className="min-w-0 bg-surface-container-lowest border border-outline-variant/20 rounded-xl py-2 px-1.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary/20"
+        >
+          {measures.map(item => (
+            <option key={item.code} value={item.code}>{measureLabel(item, amount)}</option>
+          ))}
+        </select>
       }
       value={value}
       kcal={rowKcal(product, measure.code, amount)}

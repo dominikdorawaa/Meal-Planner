@@ -123,14 +123,11 @@ export function measureRowLabel(product: MeasuredProduct, measure: ProductMeasur
   return t('amount.countOf', { name: measureListName(measure.names) ?? fallbackLabel(measure.code) });
 }
 
-export function measureTotalLabel(product: MeasuredProduct, measure: ProductMeasure, amount: number): string {
-  const total = amount > 0 ? amount * measure.base_amount : measure.base_amount;
-  return `${formatCompactNumber(total, 1)} ${baseMeasureCode(product)}`;
-}
-
 export function measureRowUnit(product: MeasuredProduct, measure: ProductMeasure, amount: number): string {
   if (isBaseMeasure(product, measure.code)) return isPerPiece(product) ? t('units.szt') : measure.code;
-  return t('amount.measureOf', { name: measureLabel(measure, amount), amount: measureTotalLabel(product, measure, amount) });
+  const total = amount > 0 ? amount * measure.base_amount : measure.base_amount;
+  const base = `${formatCompactNumber(total, 1)} ${baseMeasureCode(product)}`;
+  return t('amount.measureOf', { name: measureLabel(measure, amount), amount: base });
 }
 
 export type MeasureValues = Record<string, number | ''>;

@@ -143,12 +143,11 @@ describe('ProductDetails kitchen measures', () => {
     const kind = await screen.findByLabelText(t('amount.kitchenMeasure')) as HTMLSelectElement;
     expect(Array.from(kind.options).map(option => option.textContent)).toEqual(['łyżka', 'łyżeczka', 'szczypta']);
     const row = kind.closest('[data-amount-row]') as HTMLElement;
-    expect(within(row).getByText('(15 ml)')).toBeTruthy();
+    expect(within(row).queryByText(/ml/)).toBeNull();
     expect(within(row).getByText('9')).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText(t('amount.countOf', { name: 'łyżki' })), { target: { value: '2' } });
     expect(row.className).toContain('bg-primary/5');
-    expect(within(row).getByText('(30 ml)')).toBeTruthy();
     expect(screen.getByTestId('kcal-value').textContent).toBe('18');
     expect(screen.getByText(t('product.nutritionFor', { amount: '2 łyżki (30 ml)' }))).toBeTruthy();
 

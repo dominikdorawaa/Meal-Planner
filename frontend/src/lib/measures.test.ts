@@ -10,7 +10,6 @@ import {
   measureName,
   measureRowLabel,
   measureRowUnit,
-  measureTotalLabel,
   productMeasures,
   shoppingUnit,
   unitLabel,
@@ -136,8 +135,6 @@ describe('genericMeasures', () => {
     expect(measureBaseAmount(genericMilk, 'tbsp', 2)).toBe(30);
     expect(unitLabel('tbsp', 2, genericMilk)).toBe('łyżki');
     expect(shoppingUnit('tsp', genericMilk)).toBe('łyżeczki');
-    expect(measureTotalLabel(genericMilk, findMeasure(genericMilk, 'tbsp')!, 3)).toBe('45 ml');
-    expect(measureTotalLabel(genericMilk, findMeasure(genericMilk, 'pinch')!, 0)).toBe('0.5 ml');
   });
 
   it('starts every generic measure at one and restores a saved one', () => {
