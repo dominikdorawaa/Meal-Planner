@@ -17,6 +17,7 @@ describe('NutritionFactsTable', () => {
     );
 
     expect(screen.getByRole('columnheader', { name: 'Porcja (50 g)' })).toBeTruthy();
+    expect(screen.getByText('(50 g)').className).toContain('whitespace-nowrap');
     const saturatedFat = screen.getByRole('row', { name: /Kwasy tłuszczowe nasycone/ });
     expect(within(saturatedFat).getAllByRole('cell').map(cell => cell.textContent)).toEqual(['12 g', '6 g']);
     const salt = screen.getByRole('row', { name: /Sól/ });

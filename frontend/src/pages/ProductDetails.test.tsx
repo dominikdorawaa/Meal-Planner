@@ -358,42 +358,61 @@ describe('ProductDetails saving and ownership', () => {
     expect(screen.queryByRole('button', { name: 'Kolacja' })).toBeNull();
   });
 
-  it('saves and unsaves a base product with the heart', async () => {
+  it('saves and unsaves a base product from the first menu item', async () => {
     mocks.getProduct.mockResolvedValue(BASE);
     renderDetails();
+    await screen.findByRole('button', { name: t('product.menu') });
 
-    fireEvent.click(await screen.findByRole('button', { name: t('food.save', { name: 'Skyr' }) }));
+    expect(screen.queryByRole('button', { name: t('food.save', { name: 'Skyr' }) })).toBeNull();
+    openMenu();
+    expect(screen.getAllByRole('menuitem')[0].textContent).toContain(t('product.save'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Zapisz produkt/ }));
     await waitFor(() => expect(mocks.save).toHaveBeenCalledWith('p1'));
+    expect(screen.queryByRole('menu')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: t('food.unsave', { name: 'Skyr' }) }));
+    openMenu();
+    expect(screen.getAllByRole('menuitem')[0].textContent).toContain(t('product.unsave'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Usuń z zapisanych/ }));
     await waitFor(() => expect(mocks.unsave).toHaveBeenCalledWith('p1'));
   });
 
-  it('restores the heart when saving fails', async () => {
+  it('shows saving again in the menu when saving fails', async () => {
     mocks.save.mockRejectedValue(new Error('offline'));
     mocks.getProduct.mockResolvedValue(BASE);
     renderDetails();
+    await screen.findByRole('button', { name: t('product.menu') });
 
-    fireEvent.click(await screen.findByRole('button', { name: t('food.save', { name: 'Skyr' }) }));
-
+    openMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /Zapisz produkt/ }));
     await waitFor(() => expect(mocks.save).toHaveBeenCalled());
-    expect(await screen.findByRole('button', { name: t('food.save', { name: 'Skyr' }) })).toBeTruthy();
+
+    await waitFor(() => {
+      openMenu();
+      expect(screen.getByRole('menuitem', { name: /Zapisz produkt/ })).toBeTruthy();
+    });
   });
 
-  it('offers an own version and removing from saved instead of edit and delete on a base product', async () => {
+  it('offers removing from saved once, then an own version instead of edit and delete on a base product', async () => {
     mocks.saved.mockResolvedValue([{ id: 'p1' }]);
     mocks.getProduct.mockResolvedValue(BASE);
     renderDetails();
-    await screen.findByRole('button', { name: t('food.unsave', { name: 'Skyr' }) });
+    await screen.findByRole('button', { name: t('product.menu') });
+    await waitFor(() => expect(mocks.saved).toHaveBeenCalled());
 
-    openMenu();
+    await waitFor(() => {
+      openMenu();
+      expect(screen.getAllByRole('menuitem')[0].textContent).toContain(t('product.unsave'));
+    });
     expect(screen.queryByRole('menuitem', { name: /Edytuj/ })).toBeNull();
     expect(screen.getAllByRole('menuitem')).toHaveLength(2);
+    expect(screen.getAllByRole('menuitem', { name: /Usuń z zapisanych/ })).toHaveLength(1);
+    expect(screen.getAllByRole('menuitem')[1].textContent).toContain(t('product.makeOwnVersion'));
     fireEvent.click(screen.getByRole('menuitem', { name: /Usuń z zapisanych/ }));
 
     await waitFor(() => expect(mocks.unsave).toHaveBeenCalledWith('p1'));
     openMenu();
     expect(screen.queryByRole('menuitem', { name: /Usuń z zapisanych/ })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: /Zapisz produkt/ })).toBeTruthy();
   });
 
   it('creates an own version from the prefilled form and opens it', async () => {
@@ -424,9 +443,13 @@ describe('ProductDetails saving and ownership', () => {
 
     expect(await screen.findByText('Twój')).toBeTruthy();
     expect(screen.getByText('niezweryfikowany')).toBeTruthy();
-    expect(screen.getByRole('button', { name: t('food.save', { name: 'Skyr' }) })).toBeTruthy();
 
     openMenu();
+    expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
+      expect.stringContaining(t('product.save')),
+      expect.stringContaining(t('product.edit')),
+      expect.stringContaining(t('product.delete')),
+    ]);
     fireEvent.click(screen.getByRole('menuitem', { name: /Edytuj/ }));
     fireEvent.change(screen.getByLabelText(t('productForm.name')), { target: { value: 'Skyr waniliowy' } });
     fireEvent.click(screen.getByRole('button', { name: /Zapisz zmiany/ }));
