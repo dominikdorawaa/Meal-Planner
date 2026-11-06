@@ -1,48 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { RecipeDeleteSheet } from './RecipeDeleteSheet';
 import { RecipePhotoSheet } from './RecipePhotoSheet';
 import { t } from '../i18n';
 
-const RECIPE = { id: 'r1', name: 'Owsianka', image_url: 'https://storage.example.com/photo.jpg' };
-
 afterEach(() => {
   cleanup();
-});
-
-describe('RecipeDeleteSheet', () => {
-  it('shows the recipe with its photo and the effect of deleting it', () => {
-    const onConfirm = vi.fn();
-    render(<RecipeDeleteSheet recipe={RECIPE} deleting={false} onConfirm={onConfirm} onCancel={vi.fn()} />);
-
-    expect(screen.getByRole('alertdialog', { name: t('recipeDelete.title') })).toBeTruthy();
-    expect(screen.getByText('Owsianka')).toBeTruthy();
-    expect(screen.getByText(t('recipeDelete.text'))).toBeTruthy();
-    expect(document.querySelector('img')?.getAttribute('src')).toBe(RECIPE.image_url);
-
-    fireEvent.click(screen.getByRole('button', { name: t('recipeDelete.confirm') }));
-    expect(onConfirm).toHaveBeenCalledOnce();
-  });
-
-  it('closes when tapping outside', () => {
-    const onCancel = vi.fn();
-    render(<RecipeDeleteSheet recipe={RECIPE} deleting={false} onConfirm={vi.fn()} onCancel={onCancel} />);
-
-    fireEvent.click(screen.getByRole('alertdialog').parentElement!);
-
-    expect(onCancel).toHaveBeenCalledOnce();
-  });
-
-  it('cannot be closed or confirmed twice while deleting', () => {
-    const onCancel = vi.fn();
-    render(<RecipeDeleteSheet recipe={RECIPE} deleting onConfirm={vi.fn()} onCancel={onCancel} />);
-
-    fireEvent.click(screen.getByRole('alertdialog').parentElement!);
-
-    expect(onCancel).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: t('recipeDelete.confirm') }).hasAttribute('disabled')).toBe(true);
-    expect(screen.getByRole('button', { name: t('common.cancel') }).hasAttribute('disabled')).toBe(true);
-  });
 });
 
 describe('RecipePhotoSheet', () => {

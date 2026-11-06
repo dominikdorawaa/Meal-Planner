@@ -10,6 +10,7 @@ import { ItemBadges, SaveHeartButton } from '../components/FoodRows';
 import { OPEN_HEADER_CLASS, OutsidePressLayer } from '../components/OutsidePressLayer';
 import { PlanTargetPicker } from '../components/PlanTargetPicker';
 import { NewProductSheet, type ProductFormMode } from '../components/NewProductSheet';
+import { ConfirmSheet } from '../components/ConfirmSheet';
 import { draftFromProduct } from '../lib/productDraft';
 import { MeasureAmountRows } from '../components/MeasureAmountRows';
 import { DayBalancePreview } from '../components/DayBalancePreview';
@@ -50,7 +51,6 @@ export function ProductDetails() {
   const [formMode, setFormMode] = useState<ProductFormMode | null>(null);
 
   useCloseOnBack(showMenu, () => setShowMenu(false));
-  useCloseOnBack(showDeleteConfirm, () => setShowDeleteConfirm(false));
 
   const availableMealTypes = useMemo(() => profileMealTypes(profile), [profile]);
 
@@ -267,33 +267,16 @@ export function ProductDetails() {
         )}
       </header>
 
-      {/* Confirmation Modal */}
       {showDeleteConfirm && (
-        <div data-scroll-lock className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-sm w-full animate-scale-up text-center border border-outline-variant/10 flex flex-col items-center">
-            <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mb-4 text-error">
-              <span className="material-symbols-outlined text-[32px]">warning</span>
-            </div>
-            <h3 className="font-headline font-bold text-xl text-on-surface mb-2">{t('product.deleteTitle')}</h3>
-            <p className="text-on-surface-variant mb-8 text-sm leading-relaxed px-2">
-              {t('product.deleteText', { name: productDisplayName(product) })}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 w-full">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 py-3.5 bg-surface-container-highest text-on-surface hover:bg-surface-container-highest/80 rounded-xl font-bold font-headline transition-colors active:scale-95 text-sm"
-              >
-                {t('product.cancel')}
-              </button>
-              <button
-                onClick={handleDeleteProduct}
-                className="flex-1 py-3.5 bg-error text-on-error hover:bg-error/90 rounded-xl font-bold font-headline shadow-sm transition-colors active:scale-95 text-sm"
-              >
-                {t('product.deleteConfirm')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmSheet
+          question={t('product.deleteTitle')}
+          title={productDisplayName(product)}
+          description={t('product.deleteText')}
+          confirmLabel={t('product.deleteConfirm')}
+          cancelLabel={t('product.cancel')}
+          onConfirm={handleDeleteProduct}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
       )}
 
       {/* Produkt Title - Zgodny ze screenem (pod nagłówkiem, bez zdjęcia) */}

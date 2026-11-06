@@ -5,6 +5,7 @@ import {
   formatDayMonth,
   formatDayWithMonthName,
   formatRelativeDayLabel,
+  formatRelativeDayWithDate,
   formatLocalizedDayLabel,
   formatShortDayLabel,
   parseIsoDate,
@@ -172,5 +173,22 @@ describe('formatLocalizedDayLabel', () => {
 
   it('returns text that is not a date unchanged', () => {
     expect(formatLocalizedDayLabel('', 'en-GB', names, today)).toBe('')
+  })
+})
+
+describe('formatRelativeDayWithDate', () => {
+  const today = new Date(2026, 10, 6, 12, 0)
+
+  it('adds the date to days next to today', () => {
+    expect(formatRelativeDayWithDate('2026-11-06', today)).toBe('Dzisiaj, 6 listopada')
+    expect(formatRelativeDayWithDate('2026-11-07', today)).toBe('Jutro, 7 listopada')
+  })
+
+  it('keeps the day name with the date for other days', () => {
+    expect(formatRelativeDayWithDate('2026-11-11', today)).toBe('Środa, 11 listopada')
+  })
+
+  it('returns an invalid date unchanged', () => {
+    expect(formatRelativeDayWithDate('not-a-date', today)).toBe('not-a-date')
   })
 })

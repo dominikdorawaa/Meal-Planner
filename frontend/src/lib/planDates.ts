@@ -54,6 +54,12 @@ export const formatRelativeDayLabel = (isoDate: string, today: Date = new Date()
   return formatDayWithMonthName(DAY_NAMES[date.getDay()], isoDate);
 };
 
+export const formatRelativeDayWithDate = (isoDate: string, today: Date = new Date()) => {
+  const label = formatRelativeDayLabel(isoDate, today);
+  const date = parseIsoDate(isoDate);
+  return date && Math.abs(daysFromToday(date, today)) <= 1 ? formatDayWithMonthName(label, isoDate) : label;
+};
+
 export interface RelativeDayNames {
   yesterday: string;
   today: string;

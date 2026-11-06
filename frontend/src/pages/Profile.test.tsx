@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Profile } from './Profile';
 import { api } from '../lib/apiClient';
@@ -17,7 +17,7 @@ vi.mock('../lib/apiClient', () => ({
 
 vi.mock('../lib/AppDataContext', () => ({
   useAppData: () => ({
-    user: { userId: 'user-1', name: 'Ola' },
+    user: { userId: 'user-1', name: 'Ola', email: 'ola@example.com' },
     profile: mocks.profile,
     onLogout: vi.fn(),
     saveProfile: vi.fn(),
@@ -153,5 +153,27 @@ describe('Profile meal settings', () => {
     fireEvent.click(await screen.findByText('Ustawienia Posiłków'));
 
     expect((await screen.findAllByRole('listitem')).map(item => item.textContent)).toEqual(['Owoce']);
+  });
+});
+
+describe('Profile logout', () => {
+  it('asks before logging out and logs out after confirming', () => {
+    render(
+      <MemoryRouter>
+        <Profile />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Wyloguj się/ }));
+    const sheet = within(screen.getByRole('alertdialog', { name: 'Wylogować się? ola@example.com' }));
+    expect(sheet.getByText('Przepisy i plan zostaną na koncie.')).toBeTruthy();
+    fireEvent.click(sheet.getByRole('button', { name: 'Anuluj' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(api.auth.logout).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /Wyloguj się/ }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Wyloguj' }));
+
+    expect(api.auth.logout).toHaveBeenCalledOnce();
   });
 });

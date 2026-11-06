@@ -7,6 +7,8 @@ import { InstallAppCard } from '../components/InstallAppCard';
 import { ThemeCard } from '../components/ThemeCard';
 import { ProductDataAttribution } from '../components/ProductDataAttribution';
 import { MealSettingsList } from '../components/MealSettingsList';
+import { ConfirmSheet } from '../components/ConfirmSheet';
+import { t } from '../i18n';
 import type { MealSetting } from '../lib/mealSettings';
 import { profileMealTypes } from '../lib/mealTypes';
 import { useCloseOnBack } from '../lib/backNavigation';
@@ -34,7 +36,6 @@ export function Profile() {
   useCloseOnBack(isEditingMacros, () => setIsEditingMacros(false));
   useCloseOnBack(isEditingMeals, () => { setIsEditingMeals(false); setIsReordering(false); });
   useCloseOnBack(showFormulaInfo, () => setShowFormulaInfo(false));
-  useCloseOnBack(showLogoutConfirm, () => setShowLogoutConfirm(false));
 
   const [profile, setProfile] = useState<any>(null);
   const [tempProfile, setTempProfile] = useState<any>({
@@ -1533,32 +1534,16 @@ export function Profile() {
         );
       })()}
 
-      {/* Potwierdzenie wylogowania */}
       {showLogoutConfirm && (
-        <div data-scroll-lock className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="absolute inset-0 bg-surface/40" onClick={() => setShowLogoutConfirm(false)}></div>
-          <div className="bg-surface border border-outline-variant/10 p-8 rounded-[32px] shadow-2xl w-full max-w-xs relative animate-in zoom-in-95 duration-200 flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center text-error mb-4">
-              <span className="material-symbols-outlined text-[32px]">logout</span>
-            </div>
-            <h3 className="font-headline font-bold text-xl text-on-surface mb-2">Wylogować się?</h3>
-            <p className="text-on-surface-variant text-sm mb-8">Czy na pewno chcesz opuścić swoje konto?</p>
-            <div className="flex flex-col w-full gap-3">
-              <button
-                onClick={confirmLogout}
-                className="w-full bg-error text-on-error py-4 rounded-2xl font-bold active:scale-[0.98] transition-all shadow-lg shadow-error/20"
-              >
-                Tak, wyloguj
-              </button>
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="w-full bg-surface-container-highest text-on-surface-variant py-4 rounded-2xl font-bold active:scale-[0.98] transition-all"
-              >
-                Anuluj
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmSheet
+          question={t('profile.logoutQuestion')}
+          title={user?.email || displayGreetingName || t('profile.logoutQuestion')}
+          description={t('profile.logoutText')}
+          confirmLabel={t('profile.logoutConfirm')}
+          tone="neutral"
+          onConfirm={confirmLogout}
+          onCancel={() => setShowLogoutConfirm(false)}
+        />
       )}
     </div>
   );

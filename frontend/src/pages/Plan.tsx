@@ -10,13 +10,14 @@ import { formatCompactNumber } from '../lib/compactNumber';
 import { DaySummary } from '../components/DaySummary';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { mealTypeName, profileMealTypes } from '../lib/mealTypes';
-import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, formatRelativeDayLabel, parseIsoDate, planDays, toIsoDate, todayIsoDate } from '../lib/planDates';
+import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, formatRelativeDayLabel, formatRelativeDayWithDate, parseIsoDate, planDays, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { forgetPlanReturnPosition, readPlanReturnPosition, rememberPlanReturnPosition } from '../lib/planPosition';
 import { PlanConflictDialog } from '../components/PlanConflictDialog';
+import { PlanDayDeleteSheet } from '../components/PlanDayDeleteSheet';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { UndoSnackbar } from '../components/UndoSnackbar';
-import { pluralForm, t, type MessageKey } from '../i18n';
+import { t, type MessageKey } from '../i18n';
 import {
   deleteMeals,
   entityId,
@@ -185,7 +186,6 @@ export function Plan() {
   const mealMenuRef = useBottomSheet(!!activeMealMenu, () => setActiveMealMenu(null));
   useCloseOnBack(!!copyModeDay || !!copyModeMeal, resetSelectionModes);
   useCloseOnBack(!!pendingTransfer, () => setPendingTransfer(null));
-  useCloseOnBack(!!dayToDelete, () => setDayToDelete(null));
 
   const closeSnackbar = useCallback(() => setSnackbar(null), []);
 
@@ -276,8 +276,20 @@ export function Plan() {
     }
   };
 
-  const handleDeleteDay = async (dateStr: string) => {
-    const mealsToDelete = mealsOfDay(visibleMeals, dateStr);
+  const dayDeleteItems = (dateStr: string) => {
+    const mealTypes = profileMealTypes(profile);
+    const order = (meal: PlanMeal) => {
+      const index = mealTypes.findIndex(type => type.id === meal.meal_type);
+      return index === -1 ? mealTypes.length : index;
+    };
+    return mealsOfDay(visibleMeals, dateStr)
+      .sort((first, second) => order(first) - order(second))
+      .map(meal => ({ id: meal.id, title: mealTitle(meal), detail: mealTypeName(meal.meal_type, mealTypes) }));
+  };
+
+  const handleDeleteDay = async (dateStr: string, ids: string[]) => {
+    const selectedIds = new Set(ids);
+    const mealsToDelete = mealsOfDay(visibleMeals, dateStr).filter(meal => selectedIds.has(meal.id));
     setDayToDelete(null);
     const deletedIds = new Set(mealsToDelete.map(m => m.id));
     setUserMeals(prev => prev.filter(m => !deletedIds.has(m.id)));
@@ -781,39 +793,14 @@ export function Plan() {
         />
       )}
 
-      {/* Ostrzeżenie przed usunięciem całego dnia */}
-      {dayToDelete && (() => {
-        const count = mealsOfDay(visibleMeals, dayToDelete).length;
-        const weekday = parseIsoDate(dayToDelete)?.getDay() ?? 0;
-        return (
-          <div data-scroll-lock className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-fade-in pointer-events-none">
-            <div role="alertdialog" aria-modal="true" aria-labelledby="delete-day-title" aria-describedby="delete-day-description" className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center pointer-events-auto flex flex-col items-center">
-              <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mb-4">
-                <span className="material-symbols-outlined text-3xl">delete_sweep</span>
-              </div>
-              <h3 id="delete-day-title" className="font-headline font-bold text-lg text-on-surface mb-1">
-                {t(`plan.deleteDay.${pluralForm(count)}`, { count, day: t(`plan.weekdayGenitive.${weekday}` as MessageKey) })}
-              </h3>
-              <p id="delete-day-description" className="text-on-surface-variant text-xs mb-6">{formatRelativeDayLabel(dayToDelete)}. {t('plan.deleteDay.description')}</p>
-
-              <div className="flex gap-2 w-full">
-                <button
-                  onClick={() => setDayToDelete(null)}
-                  className="flex-1 py-3 text-sm font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-xl transition-colors active:scale-95"
-                >
-                  {t('plan.cancel')}
-                </button>
-                <button
-                  onClick={() => handleDeleteDay(dayToDelete)}
-                  className="flex-[1.5] py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
-                >
-                  {t('plan.deleteDay.confirm')}
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {dayToDelete && (
+        <PlanDayDeleteSheet
+          dayLabel={formatRelativeDayWithDate(dayToDelete)}
+          items={dayDeleteItems(dayToDelete)}
+          onConfirm={ids => handleDeleteDay(dayToDelete, ids)}
+          onCancel={() => setDayToDelete(null)}
+        />
+      )}
     </div>
   );
 }

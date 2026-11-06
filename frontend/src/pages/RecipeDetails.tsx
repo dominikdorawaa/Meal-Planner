@@ -12,7 +12,7 @@ import { useBottomSheet } from '../lib/bottomSheet';
 import { ingredientBaseAmountLabel, ingredientGrams, ingredientNutrition, ingredientsWithoutProduct, ingredientUnitLabel } from '../lib/recipeIngredient';
 import { profileMealTypes } from '../lib/mealTypes';
 import { announceDeletedRecipe } from '../lib/deletedRecipe';
-import { RecipeDeleteSheet } from '../components/RecipeDeleteSheet';
+import { ConfirmSheet } from '../components/ConfirmSheet';
 import { UndoSnackbar } from '../components/UndoSnackbar';
 import { pluralForm, t, type MessageKey } from '../i18n';
 import { AMOUNT_LIMITS, acceptsLimitedNumber, numberFieldProps } from '../lib/inputLimits';
@@ -770,9 +770,12 @@ export function RecipeDetails() {
       )}
 
       {showDeleteConfirm && (
-        <RecipeDeleteSheet
-          recipe={recipe}
-          deleting={isDeleting}
+        <ConfirmSheet
+          question={t('recipeDelete.title')}
+          title={recipe.name}
+          description={t('recipeDelete.text')}
+          confirmLabel={t('recipeDelete.confirm')}
+          busy={isDeleting}
           onConfirm={handleDelete}
           onCancel={() => setShowDeleteConfirm(false)}
         />

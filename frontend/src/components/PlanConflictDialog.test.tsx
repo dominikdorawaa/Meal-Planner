@@ -14,15 +14,15 @@ afterEach(() => {
 
 function renderDialog(busy = false) {
   const handlers = { onOverwrite: vi.fn(), onAppend: vi.fn(), onCancel: vi.fn() }
-  const view = render(<PlanConflictDialog conflicts={conflicts} busy={busy} {...handlers} />)
-  return { ...handlers, view }
+  render(<PlanConflictDialog conflicts={conflicts} busy={busy} {...handlers} />)
+  return handlers
 }
 
 describe('PlanConflictDialog', () => {
   it('lists the meals already planned in the target slots', () => {
     renderDialog()
 
-    expect(screen.getByRole('dialog', { name: 'Te miejsca mają już posiłki' })).toBeTruthy()
+    expect(screen.getByRole('alertdialog', { name: 'Te miejsca mają już pozycje w planie' })).toBeTruthy()
     expect(screen.getByText('Omelette')).toBeTruthy()
     expect(screen.getByText('Jutro • Lunch')).toBeTruthy()
   })
@@ -31,7 +31,7 @@ describe('PlanConflictDialog', () => {
     const { onOverwrite, onAppend, onCancel } = renderDialog()
 
     fireEvent.click(screen.getByRole('button', { name: 'Nadpisz' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Dopisz' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Dopisz obok' }))
     fireEvent.click(screen.getByRole('button', { name: 'Anuluj' }))
 
     expect(onOverwrite).toHaveBeenCalledOnce()
@@ -40,12 +40,12 @@ describe('PlanConflictDialog', () => {
   })
 
   it('cancels when the backdrop is tapped but not when the dialog is tapped', () => {
-    const { onCancel, view } = renderDialog()
+    const { onCancel } = renderDialog()
 
-    fireEvent.click(screen.getByRole('dialog'))
+    fireEvent.click(screen.getByRole('alertdialog'))
     expect(onCancel).not.toHaveBeenCalled()
 
-    fireEvent.click(view.container.firstChild as HTMLElement)
+    fireEvent.click(screen.getByRole('alertdialog').parentElement!)
     expect(onCancel).toHaveBeenCalledOnce()
   })
 
@@ -53,20 +53,20 @@ describe('PlanConflictDialog', () => {
     const { onCancel } = renderDialog()
 
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Anuluj' }))
-    fireEvent.keyDown(window, { key: 'Enter' })
+    fireEvent.keyDown(document, { key: 'Enter' })
     expect(onCancel).not.toHaveBeenCalled()
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(onCancel).toHaveBeenCalledOnce()
   })
 
   it('blocks every action while the transfer is saving', () => {
-    const { onCancel, view } = renderDialog(true)
+    const { onCancel } = renderDialog(true)
 
-    fireEvent.click(view.container.firstChild as HTMLElement)
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('alertdialog').parentElement!)
+    fireEvent.keyDown(document, { key: 'Escape' })
 
     expect(onCancel).not.toHaveBeenCalled()
     expect((screen.getByRole('button', { name: 'Nadpisz' }) as HTMLButtonElement).disabled).toBe(true)
-    expect((screen.getByRole('button', { name: 'Dopisz' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Dopisz obok' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })
