@@ -16,6 +16,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 @Entity
 @Table(name = "products")
@@ -120,10 +121,15 @@ public class Product {
         return ProductMeasures.describe(unit, storedMeasures);
     }
 
+    @JsonProperty(value = "generic_measures", access = JsonProperty.Access.READ_ONLY)
+    public List<Measure> getGenericMeasures() {
+        return ProductMeasures.generic(unit, storedMeasures);
+    }
+
     public Double nutritionFactor(String measureCode, double amount) {
         double nutritionBase = ProductMeasures.perPiece(unit) ? 1 : 100;
         String code = ProductMeasures.resolveCode(unit, measureCode);
-        return getMeasures().stream()
+        return Stream.concat(getMeasures().stream(), getGenericMeasures().stream())
                 .filter(measure -> measure.code().equals(code))
                 .findFirst()
                 .map(measure -> amount * measure.baseAmount() / nutritionBase)

@@ -23,6 +23,7 @@ export interface MeasureKind {
 export interface MeasuredProduct {
   unit?: string | null;
   measures?: ProductMeasure[] | null;
+  generic_measures?: ProductMeasure[] | null;
 }
 
 export const PIECE_CODE = 'piece';
@@ -56,13 +57,17 @@ export function productMeasures(product: MeasuredProduct): ProductMeasure[] {
   return product.measures?.length ? product.measures : [baseMeasure(product)];
 }
 
+export function genericMeasures(product: MeasuredProduct): ProductMeasure[] {
+  return isPerPiece(product) ? [] : product.generic_measures ?? [];
+}
+
 function resolveCode(product: MeasuredProduct, code: string): string {
   return !isPerPiece(product) && (code === 'g' || code === 'ml') ? baseMeasureCode(product) : code;
 }
 
 export function findMeasure(product: MeasuredProduct, code: string): ProductMeasure | null {
   const resolved = resolveCode(product, code);
-  return productMeasures(product).find(measure => measure.code === resolved) ?? null;
+  return [...productMeasures(product), ...genericMeasures(product)].find(measure => measure.code === resolved) ?? null;
 }
 
 export function defaultMeasure(product: MeasuredProduct): ProductMeasure {
@@ -118,18 +123,21 @@ export function measureRowLabel(product: MeasuredProduct, measure: ProductMeasur
   return t('amount.countOf', { name: measureListName(measure.names) ?? fallbackLabel(measure.code) });
 }
 
+export function measureTotalLabel(product: MeasuredProduct, measure: ProductMeasure, amount: number): string {
+  const total = amount > 0 ? amount * measure.base_amount : measure.base_amount;
+  return `${formatCompactNumber(total, 1)} ${baseMeasureCode(product)}`;
+}
+
 export function measureRowUnit(product: MeasuredProduct, measure: ProductMeasure, amount: number): string {
   if (isBaseMeasure(product, measure.code)) return isPerPiece(product) ? t('units.szt') : measure.code;
-  const total = amount > 0 ? amount * measure.base_amount : measure.base_amount;
-  const base = `${formatCompactNumber(total, 1)} ${baseMeasureCode(product)}`;
-  return t('amount.measureOf', { name: measureLabel(measure, amount), amount: base });
+  return t('amount.measureOf', { name: measureLabel(measure, amount), amount: measureTotalLabel(product, measure, amount) });
 }
 
 export type MeasureValues = Record<string, number | ''>;
 
 export function initialMeasureValues(product: MeasuredProduct, saved?: { amount: number; unit: string } | null): MeasureValues {
   const values: MeasureValues = {};
-  for (const measure of productMeasures(product)) values[measure.code] = defaultMeasureAmount(product, measure.code);
+  for (const measure of [...productMeasures(product), ...genericMeasures(product)]) values[measure.code] = defaultMeasureAmount(product, measure.code);
   const savedCode = saved ? findMeasure(product, saved.unit)?.code : undefined;
   if (saved && savedCode) values[savedCode] = saved.amount;
   return values;

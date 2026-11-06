@@ -228,6 +228,52 @@ class ProductMeasuresIntegrationTest {
     }
 
     @Test
+    void offersGenericKitchenMeasuresTheProductDoesNotHave() throws Exception {
+        create(saveUser(UserRole.USER), "100ml", "[{\"code\":\"cup\",\"base_amount\":240},"
+                + "{\"code\":\"tsp\",\"base_amount\":4}]")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.measures[*].code", contains("ml", "cup", "tsp")))
+                .andExpect(jsonPath("$.generic_measures[*].code", contains("tbsp", "pinch")))
+                .andExpect(jsonPath("$.generic_measures[*].base_amount", contains(15.0, 0.5)))
+                .andExpect(jsonPath("$.generic_measures[*].default", contains(false, false)))
+                .andExpect(jsonPath("$.generic_measures[*].max_amount", contains(100.0, 100.0)))
+                .andExpect(jsonPath("$.generic_measures[0].names.pl.few").value("łyżki"));
+        create(saveUser(UserRole.USER), "100g", null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.generic_measures[*].code", contains("tbsp", "tsp", "pinch", "cup")))
+                .andExpect(jsonPath("$.generic_measures[*].base_amount", contains(15.0, 5.0, 0.5, 250.0)));
+    }
+
+    @Test
+    void offersNoGenericMeasuresForProductsCountedInPieces() throws Exception {
+        create(saveUser(UserRole.USER), "pc", null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.generic_measures").isEmpty());
+    }
+
+    @Test
+    void ignoresGenericMeasuresSentWithTheProduct() throws Exception {
+        perform(saveUser(UserRole.USER), post("/api/products").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Milk\",\"kcal\":60,\"protein\":3,\"fat\":3,\"carbs\":5,\"unit\":\"100ml\","
+                        + "\"generic_measures\":[{\"code\":\"tbsp\",\"base_amount\":99}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.measures[*].code", contains("ml")))
+                .andExpect(jsonPath("$.generic_measures[0].base_amount").value(15.0));
+    }
+
+    @Test
+    void countsNutritionOfGenericMeasures() {
+        Product milk = new Product();
+        milk.setUnit("100ml");
+        Product egg = new Product();
+        egg.setUnit("pc");
+
+        assertThat(milk.nutritionFactor("tbsp", 2)).isEqualTo(0.3);
+        assertThat(milk.nutritionFactor("cup", 1)).isEqualTo(2.5);
+        assertThat(egg.nutritionFactor("tbsp", 2)).isNull();
+    }
+
+    @Test
     void listsMeasureKindsInTheirOrder() throws Exception {
         mockMvc.perform(get("/api/measure-kinds"))
                 .andExpect(status().isOk())
@@ -236,6 +282,8 @@ class ProductMeasuresIntegrationTest {
                 .andExpect(jsonPath("$[3].names.pl.many").value("łyżek"))
                 .andExpect(jsonPath("$[5].names.pl.one").value("szczypta"))
                 .andExpect(jsonPath("$[6].max_amount").value(50.0))
-                .andExpect(jsonPath("$[10].max_base_amount").value(50000.0));
+                .andExpect(jsonPath("$[10].max_base_amount").value(50000.0))
+                .andExpect(jsonPath("$[*].generic_base_amount", contains(null, null, null, 15.0, 5.0, 0.5, 250.0,
+                        null, null, null, null)));
     }
 }

@@ -146,6 +146,7 @@
   "amount.grams": "Amount in grams or millilitres",
   "amount.pieces": "Number of pieces",
   "amount.countOf": "Amount ({name})",
+  "amount.kitchenMeasure": "Kitchen measure",
   "amount.measureOf": "{name} ({amount})",
   "units.szt": "pc",
   "units.opak": "pkg",

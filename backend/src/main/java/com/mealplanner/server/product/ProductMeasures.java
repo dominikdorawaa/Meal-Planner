@@ -3,6 +3,8 @@ package com.mealplanner.server.product;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public final class ProductMeasures {
 
@@ -13,7 +15,13 @@ public final class ProductMeasures {
     static final double MAX_BASE_AMOUNT = 5000;
     static final double MAX_PIECES = 100;
 
+    private static volatile List<MeasureKind> genericKinds = List.of();
+
     private ProductMeasures() {
+    }
+
+    static void useGenericKinds(List<MeasureKind> kinds) {
+        genericKinds = List.copyOf(kinds);
     }
 
     static boolean perPiece(String unit) {
@@ -52,5 +60,17 @@ public final class ProductMeasures {
             measures.add(base);
         }
         return measures;
+    }
+
+    static List<Measure> generic(String unit, List<ProductMeasure> stored) {
+        if (perPiece(unit)) {
+            return List.of();
+        }
+        Set<String> storedCodes = stored.stream().map(measure -> measure.getKind().getCode()).collect(Collectors.toSet());
+        return genericKinds.stream()
+                .filter(kind -> !storedCodes.contains(kind.getCode()))
+                .map(kind -> new Measure(kind.getCode(), kind.getGenericBaseAmount(), false, kind.getNames(),
+                        kind.getMaxAmount()))
+                .toList();
     }
 }

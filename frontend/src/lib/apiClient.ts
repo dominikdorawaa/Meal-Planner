@@ -50,6 +50,7 @@ export interface Product {
   unit?: string | null;
   image_url?: string | null;
   measures?: ProductMeasure[] | null;
+  generic_measures?: ProductMeasure[] | null;
   bar_code?: string | null;
   status?: string;
   source?: string;

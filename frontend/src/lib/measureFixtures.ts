@@ -40,3 +40,11 @@ export function withMeasures<P extends { unit?: string | null }>(product: P, ...
   const sorted = [...extra.filter(item => item.default), ...extra.filter(item => !item.default)];
   return { ...product, measures: baseIsDefault ? [base, ...sorted] : [...sorted, base] };
 }
+
+const GENERIC_AMOUNTS: Record<string, number> = { tbsp: 15, tsp: 5, pinch: 0.5, cup: 250 };
+
+export function withGenericMeasures<P extends { measures?: ProductMeasure[] | null }>(product: P): P & { generic_measures: ProductMeasure[] } {
+  const own = new Set((product.measures ?? []).map(item => item.code));
+  const generic = Object.entries(GENERIC_AMOUNTS).filter(([code]) => !own.has(code)).map(([code, amount]) => measure(code, amount));
+  return { ...product, generic_measures: generic };
+}

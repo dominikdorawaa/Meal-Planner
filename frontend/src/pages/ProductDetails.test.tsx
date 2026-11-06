@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ProductDetails } from './ProductDetails';
 import { t } from '../i18n';
-import { MEASURE_KINDS, measure, withMeasures } from '../lib/measureFixtures';
+import { MEASURE_KINDS, measure, withGenericMeasures, withMeasures } from '../lib/measureFixtures';
 
 const mocks = vi.hoisted(() => ({
   addMeal: vi.fn(),
@@ -130,6 +130,69 @@ describe('ProductDetails package amount', () => {
 
     await screen.findByDisplayValue('100');
     expect(screen.queryByLabelText(PACKAGES)).toBeNull();
+  });
+});
+
+describe('ProductDetails kitchen measures', () => {
+  const MILK = withGenericMeasures(withMeasures({ ...SKYR, name: 'Mleko', kcal: 60, unit: '100ml' }, measure('cup', 250)));
+
+  it('adds a product in a kitchen measure it does not have in the database', async () => {
+    mocks.getProduct.mockResolvedValue(MILK);
+    renderDetails();
+
+    const kind = await screen.findByLabelText(t('amount.kitchenMeasure')) as HTMLSelectElement;
+    expect(Array.from(kind.options).map(option => option.textContent)).toEqual(['łyżka', 'łyżeczka', 'szczypta']);
+    const row = kind.closest('[data-amount-row]') as HTMLElement;
+    expect(within(row).getByText('(15 ml)')).toBeTruthy();
+    expect(within(row).getByText('9')).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText(t('amount.countOf', { name: 'łyżki' })), { target: { value: '2' } });
+    expect(row.className).toContain('bg-primary/5');
+    expect(within(row).getByText('(30 ml)')).toBeTruthy();
+    expect(screen.getByTestId('kcal-value').textContent).toBe('18');
+    expect(screen.getByText(t('product.nutritionFor', { amount: '2 łyżki (30 ml)' }))).toBeTruthy();
+
+    fireEvent.change(kind, { target: { value: 'tsp' } });
+    expect(screen.getByLabelText(t('amount.countOf', { name: 'łyżeczki' }))).toHaveProperty('value', '2');
+    expect(screen.getByTestId('kcal-value').textContent).toBe('6');
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+
+    await screen.findByText('plan screen');
+    expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({
+      portions_consumed: 10, measure_code: 'tsp', measure_amount: 2,
+    }));
+  });
+
+  it('activates the kitchen measure row when its list is opened', async () => {
+    mocks.getProduct.mockResolvedValue(MILK);
+    renderDetails();
+
+    const kind = await screen.findByLabelText(t('amount.kitchenMeasure'));
+    const row = kind.closest('[data-amount-row]') as HTMLElement;
+    expect(row.className).not.toContain('bg-primary/5');
+    fireEvent.focus(kind);
+    expect(row.className).toContain('bg-primary/5');
+    expect(screen.getByTestId('kcal-value').textContent).toBe('9');
+  });
+
+  it('opens a plan item saved in a kitchen measure in that measure', async () => {
+    mocks.getProduct.mockResolvedValue(MILK);
+    mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 1.5, measure_code: 'pinch', measure_amount: 3 }]);
+    renderDetails('?selectDate=2026-10-17&selectType=lunch&mealId=m1');
+
+    const kind = await screen.findByLabelText(t('amount.kitchenMeasure')) as HTMLSelectElement;
+    await waitFor(() => expect(kind.value).toBe('pinch'));
+    const amount = screen.getByLabelText(t('amount.countOf', { name: 'szczypty' })) as HTMLInputElement;
+    expect(amount.value).toBe('3');
+    expect(amount.closest('[data-amount-row]')?.className).toContain('bg-primary/5');
+    expect((screen.getByRole('button', { name: 'Zaktualizuj' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('offers no kitchen measures for products counted in pieces', async () => {
+    mocks.getProduct.mockResolvedValue({ ...SKYR, unit: 'pc', generic_measures: [measure('tbsp', 15)] });
+    renderDetails();
+    await screen.findByLabelText(t('amount.pieces'));
+    expect(screen.queryByLabelText(t('amount.kitchenMeasure'))).toBeNull();
   });
 });
 

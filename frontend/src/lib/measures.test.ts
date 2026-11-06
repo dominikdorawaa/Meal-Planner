@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   defaultMeasure,
   findMeasure,
+  genericMeasures,
   initialMeasureValues,
   measureBaseAmount,
   measureLabel,
@@ -9,10 +10,12 @@ import {
   measureName,
   measureRowLabel,
   measureRowUnit,
+  measureTotalLabel,
   productMeasures,
+  shoppingUnit,
   unitLabel,
 } from './measures';
-import { measure, withMeasures } from './measureFixtures';
+import { measure, withGenericMeasures, withMeasures } from './measureFixtures';
 import { t } from '../i18n';
 
 const banana = withMeasures({ unit: '100g' }, measure('piece', 120, true), measure('package', 1000));
@@ -115,5 +118,30 @@ describe('measureBaseAmount', () => {
     expect(measureBaseAmount(banana, 'piece', 2)).toBe(240);
     expect(measureBaseAmount(milk, 'ml', 150)).toBe(150);
     expect(measureBaseAmount(milk, 'piece', 1)).toBeNull();
+  });
+});
+
+describe('genericMeasures', () => {
+  const genericMilk = withGenericMeasures(milk);
+
+  it('offers kitchen measures the product does not have and none for products counted in pieces', () => {
+    expect(genericMeasures(genericMilk).map(item => item.code)).toEqual(['tbsp', 'tsp', 'pinch']);
+    expect(genericMeasures(milk)).toEqual([]);
+    expect(genericMeasures({ ...egg, generic_measures: [tbsp] })).toEqual([]);
+  });
+
+  it('finds, names and converts a generic measure like the product own ones', () => {
+    expect(findMeasure(genericMilk, 'tbsp')?.base_amount).toBe(15);
+    expect(findMeasure(genericMilk, 'cup')?.base_amount).toBe(250);
+    expect(measureBaseAmount(genericMilk, 'tbsp', 2)).toBe(30);
+    expect(unitLabel('tbsp', 2, genericMilk)).toBe('łyżki');
+    expect(shoppingUnit('tsp', genericMilk)).toBe('łyżeczki');
+    expect(measureTotalLabel(genericMilk, findMeasure(genericMilk, 'tbsp')!, 3)).toBe('45 ml');
+    expect(measureTotalLabel(genericMilk, findMeasure(genericMilk, 'pinch')!, 0)).toBe('0.5 ml');
+  });
+
+  it('starts every generic measure at one and restores a saved one', () => {
+    const values = initialMeasureValues(genericMilk, { amount: 3, unit: 'tbsp' });
+    expect(values).toMatchObject({ ml: 100, cup: 1, tbsp: 3, tsp: 1, pinch: 1 });
   });
 });
