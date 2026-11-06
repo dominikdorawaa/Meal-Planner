@@ -6,7 +6,7 @@ import { addDaysToIsoDate, formatShortDayLabel } from '../lib/planDates';
 import { productDisplayName } from '../lib/productName';
 import { canEditProduct, isOwnItem, isUnverified } from '../lib/productPermissions';
 import { NutritionSummary } from '../components/NutritionSummary';
-import { ItemBadges, SaveHeartButton } from '../components/FoodRows';
+import { ItemBadges } from '../components/FoodRows';
 import { OPEN_HEADER_CLASS, OutsidePressLayer } from '../components/OutsidePressLayer';
 import { PlanTargetPicker } from '../components/PlanTargetPicker';
 import { NewProductSheet, type ProductFormMode } from '../components/NewProductSheet';
@@ -204,8 +204,7 @@ export function ProductDetails() {
         />
 
         {user && !product.deleted && (
-        <div className="relative ml-auto flex items-center">
-          <SaveHeartButton saved={saved} name={productDisplayName(product)} onToggle={toggleSaved} className="w-10 h-10" />
+        <div className="relative ml-auto flex items-center shrink-0">
           <button
             onClick={() => setShowMenu(!showMenu)}
             aria-label={t('product.menu')}
@@ -219,6 +218,14 @@ export function ProductDetails() {
             <>
               <OutsidePressLayer onClose={() => setShowMenu(false)} />
               <div role="menu" className="absolute right-0 top-12 pointer-events-auto w-56 bg-surface-container border border-outline-variant/10 rounded-xl shadow-lg z-50 overflow-hidden text-sm py-1 animate-fade-in">
+                <button
+                  role="menuitem"
+                  onClick={() => { setShowMenu(false); toggleSaved(); }}
+                  className="w-full flex items-center px-4 py-3 text-left font-medium text-on-surface hover:bg-surface-container-highest transition-colors font-body"
+                >
+                  <span className="material-symbols-outlined mr-3 text-[18px]">{saved ? 'heart_minus' : 'favorite'}</span>
+                  {t(saved ? 'product.unsave' : 'product.save')}
+                </button>
                 {editable ? (
                   <>
                     <button
@@ -248,16 +255,6 @@ export function ProductDetails() {
                       <span className="material-symbols-outlined mr-3 text-[18px]">content_copy</span>
                       {t('product.makeOwnVersion')}
                     </button>
-                    {saved && (
-                      <button
-                        role="menuitem"
-                        onClick={() => { setShowMenu(false); toggleSaved(); }}
-                        className="w-full flex items-center px-4 py-3 text-left font-medium text-error hover:bg-surface-container-highest transition-colors font-body"
-                      >
-                        <span className="material-symbols-outlined mr-3 text-[18px]">heart_minus</span>
-                        {t('product.unsave')}
-                      </button>
-                    )}
                   </>
                 )}
               </div>

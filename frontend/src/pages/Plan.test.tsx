@@ -60,7 +60,7 @@ function slot(container: HTMLElement, mealDate: string, mealType: string) {
 }
 
 function openMealMenu(container: HTMLElement, mealDate: string, mealType: string) {
-  fireEvent.click(slot(container, mealDate, mealType).getByText('more_horiz'))
+  fireEvent.click(slot(container, mealDate, mealType).getByRole('button', { name: /^Opcje: / }))
 }
 
 function openDayMenu(dayIndex: number) {
@@ -611,6 +611,16 @@ describe('Plan mobile gestures', () => {
       })
     })
   }
+
+  it('gives the item menu button a large tap area named after the item', () => {
+    const { container } = renderPlan()
+
+    const button = slot(container, '2026-10-12', 'lunch').getByRole('button', { name: 'Opcje: Coffee' })
+    expect(button.className).toContain('w-11 h-11')
+    fireEvent.click(button)
+
+    expect(screen.getByText('Zarządzaj posiłkiem')).toBeTruthy()
+  })
 
   it('closes the item menu with the back gesture', async () => {
     const { container } = renderPlan()

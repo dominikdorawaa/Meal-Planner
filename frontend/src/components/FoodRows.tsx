@@ -26,30 +26,6 @@ export function ItemBadges({ own, unverified }: ItemBadgesProps) {
   );
 }
 
-interface SaveHeartButtonProps {
-  saved: boolean;
-  name: string;
-  onToggle: () => void;
-  className?: string;
-}
-
-export function SaveHeartButton({ saved, name, onToggle, className = '' }: SaveHeartButtonProps) {
-  return (
-    <button
-      type="button"
-      aria-pressed={saved}
-      aria-label={t(saved ? 'food.unsave' : 'food.save', { name })}
-      onClick={event => {
-        event.stopPropagation();
-        onToggle();
-      }}
-      className={`w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition-transform ${saved ? 'text-error' : 'text-on-surface-variant/60'} ${className}`}
-    >
-      <span className="material-symbols-outlined text-[20px]" style={saved ? { fontVariationSettings: "'FILL' 1" } : undefined}>favorite</span>
-    </button>
-  );
-}
-
 interface FoodRowProps {
   name: string;
   kcal: ReactNode;

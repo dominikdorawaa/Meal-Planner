@@ -21,6 +21,12 @@ interface NutritionFactsTableProps {
   notes?: Partial<Record<NutritionFact, string>>;
 }
 
+function ColumnLabel({ label }: { label: string }) {
+  return label.split(/(\([^)]*\))/).filter(Boolean).map((part, index) => (
+    part.startsWith('(') ? <span key={index} className="whitespace-nowrap">{part}</span> : <Fragment key={index}>{part}</Fragment>
+  ));
+}
+
 export function NutritionFactsTable({ title, columns, facts = NUTRITION_FACTS, notes = {} }: NutritionFactsTableProps) {
   return (
     <section className="flex flex-col gap-3">
@@ -30,7 +36,9 @@ export function NutritionFactsTable({ title, columns, facts = NUTRITION_FACTS, n
           <tr className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
             <th scope="col" className="sr-only">{t('nutrients.name')}</th>
             {columns.map(column => (
-              <th key={column.label} scope="col" className="py-2 pl-2 text-right font-black align-bottom">{column.label}</th>
+              <th key={column.label} scope="col" className="py-2 pl-2 text-right font-black align-bottom">
+                <ColumnLabel label={column.label} />
+              </th>
             ))}
           </tr>
         </thead>

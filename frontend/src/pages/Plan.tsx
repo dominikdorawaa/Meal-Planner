@@ -863,8 +863,15 @@ function RecipeCard({ title, kcal, macros, imgSrc, isRecipe, onMenuClick, onClic
             <span className="material-symbols-outlined text-[14px] font-bold">check</span>
           </div>
         ) : (
-          <button onClick={(e) => { e.stopPropagation(); onMenuClick(); }} className={`absolute ${isManual ? 'top-1.5 right-1.5 w-5 h-5' : 'top-2 right-2 w-6 h-6'} bg-black/30 backdrop-blur-md rounded-full shadow-sm flex items-center justify-center text-white hover:bg-black/40 transition-colors active:scale-90`}>
-            <span className="material-symbols-outlined text-[13px]">more_horiz</span>
+          <button
+            type="button"
+            aria-label={t('plan.itemMenu', { name: title })}
+            onClick={(e) => { e.stopPropagation(); onMenuClick(); }}
+            className="absolute top-0 right-0 z-10 w-11 h-11 flex items-center justify-center text-white group/menu active:scale-90 transition-transform"
+          >
+            <span className="w-7 h-7 bg-black/40 backdrop-blur-md rounded-full shadow-sm flex items-center justify-center group-hover/menu:bg-black/50 transition-colors">
+              <span className="material-symbols-outlined text-[16px]">more_horiz</span>
+            </span>
           </button>
         )}
       </div>
