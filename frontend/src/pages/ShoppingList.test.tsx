@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ShoppingList } from './ShoppingList';
 import { t } from '../i18n';
+import { api } from '../lib/apiClient';
 import { measure, withMeasures } from '../lib/measureFixtures';
 
 const mocks = vi.hoisted(() => ({
@@ -170,5 +171,26 @@ describe('ShoppingList by recipes', () => {
 
     expect(screen.getByText('2 łyżki (30 ml)')).toBeTruthy();
     expect(screen.getByText('200 ml')).toBeTruthy();
+  });
+});
+
+describe('ShoppingList clearing', () => {
+  it('asks before clearing the whole list and keeps it when cancelled', async () => {
+    const clearAll = vi.spyOn(api.shoppingList, 'clearAll').mockResolvedValue(undefined as never);
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: t('shopping.clearConfirm') }));
+    const sheet = within(screen.getByRole('alertdialog', { name: `${t('shopping.clearQuestion')} ${t('shopping.clearTitle')}` }));
+    expect(sheet.getByText(t('shopping.clearText'))).toBeTruthy();
+    fireEvent.click(sheet.getByRole('button', { name: t('common.cancel') }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(clearAll).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: t('shopping.clearConfirm') }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: t('shopping.clearConfirm') }));
+
+    await waitFor(() => expect(mocks.refreshShoppingList).toHaveBeenCalled());
+    expect(clearAll).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 });

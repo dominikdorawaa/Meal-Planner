@@ -357,6 +357,13 @@ describe('ProductDetails saving and ownership', () => {
 
     openMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: /Usuń/ }));
+    expect(screen.getByRole('alertdialog', { name: `${t('product.deleteTitle')} Skyr waniliowy` })).toBeTruthy();
+    expect(screen.getByText(t('product.deleteText'))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('product.cancel') }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+
+    openMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /Usuń/ }));
     fireEvent.click(screen.getByRole('button', { name: t('product.deleteConfirm') }));
     await screen.findByText('plan screen');
     expect(mocks.deleteProduct).toHaveBeenCalledWith('p1');

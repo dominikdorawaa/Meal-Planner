@@ -230,7 +230,8 @@ describe('AddRecipe ingredient search', () => {
     fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.add') }));
 
     fireEvent.click(within(ingredientRow('Skyr').parentElement as HTMLElement).getAllByRole('button').at(-1)!);
-    fireEvent.click(screen.getByRole('button', { name: 'Usuń' }));
+    expect(screen.getByRole('alertdialog', { name: `${t('recipeForm.removeIngredientTitle')} Skyr` })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.removeIngredientConfirm') }));
 
     expect(screen.queryByRole('button', { name: new RegExp(t('recipeIngredients.edit', { name: 'Skyr' })) })).toBeNull();
   });
@@ -664,12 +665,14 @@ describe('AddRecipe portions and errors', () => {
     fireEvent.change(screen.getByLabelText(t('recipeForm.step', { number: 1 })), { target: { value: 'Wymieszaj' } });
 
     fireEvent.click(screen.getByRole('button', { name: t('recipeForm.removeStep', { number: 1 }) }));
-    expect(screen.getByText(t('recipeForm.removeStepText', { number: 1 }))).toBeTruthy();
+    const sheet = within(screen.getByRole('alertdialog', { name: `${t('recipeForm.removeStepTitle')} ${t('recipeForm.removeStepName', { number: 1 })}` }));
+    expect(sheet.getByText('Wymieszaj')).toBeTruthy();
+    expect(sheet.getByText(t('recipeForm.removeStepText'))).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: t('common.cancel') }));
     expect(screen.getByDisplayValue('Wymieszaj')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: t('recipeForm.removeStep', { number: 1 }) }));
-    fireEvent.click(screen.getByRole('button', { name: t('common.delete') }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.removeStepConfirm') }));
     expect(screen.queryByDisplayValue('Wymieszaj')).toBeNull();
   });
 });

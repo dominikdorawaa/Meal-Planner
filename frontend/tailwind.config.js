@@ -27,6 +27,8 @@ export default {
         'outline-variant': token('outline-variant'),
         error: token('error'),
         'on-error': token('on-error'),
+        danger: token('danger'),
+        'on-danger': token('on-danger'),
         'macro-protein': token('macro-protein'),
         'macro-fat': token('macro-fat'),
         'macro-carbs': token('macro-carbs'),

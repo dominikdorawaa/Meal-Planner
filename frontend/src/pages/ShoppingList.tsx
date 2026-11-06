@@ -4,9 +4,9 @@ import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { BottomNav } from '../components/BottomNav';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
-import { useCloseOnBack } from '../lib/backNavigation';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { ShoppingFromPlanPicker } from '../components/ShoppingFromPlanPicker';
+import { ConfirmSheet } from '../components/ConfirmSheet';
 import { t } from '../i18n';
 import { ingredientBaseAmountLabel, ingredientUnitLabel } from '../lib/recipeIngredient';
 import { profileMealTypes } from '../lib/mealTypes';
@@ -33,7 +33,6 @@ export function ShoppingList() {
   const [newUnit, setNewUnit] = useState('szt');
   const [addSubmitting, setAddSubmitting] = useState(false);
   const addSheetRef = useBottomSheet(showAddModal, () => setShowAddModal(false), addSubmitting);
-  useCloseOnBack(showConfirm, () => setShowConfirm(false));
   const [addError, setAddError] = useState<string | null>(null);
   const [showFromPlan, setShowFromPlan] = useState(false);
   const [fromPlanSubmitting, setFromPlanSubmitting] = useState(false);
@@ -210,8 +209,8 @@ export function ShoppingList() {
             <h1 className="font-headline font-bold text-lg tracking-tight text-primary">Meal Planner</h1>
           </div>
           <div className="flex items-center gap-4">
-            <button onClick={() => setShowConfirm(true)} className="p-2 rounded-full hover:bg-surface-container-highest transition-colors text-on-surface-variant group relative">
-              <span className="material-symbols-outlined group-hover:text-error transition-colors">delete_sweep</span>
+            <button onClick={() => setShowConfirm(true)} aria-label={t('shopping.clearConfirm')} className="p-2 rounded-full hover:bg-surface-container-highest transition-colors text-on-surface-variant group relative">
+              <span aria-hidden="true" className="material-symbols-outlined group-hover:text-error transition-colors">delete_sweep</span>
             </button>
             <button className="p-2 rounded-full hover:bg-surface-container-highest transition-colors text-on-surface-variant">
               <span className="material-symbols-outlined">settings</span>
@@ -475,39 +474,15 @@ export function ShoppingList() {
         </div>
       )}
 
-      {/* Confirmation Modal */}
       {showConfirm && (
-        <div data-scroll-lock className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div 
-            className="absolute inset-0 bg-black/40 animate-in fade-in duration-300" 
-            onClick={() => setShowConfirm(false)}
-          />
-          <div className="bg-surface-container-lowest w-full max-w-[320px] rounded-[24px] overflow-hidden shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 border border-outline-variant/20">
-            <div className="p-6 text-center">
-              <div className="w-12 h-12 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="material-symbols-outlined text-2xl">delete_sweep</span>
-              </div>
-              <h3 className="font-headline font-bold text-lg text-on-surface mb-2">Wyczyścić listę?</h3>
-              <p className="text-on-surface-variant leading-relaxed text-xs mb-6">
-                Czy na pewno chcesz usunąć wszystkie produkty? Tej operacji nie można cofnąć.
-              </p>
-              <div className="flex flex-col gap-2">
-                <button 
-                  onClick={clearList}
-                  className="w-full bg-error text-on-error py-3 rounded-xl font-bold text-sm shadow-md active:scale-95 transition-all outline-none"
-                >
-                  Tak, wyczyść wszystko
-                </button>
-                <button 
-                  onClick={() => setShowConfirm(false)}
-                  className="w-full bg-surface-container-highest text-on-surface py-3 rounded-xl font-bold text-sm active:scale-95 transition-all outline-none"
-                >
-                  Anuluj
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ConfirmSheet
+          question={t('shopping.clearQuestion')}
+          title={t('shopping.clearTitle')}
+          description={t('shopping.clearText')}
+          confirmLabel={t('shopping.clearConfirm')}
+          onConfirm={clearList}
+          onCancel={() => setShowConfirm(false)}
+        />
       )}
     </div>
   );

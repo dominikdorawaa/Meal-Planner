@@ -113,11 +113,11 @@ describe('Plan copying', () => {
     openMealMenu(container, '2026-10-12', 'breakfast')
     click(/Skopiuj na następny dzień/)
 
-    const dialog = screen.getByRole('dialog', { name: 'Te miejsca mają już posiłki' })
+    const dialog = screen.getByRole('alertdialog', { name: 'Te miejsca mają już pozycje w planie' })
     expect(within(dialog).getByText('Yogurt')).toBeTruthy()
     expect(mocks.add).not.toHaveBeenCalled()
 
-    click('Dopisz')
+    click('Dopisz obok')
 
     expect(await screen.findByText('Skopiowano')).toBeTruthy()
     expect(mocks.add).toHaveBeenCalledWith(expect.objectContaining({ meal_date: '2026-10-13', meal_type: 'breakfast', recipe: { id: 'recipe-1' } }))
@@ -194,7 +194,7 @@ describe('Plan copying', () => {
     fireEvent.click(screen.getByText('13.10'))
     click('Wklej (1)')
 
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     expect(within(dialog).getAllByRole('listitem')).toHaveLength(1)
     expect(within(dialog).getByText('Yogurt')).toBeTruthy()
 
@@ -224,11 +224,11 @@ describe('Plan copying', () => {
     openDayMenu(0)
     click(/Skopiuj na następny dzień/)
 
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     expect(within(dialog).getAllByRole('listitem')).toHaveLength(1)
     expect(within(dialog).getByText('Yogurt')).toBeTruthy()
 
-    click('Dopisz')
+    click('Dopisz obok')
 
     expect(await screen.findByText('Skopiowano')).toBeTruthy()
     expect(mocks.add.mock.calls.map(([payload]) => `${payload.meal_date} ${payload.meal_type}`)).toEqual(['2026-10-13 breakfast', '2026-10-13 lunch'])
@@ -393,18 +393,20 @@ describe('Plan moving', () => {
 })
 
 describe('Plan day deletion', () => {
-  it('confirms with the item count before deleting a whole day', async () => {
+  it('lists the items of the day and deletes all of them by default', async () => {
     renderPlan()
 
     openDayMenu(0)
     click(/Usuń posiłki z całego dnia/)
-    expect(screen.getByRole('alertdialog', { name: 'Usunąć 2 pozycje z poniedziałku?' })).toBeTruthy()
+    const sheet = within(screen.getByRole('alertdialog', { name: /Co usunąć z planu\?/ }))
+    expect(sheet.getAllByRole('checkbox').map(box => (box as HTMLInputElement).checked)).toEqual([true, true])
+    expect(sheet.getByText('Tego nie da się cofnąć.')).toBeTruthy()
     click('Anuluj')
     expect(mocks.delete).not.toHaveBeenCalled()
 
     openDayMenu(0)
     click(/Usuń posiłki z całego dnia/)
-    click('Usuń')
+    click('Usuń 2 pozycje')
 
     await waitFor(() => expect(mocks.refreshMeals).toHaveBeenCalledTimes(2))
     expect(mocks.delete.mock.calls).toEqual([['meal-1'], ['meal-2']])
@@ -412,13 +414,27 @@ describe('Plan day deletion', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 
-  it('uses the singular form for one item', () => {
+  it('deletes only the items left checked', async () => {
+    renderPlan()
+
+    openDayMenu(0)
+    click(/Usuń posiłki z całego dnia/)
+    const boxes = within(screen.getByRole('alertdialog')).getAllByRole('checkbox')
+    fireEvent.click(boxes[0])
+    click('Usuń 1 pozycję')
+
+    await waitFor(() => expect(mocks.refreshMeals).toHaveBeenCalledTimes(2))
+    expect(mocks.delete.mock.calls).toEqual([['meal-2']])
+  })
+
+  it('does not delete anything when every item is unchecked', () => {
     renderPlan()
 
     openDayMenu(1)
     click(/Usuń posiłki z całego dnia/)
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('checkbox'))
 
-    expect(screen.getByRole('alertdialog', { name: 'Usunąć 1 pozycję z wtorku?' })).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Usuń' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('does not ask to delete a day without meals', () => {
@@ -437,7 +453,7 @@ describe('Plan day deletion', () => {
 
     openDayMenu(0)
     click(/Usuń posiłki z całego dnia/)
-    click('Usuń')
+    click('Usuń 2 pozycje')
 
     expect(await screen.findByText('Nie udało się zapisać zmian. Spróbuj ponownie.')).toBeTruthy()
   })

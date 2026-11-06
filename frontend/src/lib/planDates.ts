@@ -69,6 +69,13 @@ export const formatLocalizedDayLabel = (isoDate: string, locale: string, names: 
   return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
+export const formatLocalizedDayWithDate = (isoDate: string, locale: string, names: RelativeDayNames, today: Date = new Date()) => {
+  const label = formatLocalizedDayLabel(isoDate, locale, names, today);
+  const date = parseIsoDate(isoDate);
+  if (!date || Math.abs(daysFromToday(date, today)) > 1) return label;
+  return `${label}, ${date.toLocaleDateString(locale, { day: 'numeric', month: 'long' })}`;
+};
+
 export const firstDayOfMonth = (isoDate: string | null | undefined) => {
   const date = parseIsoDate(isoDate) ?? new Date();
   return new Date(date.getFullYear(), date.getMonth(), 1);

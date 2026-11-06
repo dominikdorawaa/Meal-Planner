@@ -20,6 +20,7 @@ import { NewProductSheet, type NewProductDraft } from '../components/NewProductS
 import { t } from '../i18n';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { RecipePhotoSheet } from '../components/RecipePhotoSheet';
+import { ConfirmSheet } from '../components/ConfirmSheet';
 import { resizeRecipePhoto } from '../lib/recipePhoto';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { AMOUNT_LIMITS, RECIPE_LIMITS, acceptsLimitedNumber, isPositiveWithinLimit, numberFieldProps } from '../lib/inputLimits';
@@ -97,11 +98,8 @@ export default function AddRecipe() {
   };
 
   useCloseOnBack(hasUnsavedChanges && !showLeaveConfirm && !isSaving && !isUploadingPhoto, () => setShowLeaveConfirm(true));
-  useCloseOnBack(showLeaveConfirm, () => setShowLeaveConfirm(false));
   useCloseOnBack(showIngredientSearch, closeIngredientSearch);
   useCloseOnBack(amountTarget !== null, () => setAmountTarget(null));
-  useCloseOnBack(stepToDelete !== null, () => setStepToDelete(null));
-  useCloseOnBack(ingredientToDelete !== null, () => setIngredientToDelete(null));
 
   useEffect(() => {
     async function loadEditData() {
@@ -527,83 +525,41 @@ export default function AddRecipe() {
       )}
 
       {showLeaveConfirm && (
-        <div data-scroll-lock className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowLeaveConfirm(false)}>
-          <div role="alertdialog" aria-labelledby="leave-recipe-title" className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[320px] w-full border border-outline-variant/20 text-center animate-slide-up" onClick={e => e.stopPropagation()}>
-            <h3 id="leave-recipe-title" className="font-headline font-bold text-lg text-on-surface mb-2">{t('recipe.leaveTitle')}</h3>
-            <p className="text-on-surface-variant text-sm font-medium mb-6">{t('recipe.leaveText')}</p>
-            <div className="flex gap-3 w-full">
-              <button
-                onClick={() => setShowLeaveConfirm(false)}
-                className="flex-1 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-highest rounded-xl transition-colors active:scale-95"
-              >
-                {t('recipe.leaveStay')}
-              </button>
-              <button
-                onClick={() => navigate(-1)}
-                className="flex-[1.5] py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
-              >
-                {t('recipe.leaveDiscard')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmSheet
+          question={t('recipe.leaveTitle')}
+          title={name.trim() || t('recipe.leaveNewName')}
+          description={t('recipe.leaveText')}
+          confirmLabel={t('recipe.leaveDiscard')}
+          cancelLabel={t('recipe.leaveStay')}
+          onConfirm={() => navigate(-1)}
+          onCancel={() => setShowLeaveConfirm(false)}
+        />
       )}
 
       {stepToDelete !== null && (
-        <div data-scroll-lock className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setStepToDelete(null)}>
-          <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="material-symbols-outlined text-3xl">delete</span>
-            </div>
-            <h3 className="font-headline font-bold text-lg text-on-surface mb-2">{t('recipeForm.removeStepTitle')}</h3>
-            <p className="text-on-surface-variant text-sm font-medium mb-6">{t('recipeForm.removeStepText', { number: stepToDelete + 1 })}</p>
-
-            <div className="flex gap-3 w-full">
-              <button
-                onClick={() => setStepToDelete(null)}
-                className="flex-1 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-highest rounded-xl transition-colors active:scale-95"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={() => handleDeleteStepConfirm(stepToDelete)}
-                className="flex-[1.5] py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
-              >
-                {t('common.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmSheet
+          question={t('recipeForm.removeStepTitle')}
+          title={t('recipeForm.removeStepName', { number: stepToDelete + 1 })}
+          detail={instructions[stepToDelete]?.text.trim() || undefined}
+          description={t('recipeForm.removeStepText')}
+          confirmLabel={t('recipeForm.removeStepConfirm')}
+          onConfirm={() => handleDeleteStepConfirm(stepToDelete)}
+          onCancel={() => setStepToDelete(null)}
+        />
       )}
 
       {ingredientToDelete !== null && (
-        <div data-scroll-lock className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setIngredientToDelete(null)}>
-          <div className="bg-surface-container-lowest rounded-[2rem] p-6 shadow-ambient max-w-[300px] w-full border border-outline-variant/20 text-center animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="w-14 h-14 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="material-symbols-outlined text-3xl">delete</span>
-            </div>
-            <h3 className="font-headline font-bold text-lg text-on-surface mb-2">{t('recipeForm.removeIngredientTitle')}</h3>
-            <p className="text-on-surface-variant text-sm font-medium mb-6">{t('recipeForm.removeIngredientText', { name: ingredients[ingredientToDelete]?.name ?? '' })}</p>
-
-            <div className="flex gap-3 w-full">
-              <button
-                onClick={() => setIngredientToDelete(null)}
-                className="flex-1 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-highest rounded-xl transition-colors active:scale-95"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={() => {
-                  setIngredients(ingredients.filter((_, i) => i !== ingredientToDelete));
-                  setIngredientToDelete(null);
-                }}
-                className="flex-[1.5] py-3 text-sm font-bold text-on-error bg-error rounded-xl shadow-sm hover:bg-error/90 transition-colors active:scale-95"
-              >
-                {t('common.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmSheet
+          question={t('recipeForm.removeIngredientTitle')}
+          title={ingredients[ingredientToDelete]?.name ?? ''}
+          description={t('recipeForm.removeIngredientText')}
+          confirmLabel={t('recipeForm.removeIngredientConfirm')}
+          onConfirm={() => {
+            setIngredients(ingredients.filter((_, i) => i !== ingredientToDelete));
+            setIngredientToDelete(null);
+          }}
+          onCancel={() => setIngredientToDelete(null)}
+        />
       )}
 
       {showPhotoSheet && (

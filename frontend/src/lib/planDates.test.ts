@@ -5,6 +5,7 @@ import {
   formatDayMonth,
   formatDayWithMonthName,
   formatRelativeDayLabel,
+  formatLocalizedDayWithDate,
   formatLocalizedDayLabel,
   formatShortDayLabel,
   parseIsoDate,
@@ -172,5 +173,26 @@ describe('formatLocalizedDayLabel', () => {
 
   it('returns text that is not a date unchanged', () => {
     expect(formatLocalizedDayLabel('', 'en-GB', names, today)).toBe('')
+  })
+})
+
+describe('formatLocalizedDayWithDate', () => {
+  const today = new Date(2026, 10, 6, 12, 0)
+  const polish = { yesterday: 'Wczoraj', today: 'Dzisiaj', tomorrow: 'Jutro' }
+  const english = { yesterday: 'Yesterday', today: 'Today', tomorrow: 'Tomorrow' }
+
+  it('adds the date to days next to today in the chosen language', () => {
+    expect(formatLocalizedDayWithDate('2026-11-06', 'pl-PL', polish, today)).toBe('Dzisiaj, 6 listopada')
+    expect(formatLocalizedDayWithDate('2026-11-05', 'pl-PL', polish, today)).toBe('Wczoraj, 5 listopada')
+    expect(formatLocalizedDayWithDate('2026-11-07', 'en-GB', english, today)).toBe('Tomorrow, 7 November')
+  })
+
+  it('keeps the weekday with the date for other days', () => {
+    expect(formatLocalizedDayWithDate('2026-11-11', 'pl-PL', polish, today)).toBe('Środa, 11 listopada')
+    expect(formatLocalizedDayWithDate('2026-11-11', 'en-GB', english, today)).toBe('Wednesday 11 November')
+  })
+
+  it('returns an invalid date unchanged', () => {
+    expect(formatLocalizedDayWithDate('not-a-date', 'pl-PL', polish, today)).toBe('not-a-date')
   })
 })
