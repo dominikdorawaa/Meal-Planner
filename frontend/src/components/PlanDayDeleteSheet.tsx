@@ -43,7 +43,7 @@ export function PlanDayDeleteSheet({ dayLabel, items, onConfirm, onCancel }: Pla
                 <input type="checkbox" checked={checked} onChange={() => toggle(item.id)} className="peer sr-only" />
                 <span
                   aria-hidden="true"
-                  className={`w-6 h-6 rounded-lg shrink-0 flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface ${checked ? 'bg-danger text-on-danger' : 'border-2 border-outline-variant/40'}`}
+                  className={`w-6 h-6 rounded-lg shrink-0 flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface ${checked ? 'bg-primary text-on-primary' : 'border-2 border-outline-variant/40'}`}
                 >
                   {checked && <span className="material-symbols-outlined text-[18px] font-bold">check</span>}
                 </span>
