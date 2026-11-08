@@ -24,6 +24,7 @@ public class RecipeService {
     static final String NOT_FOUND = "error.not-found";
     static final String FORBIDDEN = "error.forbidden";
     static final String INGREDIENT_PRODUCT_REQUIRED = "recipe.ingredient-product-required";
+    static final String STEP_NAME_TOO_LONG = "recipe.step-name-too-long";
 
     private final RecipeRepository recipeRepository;
     private final SavedRecipeRepository savedRecipeRepository;
@@ -58,6 +59,7 @@ public class RecipeService {
         recipe.setCreatedBy(userId);
         recipe.setVisibility(RecipeVisibility.PRIVATE);
         recipe.setIsArchived(false);
+        recipe.setSteps(cleanSteps(recipe.getSteps()));
         if (recipe.getIngredients() == null) {
             recipe.setIngredients(new ArrayList<>());
         }
@@ -74,7 +76,7 @@ public class RecipeService {
         recipe.copyStoredNutrition(details);
         recipe.setPrepTime(details.getPrepTime());
         recipe.setPortions(details.getPortions());
-        recipe.setInstructions(details.getInstructions());
+        recipe.setSteps(cleanSteps(details.getSteps()));
         if (recipe.getIngredients() == null) {
             recipe.setIngredients(new ArrayList<>());
         }
@@ -112,6 +114,19 @@ public class RecipeService {
     public void unsave(UUID id, String email) {
         UUID userId = requireUser(email).getId();
         savedRecipeRepository.deleteByUserIdAndRecipeId(userId, id);
+    }
+
+    private static List<RecipeStep> cleanSteps(List<RecipeStep> steps) {
+        if (steps == null) {
+            return new ArrayList<>();
+        }
+        List<RecipeStep> cleaned = steps.stream()
+                .filter(step -> step != null && !step.isEmpty())
+                .toList();
+        if (cleaned.stream().anyMatch(step -> step.name() != null && step.name().length() > RecipeStep.MAX_NAME_LENGTH)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, STEP_NAME_TOO_LONG);
+        }
+        return new ArrayList<>(cleaned);
     }
 
     User requireUser(String email) {

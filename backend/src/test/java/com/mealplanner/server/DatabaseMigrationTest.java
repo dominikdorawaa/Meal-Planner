@@ -65,7 +65,7 @@ class DatabaseMigrationTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "select version, success from flyway_schema_history where version is not null order by installed_rank");
 
-        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13", "14", "15", "16", "17", "18");
+        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13", "14", "15", "16", "17", "18", "19");
         assertThat(history).allSatisfy(row -> assertThat(row.get("success")).isEqualTo(true));
     }
 
@@ -117,6 +117,27 @@ class DatabaseMigrationTest {
                 "select name, image_url from " + schema + ".recipes order by name");
         assertThat(rows).extracting(row -> row.get("image_url"))
                 .containsExactly("https://example.com/my-photo.jpg", null);
+        jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    @Test
+    void turnsPlainTextRecipeStepsIntoStepsWithoutNames() {
+        String schema = "recipe_steps_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("18").load().migrate();
+        String insertRecipe = "insert into " + schema + ".recipes (id, name, instructions) values (?, ?, ?::jsonb)";
+        jdbcTemplate.update(insertRecipe, UUID.randomUUID(), "Text steps", "[\"Boil pasta\", \"Add sauce\"]");
+        jdbcTemplate.update(insertRecipe, UUID.randomUUID(), "No steps", "[]");
+        jdbcTemplate.update(insertRecipe, UUID.randomUUID(), "Null steps", null);
+
+        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+
+        Map<String, Object> steps = new HashMap<>();
+        jdbcTemplate.queryForList("select name, instructions::text as instructions from " + schema + ".recipes")
+                .forEach(row -> steps.put((String) row.get("name"), row.get("instructions")));
+        assertThat(objectMapper.readTree((String) steps.get("Text steps")))
+                .isEqualTo(objectMapper.readTree("[{\"name\":null,\"text\":\"Boil pasta\"},{\"name\":null,\"text\":\"Add sauce\"}]"));
+        assertThat(steps.get("No steps")).isEqualTo("[]");
+        assertThat(steps.get("Null steps")).isNull();
         jdbcTemplate.execute("drop schema " + schema + " cascade");
     }
 

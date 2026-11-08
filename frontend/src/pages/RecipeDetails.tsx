@@ -21,6 +21,7 @@ import { formatCompactNumber } from '../lib/compactNumber';
 import { scaleMacros } from '../lib/macros';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { PlanTargetPicker } from '../components/PlanTargetPicker';
+import { stepsOfRecipe } from '../lib/recipeSteps';
 
 const DEFAULT_RECIPE_WEIGHT = 300;
 const GRAMS_MEASURE = 'g';
@@ -298,6 +299,7 @@ export function RecipeDetails() {
   const activeDateDisplay = formatShortDayLabel(activeDate || selectDate || '');
 
   const isOwn = recipe.own !== false;
+  const steps = stepsOfRecipe(recipe);
   const withoutProduct = ingredientsWithoutProduct(ingredients);
   const extraNutrients = recipeExtraNutrients(ingredients, basePortions);
   const extraNutrientNotes = Object.fromEntries(
@@ -545,18 +547,25 @@ export function RecipeDetails() {
           />
         )}
 
-        {recipe.instructions && recipe.instructions.length > 0 && (
+        {steps.length > 0 && (
           <section className="flex flex-col gap-4">
             <h2 className="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-2">{t('recipeDetails.steps')}</h2>
             <div className="flex flex-col gap-5">
-              {recipe.instructions.map((step: string, idx: number) => (
-                <div key={idx} className="flex gap-4">
+              {steps.map((step, idx) => (
+                <div key={idx} className="flex gap-4 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-black flex items-center justify-center shrink-0 text-sm border border-primary/20">
                     {idx + 1}
                   </div>
-                  <p className="text-[15px] text-on-surface-variant leading-relaxed">
-                    {step}
-                  </p>
+                  {step.name ? (
+                    <div className="flex-1 min-w-0 flex flex-col gap-1 pt-1">
+                      <h3 className="text-[15px] font-bold text-on-surface [overflow-wrap:anywhere]">{step.name}</h3>
+                      {step.text && (
+                        <p className="text-[15px] text-on-surface-variant leading-relaxed [overflow-wrap:anywhere]">{step.text}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="min-w-0 text-[15px] text-on-surface-variant leading-relaxed [overflow-wrap:anywhere]">{step.text}</p>
+                  )}
                 </div>
               ))}
             </div>

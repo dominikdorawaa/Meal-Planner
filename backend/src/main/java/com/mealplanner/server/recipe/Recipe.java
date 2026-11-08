@@ -1,6 +1,8 @@
 package com.mealplanner.server.recipe;
 
+import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -43,7 +45,7 @@ public class Recipe {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "instructions")
-    private List<String> instructions;
+    private List<RecipeStep> steps;
 
     @Column(name = "is_archived", nullable = false)
     private Boolean isArchived = false;
@@ -85,6 +87,23 @@ public class Recipe {
 
     public Double getCarbs() {
         return nutrition().map(RecipeNutrition::carbs).orElse(carbs);
+    }
+
+    @JsonGetter("instructions")
+    public List<String> legacyInstructions() {
+        if (steps == null) {
+            return List.of();
+        }
+        return steps.stream()
+                .map(step -> step.text().isBlank() && step.name() != null ? step.name() : step.text())
+                .toList();
+    }
+
+    @JsonSetter("instructions")
+    public void applyLegacyInstructions(List<RecipeStep> legacySteps) {
+        if (steps == null) {
+            steps = legacySteps;
+        }
     }
 
     void copyStoredNutrition(Recipe source) {

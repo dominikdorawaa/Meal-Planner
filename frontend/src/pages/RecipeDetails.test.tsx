@@ -115,6 +115,23 @@ describe('RecipeDetails loading', () => {
     expect(mocks.getRecipe).toHaveBeenCalledTimes(1);
   });
 
+  it('shows step names above their text and wraps long links', async () => {
+    const link = 'https://example.com/' + 'a'.repeat(120);
+    mocks.getRecipe.mockResolvedValue({
+      ...OWN_RECIPE,
+      steps: [{ name: 'Sos', text: link }, { name: null, text: 'Wymieszaj' }, { name: 'Podanie', text: '' }],
+    });
+    renderDetails();
+
+    const sauce = await screen.findByRole('heading', { name: 'Sos' });
+    expect(sauce.nextElementSibling?.textContent).toBe(link);
+    expect(sauce.nextElementSibling?.className).toContain('[overflow-wrap:anywhere]');
+    expect(screen.getByText('Wymieszaj').className).not.toContain('pt-1');
+    expect(screen.getByText('Wymieszaj').className).toContain('[overflow-wrap:anywhere]');
+    expect(screen.getByRole('heading', { name: 'Podanie' }).nextElementSibling).toBeNull();
+    expect(screen.queryByText(t('recipeForm.step', { number: 2 }))).toBeNull();
+  });
+
   it('names ingredient measures in their declined form', async () => {
     const banana = withMeasures(BANANA, measure('piece', 120));
     mocks.getRecipe.mockResolvedValue({
