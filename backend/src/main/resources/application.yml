@@ -4,6 +4,9 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
   jpa:
     hibernate:
       ddl-auto: validate
@@ -30,6 +33,8 @@ spring:
   messages:
     basename: messages
     fallback-to-system-locale: false
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
 
 jwt:
   secret: ${JWT_SECRET}
@@ -47,4 +52,5 @@ supabase:
 corsAllowedOrigins: http://localhost:5173
 
 server:
-  port: 8080
+  port: ${PORT:8080}
+  shutdown: graceful

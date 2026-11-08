@@ -33,7 +33,7 @@ class ApplicationYamlTest {
         assertThat(props.getProperty("jwt.secret")).isEqualTo("${JWT_SECRET}");
         assertThat(props.getProperty("jwt.expiration-ms")).isEqualTo("${JWT_EXPIRATION_MS:5184000000}");
         assertThat(props.getProperty("corsAllowedOrigins")).isEqualTo("http://localhost:5173");
-        assertThat(props.getProperty("server.port")).isEqualTo("8080");
+        assertThat(props.getProperty("server.port")).isEqualTo("${PORT:8080}");
     }
 
     @Test
@@ -89,6 +89,30 @@ class ApplicationYamlTest {
         assertThatThrownBy(() -> env.getProperty("spring.datasource.username"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("DB_USERNAME");
+    }
+
+    @Test
+    void serverPortDefaultsTo8080() {
+        StandardEnvironment env = environmentWith(Map.of());
+
+        assertThat(env.getProperty("server.port", Integer.class)).isEqualTo(8080);
+    }
+
+    @Test
+    void serverPortComesFromPortVariable() {
+        StandardEnvironment env = environmentWith(Map.of("PORT", "34567"));
+
+        assertThat(env.getProperty("server.port", Integer.class)).isEqualTo(34567);
+    }
+
+    @Test
+    void keepsConnectionPoolSmallAndShutsDownGracefully() {
+        Properties props = loadApplicationYaml();
+
+        assertThat(props.getProperty("spring.datasource.hikari.maximum-pool-size")).isEqualTo("5");
+        assertThat(props.getProperty("spring.datasource.hikari.minimum-idle")).isEqualTo("1");
+        assertThat(props.getProperty("server.shutdown")).isEqualTo("graceful");
+        assertThat(props.getProperty("spring.lifecycle.timeout-per-shutdown-phase")).isEqualTo("20s");
     }
 
     @Test
