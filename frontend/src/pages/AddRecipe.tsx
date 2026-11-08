@@ -22,7 +22,7 @@ import { useCloseOnBack } from '../lib/backNavigation';
 import { RecipePhotoSheet } from '../components/RecipePhotoSheet';
 import { ConfirmSheet } from '../components/ConfirmSheet';
 import { RecipeStepsEditor } from '../components/RecipeStepsEditor';
-import { newStepDraft, readRecipeSteps, stepTitle, stepsToSave, type RecipeStepDraft } from '../lib/recipeSteps';
+import { newStepDraft, stepTitle, stepsOfRecipe, stepsPayload, type RecipeStepDraft } from '../lib/recipeSteps';
 import { resizeRecipePhoto } from '../lib/recipePhoto';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { AMOUNT_LIMITS, RECIPE_LIMITS, acceptsLimitedNumber, isPositiveWithinLimit, numberFieldProps } from '../lib/inputLimits';
@@ -115,7 +115,7 @@ export default function AddRecipe() {
           prepTime: recipe.prep_time ? recipe.prep_time.toString() : '',
           portions: recipe.portions ? recipe.portions.toString() : '1',
           imageUrl: recipe.image_url || '',
-          instructions: readRecipeSteps(recipe.instructions).map(step => newStepDraft(step)),
+          instructions: stepsOfRecipe(recipe).map(step => newStepDraft(step)),
           ingredients: (recipe.ingredients ?? []).map((ingredient: IngredientDraft) => ({
             id: ingredient.id,
             name: ingredient.name,
@@ -230,7 +230,7 @@ export default function AddRecipe() {
         image_url: imageUrl.trim() || null,
         prep_time: parseInt(prepTime) || 0,
         portions: portionCount,
-        instructions: stepsToSave(instructions),
+        ...stepsPayload(instructions),
         ingredients: ingredients.map(ing => ({
           name: ing.name,
           amount: ing.amount,

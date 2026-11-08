@@ -49,11 +49,11 @@ class RecipeStepIntegrationTest {
         return "Bearer " + jwtService.generateToken(user.getId(), user.getEmail());
     }
 
-    private String create(String token, String instructions) throws Exception {
+    private String create(String token, String steps) throws Exception {
         String body = mockMvc.perform(post("/api/recipes")
                         .header(HttpHeaders.AUTHORIZATION, token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Pasta\",\"ingredients\":[],\"instructions\":" + instructions + "}"))
+                        .content("{\"name\":\"Pasta\",\"ingredients\":[],\"steps\":" + steps + "}"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readTree(body).get("id").asString();
@@ -68,13 +68,15 @@ class RecipeStepIntegrationTest {
 
         mockMvc.perform(get("/api/recipes/" + id).header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.instructions.length()").value(3))
-                .andExpect(jsonPath("$.instructions[0].name").value("Sauce"))
-                .andExpect(jsonPath("$.instructions[0].text").value("Fry garlic"))
-                .andExpect(jsonPath("$.instructions[1].name").doesNotExist())
-                .andExpect(jsonPath("$.instructions[1].text").value("Boil pasta"))
-                .andExpect(jsonPath("$.instructions[2].name").value("Serve"))
-                .andExpect(jsonPath("$.instructions[2].text").value(""));
+                .andExpect(jsonPath("$.steps.length()").value(3))
+                .andExpect(jsonPath("$.steps[0].name").value("Sauce"))
+                .andExpect(jsonPath("$.steps[0].text").value("Fry garlic"))
+                .andExpect(jsonPath("$.steps[1].name").doesNotExist())
+                .andExpect(jsonPath("$.steps[1].text").value("Boil pasta"))
+                .andExpect(jsonPath("$.steps[2].name").value("Serve"))
+                .andExpect(jsonPath("$.steps[2].text").value(""))
+                .andExpect(jsonPath("$.instructions[0]").value("Fry garlic"))
+                .andExpect(jsonPath("$.instructions[2]").value("Serve"));
     }
 
     @Test
@@ -88,7 +90,7 @@ class RecipeStepIntegrationTest {
                         .content("{\"name\":\"Pasta\",\"ingredients\":[],\"instructions\":[\"Boil pasta\",\"\"]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.instructions.length()").value(1))
-                .andExpect(jsonPath("$.instructions[0].text").value("Boil pasta"));
+                .andExpect(jsonPath("$.steps[0].text").value("Boil pasta"));
     }
 
     @Test
@@ -109,7 +111,7 @@ class RecipeStepIntegrationTest {
         mockMvc.perform(post("/api/recipes")
                         .header(HttpHeaders.AUTHORIZATION, token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Pasta\",\"ingredients\":[],\"instructions\":[{\"name\":\"" + tooLong + "\",\"text\":\"x\"}]}"))
+                        .content("{\"name\":\"Pasta\",\"ingredients\":[],\"steps\":[{\"name\":\"" + tooLong + "\",\"text\":\"x\"}]}"))
                 .andExpect(status().isBadRequest());
 
         create(token, "[{\"name\":\"" + "a".repeat(RecipeStep.MAX_NAME_LENGTH) + "\",\"text\":\"x\"}]");

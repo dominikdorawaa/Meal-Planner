@@ -32,7 +32,20 @@ export function readRecipeSteps(raw: unknown): RecipeStep[] {
   });
 }
 
-export function stepsToSave(drafts: RecipeStepDraft[]): RecipeStep[] {
+export function stepsOfRecipe(recipe: { steps?: unknown; instructions?: unknown }): RecipeStep[] {
+  return readRecipeSteps(recipe.steps ?? recipe.instructions);
+}
+
+export function limitStepName(name: string): string {
+  return name.trimStart().slice(0, STEP_NAME_MAX_LENGTH);
+}
+
+export function stepsPayload(drafts: RecipeStepDraft[]): { steps: RecipeStep[]; instructions: string[] } {
+  const steps = stepsToSave(drafts);
+  return { steps, instructions: steps.map(step => step.text.trim() ? step.text : step.name ?? '') };
+}
+
+function stepsToSave(drafts: RecipeStepDraft[]): RecipeStep[] {
   return drafts
     .map(draft => ({ name: draft.name.trim() || null, text: draft.text }))
     .filter(step => step.name !== null || step.text.trim() !== '');

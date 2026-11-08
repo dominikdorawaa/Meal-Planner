@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { newStepDraft, readRecipeSteps, reorderSteps, stepTitle, stepsToSave } from './recipeSteps';
+import { limitStepName, newStepDraft, readRecipeSteps, reorderSteps, stepTitle, stepsOfRecipe, stepsPayload } from './recipeSteps';
 
 describe('recipeSteps', () => {
   it('reads plain text and named steps and skips unknown values', () => {
@@ -20,17 +20,32 @@ describe('recipeSteps', () => {
     expect(second).toMatchObject({ name: '', text: 'Boil' });
   });
 
+  it('reads named steps first and falls back to plain text instructions', () => {
+    expect(stepsOfRecipe({ steps: [{ name: 'Sauce', text: 'Fry' }], instructions: ['Fry'] })).toEqual([{ name: 'Sauce', text: 'Fry' }]);
+    expect(stepsOfRecipe({ instructions: ['Boil'] })).toEqual([{ name: null, text: 'Boil' }]);
+    expect(stepsOfRecipe({})).toEqual([]);
+  });
+
+  it('limits a step name after dropping leading spaces', () => {
+    expect(limitStepName('  Sauce')).toBe('Sauce');
+    expect(limitStepName(' ' + 'a'.repeat(70))).toBe('a'.repeat(60));
+    expect(limitStepName('a'.repeat(60) + ' ')).toBe('a'.repeat(60));
+  });
+
   it('saves trimmed names and skips steps without name and text', () => {
-    expect(stepsToSave([
+    expect(stepsPayload([
       { id: 'a', name: ' Sauce ', text: 'Fry' },
       { id: 'b', name: ' ', text: '  ' },
       { id: 'c', name: '', text: 'Boil' },
       { id: 'd', name: 'Serve', text: '' },
-    ])).toEqual([
-      { name: 'Sauce', text: 'Fry' },
-      { name: null, text: 'Boil' },
-      { name: 'Serve', text: '' },
-    ]);
+    ])).toEqual({
+      steps: [
+        { name: 'Sauce', text: 'Fry' },
+        { name: null, text: 'Boil' },
+        { name: 'Serve', text: '' },
+      ],
+      instructions: ['Fry', 'Boil', 'Serve'],
+    });
   });
 
   it('uses the step number when a step has no name', () => {

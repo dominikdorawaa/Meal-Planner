@@ -119,14 +119,15 @@ describe('RecipeDetails loading', () => {
     const link = 'https://example.com/' + 'a'.repeat(120);
     mocks.getRecipe.mockResolvedValue({
       ...OWN_RECIPE,
-      instructions: [{ name: 'Sos', text: link }, { name: null, text: 'Wymieszaj' }, { name: 'Podanie', text: '' }],
+      steps: [{ name: 'Sos', text: link }, { name: null, text: 'Wymieszaj' }, { name: 'Podanie', text: '' }],
     });
     renderDetails();
 
     const sauce = await screen.findByRole('heading', { name: 'Sos' });
     expect(sauce.nextElementSibling?.textContent).toBe(link);
     expect(sauce.nextElementSibling?.className).toContain('[overflow-wrap:anywhere]');
-    expect(screen.getByText('Wymieszaj')).toBeTruthy();
+    expect(screen.getByText('Wymieszaj').className).not.toContain('pt-1');
+    expect(screen.getByText('Wymieszaj').className).toContain('[overflow-wrap:anywhere]');
     expect(screen.getByRole('heading', { name: 'Podanie' }).nextElementSibling).toBeNull();
     expect(screen.queryByText(t('recipeForm.step', { number: 2 }))).toBeNull();
   });

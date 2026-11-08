@@ -10,6 +10,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
@@ -54,8 +56,32 @@ class EntityJsonMappingTest {
                 "{\"instructions\":[{\"name\":\" Sauce \",\"text\":\"Fry\"},\"Boil\",{\"name\":\" \"}]}",
                 Recipe.class);
 
-        assertThat(recipe.getInstructions()).containsExactly(
+        assertThat(recipe.getSteps()).containsExactly(
                 new RecipeStep("Sauce", "Fry"), new RecipeStep(null, "Boil"), new RecipeStep(null, ""));
+    }
+
+    @Test
+    void prefersNamedStepsOverPlainTextInstructions() {
+        Recipe stepsFirst = objectMapper.readValue(
+                "{\"steps\":[{\"name\":\"Sauce\",\"text\":\"Fry\"}],\"instructions\":[\"Fry\"]}", Recipe.class);
+        Recipe instructionsFirst = objectMapper.readValue(
+                "{\"instructions\":[\"Fry\"],\"steps\":[{\"name\":\"Sauce\",\"text\":\"Fry\"}]}", Recipe.class);
+
+        assertThat(stepsFirst.getSteps()).containsExactly(new RecipeStep("Sauce", "Fry"));
+        assertThat(instructionsFirst.getSteps()).containsExactly(new RecipeStep("Sauce", "Fry"));
+    }
+
+    @Test
+    void writesStepsAsTextForOlderClients() {
+        Recipe recipe = new Recipe();
+        recipe.setSteps(List.of(new RecipeStep("Sauce", "Fry"), new RecipeStep("Serve", "")));
+
+        var json = objectMapper.valueToTree(recipe);
+
+        assertThat(json.get("steps").get(0).get("name").asString()).isEqualTo("Sauce");
+        assertThat(json.get("instructions").get(0).asString()).isEqualTo("Fry");
+        assertThat(json.get("instructions").get(1).asString()).isEqualTo("Serve");
+        assertThat(objectMapper.valueToTree(new Recipe()).get("instructions").size()).isZero();
     }
 
     @Test

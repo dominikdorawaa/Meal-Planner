@@ -96,7 +96,7 @@ public class DataInitializer implements CommandLineRunner {
         r.setPrepTime(20);
         r.setIsArchived(false);
         r.setVisibility(RecipeVisibility.PUBLIC);
-        r.setInstructions(Arrays.asList(new RecipeStep(null, "Przygotuj składniki"), new RecipeStep(null, "Połącz i podawaj")));
+        r.setSteps(Arrays.asList(new RecipeStep(null, "Przygotuj składniki"), new RecipeStep(null, "Połącz i podawaj")));
         r.setIngredients(sample.ingredients().stream()
                 .flatMap(ingredient -> Stream.ofNullable(products.get(ingredient.product()))
                         .map(product -> createIngredient(r, ingredient, product)))

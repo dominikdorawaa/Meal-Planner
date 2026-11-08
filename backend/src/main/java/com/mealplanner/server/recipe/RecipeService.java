@@ -59,7 +59,7 @@ public class RecipeService {
         recipe.setCreatedBy(userId);
         recipe.setVisibility(RecipeVisibility.PRIVATE);
         recipe.setIsArchived(false);
-        recipe.setInstructions(cleanSteps(recipe.getInstructions()));
+        recipe.setSteps(cleanSteps(recipe.getSteps()));
         if (recipe.getIngredients() == null) {
             recipe.setIngredients(new ArrayList<>());
         }
@@ -76,7 +76,7 @@ public class RecipeService {
         recipe.copyStoredNutrition(details);
         recipe.setPrepTime(details.getPrepTime());
         recipe.setPortions(details.getPortions());
-        recipe.setInstructions(cleanSteps(details.getInstructions()));
+        recipe.setSteps(cleanSteps(details.getSteps()));
         if (recipe.getIngredients() == null) {
             recipe.setIngredients(new ArrayList<>());
         }

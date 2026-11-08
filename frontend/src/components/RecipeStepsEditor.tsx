@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { t } from '../i18n';
-import { STEP_NAME_MAX_LENGTH, reorderSteps, type RecipeStepDraft } from '../lib/recipeSteps';
+import { limitStepName, reorderSteps, type RecipeStepDraft } from '../lib/recipeSteps';
 
 interface RecipeStepsEditorProps {
   steps: RecipeStepDraft[];
@@ -97,8 +97,7 @@ function SortableStep({ step, index, onNameChange, onTextChange, onRemove }: Sor
           type="text"
           autoComplete="off"
           value={step.name}
-          maxLength={STEP_NAME_MAX_LENGTH}
-          onChange={e => onNameChange(e.target.value)}
+          onChange={e => onNameChange(limitStepName(e.target.value))}
           placeholder={t('recipeForm.step', { number })}
           aria-label={t('recipeForm.stepName', { number })}
           className="flex-1 min-w-0 bg-surface-container-low rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/60"
