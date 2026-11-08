@@ -15,7 +15,8 @@ import { announceDeletedRecipe } from '../lib/deletedRecipe';
 import { ConfirmSheet } from '../components/ConfirmSheet';
 import { UndoSnackbar } from '../components/UndoSnackbar';
 import { pluralForm, t, type MessageKey } from '../i18n';
-import { AMOUNT_LIMITS, acceptsLimitedNumber, numberFieldProps } from '../lib/inputLimits';
+import { AMOUNT_LIMITS } from '../lib/inputLimits';
+import { AmountRow } from '../components/AmountRow';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { scaleMacros } from '../lib/macros';
 import { MonthCalendar } from '../components/MonthCalendar';
@@ -366,57 +367,35 @@ export function RecipeDetails() {
       </div>
 
       <div className="flex flex-col gap-2 w-full max-w-xl mx-auto px-4 pt-2">
-            <div className={`flex items-center rounded-2xl p-1.5 pr-4 border transition-all gap-3 ${inputType === 'portions' ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-surface-container-low border-outline-variant/10'}`}>
-              <div className="flex items-center gap-2 pl-0.5">
-                  <input
-                    {...numberFieldProps(AMOUNT_LIMITS.portion)}
-                    aria-label={t('recipeDetails.portionsInput')}
-                    value={portionInput}
-                    onFocus={() => setInputType('portions')}
-                    onChange={(e) => {
-                      if (!acceptsLimitedNumber(e.target.value, AMOUNT_LIMITS.portion)) return;
-                      setInputType('portions');
-                      setPortionInput(e.target.value === '' ? '' : Number(e.target.value));
-                    }}
-                    className={`w-[72px] border rounded-xl py-2 px-2 outline-none transition-all text-on-surface font-bold text-base text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm ${inputType === 'portions' ? 'bg-surface border-primary/50' : 'bg-surface-container-lowest border-outline-variant/20'}`}
-                  />
+            <AmountRow
+              label={t('recipeDetails.portionsInput')}
+              max={AMOUNT_LIMITS.portion}
+              unit={
                 <div className="flex items-baseline gap-1">
                   <span className="font-bold text-on-surface-variant text-sm shrink-0 whitespace-nowrap">
                     {portionWord(Number(portionInput) || 0)}
                   </span>
                   <span className="text-xs font-medium text-on-surface-variant/60 ml-0.5 whitespace-nowrap">({formatCompactNumber(Number(portionInput || 0) * gramsPerPortion)}g)</span>
                 </div>
-              </div>
-              <div className="flex items-baseline gap-1 ml-auto shrink-0">
-                <span data-testid="portions-kcal" className={`font-black text-xl tabular-nums whitespace-nowrap transition-colors ${inputType === 'portions' ? 'text-primary' : 'text-on-surface'}`}>{formatCompactNumber(recipe.kcal * (Number(portionInput) || 0))}</span>
-                <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">kcal</span>
-              </div>
-            </div>
-
-
-            <div className={`flex items-center rounded-2xl p-1.5 pr-4 border transition-all gap-3 ${inputType === 'grams' ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-surface-container-low border-outline-variant/10'}`}>
-              <div className="flex items-center gap-2 pl-0.5">
-                  <input
-                    {...numberFieldProps(AMOUNT_LIMITS.g)}
-                    aria-label={t('recipeDetails.gramsInput')}
-                    value={gramInput}
-                    onFocus={() => setInputType('grams')}
-                    onChange={(e) => {
-                      if (!acceptsLimitedNumber(e.target.value, AMOUNT_LIMITS.g)) return;
-                      setInputType('grams');
-                      setGramInput(e.target.value === '' ? '' : Number(e.target.value));
-                    }}
-                    className={`w-[72px] border rounded-xl py-2 px-2 outline-none transition-all text-on-surface font-bold text-base text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm ${inputType === 'grams' ? 'bg-surface border-primary/50' : 'bg-surface-container-lowest border-outline-variant/20'}`}
-                  />
-                <span className="font-bold text-on-surface-variant text-sm shrink-0 whitespace-nowrap">g</span>
-              </div>
-              <div className="flex items-baseline gap-1 ml-auto shrink-0">
-                <span data-testid="grams-kcal" className={`font-black text-xl tabular-nums whitespace-nowrap transition-colors ${inputType === 'grams' ? 'text-primary' : 'text-on-surface'}`}>
-                  {formatCompactNumber(recipe.kcal * (Number(gramInput) ? (Number(gramInput) / gramsPerPortion) : 0))}
-                </span>
-                <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">kcal</span>
-              </div>
-            </div>
+              }
+              value={portionInput}
+              kcal={recipe.kcal * (Number(portionInput) || 0)}
+              kcalTestId="portions-kcal"
+              active={inputType === 'portions'}
+              onActivate={() => setInputType('portions')}
+              onChange={setPortionInput}
+            />
+            <AmountRow
+              label={t('recipeDetails.gramsInput')}
+              max={AMOUNT_LIMITS.g}
+              unit="g"
+              value={gramInput}
+              kcal={recipe.kcal * (Number(gramInput) ? (Number(gramInput) / gramsPerPortion) : 0)}
+              kcalTestId="grams-kcal"
+              active={inputType === 'grams'}
+              onActivate={() => setInputType('grams')}
+              onChange={setGramInput}
+            />
       </div>
 
       <main className="w-full max-w-xl mx-auto px-4 py-8 flex flex-col gap-10">

@@ -145,6 +145,7 @@
   "amount.grams": "Ilość w gramach lub mililitrach",
   "amount.pieces": "Liczba sztuk",
   "amount.countOf": "Ilość ({name})",
+  "amount.chooseRow": "Wybierz: {label}",
   "amount.kitchenMeasure": "Miara kuchenna",
   "amount.measureOf": "{name} ({amount})",
   "units.szt": "szt.",

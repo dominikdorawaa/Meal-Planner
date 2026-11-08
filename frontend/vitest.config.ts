@@ -85,6 +85,7 @@ export default defineConfig({
         'src/lib/useSavedFood.ts',
         'src/lib/productDraft.ts',
         'src/lib/inputLimits.ts',
+        'src/lib/selectOnFocus.ts',
         'src/lib/compactNumber.ts',
         'src/lib/fitText.ts',
         'src/lib/macros.ts',
