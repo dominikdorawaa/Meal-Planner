@@ -26,6 +26,22 @@ describe('NutritionFactsTable', () => {
     expect(screen.getByRole('rowheader', { name: 'Cukry' }).className).toContain('pl-4');
   });
 
+  it('keeps parenthesised amounts in column headers on one line, also when they are nested', () => {
+    render(
+      <NutritionFactsTable
+        columns={[
+          { label: '100 g', values: { kcal: 60 } },
+          { label: 'Porcja (2 łyżki (30 g))', values: { kcal: 18 } },
+        ]}
+        facts={['kcal']}
+      />
+    );
+
+    const header = screen.getByRole('columnheader', { name: 'Porcja (2 łyżki (30 g))' });
+    expect([...header.querySelectorAll('.whitespace-nowrap')].map(chunk => chunk.textContent)).toEqual(['Porcja', '(2 łyżki', '(30 g))']);
+    expect([...screen.getByRole('columnheader', { name: '100 g' }).querySelectorAll('.whitespace-nowrap')].map(chunk => chunk.textContent)).toEqual(['100', 'g']);
+  });
+
   it('marks missing values and can show only selected nutrients', () => {
     render(
       <NutritionFactsTable columns={[{ label: '1 porcja', values: { fiber: 2 } }]} facts={['sugars', 'fiber']} />

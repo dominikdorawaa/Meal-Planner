@@ -386,10 +386,8 @@ describe('ProductDetails saving and ownership', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: /Zapisz produkt/ }));
     await waitFor(() => expect(mocks.save).toHaveBeenCalled());
 
-    await waitFor(() => {
-      openMenu();
-      expect(screen.getByRole('menuitem', { name: /Zapisz produkt/ })).toBeTruthy();
-    });
+    openMenu();
+    expect(await screen.findByRole('menuitem', { name: /Zapisz produkt/ })).toBeTruthy();
   });
 
   it('offers removing from saved once, then an own version instead of edit and delete on a base product', async () => {
@@ -397,12 +395,10 @@ describe('ProductDetails saving and ownership', () => {
     mocks.getProduct.mockResolvedValue(BASE);
     renderDetails();
     await screen.findByRole('button', { name: t('product.menu') });
-    await waitFor(() => expect(mocks.saved).toHaveBeenCalled());
 
-    await waitFor(() => {
-      openMenu();
-      expect(screen.getAllByRole('menuitem')[0].textContent).toContain(t('product.unsave'));
-    });
+    openMenu();
+    await screen.findByRole('menuitem', { name: /Usuń z zapisanych/ });
+    expect(screen.getAllByRole('menuitem')[0].textContent).toContain(t('product.unsave'));
     expect(screen.queryByRole('menuitem', { name: /Edytuj/ })).toBeNull();
     expect(screen.getAllByRole('menuitem')).toHaveLength(2);
     expect(screen.getAllByRole('menuitem', { name: /Usuń z zapisanych/ })).toHaveLength(1);

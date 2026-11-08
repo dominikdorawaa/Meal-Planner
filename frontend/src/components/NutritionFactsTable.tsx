@@ -21,9 +21,23 @@ interface NutritionFactsTableProps {
   notes?: Partial<Record<NutritionFact, string>>;
 }
 
+function unbreakableChunks(label: string): string[] {
+  const chunks: string[] = [];
+  let depth = 0;
+  for (const word of label.split(' ')) {
+    if (depth === 0 || word.startsWith('(')) chunks.push(word);
+    else chunks[chunks.length - 1] += ` ${word}`;
+    depth += (word.match(/\(/g)?.length ?? 0) - (word.match(/\)/g)?.length ?? 0);
+  }
+  return chunks;
+}
+
 function ColumnLabel({ label }: { label: string }) {
-  return label.split(/(\([^)]*\))/).filter(Boolean).map((part, index) => (
-    part.startsWith('(') ? <span key={index} className="whitespace-nowrap">{part}</span> : <Fragment key={index}>{part}</Fragment>
+  return unbreakableChunks(label).map((chunk, index) => (
+    <Fragment key={index}>
+      {index > 0 && ' '}
+      <span className="whitespace-nowrap">{chunk}</span>
+    </Fragment>
   ));
 }
 
