@@ -1,0 +1,110 @@
+package com.calendories.server.meal;
+
+import com.calendories.server.handler.ApiException;
+import com.calendories.server.product.Product;
+import com.calendories.server.product.ProductRepository;
+import com.calendories.server.recipe.RecipeService;
+import com.calendories.server.user.User;
+import com.calendories.server.user.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/meals")
+public class MealController {
+
+    @Autowired
+    private UserMealRepository userMealRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private ProductRepository productRepository;
+
+    @Autowired
+    private RecipeService recipeService;
+
+    private ResponseEntity<?> unauthorized() {
+        throw new AuthenticationCredentialsNotFoundException("Authentication required");
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getMyMeals(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated())
+            return unauthorized();
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        return ResponseEntity.ok(userMealRepository.findByUser(user));
+    }
+
+    @GetMapping("/day/{date}")
+    public ResponseEntity<?> getMealsForDay(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated())
+            return unauthorized();
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        return ResponseEntity.ok(userMealRepository.findByUserAndMealDate(user, date));
+    }
+
+    @PostMapping
+    public ResponseEntity<?> addMeal(@RequestBody UserMeal meal, Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated())
+            return unauthorized();
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        if (meal.getMealDate() == null)
+            throw new ApiException(HttpStatus.BAD_REQUEST, "error.validation-failed");
+        meal.setUser(user);
+
+        // Resolve product from DB to avoid detached entity issues
+        if (meal.getProduct() != null && meal.getProduct().getId() != null) {
+            Product product = productRepository.findById(meal.getProduct().getId()).orElse(null);
+            meal.setProduct(product);
+        }
+
+        // Resolve recipe from DB to avoid detached entity issues
+        if (meal.getRecipe() != null && meal.getRecipe().getId() != null) {
+            meal.setRecipe(recipeService.findById(meal.getRecipe().getId(), email));
+        }
+
+        return ResponseEntity.ok(userMealRepository.save(meal));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<UserMeal> updateMeal(@PathVariable UUID id, @RequestBody UserMeal mealDetails) {
+        return userMealRepository.findById(id).map(meal -> {
+            meal.setManualName(mealDetails.getManualName());
+            meal.setManualKcal(mealDetails.getManualKcal());
+            meal.setManualProtein(mealDetails.getManualProtein());
+            meal.setManualFat(mealDetails.getManualFat());
+            meal.setManualCarbs(mealDetails.getManualCarbs());
+            meal.setPortionsConsumed(mealDetails.getPortionsConsumed());
+            meal.setMeasureCode(mealDetails.getMeasureCode());
+            meal.setMeasureAmount(mealDetails.getMeasureAmount());
+            return ResponseEntity.ok(userMealRepository.save(meal));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteMeal(@PathVariable UUID id) {
+        if (userMealRepository.existsById(id)) {
+            userMealRepository.deleteById(id);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+}

@@ -1,0 +1,101 @@
+package com.calendories.server.off;
+
+import com.calendories.server.product.BarCodes;
+import com.calendories.server.product.NutritionValidator;
+import com.calendories.server.product.MeasureKind;
+import com.calendories.server.product.MeasureKindRepository;
+import com.calendories.server.product.Product;
+import com.calendories.server.product.ProductRepository;
+import com.calendories.server.product.ProductSource;
+import com.calendories.server.product.ProductStatus;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.Optional;
+
+@Slf4j
+@Service
+public class OffLookupService {
+
+    static final int MAX_TEXT_LENGTH = 255;
+    static final int NOT_FOUND_CACHE_SIZE = 10_000;
+
+    private final OffApiClient apiClient;
+    private final ProductRepository productRepository;
+    private final MeasureKindRepository measureKindRepository;
+    private final RequestLimiter limiter;
+    private final ExpiringCodeCache notFound;
+
+    public OffLookupService(OffApiClient apiClient, ProductRepository productRepository,
+                            MeasureKindRepository measureKindRepository,
+                            @Value("${off.api.requests-per-minute:90}") int requestsPerMinute,
+                            @Value("${off.api.not-found-ttl:24h}") Duration notFoundTtl) {
+        this.apiClient = apiClient;
+        this.productRepository = productRepository;
+        this.measureKindRepository = measureKindRepository;
+        this.limiter = new RequestLimiter(requestsPerMinute, Duration.ofMinutes(1), Instant::now);
+        this.notFound = new ExpiringCodeCache(notFoundTtl, NOT_FOUND_CACHE_SIZE, Instant::now);
+    }
+
+    public OffLookupResult lookup(String barCode) {
+        if (!BarCodes.isValid(barCode) || notFound.contains(barCode) || !limiter.tryAcquire()) {
+            return OffLookupResult.missing();
+        }
+        Optional<OffProduct> found;
+        try {
+            found = apiClient.findProduct(barCode);
+        } catch (OffUnavailableException exception) {
+            log.warn("Open Food Facts lookup failed for {}", barCode, exception);
+            return OffLookupResult.missing();
+        }
+        if (found.isEmpty()) {
+            notFound.add(barCode);
+            return OffLookupResult.missing();
+        }
+        OffProduct offProduct = cleaned(found.get(), barCode);
+        boolean valid = offProduct.polishName() && !OffNameRules.isForeignName(offProduct.name())
+                && NutritionValidator.check(offProduct.name(), offProduct.kcal(), offProduct.protein(),
+                offProduct.fat(), offProduct.carbs(), OffMeasures.unit(offProduct), barCode).isValid();
+        return valid ? OffLookupResult.found(save(offProduct)) : OffLookupResult.incomplete(offProduct);
+    }
+
+    private Product save(OffProduct offProduct) {
+        Product product = new Product();
+        product.setBarCode(offProduct.code());
+        product.setName(shorten(offProduct.name()));
+        product.setBrand(offProduct.brand().isEmpty() ? null : shorten(offProduct.brand()));
+        product.setKcal(offProduct.kcal());
+        product.setProtein(offProduct.protein());
+        product.setFat(offProduct.fat());
+        product.setCarbs(offProduct.carbs());
+        offProduct.extras().cleanedFor(offProduct.fat(), offProduct.carbs()).applyTo(product);
+        product.setUnit(OffMeasures.unit(offProduct));
+        OffMeasures.applyTo(product, OffMeasures.plan(offProduct), measureKindRepository.findAll().stream()
+                .collect(Collectors.toMap(MeasureKind::getCode, Function.identity())));
+        product.setStatus(ProductStatus.VERIFIED);
+        product.setSource(ProductSource.OPEN_FOOD_FACTS);
+        try {
+            return productRepository.saveAndFlush(product);
+        } catch (DataIntegrityViolationException exception) {
+            return productRepository.findByBarCodeAndStatusAndDeletedAtIsNull(offProduct.code(), ProductStatus.VERIFIED)
+                    .orElseThrow(() -> exception);
+        }
+    }
+
+    private static OffProduct cleaned(OffProduct product, String barCode) {
+        String name = OffNameRules.isJunkName(product.name()) ? "" : product.name();
+        return new OffProduct(barCode, name, product.brand(), product.kcal(), product.protein(),
+                product.fat(), product.carbs(), product.extras(), product.quantity(), product.polishName(),
+                product.measureFacts());
+    }
+
+    private static String shorten(String text) {
+        return text.length() > MAX_TEXT_LENGTH ? text.substring(0, MAX_TEXT_LENGTH) : text;
+    }
+}
