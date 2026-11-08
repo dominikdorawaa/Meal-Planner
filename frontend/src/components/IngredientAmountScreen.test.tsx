@@ -43,4 +43,19 @@ describe('IngredientAmountScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Zapisz' }));
     expect(onSubmit).toHaveBeenCalledWith({ amount: 3, unit: 'tbsp' });
   });
+
+  it('switches an ingredient to its base amount with a single tap on that row', () => {
+    const onSubmit = vi.fn();
+    render(<IngredientAmountScreen product={oil} initial={{ amount: 2, unit: 'tbsp' }} submitLabel="Zapisz" onSubmit={onSubmit} onBack={() => {}} />);
+    const base = screen.getByLabelText(t('amount.grams')) as HTMLInputElement;
+    const amount = Number(base.value);
+
+    const choose = screen.getByRole('button', { name: t('amount.chooseRow', { label: t('amount.grams') }) });
+    fireEvent.click(choose);
+    expect(choose.getAttribute('aria-pressed')).toBe('true');
+    expect(base.value).toBe(String(amount));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz' }));
+    expect(onSubmit).toHaveBeenCalledWith({ amount, unit: 'ml' });
+  });
 });
