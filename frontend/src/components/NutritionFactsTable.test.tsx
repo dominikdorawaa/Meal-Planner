@@ -17,12 +17,29 @@ describe('NutritionFactsTable', () => {
     );
 
     expect(screen.getByRole('columnheader', { name: 'Porcja (50 g)' })).toBeTruthy();
+    expect(screen.getByText('(50 g)').className).toContain('whitespace-nowrap');
     const saturatedFat = screen.getByRole('row', { name: /Kwasy tłuszczowe nasycone/ });
     expect(within(saturatedFat).getAllByRole('cell').map(cell => cell.textContent)).toEqual(['12 g', '6 g']);
     const salt = screen.getByRole('row', { name: /Sól/ });
     expect(within(salt).getAllByRole('cell').map(cell => cell.textContent)).toEqual(['0.1 g', '0.05 g']);
     expect(screen.getAllByRole('row')).toHaveLength(9);
     expect(screen.getByRole('rowheader', { name: 'Cukry' }).className).toContain('pl-4');
+  });
+
+  it('keeps parenthesised amounts in column headers on one line, also when they are nested', () => {
+    render(
+      <NutritionFactsTable
+        columns={[
+          { label: '100 g', values: { kcal: 60 } },
+          { label: 'Porcja (2 łyżki (30 g))', values: { kcal: 18 } },
+        ]}
+        facts={['kcal']}
+      />
+    );
+
+    const header = screen.getByRole('columnheader', { name: 'Porcja (2 łyżki (30 g))' });
+    expect([...header.querySelectorAll('.whitespace-nowrap')].map(chunk => chunk.textContent)).toEqual(['Porcja', '(2 łyżki', '(30 g))']);
+    expect([...screen.getByRole('columnheader', { name: '100 g' }).querySelectorAll('.whitespace-nowrap')].map(chunk => chunk.textContent)).toEqual(['100', 'g']);
   });
 
   it('marks missing values and can show only selected nutrients', () => {
