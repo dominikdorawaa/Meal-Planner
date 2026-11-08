@@ -21,6 +21,26 @@ interface NutritionFactsTableProps {
   notes?: Partial<Record<NutritionFact, string>>;
 }
 
+function unbreakableChunks(label: string): string[] {
+  const chunks: string[] = [];
+  let depth = 0;
+  for (const word of label.split(' ')) {
+    if (depth === 0 || word.startsWith('(')) chunks.push(word);
+    else chunks[chunks.length - 1] += ` ${word}`;
+    depth += (word.match(/\(/g)?.length ?? 0) - (word.match(/\)/g)?.length ?? 0);
+  }
+  return chunks;
+}
+
+function ColumnLabel({ label }: { label: string }) {
+  return unbreakableChunks(label).map((chunk, index) => (
+    <Fragment key={index}>
+      {index > 0 && ' '}
+      <span className="whitespace-nowrap">{chunk}</span>
+    </Fragment>
+  ));
+}
+
 export function NutritionFactsTable({ title, columns, facts = NUTRITION_FACTS, notes = {} }: NutritionFactsTableProps) {
   return (
     <section className="flex flex-col gap-3">
@@ -30,7 +50,9 @@ export function NutritionFactsTable({ title, columns, facts = NUTRITION_FACTS, n
           <tr className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
             <th scope="col" className="sr-only">{t('nutrients.name')}</th>
             {columns.map(column => (
-              <th key={column.label} scope="col" className="py-2 pl-2 text-right font-black align-bottom">{column.label}</th>
+              <th key={column.label} scope="col" className="py-2 pl-2 text-right font-black align-bottom">
+                <ColumnLabel label={column.label} />
+              </th>
             ))}
           </tr>
         </thead>
