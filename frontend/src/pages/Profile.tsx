@@ -473,7 +473,7 @@ export function Profile() {
           <h2 className="font-headline font-bold text-2xl text-on-surface">
             {displayGreetingName ? `Witaj, ${displayGreetingName}!` : 'Witaj!'}
           </h2>
-          <p className="text-on-surface-variant text-sm">Zarządzaj swoimi danymi w Meal Plannerze</p>
+          <p className="text-on-surface-variant text-sm">Zarządzaj swoimi danymi w Calendories</p>
         </div>
 
         {/* Dane Profilowe */}
