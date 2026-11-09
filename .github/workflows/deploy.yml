@@ -1,0 +1,79 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  BACKEND_DEPLOY_ENABLED: 'false'
+  HEROKU_APP: calendories
+  BACKEND_HEALTH_URL: https://calendories.herokuapp.com/health
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.diff.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect changed parts
+        id: diff
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if [ "$EVENT_NAME" != "push" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            backend=true
+          else
+            files=$(git diff --name-only "$BEFORE" "$AFTER")
+            if grep -qE '^(backend/|heroku\.yml$)' <<< "$files"; then backend=true; else backend=false; fi
+          fi
+          echo "backend=$backend" >> "$GITHUB_OUTPUT"
+          echo "Backend changed: $backend"
+
+  backend-tests:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    uses: ./.github/workflows/backend.yml
+
+  deploy-backend:
+    needs: backend-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check whether backend deployment is enabled
+        if: env.BACKEND_DEPLOY_ENABLED != 'true'
+        run: echo "::notice::Backend deployment to Heroku is disabled until the Heroku app and secrets exist."
+      - uses: actions/checkout@v4
+        if: env.BACKEND_DEPLOY_ENABLED == 'true'
+        with:
+          fetch-depth: 0
+      - name: Push to Heroku
+        if: env.BACKEND_DEPLOY_ENABLED == 'true'
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: git push --force "https://heroku:${HEROKU_API_KEY}@git.heroku.com/${HEROKU_APP}.git" "HEAD:refs/heads/main"
+      - name: Wait for a healthy backend
+        if: env.BACKEND_DEPLOY_ENABLED == 'true'
+        run: |
+          for _ in $(seq 1 30); do
+            if curl -fsS --max-time 10 "$BACKEND_HEALTH_URL"; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Backend did not become healthy at $BACKEND_HEALTH_URL"
+          exit 1
