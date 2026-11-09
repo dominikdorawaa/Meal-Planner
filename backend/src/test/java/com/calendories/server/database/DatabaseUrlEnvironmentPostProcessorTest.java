@@ -1,4 +1,4 @@
-package com.mealplanner.server.database;
+package com.calendories.server.database;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -199,8 +199,10 @@ class DatabaseUrlEnvironmentPostProcessorTest {
         application.setWebApplicationType(WebApplicationType.NONE);
         application.setBannerMode(Banner.Mode.OFF);
         application.setLogStartupInfo(false);
-        application.setDefaultProperties(properties);
-        return application.run();
+        var arguments = properties.entrySet().stream()
+                .map(entry -> "--" + entry.getKey() + "=" + entry.getValue())
+                .toArray(String[]::new);
+        return application.run(arguments);
     }
 
     static class EmptyApplication {
