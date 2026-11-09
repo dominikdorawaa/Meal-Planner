@@ -40,7 +40,7 @@ export function Login() {
       <div className="w-full max-w-sm bg-surface-container-lowest p-8 rounded-[2rem] shadow-ambient">
         <div className="flex flex-col items-center mb-10">
           <span className="material-symbols-outlined text-primary text-5xl mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>eco</span>
-          <h1 className="font-headline text-2xl font-bold text-on-surface tracking-tight">Meal Planner</h1>
+          <h1 className="font-headline text-2xl font-bold text-on-surface tracking-tight">Calendories</h1>
           <p className="text-on-surface-variant mt-2 font-body text-sm">
             {isRegistering ? 'Załóż nowe konto' : 'Zaloguj się do swojego archiwum'}
           </p>
