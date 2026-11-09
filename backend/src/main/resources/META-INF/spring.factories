@@ -1,2 +1,2 @@
 org.springframework.boot.EnvironmentPostProcessor=\
-com.mealplanner.server.database.DatabaseUrlEnvironmentPostProcessor
+com.calendories.server.database.DatabaseUrlEnvironmentPostProcessor

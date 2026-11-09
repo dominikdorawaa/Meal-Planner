@@ -1,4 +1,4 @@
-package com.mealplanner.server.database;
+package com.calendories.server.database;
 
 import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
