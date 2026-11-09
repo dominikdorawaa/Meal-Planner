@@ -15,8 +15,8 @@ permissions:
 
 env:
   BACKEND_DEPLOY_ENABLED: 'false'
-  HEROKU_APP: mealplanner-backend
-  BACKEND_HEALTH_URL: https://mealplanner-backend.herokuapp.com/health
+  HEROKU_APP: calendories
+  BACKEND_HEALTH_URL: https://calendories.herokuapp.com/health
 
 jobs:
   changes:
