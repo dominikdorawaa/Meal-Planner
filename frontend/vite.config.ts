@@ -16,8 +16,8 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon-180x180.png', 'recipe-images/default-light.svg', 'recipe-images/default-dark.svg'],
       manifest: {
         id: '/',
-        name: 'Meal Planner',
-        short_name: 'Meal Planner',
+        name: 'Calendories',
+        short_name: 'Calendories',
         description: 'Aplikacja do planowania posiłków.',
         lang: 'pl',
         start_url: '/',

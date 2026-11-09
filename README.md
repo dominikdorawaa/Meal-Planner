@@ -1,4 +1,4 @@
-# Meal-Planner
+# Calendories
 
 Aplikacja do planowania posiłków: dzienny plan z kaloriami i makroskładnikami, baza przepisów i produktów oraz lista zakupów.
 

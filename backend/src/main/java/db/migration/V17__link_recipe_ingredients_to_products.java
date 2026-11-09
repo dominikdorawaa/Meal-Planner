@@ -1,6 +1,6 @@
 package db.migration;
 
-import com.mealplanner.server.product.ProductSearchText;
+import com.calendories.server.product.ProductSearchText;
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;

@@ -206,7 +206,7 @@ export function ShoppingList() {
         <div className="flex justify-between items-center px-6 h-16 w-full max-w-screen-xl mx-auto">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-primary">shopping_basket</span>
-            <h1 className="font-headline font-bold text-lg tracking-tight text-primary">Meal Planner</h1>
+            <h1 className="font-headline font-bold text-lg tracking-tight text-primary">Calendories</h1>
           </div>
           <div className="flex items-center gap-4">
             <button onClick={() => setShowConfirm(true)} aria-label={t('shopping.clearConfirm')} className="p-2 rounded-full hover:bg-surface-container-highest transition-colors text-on-surface-variant group relative">

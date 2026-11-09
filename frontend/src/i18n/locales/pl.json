@@ -3,7 +3,7 @@
   "api.serverError": "Błąd serwera ({status})",
   "onboarding.profileSaveFailed": "Nie udało się zapisać profilu. Spróbuj ponownie za chwilę.",
   "install.title": "Zainstaluj aplikację",
-  "install.description": "Dodaj Meal Planner do ekranu głównego",
+  "install.description": "Dodaj Calendories do ekranu głównego",
   "install.iosHint": "W Safari stuknij Udostępnij, a potem Do ekranu początkowego",
   "theme.title": "Motyw",
   "theme.dark": "Ciemny",
