@@ -9,12 +9,12 @@ export default defineConfig({
     maskable: {
       ...minimal2023Preset.maskable,
       padding: 0,
-      resizeOptions: { background: '#00342b' },
+      resizeOptions: { background: '#16233a' },
     },
     apple: {
       ...minimal2023Preset.apple,
       padding: 0,
-      resizeOptions: { background: '#00342b' },
+      resizeOptions: { background: '#16233a' },
     },
   },
   images: ['public/favicon.svg'],
