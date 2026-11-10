@@ -161,4 +161,32 @@ class RecipeImagesIntegrationTest {
 
         verify(storage, never()).delete(anyString());
     }
+    @Test
+    void keepsImagesWhenAnOlderClientSendsNoImagesField() throws Exception {
+        String token = bearer();
+        String id = create(token, "[{\"url\":\"https://cdn.example.com/a.jpg\",\"focus_x\":20}]");
+
+        mockMvc.perform(put("/api/recipes/" + id)
+                        .header(HttpHeaders.AUTHORIZATION, token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Renamed\",\"image_url\":null,\"ingredients\":[],\"steps\":[]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Renamed"))
+                .andExpect(jsonPath("$.images.length()").value(1))
+                .andExpect(jsonPath("$.images[0].focus_x").value(20.0));
+
+        verifyNoInteractions(storage);
+    }
+
+    @Test
+    void removesAllImagesWhenAnEmptyListIsSent() throws Exception {
+        String token = bearer();
+        String id = create(token, "[{\"url\":\"https://cdn.example.com/a.jpg\"}]");
+
+        update(token, id, "[]");
+
+        mockMvc.perform(get("/api/recipes/" + id).header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(jsonPath("$.images.length()").value(0));
+        verify(storage).delete("https://cdn.example.com/a.jpg");
+    }
 }

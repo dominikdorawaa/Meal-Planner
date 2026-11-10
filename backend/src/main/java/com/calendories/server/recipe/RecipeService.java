@@ -79,10 +79,12 @@ public class RecipeService {
         UUID userId = requireUser(email).getId();
         Recipe recipe = findEditable(id, userId);
         recipe.setName(details.getName());
-        List<RecipeImage> images = cleanImages(details.getImages());
-        deleteRemovedImagesAfterCommit(recipe.getImages(), images);
-        recipe.getImages().clear();
-        recipe.getImages().addAll(images);
+        if (details.isImagesSent()) {
+            List<RecipeImage> images = cleanImages(details.getImages());
+            deleteRemovedImagesAfterCommit(recipe.getImages(), images);
+            recipe.getImages().clear();
+            recipe.getImages().addAll(images);
+        }
         recipe.copyStoredNutrition(details);
         recipe.setPrepTime(details.getPrepTime());
         recipe.setPortions(details.getPortions());

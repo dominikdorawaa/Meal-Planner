@@ -1,6 +1,7 @@
 package com.calendories.server.recipe;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import jakarta.persistence.*;
@@ -36,6 +37,10 @@ public class Recipe {
     @OrderColumn(name = "position")
     @Fetch(FetchMode.SUBSELECT)
     private List<RecipeImage> images = new ArrayList<>();
+
+    @Transient
+    @JsonIgnore
+    private boolean imagesSent;
 
     private Double kcal = 0.0;
     private Double protein = 0.0;
@@ -109,6 +114,12 @@ public class Recipe {
         if (steps == null) {
             steps = legacySteps;
         }
+    }
+
+    @JsonSetter("images")
+    public void applySentImages(List<RecipeImage> sentImages) {
+        images = sentImages;
+        imagesSent = true;
     }
 
     void copyStoredNutrition(Recipe source) {
