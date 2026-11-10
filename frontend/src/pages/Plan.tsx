@@ -9,6 +9,7 @@ import { formatMacrosShort } from '../lib/macros';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { DaySummary } from '../components/DaySummary';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
+import { recipeCoverImage, type RecipeImage } from '../lib/recipeImage';
 import { mealTypeName, profileMealTypes } from '../lib/mealTypes';
 import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, formatLocalizedDayWithDate, formatRelativeDayLabel, parseIsoDate, planDays, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { forgetPlanReturnPosition, readPlanReturnPosition, rememberPlanReturnPosition } from '../lib/planPosition';
@@ -369,7 +370,8 @@ export function Plan() {
                     title={recipe.name}
                     kcal={formatCompactNumber(recipe.kcal * mult)}
                     macros={formatMacrosShort(recipe.protein * mult, recipe.fat * mult, recipe.carbs * mult)}
-                    imgSrc={recipe.image_url || PLACEHOLDER_IMAGE}
+                    imgSrc={PLACEHOLDER_IMAGE}
+                    recipeImage={recipeCoverImage(recipe)}
                     isRecipe
                     noWrap
                     onClick={() => {
@@ -740,7 +742,7 @@ export function Plan() {
               {copyRecipe && (
                 <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm flex-shrink-0">
                   <RecipeCoverImage
-                    recipe={copyRecipe}
+                    image={recipeCoverImage(copyRecipe)}
                     alt="Kopiowany posiłek"
                     className="w-full h-full"
                     imgClassName="w-full h-full object-cover"
@@ -805,7 +807,7 @@ export function Plan() {
   );
 }
 
-function RecipeCard({ title, kcal, macros, imgSrc, isRecipe, onMenuClick, onClick, isCopyMode, isSelected, noWrap, isProduct, isManual }: { title: string, kcal: string, macros: string, imgSrc: string, isRecipe?: boolean, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, noWrap?: boolean, isProduct?: boolean, isManual?: boolean }) {
+function RecipeCard({ title, kcal, macros, imgSrc, recipeImage = null, isRecipe, onMenuClick, onClick, isCopyMode, isSelected, noWrap, isProduct, isManual }: { title: string, kcal: string, macros: string, imgSrc: string, recipeImage?: RecipeImage | null, isRecipe?: boolean, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, noWrap?: boolean, isProduct?: boolean, isManual?: boolean }) {
 
   const primaryImageUrl = imgSrc && !imgSrc.includes('PLAN_PLACEHOLDER_TOKEN') ? imgSrc : null;
   const imageUrls = useMemo(() => (primaryImageUrl ? [primaryImageUrl] : []), [primaryImageUrl]);
@@ -820,7 +822,7 @@ function RecipeCard({ title, kcal, macros, imgSrc, isRecipe, onMenuClick, onClic
     if (isRecipe) {
       return (
         <RecipeCoverImage
-          recipe={{ image_url: primaryImageUrl }}
+          image={recipeImage}
           alt={title}
           className="absolute inset-0 w-full h-full"
           imgClassName={imageClassName}

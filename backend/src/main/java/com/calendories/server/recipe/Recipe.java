@@ -7,10 +7,13 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,9 +31,11 @@ public class Recipe {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "image_url", length = 1024)
-    @JsonProperty("image_url")
-    private String imageUrl;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "recipe_images", joinColumns = @JoinColumn(name = "recipe_id"))
+    @OrderColumn(name = "position")
+    @Fetch(FetchMode.SUBSELECT)
+    private List<RecipeImage> images = new ArrayList<>();
 
     private Double kcal = 0.0;
     private Double protein = 0.0;

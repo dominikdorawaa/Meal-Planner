@@ -69,4 +69,55 @@ class SupabaseRecipeImageStorageTest {
                     assertThat(exception.getMessageKey()).isEqualTo(SupabaseRecipeImageStorage.UPLOAD_UNAVAILABLE);
                 });
     }
+    @Test
+    void deletesFilesFromItsOwnBucket() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        SupabaseRecipeImageStorage storage = new SupabaseRecipeImageStorage(
+                "https://project.supabase.example", "example-service-key", "recipe-images", builder);
+        server.expect(requestTo("https://project.supabase.example/storage/v1/object/recipe-images/user/photo.jpg"))
+                .andExpect(method(HttpMethod.DELETE))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer example-service-key"))
+                .andExpect(header("apikey", "example-service-key"))
+                .andRespond(withSuccess());
+
+        storage.delete("https://project.supabase.example/storage/v1/object/public/recipe-images/user/photo.jpg");
+
+        server.verify();
+    }
+
+    @Test
+    void ignoresFilesOutsideItsBucket() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        SupabaseRecipeImageStorage storage = new SupabaseRecipeImageStorage(
+                "https://project.supabase.example", "example-service-key", "recipe-images", builder);
+
+        storage.delete("https://cdn.example.com/photo.jpg");
+        storage.delete("https://project.supabase.example/storage/v1/object/public/recipe-images/");
+        storage.delete(null);
+
+        server.verify();
+    }
+
+    @Test
+    void skipsDeletionWithoutConfiguration() {
+        SupabaseRecipeImageStorage storage = new SupabaseRecipeImageStorage(" ", null, "recipe-images");
+
+        storage.delete("/storage/v1/object/public/recipe-images/user/photo.jpg");
+    }
+
+    @Test
+    void keepsGoingWhenDeletionFails() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        SupabaseRecipeImageStorage storage = new SupabaseRecipeImageStorage(
+                "https://project.supabase.example", "example-service-key", "recipe-images", builder);
+        server.expect(requestTo("https://project.supabase.example/storage/v1/object/recipe-images/user/photo.jpg"))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+
+        storage.delete("https://project.supabase.example/storage/v1/object/public/recipe-images/user/photo.jpg");
+
+        server.verify();
+    }
 }

@@ -3,24 +3,22 @@ import { t } from '../i18n';
 import { useBottomSheet } from '../lib/bottomSheet';
 
 interface RecipePhotoSheetProps {
-  hasPhoto: boolean;
-  onPick: (file: File) => void;
-  onRemove: () => void;
+  onPick: (files: File[]) => void;
   onClose: () => void;
 }
 
 const optionClass =
   'w-full flex items-center gap-4 p-4 rounded-2xl bg-surface-container-low active:scale-[0.98] transition-all text-left';
 
-export function RecipePhotoSheet({ hasPhoto, onPick, onRemove, onClose }: RecipePhotoSheetProps) {
+export function RecipePhotoSheet({ onPick, onClose }: RecipePhotoSheetProps) {
   const sheetRef = useBottomSheet(true, onClose);
   const cameraInput = useRef<HTMLInputElement>(null);
   const galleryInput = useRef<HTMLInputElement>(null);
 
   const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
     event.target.value = '';
-    if (file) onPick(file);
+    if (files.length > 0) onPick(files);
   };
 
   return (
@@ -44,12 +42,6 @@ export function RecipePhotoSheet({ hasPhoto, onPick, onRemove, onClose }: Recipe
           <span className="material-symbols-outlined text-primary">photo_library</span>
           <span className="font-bold text-on-surface">{t('recipePhoto.gallery')}</span>
         </button>
-        {hasPhoto && (
-          <button type="button" className={`${optionClass} bg-error/5`} onClick={onRemove}>
-            <span className="material-symbols-outlined text-error">delete</span>
-            <span className="font-bold text-error">{t('recipePhoto.remove')}</span>
-          </button>
-        )}
         <button type="button" onClick={onClose} className="w-full py-4 mt-1 font-bold text-on-surface-variant rounded-2xl active:scale-[0.98] transition-all">
           {t('common.cancel')}
         </button>
@@ -67,6 +59,7 @@ export function RecipePhotoSheet({ hasPhoto, onPick, onRemove, onClose }: Recipe
           ref={galleryInput}
           type="file"
           accept="image/*"
+          multiple
           className="hidden"
           data-testid="recipe-photo-gallery"
           onChange={handleFile}

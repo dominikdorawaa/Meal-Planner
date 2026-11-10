@@ -10,12 +10,15 @@ import org.springframework.security.authentication.AuthenticationCredentialsNotF
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -25,11 +28,14 @@ public class RecipeService {
     static final String FORBIDDEN = "error.forbidden";
     static final String INGREDIENT_PRODUCT_REQUIRED = "recipe.ingredient-product-required";
     static final String STEP_NAME_TOO_LONG = "recipe.step-name-too-long";
+    static final String TOO_MANY_IMAGES = "recipe.too-many-images";
+    static final int MAX_IMAGES = 3;
 
     private final RecipeRepository recipeRepository;
     private final SavedRecipeRepository savedRecipeRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
+    private final RecipeImageStorage imageStorage;
 
     @Transactional(readOnly = true)
     public List<Recipe> findVisible(String email) {
@@ -60,6 +66,7 @@ public class RecipeService {
         recipe.setVisibility(RecipeVisibility.PRIVATE);
         recipe.setIsArchived(false);
         recipe.setSteps(cleanSteps(recipe.getSteps()));
+        recipe.setImages(cleanImages(recipe.getImages()));
         if (recipe.getIngredients() == null) {
             recipe.setIngredients(new ArrayList<>());
         }
@@ -72,7 +79,10 @@ public class RecipeService {
         UUID userId = requireUser(email).getId();
         Recipe recipe = findEditable(id, userId);
         recipe.setName(details.getName());
-        recipe.setImageUrl(details.getImageUrl());
+        List<RecipeImage> images = cleanImages(details.getImages());
+        deleteRemovedImagesAfterCommit(recipe.getImages(), images);
+        recipe.getImages().clear();
+        recipe.getImages().addAll(images);
         recipe.copyStoredNutrition(details);
         recipe.setPrepTime(details.getPrepTime());
         recipe.setPortions(details.getPortions());
@@ -127,6 +137,38 @@ public class RecipeService {
             throw new ApiException(HttpStatus.BAD_REQUEST, STEP_NAME_TOO_LONG);
         }
         return new ArrayList<>(cleaned);
+    }
+
+    private static List<RecipeImage> cleanImages(List<RecipeImage> images) {
+        if (images == null) {
+            return new ArrayList<>();
+        }
+        List<RecipeImage> cleaned = images.stream()
+                .filter(image -> image != null && image.hasUrl())
+                .map(RecipeImage::cleaned)
+                .toList();
+        if (cleaned.size() > MAX_IMAGES) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, TOO_MANY_IMAGES);
+        }
+        return new ArrayList<>(cleaned);
+    }
+
+    private void deleteRemovedImagesAfterCommit(List<RecipeImage> previous, List<RecipeImage> current) {
+        Set<String> kept = current.stream().map(RecipeImage::getUrl).collect(Collectors.toSet());
+        List<String> removed = previous.stream()
+                .map(RecipeImage::getUrl)
+                .filter(url -> !kept.contains(url))
+                .distinct()
+                .toList();
+        if (removed.isEmpty()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                removed.forEach(imageStorage::delete);
+            }
+        });
     }
 
     User requireUser(String email) {

@@ -20,6 +20,15 @@ import { NewProductSheet, type NewProductDraft } from '../components/NewProductS
 import { t } from '../i18n';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { RecipePhotoSheet } from '../components/RecipePhotoSheet';
+import { RecipePhotoFocusSheet } from '../components/RecipePhotoFocusSheet';
+import {
+  imagePosition,
+  makeMainImage,
+  MAX_RECIPE_IMAGES,
+  newRecipeImage,
+  recipeImages,
+  type RecipeImage,
+} from '../lib/recipeImage';
 import { ConfirmSheet } from '../components/ConfirmSheet';
 import { RecipeStepsEditor } from '../components/RecipeStepsEditor';
 import { newStepDraft, stepTitle, stepsOfRecipe, stepsPayload, type RecipeStepDraft } from '../lib/recipeSteps';
@@ -36,7 +45,7 @@ interface RecipeDraft {
   name: string;
   prepTime: string;
   portions: string;
-  imageUrl: string;
+  images: RecipeImage[];
   ingredients: IngredientDraft[];
   instructions: RecipeStepDraft[];
 }
@@ -46,13 +55,13 @@ function draftSnapshot(draft: RecipeDraft): string {
     draft.name,
     draft.prepTime,
     draft.portions,
-    draft.imageUrl,
+    draft.images.map(({ url, focus_x, focus_y }) => [url, focus_x, focus_y]),
     draft.ingredients.map(({ name, amount, unit, product }) => [name, amount, unit, product?.id ?? null]),
     draft.instructions.map(step => [step.name, step.text]),
   ]);
 }
 
-const EMPTY_DRAFT: RecipeDraft = { name: '', prepTime: '', portions: '', imageUrl: '', ingredients: [], instructions: [] };
+const EMPTY_DRAFT: RecipeDraft = { name: '', prepTime: '', portions: '', images: [], ingredients: [], instructions: [] };
 
 export default function AddRecipe() {
   const { id } = useParams();
@@ -63,7 +72,7 @@ export default function AddRecipe() {
   const [name, setName] = useState('');
   const [prepTime, setPrepTime] = useState('');
   const [portions, setPortions] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [images, setImages] = useState<RecipeImage[]>([]);
 
   const [baseMacros, setBaseMacros] = useState({ kcal: 0, p: 0, f: 0, c: 0 });
 
@@ -82,13 +91,15 @@ export default function AddRecipe() {
   const [ingredientToDelete, setIngredientToDelete] = useState<number | null>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [uploadingCount, setUploadingCount] = useState(0);
+  const [editedImage, setEditedImage] = useState<number | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const isUploadingPhoto = uploadingCount > 0;
   const missingProducts = ingredientsWithoutProduct(ingredients).length > 0;
   const hasUnsavedChanges = savedSnapshot !== null
-    && draftSnapshot({ name, prepTime, portions, imageUrl, ingredients, instructions }) !== savedSnapshot;
+    && draftSnapshot({ name, prepTime, portions, images, ingredients, instructions }) !== savedSnapshot;
 
   const closeIngredientSearch = () => {
     setShowIngredientSearch(false);
@@ -114,7 +125,7 @@ export default function AddRecipe() {
           name: recipe.name,
           prepTime: recipe.prep_time ? recipe.prep_time.toString() : '',
           portions: recipe.portions ? recipe.portions.toString() : '1',
-          imageUrl: recipe.image_url || '',
+          images: recipeImages(recipe),
           instructions: stepsOfRecipe(recipe).map(step => newStepDraft(step)),
           ingredients: (recipe.ingredients ?? []).map((ingredient: IngredientDraft) => ({
             id: ingredient.id,
@@ -127,7 +138,7 @@ export default function AddRecipe() {
         setName(loaded.name);
         setPrepTime(loaded.prepTime);
         setPortions(loaded.portions);
-        setImageUrl(loaded.imageUrl);
+        setImages(loaded.images);
         setInstructions(loaded.instructions);
         setIngredients(loaded.ingredients);
         setBaseMacros({ kcal: recipe.kcal, p: recipe.protein, f: recipe.fat, c: recipe.carbs });
@@ -186,26 +197,32 @@ export default function AddRecipe() {
     });
   };
 
-  const handlePhotoPicked = async (file: File) => {
+  const handlePhotosPicked = async (files: File[]) => {
     setShowPhotoSheet(false);
-    setPhotoError(null);
-    setIsUploadingPhoto(true);
-    try {
-      const photo = await resizeRecipePhoto(file);
-      setImageUrl(await api.recipes.uploadImage(photo));
-    } catch (err) {
-      console.error('Error uploading recipe photo:', err);
-      setPhotoError(err instanceof ApiError ? err.message : t('recipeForm.photoFailed'));
-    } finally {
-      setIsUploadingPhoto(false);
+    const accepted = files.slice(0, Math.max(0, MAX_RECIPE_IMAGES - images.length));
+    setPhotoError(accepted.length < files.length ? t('recipeForm.photoLimit', { count: MAX_RECIPE_IMAGES }) : null);
+    setUploadingCount(accepted.length);
+    for (const file of accepted) {
+      try {
+        const url = await api.recipes.uploadImage(await resizeRecipePhoto(file));
+        setImages(current => (current.length < MAX_RECIPE_IMAGES ? [...current, newRecipeImage(url)] : current));
+      } catch (err) {
+        console.error('Error uploading recipe photo:', err);
+        setPhotoError(err instanceof ApiError ? err.message : t('recipeForm.photoFailed'));
+      } finally {
+        setUploadingCount(count => count - 1);
+      }
     }
   };
 
-  const handlePhotoRemoved = () => {
-    setShowPhotoSheet(false);
+  const removeImage = (index: number) => {
     setPhotoError(null);
-    setImageUrl('');
+    setEditedImage(null);
+    setImages(current => current.filter((_, i) => i !== index));
   };
+
+  const replaceImage = (index: number, image: RecipeImage) =>
+    images.map((current, i) => (i === index ? image : current));
 
   const handleClose = () => {
     if (hasUnsavedChanges) setShowLeaveConfirm(true);
@@ -227,7 +244,7 @@ export default function AddRecipe() {
         protein: calculated.protein > 0 ? calculated.protein : baseMacros.p,
         fat: calculated.fat > 0 ? calculated.fat : baseMacros.f,
         carbs: calculated.carbs > 0 ? calculated.carbs : baseMacros.c,
-        image_url: imageUrl.trim() || null,
+        images,
         prep_time: parseInt(prepTime) || 0,
         portions: portionCount,
         ...stepsPayload(instructions),
@@ -293,36 +310,79 @@ export default function AddRecipe() {
           </div>
         )}
         <section className="flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => setShowPhotoSheet(true)}
-            disabled={isUploadingPhoto}
-            aria-label={t(imageUrl ? 'recipeForm.photoChange' : 'recipeForm.photoAdd')}
-            className="w-full aspect-[4/3] bg-surface-container-low rounded-[32px] border border-outline-variant/20 border-dashed flex flex-col items-center justify-center hover:bg-surface-container-lowest transition-colors active:scale-[0.98] group overflow-hidden relative"
-          >
-            {imageUrl ? (
-              <>
-                <img src={imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                <span className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/55 backdrop-blur-md text-white text-xs font-bold px-3 py-2 rounded-full">
-                  <span className="material-symbols-outlined text-[16px]">photo_camera</span>
-                  {t('recipeForm.photoChange')}
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
-                  <span className="material-symbols-outlined text-3xl">add_photo_alternate</span>
-                </span>
-                <span className="font-bold text-sm text-on-surface-variant">{t('recipeForm.photoAdd')}</span>
-              </>
-            )}
-            {isUploadingPhoto && (
-              <span className="absolute inset-0 bg-surface/70 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
-                <span className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                <span className="text-xs font-bold text-on-surface">{t('recipeForm.photoUploading')}</span>
+          {images.length === 0 && uploadingCount === 0 ? (
+            <button
+              type="button"
+              onClick={() => setShowPhotoSheet(true)}
+              aria-label={t('recipeForm.photoAdd')}
+              className="w-full aspect-[4/3] bg-surface-container-low rounded-[32px] border border-outline-variant/20 border-dashed flex flex-col items-center justify-center hover:bg-surface-container-lowest transition-colors active:scale-[0.98] group overflow-hidden relative"
+            >
+              <span className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
+                <span className="material-symbols-outlined text-3xl">add_photo_alternate</span>
               </span>
-            )}
-          </button>
+              <span className="font-bold text-sm text-on-surface-variant">{t('recipeForm.photoAdd')}</span>
+              <span className="text-xs text-on-surface-variant/70 mt-1">{t('recipeForm.photoLimitHint', { count: MAX_RECIPE_IMAGES })}</span>
+            </button>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                {images.map((image, index) => (
+                  <div key={image.url} className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-container-highest">
+                    <button
+                      type="button"
+                      onClick={() => setEditedImage(index)}
+                      aria-label={t('recipeForm.photoEdit', { index: index + 1 })}
+                      className="absolute inset-0 w-full h-full active:scale-[0.97] transition-transform"
+                    >
+                      <img src={image.url} alt="" className="w-full h-full object-cover" style={{ objectPosition: imagePosition(image) }} />
+                    </button>
+                    {index === 0 ? (
+                      <span className="absolute bottom-1.5 left-1.5 flex items-center gap-0.5 bg-primary text-on-primary text-[10px] font-bold px-2 py-0.5 rounded-full pointer-events-none">
+                        <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                        {t('recipeForm.photoMain')}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setImages(current => makeMainImage(current, index))}
+                        aria-label={t('recipeForm.photoMakeMain', { index: index + 1 })}
+                        className="absolute top-1 left-1 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-md text-white active:scale-90 transition-transform"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">star</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      aria-label={t('recipeForm.photoRemove', { index: index + 1 })}
+                      className="absolute top-1 right-1 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-md text-white active:scale-90 transition-transform"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">close</span>
+                    </button>
+                  </div>
+                ))}
+                {Array.from({ length: uploadingCount }, (_, index) => (
+                  <div key={`uploading-${index}`} className="aspect-[4/3] rounded-2xl bg-surface-container-low flex flex-col items-center justify-center gap-1.5">
+                    <span className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+                    <span className="text-[10px] font-bold text-on-surface-variant text-center px-1">{t('recipeForm.photoUploading')}</span>
+                  </div>
+                ))}
+                {images.length + uploadingCount < MAX_RECIPE_IMAGES && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPhotoSheet(true)}
+                    disabled={isUploadingPhoto}
+                    aria-label={t('recipeForm.photoAdd')}
+                    className="aspect-[4/3] rounded-2xl bg-surface-container-low border border-outline-variant/20 border-dashed flex flex-col items-center justify-center gap-1 text-primary active:scale-[0.97] transition-transform disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-2xl">add_photo_alternate</span>
+                    <span className="text-[10px] font-bold text-on-surface-variant">{images.length + uploadingCount}/{MAX_RECIPE_IMAGES}</span>
+                  </button>
+                )}
+              </div>
+              {images.length > 0 && <p className="text-xs text-on-surface-variant pl-1">{t('recipeForm.photoHint')}</p>}
+            </>
+          )}
           {photoError && <p role="alert" className="text-sm font-bold text-error pl-1">{photoError}</p>}
         </section>
 
@@ -531,11 +591,24 @@ export default function AddRecipe() {
       )}
 
       {showPhotoSheet && (
-        <RecipePhotoSheet
-          hasPhoto={Boolean(imageUrl)}
-          onPick={handlePhotoPicked}
-          onRemove={handlePhotoRemoved}
-          onClose={() => setShowPhotoSheet(false)}
+        <RecipePhotoSheet onPick={handlePhotosPicked} onClose={() => setShowPhotoSheet(false)} />
+      )}
+
+      {editedImage !== null && images[editedImage] && (
+        <RecipePhotoFocusSheet
+          key={images[editedImage].url}
+          image={images[editedImage]}
+          isMain={editedImage === 0}
+          onDone={image => {
+            setImages(replaceImage(editedImage, image));
+            setEditedImage(null);
+          }}
+          onMakeMain={image => {
+            setImages(makeMainImage(replaceImage(editedImage, image), editedImage));
+            setEditedImage(null);
+          }}
+          onRemove={() => removeImage(editedImage)}
+          onClose={() => setEditedImage(null)}
         />
       )}
 
