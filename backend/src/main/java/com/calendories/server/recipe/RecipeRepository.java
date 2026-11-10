@@ -1,5 +1,6 @@
 package com.calendories.server.recipe;
 
+import com.calendories.server.database.Collations;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,8 +16,7 @@ public interface RecipeRepository extends JpaRepository<Recipe, UUID> {
             select r from Recipe r
             where r.isArchived = false
               and (r.createdBy = :userId or r.visibility = :publicVisibility)
-            order by lower(r.name)
-            """)
+            """ + "order by collate(r.name as " + Collations.POLISH_NAMES + "), r.id")
     List<Recipe> findVisible(@Param("userId") UUID userId,
                              @Param("publicVisibility") RecipeVisibility publicVisibility);
 }
