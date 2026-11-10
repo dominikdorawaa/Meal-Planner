@@ -4,7 +4,7 @@ import { getLanguage, t } from '../i18n';
 const API_BASE_URL = import.meta.env.VITE_API_URL || (
   import.meta.env.MODE === 'development'
     ? 'http://localhost:8080'
-    : 'https://meal-planner-llet.onrender.com'
+    : 'https://calendories-a6350b0423bd.herokuapp.com'
 );
 
 const TOKEN_KEY = 'mp_auth_token';
