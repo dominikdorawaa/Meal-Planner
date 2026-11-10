@@ -1,6 +1,6 @@
 # Wdrożenie i przeniesienie danych na Heroku
 
-Backend i baza przechodzą z Render i Supabase Postgres na Heroku. Wartości sekretów są w menedżerze haseł, nie w repozytorium. Wszystkie adresy, hasła i klucze poniżej są przykładowe.
+Backend i baza działają na Heroku od 10 listopada 2026, wcześniej działały na Render i Supabase Postgres. Wartości sekretów są w menedżerze haseł, nie w repozytorium. Wszystkie adresy, hasła i klucze poniżej są przykładowe.
 
 ## Co gdzie działa
 
@@ -9,7 +9,7 @@ Backend i baza przechodzą z Render i Supabase Postgres na Heroku. Wartości sek
 | Backend | Heroku, aplikacja `calendories`, region `eu`, stack `container` (obraz z `heroku.yml` i `backend/Dockerfile`), jedno dyno Basic |
 | Baza danych | Heroku Postgres Essential-0 (limit 20 połączeń), adres w zmiennej `DATABASE_URL` |
 | Zdjęcia przepisów | Supabase Storage, bucket `recipe-images` (bez zmian) |
-| Frontend | Vercel (bez zmian) |
+| Frontend | Vercel, wdraża `main` automatycznie; adres API jest wpisany w `frontend/src/lib/apiClient.ts` |
 | Wdrażanie | GitHub Actions, `.github/workflows/deploy.yml` |
 
 Budżet to kredyt studencki 13 USD miesięcznie: Basic kosztuje 7 USD, Essential-0 5 USD. Dlatego:
@@ -128,13 +128,13 @@ Dane przenosimy ręcznie z własnego komputera, klientem Postgres z Dockera. Kop
 
    W logach Flyway powinien zgłosić, że schemat jest aktualny, bez nowych migracji. Tabela historii Flyway (`flyway_schema_history`) jest w schemacie `public`, więc trafia do zrzutu razem z danymi. Flyway widzi na Heroku te same wykonane migracje i sumy kontrolne co na Supabase, a Hibernate (`ddl-auto: validate`) ten sam schemat.
 
-9. Przełączenie frontendu: `VITE_API_URL` w ustawieniach projektu na Vercel wskazuje adres Heroku (nowy build po zmianie), a `CORSALLOWEDORIGINS` na Heroku zawiera adres frontendu. Potem sprawdź w przeglądarce logowanie, przepisy z dodaniem zdjęcia, produkty i plan dnia.
+9. Przełączenie frontendu: build produkcyjny używa adresu Heroku wpisanego domyślnie w `frontend/src/lib/apiClient.ts`, więc wystarczy, że ta zmiana jest na `main`. Zmienna `VITE_API_URL` ma pierwszeństwo przed adresem z kodu, dlatego w projekcie na Vercel nie powinna być ustawiona. `CORSALLOWEDORIGINS` na Heroku musi zawierać adres frontendu. Potem sprawdź w przeglądarce logowanie, przepisy z dodaniem zdjęcia, produkty i plan dnia.
 
 Plik zrzutu zawiera dane użytkowników. Nigdy go nie commitujemy (`*.dump` jest w `.gitignore`), a po udanym przełączeniu usuwamy razem z `source.txt` i `target.txt`.
 
 ## Powrót do starego środowiska
 
-Do przełączenia stary backend na Render i baza Supabase pozostają nietknięte: zrzut tylko czyta dane. Przy problemie na Heroku wznów backend na Render (Resume) i przywróć poprzedni `VITE_API_URL` na Vercel. Dane zapisane na Heroku po przełączeniu nie wrócą wtedy same do Supabase. Usługę Render i bazę Supabase usuwamy dopiero po kilku dniach stabilnej pracy na Heroku i po pierwszej kopii zapasowej Heroku.
+Przełączenie odbyło się 10 listopada 2026. Backend na Render jest wstrzymany (Suspend), a baza Supabase zawiera dane z chwili zrzutu. Przy problemie na Heroku wznów backend na Render (Resume) i ustaw na Vercel `VITE_API_URL` na jego adres, a potem wdroż frontend ponownie. Wszystko, co zapisano na Heroku od przełączenia, nie trafi wtedy do Supabase i zostanie utracone, chyba że przeniesiesz dane w drugą stronę tą samą procedurą. Usługę Render i bazę Supabase usuwamy dopiero po kilku dniach stabilnej pracy na Heroku i po pierwszej kopii zapasowej Heroku.
 
 ## Pamięć, logi i kopie zapasowe
 
