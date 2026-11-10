@@ -34,7 +34,7 @@ Autoryzację odwołuje `heroku authorizations:revoke <id>`.
 
 ```bash
 heroku create calendories --region eu --stack container
-heroku addons:create heroku-postgresql:essential-0 --version 17 -a calendories
+heroku addons:create heroku-postgresql:essential-0 --version 18 -a calendories
 heroku labs:enable log-runtime-metrics -a calendories
 heroku pg:backups:schedule DATABASE_URL --at '03:00 Europe/Warsaw' -a calendories
 ```
@@ -71,16 +71,17 @@ Dane przenosimy ręcznie z własnego komputera, klientem Postgres z Dockera. Kop
    ```bash
    read -rs SOURCE_URL && export SOURCE_URL
    read -rs TARGET_URL && export TARGET_URL
+   export PGSSLMODE=require
    ```
 
-   Przykładowa postać: `postgresql://postgres.twoj-projekt:haslo@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require` i `postgres://uzytkownik:haslo@przyklad.compute-1.amazonaws.com:5432/baza?sslmode=require`.
+   Przykładowa postać: `postgresql://postgres.twoj-projekt:haslo@aws-0-eu-central-1.pooler.supabase.com:5432/postgres` i `postgres://uzytkownik:haslo@przyklad.compute-1.amazonaws.com:5432/baza`. Adres skopiowany z panelu Supabase nie ma parametru `sslmode`, dlatego klient dostaje `PGSSLMODE=require` (`-e PGSSLMODE` w każdym `docker run`); parametr `sslmode` w adresie ma pierwszeństwo.
 
-2. Wersje serwerów i rozszerzenia. Obraz `postgres:<major>` musi mieć wersję główną co najmniej taką jak nowszy z serwerów, np. `postgres:17` dla 15 i 17:
+2. Wersje serwerów i rozszerzenia. Obraz `postgres:<major>` musi mieć wersję główną co najmniej taką jak nowszy z serwerów, np. `postgres:18` dla 17 i 18 (Heroku działa na 18):
 
    ```bash
-   PG=postgres:17
-   docker run --rm -e SOURCE_URL "$PG" sh -c 'psql "$SOURCE_URL" -Atc "SHOW server_version" -c "SELECT extname, extnamespace::regnamespace FROM pg_extension ORDER BY 1"'
-   docker run --rm -e TARGET_URL "$PG" sh -c 'psql "$TARGET_URL" -Atc "SHOW server_version"'
+   PG=postgres:18-alpine
+   docker run --rm -e SOURCE_URL -e PGSSLMODE "$PG" sh -c 'psql "$SOURCE_URL" -Atc "SHOW server_version" -c "SELECT extname, extnamespace::regnamespace FROM pg_extension ORDER BY 1"'
+   docker run --rm -e TARGET_URL -e PGSSLMODE "$PG" sh -c 'psql "$TARGET_URL" -Atc "SHOW server_version"'
    ```
 
    Zrzut schematu `public` nie zawiera rozszerzeń, a indeks wyszukiwania produktów wymaga `pg_trgm`. Zanotuj schemat, w którym jest ono na Supabase (`public` albo `extensions`).
@@ -90,7 +91,7 @@ Dane przenosimy ręcznie z własnego komputera, klientem Postgres z Dockera. Kop
 4. Zrzut z Supabase do pliku `calendories-public.dump` w bieżącym katalogu:
 
    ```bash
-   MSYS_NO_PATHCONV=1 docker run --rm -e SOURCE_URL -v "$PWD:/work" -w /work "$PG" sh -c 'pg_dump "$SOURCE_URL" --schema=public --no-owner --no-privileges -Fc -f calendories-public.dump'
+   MSYS_NO_PATHCONV=1 docker run --rm -e SOURCE_URL -e PGSSLMODE -v "$PWD:/work" -w /work "$PG" sh -c 'pg_dump "$SOURCE_URL" --schema=public --no-owner --no-privileges -Fc -f calendories-public.dump'
    ```
 
 5. Wyczyszczenie bazy Heroku przy zatrzymanym dyno i utworzenie rozszerzenia w tym samym schemacie co na Supabase (dla `extensions`: `CREATE SCHEMA IF NOT EXISTS extensions; CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA extensions;`):
@@ -98,20 +99,20 @@ Dane przenosimy ręcznie z własnego komputera, klientem Postgres z Dockera. Kop
    ```bash
    heroku ps:scale web=0 -a calendories
    heroku pg:reset DATABASE_URL -a calendories --confirm calendories
-   docker run --rm -e TARGET_URL "$PG" sh -c 'psql "$TARGET_URL" -c "CREATE EXTENSION IF NOT EXISTS pg_trgm"'
+   docker run --rm -e TARGET_URL -e PGSSLMODE "$PG" sh -c 'psql "$TARGET_URL" -c "CREATE EXTENSION IF NOT EXISTS pg_trgm"'
    ```
 
-6. Przywrócenie:
+6. Przywrócenie. Zrzut z `--schema=public` zawiera polecenie `CREATE SCHEMA public`, które na istniejącej bazie kończy się błędem `schema "public" already exists`, dlatego przywracamy według listy zawartości zrzutu bez wpisów schematu `public` i jego komentarza:
 
    ```bash
-   MSYS_NO_PATHCONV=1 docker run --rm -e TARGET_URL -v "$PWD:/work" -w /work "$PG" sh -c 'pg_restore --no-owner --no-privileges --exit-on-error -d "$TARGET_URL" calendories-public.dump'
+   MSYS_NO_PATHCONV=1 docker run --rm -e TARGET_URL -e PGSSLMODE -v "$PWD:/work" -w /work "$PG" sh -c 'pg_restore -l calendories-public.dump | grep -vE " (SCHEMA - public|COMMENT - SCHEMA public) " > /tmp/restore.list && pg_restore -L /tmp/restore.list --no-owner --no-privileges --exit-on-error -d "$TARGET_URL" calendories-public.dump'
    ```
 
 7. Porównanie obu baz plikiem [`docs/sql/compare-databases.sql`](sql/compare-databases.sql), który wypisuje dokładną liczbę wierszy każdej tabeli i wartość każdej sekwencji w `public`. Polecenie uruchom w katalogu głównym repozytorium:
 
    ```bash
-   MSYS_NO_PATHCONV=1 docker run --rm -e SOURCE_URL -v "$PWD/docs/sql:/sql:ro" "$PG" sh -c 'psql "$SOURCE_URL" -q -f /sql/compare-databases.sql' > source.txt
-   MSYS_NO_PATHCONV=1 docker run --rm -e TARGET_URL -v "$PWD/docs/sql:/sql:ro" "$PG" sh -c 'psql "$TARGET_URL" -q -f /sql/compare-databases.sql' > target.txt
+   MSYS_NO_PATHCONV=1 docker run --rm -e SOURCE_URL -e PGSSLMODE -v "$PWD/docs/sql:/sql:ro" "$PG" sh -c 'psql "$SOURCE_URL" -q -f /sql/compare-databases.sql' > source.txt
+   MSYS_NO_PATHCONV=1 docker run --rm -e TARGET_URL -e PGSSLMODE -v "$PWD/docs/sql:/sql:ro" "$PG" sh -c 'psql "$TARGET_URL" -q -f /sql/compare-databases.sql' > target.txt
    diff source.txt target.txt && echo identical
    ```
 
