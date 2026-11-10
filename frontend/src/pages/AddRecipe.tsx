@@ -315,10 +315,10 @@ export default function AddRecipe() {
               type="button"
               onClick={() => setShowPhotoSheet(true)}
               aria-label={t('recipeForm.photoAdd')}
-              className="w-full aspect-[4/3] bg-surface-container-low rounded-[32px] border border-outline-variant/20 border-dashed flex flex-col items-center justify-center hover:bg-surface-container-lowest transition-colors active:scale-[0.98] group overflow-hidden relative"
+              className="w-full aspect-[8/3] bg-surface-container-low rounded-[28px] border border-outline-variant/20 border-dashed flex flex-col items-center justify-center hover:bg-surface-container-lowest transition-colors active:scale-[0.98] group overflow-hidden relative"
             >
-              <span className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
-                <span className="material-symbols-outlined text-3xl">add_photo_alternate</span>
+              <span className="w-11 h-11 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-colors">
+                <span className="material-symbols-outlined text-2xl">add_photo_alternate</span>
               </span>
               <span className="font-bold text-sm text-on-surface-variant">{t('recipeForm.photoAdd')}</span>
               <span className="text-xs text-on-surface-variant/70 mt-1">{t('recipeForm.photoLimitHint', { count: MAX_RECIPE_IMAGES })}</span>
@@ -327,7 +327,7 @@ export default function AddRecipe() {
             <>
               <div className="grid grid-cols-3 gap-3">
                 {images.map((image, index) => (
-                  <div key={image.url} className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-container-highest">
+                  <div key={image.url} className={`relative aspect-[4/3] overflow-hidden bg-surface-container-highest ${index === 0 ? 'col-span-3 rounded-[32px]' : 'rounded-2xl'}`}>
                     <button
                       type="button"
                       onClick={() => setEditedImage(index)}
@@ -362,7 +362,7 @@ export default function AddRecipe() {
                   </div>
                 ))}
                 {Array.from({ length: uploadingCount }, (_, index) => (
-                  <div key={`uploading-${index}`} className="aspect-[4/3] rounded-2xl bg-surface-container-low flex flex-col items-center justify-center gap-1.5">
+                  <div key={`uploading-${index}`} className={`aspect-[4/3] bg-surface-container-low ${images.length === 0 && index === 0 ? 'col-span-3 rounded-[32px]' : 'rounded-2xl'} flex flex-col items-center justify-center gap-1.5`}>
                     <span className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
                     <span className="text-[10px] font-bold text-on-surface-variant text-center px-1">{t('recipeForm.photoUploading')}</span>
                   </div>
