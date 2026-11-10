@@ -291,6 +291,59 @@ class ProductSearchIntegrationTest {
     }
 
     @Test
+    void sortsEquallyRankedNamesWithPunctuationDigitsAndMixedCaseInPolishOrder() throws Exception {
+        Product naturalny = saveProduct("Kolejnosc naturalny", null);
+        Product percent = saveProduct("kolejnosc 2,2%", null);
+        Product zero = saveProduct("Kolejnosc 0%", null);
+        Product musli = saveProduct("Kolejnosc + Musli", null);
+        Product truskawka = saveProduct("Kolejnosc - truskawka", null);
+
+        mockMvc.perform(search("kolejnosc"))
+                .andExpect(jsonPath("$.items[*].id", contains(truskawka.getId().toString(), musli.getId().toString(),
+                        zero.getId().toString(), percent.getId().toString(), naturalny.getId().toString())));
+    }
+
+    @Test
+    void sortsEquallyRankedNamesWithPolishLettersInPolishOrder() throws Exception {
+        Product zurek = saveProduct("Żurek porzadkowy", null);
+        Product zupa = saveProduct("Zupa porzadkowa", null);
+        Product sledz = saveProduct("Śledź porzadkowy", null);
+        Product sznycel = saveProduct("Sznycel porzadkowy", null);
+        Product dzem = saveProduct("Dżem porzadkowy", null);
+        Product cwikla = saveProduct("Ćwikła porzadkowa", null);
+
+        mockMvc.perform(search("porzadkow"))
+                .andExpect(jsonPath("$.items[*].id", contains(cwikla.getId().toString(), dzem.getId().toString(),
+                        sznycel.getId().toString(), sledz.getId().toString(), zupa.getId().toString(),
+                        zurek.getId().toString())));
+    }
+
+    @Test
+    void sortsSimilarMatchesWithTheSameScoreInPolishOrder() throws Exception {
+        Product dzem = saveProduct("Dżem marynowany", null);
+        Product cwikla = saveProduct("Ćwikła marynowany", null);
+
+        mockMvc.perform(search("marynowny"))
+                .andExpect(jsonPath("$.items[*].id", contains(cwikla.getId().toString(), dzem.getId().toString())));
+    }
+
+    @Test
+    void listsProductsWithoutAQueryInPolishOrder() throws Exception {
+        Product zurek = saveProduct("Żurek listowany", null);
+        Product zupa = saveProduct("Zupa listowana", null);
+        Product sledz = saveProduct("Śledź listowany", null);
+        Product sznycel = saveProduct("sznycel listowany", null);
+        for (Product product : new Product[]{zurek, zupa, sledz, sznycel}) {
+            product.setProtein(987.0);
+            productRepository.save(product);
+        }
+
+        mockMvc.perform(get("/api/products/search").param("min_protein", "986"))
+                .andExpect(jsonPath("$.items[*].id", contains(sznycel.getId().toString(), sledz.getId().toString(),
+                        zupa.getId().toString(), zurek.getId().toString())));
+    }
+
+    @Test
     void doesNotListTheWholeProductTable() throws Exception {
         mockMvc.perform(get("/api/products"))
                 .andExpect(status().isMethodNotAllowed());

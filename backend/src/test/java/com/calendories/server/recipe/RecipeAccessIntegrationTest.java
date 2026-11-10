@@ -116,6 +116,20 @@ class RecipeAccessIntegrationTest {
     }
 
     @Test
+    void listsRecipesInPolishAlphabeticalOrder() throws Exception {
+        String suffix = " " + UUID.randomUUID();
+        List<String> expected = List.of("Ćwikła" + suffix, "Dżem" + suffix, "sznycel" + suffix, "Śledź" + suffix,
+                "Zupa" + suffix, "Żurek" + suffix);
+        for (String name : List.of("Żurek" + suffix, "Zupa" + suffix, "Śledź" + suffix, "sznycel" + suffix,
+                "Dżem" + suffix, "Ćwikła" + suffix)) {
+            saveBaseRecipe(name);
+        }
+
+        assertThat(names(null, "/api/recipes")).filteredOn(name -> name.endsWith(suffix))
+                .containsExactlyElementsOf(expected);
+    }
+
+    @Test
     void hidesRecipeOfAnotherUserAndLetsOnlyTheAuthorChangeIt() throws Exception {
         String alice = bearer();
         String bob = bearer();

@@ -1,5 +1,6 @@
 package com.calendories.server.product;
 
+import com.calendories.server.database.Collations;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -33,6 +34,8 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     String FIRST_OF_DUPLICATES = ") p WHERE p.duplicate_rank = 1 ";
 
+    String BY_NAME = " p.name COLLATE " + Collations.POLISH_NAMES + ", p.id ";
+
     Optional<Product> findByBarCodeAndStatusAndDeletedAtIsNull(String barCode, ProductStatus status);
 
     Optional<Product> findFirstByBarCodeAndStatusAndCreatedByAndDeletedAtIsNullOrderByCreatedAtDesc(
@@ -61,9 +64,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
                      (p.search_text LIKE CONCAT(:query, '%')) DESC,
                      (p.source = 'BASIC') DESC,
                      word_similarity(:query, p.search_text) DESC,
-                     p.name, p.id
-            LIMIT :limit OFFSET :offset
-            """)
+            """ + BY_NAME + "LIMIT :limit OFFSET :offset")
     List<Product> searchExact(@Param("query") String query, @Param("keyword") String keyword,
                               @Param("rawQuery") String rawQuery,
                               @Param("userId") String userId,
@@ -81,19 +82,16 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     @Query(nativeQuery = true, value = "SELECT p.* FROM (" + RANKED_PRODUCTS + VISIBLE_PRODUCTS + SIMILAR_MATCH
             + FIRST_OF_DUPLICATES + """
-            ORDER BY (p.source = 'BASIC') DESC, word_similarity(:query, p.search_text) DESC, p.name, p.id
-            LIMIT :limit OFFSET :offset
-            """)
+            ORDER BY (p.source = 'BASIC') DESC, word_similarity(:query, p.search_text) DESC,
+            """ + BY_NAME + "LIMIT :limit OFFSET :offset")
     List<Product> searchSimilar(@Param("query") String query, @Param("rawQuery") String rawQuery,
                                 @Param("userId") String userId,
                                 @Param("maxKcal") Double maxKcal, @Param("minProtein") Double minProtein,
                                 @Param("maxFat") Double maxFat, @Param("maxCarbs") Double maxCarbs,
                                 @Param("limit") int limit, @Param("offset") long offset);
 
-    @Query(nativeQuery = true, value = "SELECT p.* FROM (" + RANKED_PRODUCTS + VISIBLE_PRODUCTS + FIRST_OF_DUPLICATES + """
-            ORDER BY p.name, p.id
-            LIMIT :limit OFFSET :offset
-            """)
+    @Query(nativeQuery = true, value = "SELECT p.* FROM (" + RANKED_PRODUCTS + VISIBLE_PRODUCTS + FIRST_OF_DUPLICATES
+            + "ORDER BY" + BY_NAME + "LIMIT :limit OFFSET :offset")
     List<Product> listVisible(@Param("userId") String userId,
                               @Param("maxKcal") Double maxKcal, @Param("minProtein") Double minProtein,
                               @Param("maxFat") Double maxFat, @Param("maxCarbs") Double maxCarbs,
