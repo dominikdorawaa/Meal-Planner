@@ -42,6 +42,10 @@ Schematem bazy zarządza Flyway. Migracje są w `backend/src/main/resources/db/m
 
 Jeśli lokalna baza ma tabele bez historii Flyway, backend się nie uruchomi. Wtedy wyczyść bazę przez `docker compose down -v` i `docker compose up -d postgres`.
 
+## Wdrożenie
+
+Wdrożenie na Heroku i przeniesienie danych z Supabase opisuje [docs/deployment.md](docs/deployment.md).
+
 ## Konto administratora
 
 Nowi użytkownicy dostają rolę `USER`. Pierwszego administratora nadaje się ręcznie w bazie, a zmiana działa od następnego żądania:
