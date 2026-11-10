@@ -335,6 +335,43 @@ class OffImportIntegrationTest {
     }
 
     @Test
+    void hidesOutdatedProductsThatAreUsedInRecipes() throws IOException {
+        Product inRecipe = storedOffProduct("5901234123457", "Kysané podmáslí");
+        UUID recipeId = UUID.randomUUID();
+        jdbcTemplate.update("insert into recipes (id, name) values (?, 'Placki')", recipeId);
+        jdbcTemplate.update("insert into recipe_ingredients (id, recipe_id, name, amount, unit, product_id) "
+                + "values (?, ?, 'Maslanka', 200, 'g', ?)", UUID.randomUUID(), recipeId, inRecipe.getId());
+
+        ImportReport report = importService.importDump(dump(skyr("Skyr naturalny", 64.6)));
+
+        assertThat(report.hiddenInUse()).isEqualTo(1);
+        assertThat(report.removed()).isZero();
+        assertThat(productRepository.findById(inRecipe.getId()).orElseThrow().getDeletedAt()).isNotNull();
+        assertThat(jdbcTemplate.queryForObject("select product_id from recipe_ingredients where recipe_id = ?",
+                UUID.class, recipeId)).isEqualTo(inRecipe.getId());
+        jdbcTemplate.update("delete from recipe_ingredients where recipe_id = ?", recipeId);
+        jdbcTemplate.update("delete from recipes where id = ?", recipeId);
+    }
+
+    @Test
+    void hidesOutdatedProductsThatAreSaved() throws IOException {
+        Product saved = storedOffProduct("5901234123457", "Kysané podmáslí");
+        UUID userId = UUID.randomUUID();
+        jdbcTemplate.update("insert into app_users (id, email, password_hash) values (?, ?, 'hash')",
+                userId, userId + "@example.com");
+        jdbcTemplate.update("insert into saved_products (id, user_id, product_id) values (?, ?, ?)",
+                UUID.randomUUID(), userId, saved.getId());
+
+        ImportReport report = importService.importDump(dump(skyr("Skyr naturalny", 64.6)));
+
+        assertThat(report.hiddenInUse()).isEqualTo(1);
+        assertThat(report.removed()).isZero();
+        assertThat(productRepository.findById(saved.getId()).orElseThrow().getDeletedAt()).isNotNull();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from saved_products where product_id = ?",
+                Integer.class, saved.getId())).isEqualTo(1);
+    }
+
+    @Test
     void removesOutdatedProductsInBatches() throws IOException {
         for (int i = 0; i < OffImportService.BATCH_SIZE + 5; i++) {
             storedOffProduct(withCheckDigit(String.format("590%09d", i)), "Barre céréales " + i);
