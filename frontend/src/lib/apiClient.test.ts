@@ -206,3 +206,41 @@ describe('apiClient recipes', () => {
     expect(fetchMock.mock.calls[0][1].method).toBe(method);
   });
 });
+
+describe('apiClient base address', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  async function requestedUrl(): Promise<string> {
+    vi.resetModules();
+    fetchMock.mockResolvedValue(jsonResponse(200, []));
+    const { api: freshApi } = await import('./apiClient');
+
+    await freshApi.recipes.getAll();
+
+    return fetchMock.mock.calls[0][0];
+  }
+
+  it('uses the Heroku backend in production when no address is configured', async () => {
+    vi.stubEnv('VITE_API_URL', '');
+    vi.stubEnv('MODE', 'production');
+
+    expect(await requestedUrl()).toMatch(/^https:\/\/calendories-a6350b0423bd\.herokuapp\.com\/api\//);
+  });
+
+  it('uses the local backend in development when no address is configured', async () => {
+    vi.stubEnv('VITE_API_URL', '');
+    vi.stubEnv('MODE', 'development');
+
+    expect(await requestedUrl()).toMatch(/^http:\/\/localhost:8080\/api\//);
+  });
+
+  it('prefers the configured address', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://api.example.com');
+    vi.stubEnv('MODE', 'production');
+
+    expect(await requestedUrl()).toMatch(/^https:\/\/api\.example\.com\/api\//);
+  });
+});
