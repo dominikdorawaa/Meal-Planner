@@ -349,6 +349,7 @@
   "food.loading": "Ładowanie bazy",
   "food.ownBadge": "Twój",
   "food.unverifiedBadge": "niezweryfikowany",
+  "food.calendoriesBadge": "Calendories",
   "food.save": "Dodaj do zapisanych: {name}",
   "food.unsave": "Usuń z zapisanych: {name}",
   "food.portion": "{count} porcja",
