@@ -14,9 +14,9 @@ permissions:
   contents: read
 
 env:
-  BACKEND_DEPLOY_ENABLED: 'false'
+  BACKEND_DEPLOY_ENABLED: 'true'
   HEROKU_APP: calendories
-  BACKEND_HEALTH_URL: https://calendories.herokuapp.com/health
+  BACKEND_HEALTH_URL: https://calendories-a6350b0423bd.herokuapp.com/health
 
 jobs:
   changes:
@@ -56,7 +56,7 @@ jobs:
     steps:
       - name: Check whether backend deployment is enabled
         if: env.BACKEND_DEPLOY_ENABLED != 'true'
-        run: echo "::notice::Backend deployment to Heroku is disabled until the Heroku app and secrets exist."
+        run: echo "::notice::Backend deployment to Heroku is disabled."
       - uses: actions/checkout@v4
         if: env.BACKEND_DEPLOY_ENABLED == 'true'
         with:
