@@ -9,6 +9,7 @@ Backend i baza przechodzą z Render i Supabase Postgres na Heroku. Wartości sek
 | Backend | Heroku, aplikacja `calendories`, region `eu`, stack `container` (obraz z `heroku.yml` i `backend/Dockerfile`), jedno dyno Basic |
 | Baza danych | Heroku Postgres Essential-0 (limit 20 połączeń), adres w zmiennej `DATABASE_URL` |
 | Zdjęcia przepisów | Supabase Storage, bucket `recipe-images` (bez zmian) |
+| Frontend | Vercel (bez zmian) |
 | Wdrażanie | GitHub Actions, `.github/workflows/deploy.yml` |
 
 Budżet to kredyt studencki 13 USD miesięcznie: Basic kosztuje 7 USD, Essential-0 5 USD. Dlatego:
@@ -126,13 +127,13 @@ Dane przenosimy ręcznie z własnego komputera, klientem Postgres z Dockera. Kop
 
    W logach Flyway powinien zgłosić, że schemat jest aktualny, bez nowych migracji. Tabela historii Flyway (`flyway_schema_history`) jest w schemacie `public`, więc trafia do zrzutu razem z danymi. Flyway widzi na Heroku te same wykonane migracje i sumy kontrolne co na Supabase, a Hibernate (`ddl-auto: validate`) ten sam schemat.
 
-9. Przełączenie frontendu: `VITE_API_URL` w buildzie frontendu wskazuje adres Heroku, a `CORSALLOWEDORIGINS` na Heroku zawiera adres frontendu. Potem sprawdź w przeglądarce logowanie, przepisy z dodaniem zdjęcia, produkty i plan dnia.
+9. Przełączenie frontendu: `VITE_API_URL` w ustawieniach projektu na Vercel wskazuje adres Heroku (nowy build po zmianie), a `CORSALLOWEDORIGINS` na Heroku zawiera adres frontendu. Potem sprawdź w przeglądarce logowanie, przepisy z dodaniem zdjęcia, produkty i plan dnia.
 
 Plik zrzutu zawiera dane użytkowników. Nigdy go nie commitujemy (`*.dump` jest w `.gitignore`), a po udanym przełączeniu usuwamy razem z `source.txt` i `target.txt`.
 
 ## Powrót do starego środowiska
 
-Do przełączenia stary backend na Render i baza Supabase pozostają nietknięte: zrzut tylko czyta dane. Przy problemie na Heroku wznów backend na Render (Resume) i przywróć poprzedni `VITE_API_URL` frontendu. Dane zapisane na Heroku po przełączeniu nie wrócą wtedy same do Supabase. Usługę Render i bazę Supabase usuwamy dopiero po kilku dniach stabilnej pracy na Heroku i po pierwszej kopii zapasowej Heroku.
+Do przełączenia stary backend na Render i baza Supabase pozostają nietknięte: zrzut tylko czyta dane. Przy problemie na Heroku wznów backend na Render (Resume) i przywróć poprzedni `VITE_API_URL` na Vercel. Dane zapisane na Heroku po przełączeniu nie wrócą wtedy same do Supabase. Usługę Render i bazę Supabase usuwamy dopiero po kilku dniach stabilnej pracy na Heroku i po pierwszej kopii zapasowej Heroku.
 
 ## Pamięć, logi i kopie zapasowe
 
