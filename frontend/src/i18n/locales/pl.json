@@ -596,7 +596,6 @@
   "onboarding.next": "Dalej",
   "onboarding.showGoal": "Pokaż mój cel",
   "onboarding.saving": "Zapisywanie...",
-  "onboarding.manual": "Znam swoje kalorie i makro",
   "onboarding.goal.question": "Co chcesz osiągnąć?",
   "onboarding.goal.why": "Od tego zależy, ile kalorii dziennie zaplanujemy.",
   "onboarding.goal.reduce": "Schudnąć",
@@ -626,7 +625,5 @@
   "onboarding.result.next1": "Wybierz dzień w Planie",
   "onboarding.result.next2": "Dodaj przepis albo produkt do posiłku",
   "onboarding.result.next3": "Na górze dnia zobaczysz, ile kcal i makro jeszcze zostało",
-  "onboarding.result.start": "Zaplanuj dzisiejszy dzień",
-  "onboarding.manualLead": "Wpisz swój dzienny cel i makro. Zmiana gramów od razu przelicza kalorie.",
-  "onboarding.manualSave": "Zapisz i zacznij planować"
+  "onboarding.result.start": "Zaplanuj dzisiejszy dzień"
 }

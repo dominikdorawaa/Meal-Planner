@@ -84,6 +84,7 @@ describe('Onboarding guided setup', () => {
     expect(screen.getByText('Krok 1 z 5')).toBeTruthy()
     expect(screen.getByRole('radio', { name: /Schudnąć/ }).getAttribute('aria-checked')).toBe('true')
     expect(screen.queryByRole('button', { name: 'Wróć' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Znam swoje/ })).toBeNull()
     next()
 
     expect(heading()).toBe('Opowiedz nam o sobie')
@@ -351,42 +352,5 @@ describe('Onboarding saving', () => {
       resolveSave({})
     })
     expect(mocks.navigate).toHaveBeenCalledWith('/')
-  })
-})
-
-describe('Onboarding manual goal', () => {
-  it('saves hand set calories and macros without the automatic switch', async () => {
-    renderOnboarding()
-    fireEvent.click(screen.getByRole('button', { name: 'Znam swoje kalorie i makro' }))
-    const page = within(screen.getByRole('region', { name: 'Dzienny cel' }))
-
-    expect(page.getByText(/Wpisz swój dzienny cel i makro/)).toBeTruthy()
-    expect(page.queryByRole('switch')).toBeNull()
-    expect(page.queryByRole('button', { name: /^Skąd/ })).toBeNull()
-    expect(page.queryByText(/g\/kg/)).toBeNull()
-    fireEvent.change(page.getByLabelText('Białko (g)'), { target: { value: '150' } })
-    const kcal = (page.getByLabelText('Twój cel kaloryczny') as HTMLInputElement).value
-
-    await act(async () => {
-      fireEvent.click(page.getByRole('button', { name: 'Zapisz i zacznij planować' }))
-    })
-
-    expect(mocks.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ is_manual_macros: true, target_protein: 150, target_kcal: Number(kcal) }))
-    const saved = mocks.updateProfile.mock.calls[0][0]
-    for (const field of ['gender', 'age', 'height', 'weight', 'target_weight', 'display_name']) expect(saved).not.toHaveProperty(field)
-    expect(mocks.navigate).toHaveBeenCalledWith('/')
-  })
-
-  it('starts from remembered hand set numbers and goes back to the guided setup', () => {
-    localStorage.setItem('mp_manual_targets', JSON.stringify({ kcal: 2100, protein: 160, fat: 70, carbs: 208 }))
-    renderOnboarding()
-    fireEvent.click(screen.getByRole('button', { name: 'Znam swoje kalorie i makro' }))
-    const page = within(screen.getByRole('region', { name: 'Dzienny cel' }))
-
-    expect((page.getByLabelText('Twój cel kaloryczny') as HTMLInputElement).value).toBe('2100')
-    expect((page.getByLabelText('Białko (g)') as HTMLInputElement).value).toBe('160')
-    fireEvent.click(page.getByRole('button', { name: 'Wróć' }))
-    expect(screen.queryByRole('region', { name: 'Dzienny cel' })).toBeNull()
-    expect(heading()).toBe('Co chcesz osiągnąć?')
   })
 })

@@ -8,10 +8,9 @@ import { NumberStepper } from '../components/settings/NumberStepper';
 import { ActivityChoice } from '../components/settings/ActivityChoice';
 import { PaceChoice, PaceHint } from '../components/settings/WeightGoal';
 import { CalorieBreakdown } from '../components/settings/CalorieBreakdown';
-import { DailyTargetsPage } from '../components/settings/DailyTargetsPage';
 import { PrimaryButton, SettingsGroup, SettingsPage } from '../components/settings/SettingsUi';
 import { formatLongDate, formatWeight } from '../components/settings/settingsFormat';
-import { readManualTargets, toSettingsProfile, withCalculatedTargets, type SettingsProfile } from '../components/settings/settingsProfile';
+import { toSettingsProfile, withCalculatedTargets, type SettingsProfile } from '../components/settings/settingsProfile';
 import { macroFillClass, type MacroKey } from '../lib/macroColors';
 
 type Step = 'goal' | 'body' | 'target' | 'day' | 'training' | 'result';
@@ -85,12 +84,6 @@ function storeDraft(draft: Draft | null): void {
   }
 }
 
-function manualStart(profile: SettingsProfile): Partial<SettingsProfile> {
-  const remembered = readManualTargets();
-  if (!remembered) return {};
-  return { target_kcal: remembered.kcal, target_protein: remembered.protein, target_fat: remembered.fat, target_carbs: remembered.carbs, weight: profile.weight };
-}
-
 function guidedPayload(profile: SettingsProfile): Partial<SettingsProfile> {
   const payload: Partial<SettingsProfile> = { ...profile };
   delete payload.display_name;
@@ -111,7 +104,7 @@ export function Onboarding() {
   const { refreshProfile } = useAppData();
   const [draft, setDraft] = useState<Draft>(initialDraft);
   const untouchedDraft = useRef(draft);
-  const [overlay, setOverlay] = useState<'manual' | 'breakdown' | null>(null);
+  const [overlay, setOverlay] = useState<'breakdown' | null>(null);
   const [loading, setLoading] = useState(false);
   const { step, goal, profile, targetTouched } = draft;
 
@@ -182,7 +175,6 @@ export function Onboarding() {
     return true;
   };
 
-  const saveManual = async (patch: Partial<SettingsProfile>) => save(patch);
 
   const goalStep = (
     <>
@@ -376,11 +368,6 @@ export function Onboarding() {
 
       <footer className="fixed inset-x-0 bottom-0 bg-surface/95 backdrop-blur-sm">
         <div className="max-w-xl mx-auto px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] flex flex-col gap-2">
-          {step === 'goal' && (
-            <button type="button" onClick={() => setOverlay('manual')} className="self-center py-2 text-[15px] font-semibold text-primary">
-              {t('onboarding.manual')}
-            </button>
-          )}
           <div className="flex">
           {step === 'result' ? (
             <PrimaryButton onClick={() => void save(guidedPayload(final))} disabled={loading} icon="arrow_forward">
@@ -417,15 +404,6 @@ export function Onboarding() {
             onEditTargets={() => setOverlay(null)}
           />
         </SettingsPage>
-      )}
-      {overlay === 'manual' && (
-        <DailyTargetsPage
-          profile={{ ...final, ...manualStart(final), is_manual_macros: true }}
-          depth={0}
-          onBack={() => setOverlay(null)}
-          onSave={saveManual}
-          manualOnly={{ lead: t('onboarding.manualLead'), saveLabel: t('onboarding.manualSave') }}
-        />
       )}
     </div>
   );

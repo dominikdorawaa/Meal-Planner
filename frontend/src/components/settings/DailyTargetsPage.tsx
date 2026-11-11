@@ -12,8 +12,7 @@ type DailyTargetsPageProps = {
   depth: number;
   onBack: () => void;
   onSave: (patch: Partial<SettingsProfile>) => Promise<boolean>;
-  onExplain?: () => void;
-  manualOnly?: { lead: string; saveLabel: string };
+  onExplain: () => void;
 };
 
 type ManualDraft = { kcal: string; protein: string; fat: string; carbs: string };
@@ -33,7 +32,7 @@ function share(grams: number, kcalPerGram: number, kcal: number): number {
   return kcal > 0 ? Math.round(((grams * kcalPerGram) / kcal) * 100) : 0;
 }
 
-export function DailyTargetsPage({ profile, depth, onBack, onSave, onExplain, manualOnly }: DailyTargetsPageProps) {
+export function DailyTargetsPage({ profile, depth, onBack, onSave, onExplain }: DailyTargetsPageProps) {
   const [manual, setManual] = useState(profile.is_manual_macros);
   const [draft, setDraft] = useState<ManualDraft>({
     kcal: String(profile.target_kcal),
@@ -102,11 +101,9 @@ export function DailyTargetsPage({ profile, depth, onBack, onSave, onExplain, ma
       title={t('settings.dailyGoal')}
       onBack={onBack}
       depth={depth}
-      footer={<PrimaryButton onClick={save} disabled={manualInvalid}>{manualOnly ? manualOnly.saveLabel : t('settings.save')}</PrimaryButton>}
+      footer={<PrimaryButton onClick={save} disabled={manualInvalid}>{t('settings.save')}</PrimaryButton>}
     >
-      {manualOnly && <p className="mt-1 mb-3 px-1 text-[15px] leading-relaxed text-on-surface-variant">{manualOnly.lead}</p>}
       <section className="relative mt-2 rounded-[22px] bg-primary/[0.08] px-4 pt-5 pb-5 flex flex-col items-center text-center">
-        {onExplain && (
         <button
           type="button"
           onClick={onExplain}
@@ -115,7 +112,6 @@ export function DailyTargetsPage({ profile, depth, onBack, onSave, onExplain, ma
         >
           <span aria-hidden="true" className="material-symbols-outlined text-[22px]">info</span>
         </button>
-        )}
         <label htmlFor="settings-target-kcal" className="text-[13.5px] font-semibold text-on-surface-variant">{t('settings.targets.kcalLabel')}</label>
         <div className="mt-2 flex items-baseline justify-center gap-1.5">
           {manual ? (
@@ -133,26 +129,24 @@ export function DailyTargetsPage({ profile, depth, onBack, onSave, onExplain, ma
         </div>
       </section>
 
-      {!manualOnly && (
-        <SettingsGroup className="mt-2">
-          <div className="min-h-[64px] flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-base font-medium text-on-surface">{t('settings.targets.auto')}</p>
-              <p className="mt-0.5 text-[13px] text-on-surface-variant">{t('settings.targets.autoHint')}</p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={!manual}
-              aria-label={t('settings.targets.auto')}
-              onClick={switchMode}
-              className={`w-[52px] h-8 shrink-0 rounded-full p-1 transition-colors ${manual ? 'bg-surface-container-highest' : 'bg-primary'}`}
-            >
-              <span className={`block w-6 h-6 rounded-full bg-white shadow-[0_1px_3px_rgb(0_0_0/0.3)] transition-transform ${manual ? '' : 'translate-x-5'}`}></span>
-            </button>
+      <SettingsGroup className="mt-2">
+        <div className="min-h-[64px] flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-base font-medium text-on-surface">{t('settings.targets.auto')}</p>
+            <p className="mt-0.5 text-[13px] text-on-surface-variant">{t('settings.targets.autoHint')}</p>
           </div>
-        </SettingsGroup>
-      )}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!manual}
+            aria-label={t('settings.targets.auto')}
+            onClick={switchMode}
+            className={`w-[52px] h-8 shrink-0 rounded-full p-1 transition-colors ${manual ? 'bg-surface-container-highest' : 'bg-primary'}`}
+          >
+            <span className={`block w-6 h-6 rounded-full bg-white shadow-[0_1px_3px_rgb(0_0_0/0.3)] transition-transform ${manual ? '' : 'translate-x-5'}`}></span>
+          </button>
+        </div>
+      </SettingsGroup>
 
       <SettingsSectionLabel>{t('settings.targets.macros')}</SettingsSectionLabel>
       <SettingsGroup>
@@ -165,13 +159,11 @@ export function DailyTargetsPage({ profile, depth, onBack, onSave, onExplain, ma
               <span aria-hidden="true" className={`w-2.5 h-2.5 rounded-full shrink-0 ${macroFillClass[macro.key]}`}></span>
               <div className="flex-1 min-w-0">
                 <p className="text-base font-medium text-on-surface">{label}</p>
-                {!manualOnly && (
                 <p className="mt-0.5 text-[13px] text-on-surface-variant tabular-nums">
                   {manual
                     ? t('settings.targets.gramsPerKg', { value: formatDecimal(grams[macro.key] / (profile.weight || 1), 1) })
                     : t('settings.targets.gramsPerKgRange', { min: formatDecimal(macroRanges(auto.goal)[macro.key][0], 1), max: formatDecimal(macroRanges(auto.goal)[macro.key][1], 1) })}
                 </p>
-                )}
               </div>
               {manual ? (
                 <div className="flex items-center gap-1.5">

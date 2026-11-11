@@ -596,7 +596,6 @@
   "onboarding.next": "Next",
   "onboarding.showGoal": "Show my goal",
   "onboarding.saving": "Saving...",
-  "onboarding.manual": "I know my calories and macros",
   "onboarding.goal.question": "What do you want to achieve?",
   "onboarding.goal.why": "This decides how many calories a day we plan.",
   "onboarding.goal.reduce": "Lose weight",
@@ -626,7 +625,5 @@
   "onboarding.result.next1": "Pick a day in the Plan",
   "onboarding.result.next2": "Add a recipe or a product to a meal",
   "onboarding.result.next3": "The top of the day shows how many kcal and macros are left",
-  "onboarding.result.start": "Plan today",
-  "onboarding.manualLead": "Enter your daily goal and macros. Changing grams updates the calories right away.",
-  "onboarding.manualSave": "Save and start planning"
+  "onboarding.result.start": "Plan today"
 }
