@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { Onboarding } from './Onboarding'
 import { setLanguage, t } from '../i18n'
@@ -38,6 +38,27 @@ function renderOnboarding() {
   )
 }
 
+function next() {
+  fireEvent.click(screen.getByRole('button', { name: /^(Dalej|Pokaż mój cel)$/ }))
+}
+
+function heading() {
+  return screen.getByRole('heading', { level: 1 }).textContent
+}
+
+function typeInto(label: string, value: string) {
+  const input = screen.getByLabelText(label)
+  fireEvent.focus(input)
+  fireEvent.change(input, { target: { value } })
+  fireEvent.blur(input)
+}
+
+async function finish() {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /Zaplanuj dzisiejszy dzień/ }))
+  })
+}
+
 beforeEach(() => {
   vi.stubGlobal('alert', alertMock)
   vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -55,214 +76,281 @@ afterEach(() => {
   localStorage.clear()
 })
 
-describe('Onboarding', () => {
-  it('shows a neutral localized message when saving the profile fails', async () => {
-    mocks.updateProfile.mockRejectedValue(new Error('Server error (500)'))
+describe('Onboarding guided setup', () => {
+  it('starts with the goal, suggests a target and saves the calculated plan', async () => {
     renderOnboarding()
 
-    fireEvent.click(screen.getByText('Pomiń'))
+    expect(heading()).toBe('Co chcesz osiągnąć?')
+    expect(screen.getByText('Krok 1 z 5')).toBeTruthy()
+    expect(screen.getByRole('radio', { name: /Schudnąć/ }).getAttribute('aria-checked')).toBe('true')
+    expect(screen.queryByRole('button', { name: 'Wróć' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Znam swoje/ })).toBeNull()
+    next()
 
-    await waitFor(() => expect(alertMock).toHaveBeenCalledWith(t('onboarding.profileSaveFailed')))
+    expect(heading()).toBe('Opowiedz nam o sobie')
+    expect((screen.getByLabelText('Waga') as HTMLInputElement).value).toBe('70,0')
+    next()
+
+    expect(heading()).toBe('Ile chcesz schudnąć?')
+    expect(screen.getByText(/Teraz ważysz 70 kg/)).toBeTruthy()
+    expect((screen.getByLabelText('Cel') as HTMLInputElement).value).toBe('66,5')
+    expect(screen.getByText('Zalecamy 0,5 kg na tydzień.')).toBeTruthy()
+    expect(screen.queryByRole('note')).toBeNull()
+    next()
+
+    expect(heading()).toBe('Jak wygląda Twój zwykły dzień?')
+    expect(screen.getByRole('radio', { name: /Lekki/ }).textContent).toContain('+145 kcal')
+    next()
+
+    expect(heading()).toBe('Ile razy w tygodniu trenujesz?')
+    next()
+
+    expect(heading()).toBe('Gotowe, możesz planować')
+    const goal = within(screen.getByRole('region', { name: 'Twój dzienny cel' }))
+    expect(goal.getByText('1242')).toBeTruthy()
+    expect(goal.getByText('140-168 g')).toBeTruthy()
+    expect(goal.getByText('Cel osiągniesz', { exact: false }).textContent).toMatch(/za 7 tyg\., −3,5 kg/)
+    expect(screen.queryByRole('progressbar')).toBeNull()
+
+    await finish()
+
+    expect(mocks.updateProfile).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'user-1',
+      goal: 'reduce',
+      gender: 'female',
+      weight: 70,
+      target_weight: 66.5,
+      change_speed: 0.5,
+      is_manual_macros: false,
+      target_kcal: 1242,
+      target_protein_min: 140,
+      target_protein_max: 168,
+    }))
+    expect(mocks.updateProfile.mock.calls[0][0]).not.toHaveProperty('display_name')
+    expect(mocks.refreshProfile).toHaveBeenCalled()
+    expect(mocks.navigate).toHaveBeenCalledWith('/')
+    expect(localStorage.getItem('mp_onboarding_draft')).toBeNull()
+  })
+
+  it('skips the target step when keeping the weight', async () => {
+    renderOnboarding()
+    fireEvent.click(screen.getByRole('radio', { name: /Utrzymać wagę/ }))
+    expect(screen.getByText('Krok 1 z 4')).toBeTruthy()
+    next()
+    fireEvent.click(screen.getByRole('radio', { name: /Mężczyzna/ }))
+    next()
+
+    expect(heading()).toBe('Jak wygląda Twój zwykły dzień?')
+    expect(screen.getByText('Krok 3 z 4')).toBeTruthy()
+    next()
+    next()
+
+    expect(screen.queryByText('Cel osiągniesz', { exact: false })).toBeNull()
+    await finish()
+    expect(mocks.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ goal: 'maintain', gender: 'male', target_weight: 70 }))
+  })
+
+  it('suggests a higher target when gaining and keeps a changed target', () => {
+    renderOnboarding()
+    fireEvent.click(screen.getByRole('radio', { name: /Przybrać na masie/ }))
+    next()
+    next()
+
+    expect(heading()).toBe('Ile chcesz przybrać?')
+    expect((screen.getByLabelText('Cel') as HTMLInputElement).value).toBe('73,5')
+    expect(screen.getByText(/przybywa więcej tłuszczu/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Zwiększ: Cel' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wróć' }))
+    next()
+    expect((screen.getByLabelText('Cel') as HTMLInputElement).value).toBe('74,0')
+  })
+
+  it('suggests a new target when the goal changes or the target ends up on the wrong side', () => {
+    renderOnboarding()
+    next()
+    next()
+    fireEvent.click(screen.getByRole('button', { name: 'Zmniejsz: Cel' }))
+    expect((screen.getByLabelText('Cel') as HTMLInputElement).value).toBe('66,0')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wróć' }))
+    typeInto('Waga', '60')
+    next()
+    expect((screen.getByLabelText('Cel') as HTMLInputElement).value).toBe('57,0')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wróć' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Wróć' }))
+    fireEvent.click(screen.getByRole('radio', { name: /Przybrać na masie/ }))
+    next()
+    next()
+    expect((screen.getByLabelText('Cel') as HTMLInputElement).value).toBe('63,0')
+  })
+
+  it('warns gently when the target is below a healthy weight', () => {
+    renderOnboarding()
+    next()
+    next()
+    typeInto('Cel', '50')
+
+    const note = screen.getByRole('note')
+    expect(note.textContent).toContain('To poniżej zdrowej wagi')
+    expect(note.textContent).toContain('Przy wzroście 170 cm zdrowa waga zaczyna się od około 54 kg')
+    next()
+    expect(heading()).toBe('Jak wygląda Twój zwykły dzień?')
+  })
+
+  it('remembers the progress after the app is closed', () => {
+    renderOnboarding()
+    next()
+    typeInto('Wiek', '41')
+    cleanup()
+    mocks.getProfile.mockClear()
+
+    renderOnboarding()
+    expect(heading()).toBe('Opowiedz nam o sobie')
+    expect((screen.getByLabelText('Wiek') as HTMLInputElement).value).toBe('41')
+    expect(mocks.getProfile).not.toHaveBeenCalled()
+  })
+
+  it('ignores a saved progress that cannot be read', () => {
+    localStorage.setItem('mp_onboarding_draft', '{broken')
+    renderOnboarding()
+    expect(heading()).toBe('Co chcesz osiągnąć?')
+    cleanup()
+
+    localStorage.setItem('mp_onboarding_draft', JSON.stringify({ step: 'body' }))
+    renderOnboarding()
+    expect(heading()).toBe('Co chcesz osiągnąć?')
+  })
+
+  it('starts from the existing profile when there is no saved progress', async () => {
+    mocks.getProfile.mockResolvedValue({ gender: 'male', age: 23, height: 182, weight: 80, target_weight: 84, change_speed: 0.3 })
+    renderOnboarding()
+
+    await waitFor(() => expect(screen.getByRole('radio', { name: /Przybrać na masie/ }).getAttribute('aria-checked')).toBe('true'))
+    next()
+    expect((screen.getByLabelText('Waga') as HTMLInputElement).value).toBe('80,0')
+    next()
+    expect((screen.getByLabelText('Cel') as HTMLInputElement).value).toBe('84,0')
+    expect((screen.getByLabelText('Tempo na tydzień') as HTMLInputElement).value).toBe('0,3')
+  })
+
+  it('keeps the answers given before the existing profile arrives', async () => {
+    let resolveProfile: (value: unknown) => void = () => {}
+    mocks.getProfile.mockReturnValue(new Promise(resolve => {
+      resolveProfile = resolve
+    }))
+    renderOnboarding()
+    fireEvent.click(screen.getByRole('radio', { name: /Utrzymać wagę/ }))
+
+    await act(async () => {
+      resolveProfile({ gender: 'male', weight: 80, target_weight: 84, display_name: 'Ola' })
+    })
+
+    expect(screen.getByRole('radio', { name: /Utrzymać wagę/ }).getAttribute('aria-checked')).toBe('true')
+    next()
+    expect((screen.getByLabelText('Waga') as HTMLInputElement).value).toBe('70,0')
+  })
+
+  it('does not ask for the profile without a signed in user', () => {
+    mocks.getUser.mockReturnValue(null)
+    renderOnboarding()
+    expect(mocks.getProfile).not.toHaveBeenCalled()
+  })
+
+  it('explains the goal and goes back to the right step from the explanation', () => {
+    renderOnboarding()
+    for (let index = 0; index < 5; index += 1) next()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Skąd 1242 kcal?' }))
+    const breakdown = within(screen.getByRole('region', { name: 'Skąd 1242 kcal?' }))
+    expect(breakdown.getByText('1452')).toBeTruthy()
+    fireEvent.click(breakdown.getByRole('button', { name: /Zmień dane/ }))
+    expect(heading()).toBe('Opowiedz nam o sobie')
+
+    for (let index = 0; index < 4; index += 1) next()
+    fireEvent.click(screen.getByRole('button', { name: 'Skąd 1242 kcal?' }))
+    fireEvent.click(screen.getByRole('button', { name: /Zmień aktywność/ }))
+    expect(heading()).toBe('Jak wygląda Twój zwykły dzień?')
+
+    next()
+    next()
+    fireEvent.click(screen.getByRole('button', { name: 'Skąd 1242 kcal?' }))
+    fireEvent.click(screen.getByRole('button', { name: /Zmień cel i tempo/ }))
+    expect(heading()).toBe('Ile chcesz schudnąć?')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wróć' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Wróć' }))
+    fireEvent.click(screen.getByRole('radio', { name: /Utrzymać wagę/ }))
+    for (let index = 0; index < 4; index += 1) next()
+    fireEvent.click(screen.getByRole('button', { name: /^Skąd/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Zmień cel i tempo/ }))
+    expect(heading()).toBe('Co chcesz osiągnąć?')
+
+    for (let index = 0; index < 4; index += 1) next()
+    fireEvent.click(screen.getByRole('button', { name: /^Skąd/ }))
+    fireEvent.click(within(screen.getByRole('region', { name: /^Skąd/ })).getByRole('button', { name: 'Wróć' }))
+    expect(heading()).toBe('Gotowe, możesz planować')
+  })
+})
+
+describe('Onboarding saving', () => {
+  async function goToResultAndFinish() {
+    renderOnboarding()
+    for (let index = 0; index < 5; index += 1) next()
+    await finish()
+  }
+
+  it('shows a neutral localized message when saving the profile fails', async () => {
+    mocks.updateProfile.mockRejectedValue(new Error('Server error (500)'))
+    await goToResultAndFinish()
+
+    expect(alertMock).toHaveBeenCalledWith(t('onboarding.profileSaveFailed'))
     expect(alertMock.mock.calls[0][0]).not.toMatch(/sql|supabase/i)
     expect(mocks.refreshProfile).not.toHaveBeenCalled()
     expect(mocks.navigate).not.toHaveBeenCalled()
+    expect(heading()).toBe('Gotowe, możesz planować')
   })
 
   it('shows the profile save message in English when English is selected', async () => {
     setLanguage('en')
     mocks.updateProfile.mockRejectedValue(new Error('Server error (500)'))
     renderOnboarding()
+    for (let index = 0; index < 5; index += 1) fireEvent.click(screen.getByRole('button', { name: /^(Next|Show my goal)$/ }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Plan today/ }))
+    })
 
-    fireEvent.click(screen.getByText('Pomiń'))
-
-    await waitFor(() =>
-      expect(alertMock).toHaveBeenCalledWith('Could not save your profile. Please try again in a moment.')
-    )
+    expect(alertMock).toHaveBeenCalledWith('Could not save your profile. Please try again in a moment.')
+    setLanguage('pl')
   })
 
   it('asks the user to sign in again when the session has expired', async () => {
-    mocks.getUser.mockReturnValue(null)
     renderOnboarding()
+    for (let index = 0; index < 5; index += 1) next()
+    mocks.getUser.mockReturnValue(null)
+    await finish()
 
-    fireEvent.click(screen.getByText('Pomiń'))
-
-    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/login'))
     expect(alertMock).toHaveBeenCalledWith(t('api.sessionExpired'))
+    expect(mocks.navigate).toHaveBeenCalledWith('/login')
     expect(mocks.updateProfile).not.toHaveBeenCalled()
   })
 
-  it('saves the profile and opens the plan when saving succeeds', async () => {
-    renderOnboarding()
-
-    fireEvent.click(screen.getByText('Pomiń'))
-
-    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/'))
-    expect(mocks.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1', goal: 'reduce' }))
-    expect(mocks.refreshProfile).toHaveBeenCalled()
-    expect(alertMock).not.toHaveBeenCalled()
-  })
-
-  it('loads the existing profile before saving it again', async () => {
-    mocks.getProfile.mockResolvedValue({ gender: 'male', age: 40, weight: 80, height: 180, target_weight: 90 })
-    renderOnboarding()
-    await waitFor(() => expect(mocks.getProfile).toHaveBeenCalled())
-
-    fireEvent.click(screen.getByText('Pomiń'))
-
-    await waitFor(() =>
-      expect(mocks.updateProfile).toHaveBeenCalledWith(
-        expect.objectContaining({ gender: 'male', age: 40, weight: 80, target_weight: 90, goal: 'build' })
-      )
-    )
-  })
-
-  it('hides the skip button on the final summary screen', () => {
-    renderOnboarding()
-
-    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByText('Dalej'))
-
-    expect(screen.getByText('Idź do Planu Posiłków')).toBeTruthy()
-    expect(screen.queryByText('Pomiń')).toBeNull()
-  })
-
-  it('saves manually entered macros', async () => {
-    renderOnboarding()
-
-    fireEvent.click(screen.getByText('Znasz już swoje makro?'))
-    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '1800' } })
-    fireEvent.change(screen.getAllByRole('spinbutton')[3], { target: { value: '220' } })
-    fireEvent.click(screen.getByText('Zatwierdź własne makro'))
-
-    await waitFor(() =>
-      expect(mocks.updateProfile).toHaveBeenCalledWith(expect.objectContaining({
-        goal: 'manual',
-        target_kcal: 1800,
-        target_carbs: 220,
-        target_carbs_min: 220,
-        target_carbs_max: 220,
-      }))
-    )
-    expect(screen.getByText('Węgle (g)')).toBeTruthy()
-    expect(screen.queryByText('Pomiń')).toBeNull()
-  })
-
-  it('goes back from manual macros to the guided setup', async () => {
-    renderOnboarding()
-
-    expect(screen.queryByLabelText('Wstecz')).toBeNull()
-    fireEvent.click(screen.getByText('Znasz już swoje makro?'))
-    fireEvent.click(screen.getByLabelText('Wstecz'))
-
-    expect(screen.getByText('Opowiedz nam o sobie')).toBeTruthy()
-    fireEvent.click(screen.getByText('Pomiń'))
-
-    await waitFor(() =>
-      expect(mocks.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ goal: 'reduce' }))
-    )
-  })
-
-  it('blocks going back while manual macros are being saved', async () => {
+  it('blocks the buttons while the profile is being saved', async () => {
     let resolveSave: (value: unknown) => void = () => {}
-    mocks.updateProfile.mockReturnValue(new Promise((resolve) => { resolveSave = resolve }))
+    mocks.updateProfile.mockReturnValue(new Promise(resolve => {
+      resolveSave = resolve
+    }))
     renderOnboarding()
+    for (let index = 0; index < 5; index += 1) next()
+    fireEvent.click(screen.getByRole('button', { name: /Zaplanuj dzisiejszy dzień/ }))
 
-    fireEvent.click(screen.getByText('Znasz już swoje makro?'))
-    fireEvent.click(screen.getByText('Zatwierdź własne makro'))
-
-    const backButton = screen.getByLabelText('Wstecz') as HTMLButtonElement
-    await waitFor(() => expect(backButton.disabled).toBe(true))
-    fireEvent.click(backButton)
-    expect(screen.queryByText('Opowiedz nam o sobie')).toBeNull()
-
-    resolveSave({})
-    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/'))
-  })
-
-  it('goes back one step in the guided setup', () => {
-    renderOnboarding()
-
-    fireEvent.click(screen.getByText('Dalej'))
-    expect(screen.getByText('Twoje wymiary')).toBeTruthy()
-    fireEvent.click(screen.getByLabelText('Wstecz'))
-
-    expect(screen.getByText('Opowiedz nam o sobie')).toBeTruthy()
-  })
-})
-
-describe('Onboarding limits', () => {
-  it('does not accept a weight above 500 kg and blocks going on with zero', () => {
-    renderOnboarding()
-    fireEvent.click(screen.getByText('Dalej'))
-
-    const weight = screen.getByLabelText('Obecna waga (kg)') as HTMLInputElement
-    fireEvent.change(weight, { target: { value: '500' } })
-    expect(weight.value).toBe('500')
-    fireEvent.change(weight, { target: { value: '500.5' } })
-    expect(weight.value).toBe('500')
-    expect(weight.getAttribute('autocomplete')).toBe('off')
-
-    fireEvent.change(weight, { target: { value: '0' } })
-    expect((screen.getByText('Dalej') as HTMLButtonElement).disabled).toBe(true)
-    fireEvent.change(weight, { target: { value: '' } })
-    expect(weight.value).toBe('')
-    expect((screen.getByText('Dalej') as HTMLButtonElement).disabled).toBe(true)
-  })
-
-  it('does not accept a target weight above 500 kg', () => {
-    renderOnboarding()
-    fireEvent.click(screen.getByText('Dalej'))
-    fireEvent.click(screen.getByText('Dalej'))
-
-    const target = screen.getByLabelText('Masa docelowa (kg)') as HTMLInputElement
-    fireEvent.change(target, { target: { value: '501' } })
-    expect(target.value).not.toBe('501')
-  })
-
-  it('does not accept manual macros above the limits and blocks zero calories', () => {
-    renderOnboarding()
-    fireEvent.click(screen.getByText('Znasz już swoje makro?'))
-
-    const kcal = screen.getByLabelText('Kcal') as HTMLInputElement
-    fireEvent.change(kcal, { target: { value: '10001' } })
-    expect(kcal.value).toBe('2000')
-    fireEvent.change(kcal, { target: { value: '10000' } })
-    expect(kcal.value).toBe('10000')
-    expect(kcal.getAttribute('inputmode')).toBe('numeric')
-
-    const protein = screen.getByLabelText('Białka (g)') as HTMLInputElement
-    fireEvent.change(protein, { target: { value: '1001' } })
-    expect(protein.value).toBe('150')
-    fireEvent.change(screen.getByLabelText('Tłuszcz (g)'), { target: { value: '80' } })
-    fireEvent.change(screen.getByLabelText('Węgle (g)'), { target: { value: '300' } })
-
-    fireEvent.change(kcal, { target: { value: '' } })
-    expect((screen.getByText('Zatwierdź własne makro').closest('button') as HTMLButtonElement).disabled).toBe(true)
-  })
-
-  it('checks only the fields of the current step, so going back is never blocked', () => {
-    renderOnboarding()
-    fireEvent.click(screen.getByText('Dalej'))
-    fireEvent.click(screen.getByText('Dalej'))
-
-    fireEvent.change(screen.getByLabelText('Masa docelowa (kg)'), { target: { value: '' } })
-    expect((screen.getByText('Dalej') as HTMLButtonElement).disabled).toBe(true)
-
-    fireEvent.click(screen.getByLabelText('Wstecz'))
-    expect(screen.getByLabelText('Obecna waga (kg)')).toBeTruthy()
-    expect((screen.getByText('Dalej') as HTMLButtonElement).disabled).toBe(false)
-  })
-
-  it('lets the guided setup finish once a cleared weight is filled again', () => {
-    renderOnboarding()
-    fireEvent.click(screen.getByText('Dalej'))
-    fireEvent.click(screen.getByText('Dalej'))
-    fireEvent.change(screen.getByLabelText('Masa docelowa (kg)'), { target: { value: '' } })
-    fireEvent.click(screen.getByLabelText('Wstecz'))
-    fireEvent.click(screen.getByText('Dalej'))
-    fireEvent.change(screen.getByLabelText('Masa docelowa (kg)'), { target: { value: '60' } })
-    fireEvent.click(screen.getByText('Dalej'))
-    fireEvent.click(screen.getByText('Dalej'))
-
-    expect((screen.getByText('Idź do Planu Posiłków').closest('button') as HTMLButtonElement).disabled).toBe(false)
+    const saving = screen.getByRole('button', { name: /Zapisywanie/ }) as HTMLButtonElement
+    expect(saving.disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Wróć' }) as HTMLButtonElement).disabled).toBe(true)
+    await act(async () => {
+      resolveSave({})
+    })
+    expect(mocks.navigate).toHaveBeenCalledWith('/')
   })
 })

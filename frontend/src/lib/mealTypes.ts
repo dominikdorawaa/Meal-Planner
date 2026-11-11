@@ -1,5 +1,11 @@
 import { t, type MessageKey } from '../i18n';
 
+export const MEAL_COLORS = ['#f2b84b', '#7fc77a', '#a78bfa', '#60a5fa', '#f472b6', '#2dd4bf'];
+
+export function mealColor(index: number): string {
+  return MEAL_COLORS[Math.max(index, 0) % MEAL_COLORS.length];
+}
+
 export interface MealType {
   id: string;
   name: string;

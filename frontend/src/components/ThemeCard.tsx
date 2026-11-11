@@ -31,35 +31,28 @@ export function ThemeCard() {
   };
 
   return (
-    <div className="bg-surface-container-lowest p-5 sm:p-6 rounded-3xl shadow-ambient flex flex-col gap-4 border border-outline-variant/10">
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 shrink-0 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-          <span className="material-symbols-outlined">palette</span>
-        </div>
-        <span className="font-bold text-on-surface text-[15px]">{t('theme.title')}</span>
-      </div>
-      <div role="radiogroup" aria-label={t('theme.title')} onKeyDown={moveSelection} className="grid grid-cols-3 gap-2 p-1 bg-surface-container-highest/50 rounded-2xl">
-        {OPTIONS.map((option, index) => {
-          const selected = preference === option.value;
-          return (
-            <button
-              key={option.value}
-              ref={(element) => {
-                optionRefs.current[index] = element;
-              }}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              tabIndex={selected ? 0 : -1}
-              onClick={() => choose(option.value)}
-              className={`flex flex-col items-center gap-1 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${selected ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-primary/5'}`}
-            >
-              <span className="material-symbols-outlined text-[20px]">{option.icon}</span>
-              {t(option.label)}
-            </button>
-          );
-        })}
-      </div>
+    <div role="radiogroup" aria-label={t('theme.title')} onKeyDown={moveSelection} className="bg-surface-container-low rounded-[22px] px-3.5 divide-y divide-outline-variant/10">
+      {OPTIONS.map((option, index) => {
+        const selected = preference === option.value;
+        return (
+          <button
+            key={option.value}
+            ref={(element) => {
+              optionRefs.current[index] = element;
+            }}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            tabIndex={selected ? 0 : -1}
+            onClick={() => choose(option.value)}
+            className="w-full min-h-[56px] flex items-center gap-3.5 text-left transition-opacity active:opacity-60"
+          >
+            <span aria-hidden="true" className="material-symbols-outlined text-[22px] text-on-surface-variant">{option.icon}</span>
+            <span className="flex-1 text-base font-medium text-on-surface">{t(option.label)}</span>
+            <span aria-hidden="true" className={`material-symbols-outlined text-[22px] text-primary transition-opacity ${selected ? 'opacity-100' : 'opacity-0'}`}>check</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
