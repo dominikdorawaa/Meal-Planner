@@ -1,29 +1,25 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState, type PointerEvent } from 'react';
 import { t } from '../i18n';
-import { formatMonthWithYear, formatShortWeekday, parseIsoDate } from '../lib/planDates';
-
-export type StripDay = { date: string; isToday: boolean; goalMet: boolean };
+import { addDaysToIsoDate, daysBetweenIsoDates, formatMonthWithYear, formatShortWeekday, parseIsoDate } from '../lib/planDates';
 
 type PlanWeekStripProps = {
-  days: StripDay[];
-  firstVisible: number;
-  settledVisible: number;
+  start: string;
+  today: string;
+  visibleStart: string;
   visibleCount: number;
-  initialStart?: string;
-  onSelectDay: (index: number) => void;
-  onShownStartChange?: (date: string) => void;
+  isGoalMet: (date: string) => boolean;
+  onSwipeWeek: (weeks: 1 | -1) => void;
+  onSelectDay: (date: string) => void;
 };
 
-const SHOWN_DAYS = 7;
-const SWIPE_SETTLE_MS = 120;
+export const SHOWN_DAYS = 7;
+export const SWIPE_MS = 260;
+const RENDERED_DAYS = SHOWN_DAYS * 3;
+const SWIPE_THRESHOLD = 0.15;
+const TAP_SLOP_PX = 8;
+const DAY_PERCENT = 100 / RENDERED_DAYS;
 
-const weekStartIndex = (index: number) => Math.floor(index / SHOWN_DAYS) * SHOWN_DAYS;
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
-
-function scrollStripTo(strip: HTMLElement, left: number) {
-  if (typeof strip.scrollTo === 'function') strip.scrollTo({ left, behavior: 'smooth' });
-  else strip.scrollLeft = left;
-}
+type Drag = { pointerId: number; x: number; dx: number; width: number };
 
 function GoalLeaf() {
   return (
@@ -33,80 +29,86 @@ function GoalLeaf() {
   );
 }
 
-export function PlanWeekStrip({ days, firstVisible, settledVisible, visibleCount, initialStart, onSelectDay, onShownStartChange }: PlanWeekStripProps) {
+const trackTransform = (dayOffset: number, dragPx = 0) => `translateX(calc(${-(SHOWN_DAYS + dayOffset) * DAY_PERCENT}% + ${dragPx}px))`;
+
+export function PlanWeekStrip({ start, today, visibleStart, visibleCount, isGoalMet, onSwipeWeek, onSelectDay }: PlanWeekStripProps) {
   const locale = t('recipeDetails.locale');
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLSpanElement>(null);
-  const settleTimer = useRef(0);
-  const programmaticScroll = useRef(false);
-  const lastWindowStart = useRef<string | undefined>(undefined);
-  const lastStart = days.length - SHOWN_DAYS;
-  const [shown, setShown] = useState(() => {
-    const restored = days.findIndex(day => day.date === initialStart);
-    const start = restored === -1 ? weekStartIndex(settledVisible) : restored;
-    return { settled: settledVisible, start: days[clamp(start, 0, lastStart)]?.date };
-  });
+  const drag = useRef<Drag | null>(null);
+  const suppressClick = useRef(false);
+  const swipeTimer = useRef(0);
+  const clickTimer = useRef(0);
+  const shownStart = useRef(start);
+  const [swiping, setSwiping] = useState(false);
 
-  const shownIndex = days.findIndex(day => day.date === shown.start);
-  if (shown.settled !== settledVisible || shownIndex === -1) {
-    const current = shownIndex === -1 ? weekStartIndex(settledVisible) : shownIndex;
-    let next = current;
-    if (settledVisible < current) next = settledVisible;
-    else if (settledVisible + visibleCount > current + SHOWN_DAYS) next = settledVisible + visibleCount - SHOWN_DAYS;
-    setShown({ settled: settledVisible, start: days[clamp(next, 0, lastStart)]?.date });
-  }
+  const firstDay = addDaysToIsoDate(start, -SHOWN_DAYS);
+  const dates = Array.from({ length: RENDERED_DAYS }, (_, index) => addDaysToIsoDate(firstDay, index));
+  const weekDates = dates.slice(SHOWN_DAYS, SHOWN_DAYS * 2);
+  const browsingAway = !weekDates.includes(today);
+  const month = formatMonthWithYear(weekDates[Math.floor(SHOWN_DAYS / 2)], locale);
+  const highlightIndex = daysBetweenIsoDates(firstDay, visibleStart);
 
-  const startIndex = Math.max(0, shownIndex);
-  const windowStart = days[0]?.date;
-  const shownDays = days.slice(startIndex, startIndex + SHOWN_DAYS);
-  const browsingAway = shownDays.length > 0 && !shownDays.some(day => day.isToday);
-  const month = formatMonthWithYear(shownDays[Math.floor(shownDays.length / 2)]?.date, locale);
+  const setTrack = (transform: string, animate: boolean) => {
+    const track = trackRef.current;
+    if (!track) return;
+    track.style.transition = animate ? '' : 'none';
+    track.style.transform = transform;
+  };
 
   useLayoutEffect(() => {
-    const strip = scrollRef.current;
+    const shift = daysBetweenIsoDates(shownStart.current, start);
+    shownStart.current = start;
     const highlight = highlightRef.current;
-    const windowShifted = lastWindowStart.current !== windowStart;
-    lastWindowStart.current = windowStart;
-    if (windowShifted && highlight) {
+    if (highlight) {
       highlight.style.transition = 'none';
       void highlight.offsetWidth;
       requestAnimationFrame(() => { highlight.style.transition = ''; });
     }
-    if (!strip || !strip.clientWidth) return;
-    const target = startIndex * (strip.clientWidth / SHOWN_DAYS);
-    if (Math.abs(strip.scrollLeft - target) < 1) return;
-    programmaticScroll.current = true;
-    if (windowShifted) strip.scrollLeft = target;
-    else scrollStripTo(strip, target);
-  }, [startIndex, windowStart]);
+    if (shift === 0 || Math.abs(shift) > SHOWN_DAYS) {
+      setTrack(trackTransform(0), false);
+      return;
+    }
+    setTrack(trackTransform(-shift), false);
+    void trackRef.current?.offsetWidth;
+    requestAnimationFrame(() => setTrack(trackTransform(0), true));
+  }, [start]);
 
-  const shownStart = shownDays[0]?.date;
-  useEffect(() => {
-    if (shownStart) onShownStartChange?.(shownStart);
-  }, [shownStart, onShownStartChange]);
+  useLayoutEffect(() => () => {
+    window.clearTimeout(swipeTimer.current);
+    window.clearTimeout(clickTimer.current);
+  }, []);
 
-  useEffect(() => () => window.clearTimeout(settleTimer.current), []);
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (swiping || drag.current) return;
+    suppressClick.current = false;
+    drag.current = { pointerId: event.pointerId, x: event.clientX, dx: 0, width: event.currentTarget.clientWidth };
+  };
 
-  const handleScroll = () => {
-    window.clearTimeout(settleTimer.current);
-    settleTimer.current = window.setTimeout(() => {
-      const strip = scrollRef.current;
-      if (!strip || !strip.clientWidth) return;
-      if (programmaticScroll.current) {
-        programmaticScroll.current = false;
-        return;
-      }
-      const dayWidth = strip.clientWidth / SHOWN_DAYS;
-      const weeksMoved = Math.round((strip.scrollLeft / dayWidth - startIndex) / SHOWN_DAYS);
-      const nextStart = clamp(startIndex + weeksMoved * SHOWN_DAYS, 0, lastStart);
-      if (nextStart === startIndex) {
-        programmaticScroll.current = true;
-        scrollStripTo(strip, startIndex * dayWidth);
-        return;
-      }
-      setShown(previous => ({ ...previous, start: days[nextStart].date }));
-      if (settledVisible < nextStart || settledVisible + visibleCount > nextStart + SHOWN_DAYS) onSelectDay(nextStart);
-    }, SWIPE_SETTLE_MS);
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const current = drag.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    current.dx = event.clientX - current.x;
+    if (Math.abs(current.dx) > TAP_SLOP_PX) suppressClick.current = true;
+    if (suppressClick.current) setTrack(trackTransform(0, current.dx), false);
+  };
+
+  const finishDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const current = drag.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    drag.current = null;
+    if (!suppressClick.current) return;
+    clickTimer.current = window.setTimeout(() => { suppressClick.current = false; }, 0);
+    const far = Math.abs(current.dx) >= current.width * SWIPE_THRESHOLD;
+    const weeks = current.dx < 0 ? 1 : -1;
+    setTrack(trackTransform(far ? weeks * SHOWN_DAYS : 0), true);
+    if (!far) return;
+    setSwiping(true);
+    swipeTimer.current = window.setTimeout(() => {
+      setSwiping(false);
+      shownStart.current = addDaysToIsoDate(start, weeks * SHOWN_DAYS);
+      onSwipeWeek(weeks);
+    }, SWIPE_MS);
   };
 
   return (
@@ -120,35 +122,57 @@ export function PlanWeekStrip({ days, firstVisible, settledVisible, visibleCount
           {browsingAway ? month : ''}
         </span>
       </div>
-      <div ref={scrollRef} onScroll={handleScroll} aria-label={t('plan.strip.label')} className="overflow-x-auto no-scrollbar overscroll-x-contain">
-        <div className="relative flex" style={{ width: `${(days.length / SHOWN_DAYS) * 100}%` }}>
+      <div
+        aria-label={t('plan.strip.label')}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={finishDrag}
+        onPointerCancel={finishDrag}
+        onClickCapture={(event) => {
+          if (!suppressClick.current) return;
+          suppressClick.current = false;
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        className="overflow-hidden touch-pan-y select-none"
+      >
+        <div
+          ref={trackRef}
+          data-testid="strip-track"
+          className="relative flex transition-transform duration-[260ms] ease-out motion-reduce:transition-none"
+          style={{ width: `${(RENDERED_DAYS / SHOWN_DAYS) * 100}%`, transform: trackTransform(0) }}
+        >
           <span
             ref={highlightRef}
             aria-hidden="true"
             data-testid="visible-days"
             className="absolute inset-y-0 left-0 transition-transform duration-300 ease-out motion-reduce:transition-none"
-            style={{ width: `${(visibleCount / days.length) * 100}%`, transform: `translateX(${(firstVisible / visibleCount) * 100}%)` }}
+            style={{ width: `${visibleCount * DAY_PERCENT}%`, transform: `translateX(${(highlightIndex / visibleCount) * 100}%)` }}
           >
             <span className="absolute inset-y-0 inset-x-1 rounded-2xl bg-surface-container-high" />
           </span>
-          {days.map((day, index) => {
-            const weekday = formatShortWeekday(day.date, locale);
-            const dayNumber = parseIsoDate(day.date)?.getDate();
+          {dates.map(date => {
+            const weekday = formatShortWeekday(date, locale);
+            const dayNumber = parseIsoDate(date)?.getDate();
+            const inWeek = weekDates.includes(date);
+            const goalMet = isGoalMet(date);
             return (
               <button
-                key={day.date}
+                key={date}
                 type="button"
-                data-strip-day={day.date}
-                aria-label={`${weekday} ${dayNumber}${day.goalMet ? `, ${t('plan.strip.goalMet')}` : ''}`}
-                aria-current={day.isToday ? 'date' : undefined}
-                onClick={() => onSelectDay(index)}
+                data-strip-day={date}
+                aria-label={`${weekday} ${dayNumber}${goalMet ? `, ${t('plan.strip.goalMet')}` : ''}`}
+                aria-current={date === today ? 'date' : undefined}
+                aria-hidden={inWeek ? undefined : true}
+                tabIndex={inWeek ? undefined : -1}
+                onClick={() => onSelectDay(date)}
                 className="relative flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-semibold text-on-surface-variant"
-                style={{ flex: `0 0 ${100 / days.length}%` }}
+                style={{ flex: `0 0 ${DAY_PERCENT}%` }}
               >
                 <span>{weekday}</span>
-                <span className={`relative w-[30px] h-[30px] rounded-full grid place-items-center font-headline text-[14.5px] font-bold ${day.isToday ? 'bg-today text-on-today' : 'text-on-surface'}`}>
+                <span className={`relative w-[30px] h-[30px] rounded-full grid place-items-center font-headline text-[14.5px] font-bold ${date === today ? 'bg-today text-on-today' : 'text-on-surface'}`}>
                   {dayNumber}
-                  {day.goalMet && <GoalLeaf />}
+                  {goalMet && <GoalLeaf />}
                 </span>
               </button>
             );

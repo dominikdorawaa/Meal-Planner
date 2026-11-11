@@ -93,6 +93,18 @@ function scrollPlanTo(container: HTMLElement, dayIndex: number) {
   fireEvent.scroll(scroller)
 }
 
+function stripWeek() {
+  return within(screen.getByLabelText('Dni planu')).getAllByRole('button').map(button => button.getAttribute('data-strip-day'))
+}
+
+function swipeStrip(dx: number) {
+  const strip = screen.getByLabelText('Dni planu')
+  fireEvent.pointerDown(strip, { pointerId: 1, clientX: 200 })
+  fireEvent.pointerMove(strip, { pointerId: 1, clientX: 200 + dx })
+  fireEvent.pointerUp(strip, { pointerId: 1, clientX: 200 + dx })
+  act(() => { vi.advanceTimersByTime(300) })
+}
+
 function click(name: string | RegExp) {
   fireEvent.click(screen.getByRole('button', { name }))
 }
@@ -933,12 +945,83 @@ describe('Plan scrolling through days', () => {
     expect(planScroller(container).scrollLeft).toBe(11 * 120)
   })
 
+  it('moves only the strip by one week per swipe and leaves the plan days alone', () => {
+    const { container } = renderPlan()
+
+    swipeStrip(-600)
+    expect(stripWeek()[0]).toBe('2026-10-19')
+    swipeStrip(-600)
+    expect(stripWeek()[0]).toBe('2026-10-26')
+    swipeStrip(300)
+
+    expect(stripWeek()[0]).toBe('2026-10-19')
+    expect(planScroller(container).scrollLeft).toBe(7 * 120)
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).not.toBeNull()
+  })
+
+  it('shows a day tapped in a strip week far from the loaded plan days', () => {
+    const { container } = renderPlan()
+    swipeStrip(-200)
+    swipeStrip(-200)
+    swipeStrip(-200)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Śr 4' }))
+
+    expect(container.querySelector('[data-slot="2026-11-04_breakfast"]')).not.toBeNull()
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
+    expect(planScroller(container).scrollLeft).toBe(7 * 120)
+    expect(stripWeek()[0]).toBe('2026-11-02')
+  })
+
+  it('moves the strip by whole weeks to follow the plan once the first shown day leaves its week', () => {
+    const { container } = renderPlan()
+
+    scrollPlanTo(container, 13)
+    act(() => { vi.advanceTimersByTime(200) })
+    expect(stripWeek()[0]).toBe('2026-10-12')
+
+    scrollPlanTo(container, 14)
+    act(() => { vi.advanceTimersByTime(200) })
+    expect(stripWeek()[0]).toBe('2026-10-19')
+
+    scrollPlanTo(container, 6)
+    act(() => { vi.advanceTimersByTime(200) })
+    expect(stripWeek()[0]).toBe('2026-10-12')
+  })
+
+  it('brings the strip back to today with the today button from far away', () => {
+    const { container } = renderPlan()
+    scrollPlanTo(container, 15)
+    act(() => { vi.advanceTimersByTime(200) })
+    scrollPlanTo(container, 15)
+    act(() => { vi.advanceTimersByTime(200) })
+    swipeStrip(-200)
+    swipeStrip(-200)
+    expect(stripWeek()[0]).not.toBe('2026-10-12')
+
+    click('Wróć do dzisiaj')
+
+    expect(stripWeek()[0]).toBe('2026-10-12')
+    expect(planScroller(container).scrollLeft).toBe(7 * 120)
+  })
+
+  it('brings a swiped strip back to today with the today button while today is still loaded', () => {
+    const { container } = renderPlan()
+    scrollPlanTo(container, 10)
+    swipeStrip(-200)
+
+    click('Wróć do dzisiaj')
+
+    expect(stripWeek()[0]).toBe('2026-10-12')
+  })
+
   it('returns to the remembered day after coming back from another screen', () => {
     rememberPlanReturnPosition({ startDate: '2026-10-05', visibleIndex: 10 })
     const { container } = renderPlan()
 
     expect(planScroller(container).scrollLeft).toBe(10 * 120)
-    expect(screen.getByTestId('visible-days').style.transform).toBe('translateX(333.33333333333337%)')
+    expect(stripWeek()[0]).toBe('2026-10-15')
+    expect(screen.getByTestId('visible-days').style.transform).toBe('translateX(233.33333333333334%)')
     expect(screen.getByRole('button', { name: 'Wróć do dzisiaj' })).toBeTruthy()
   })
 

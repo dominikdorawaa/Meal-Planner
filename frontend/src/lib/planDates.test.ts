@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   addDaysToIsoDate,
+  daysBetweenIsoDates,
   firstDayOfMonth,
   formatDayMonth,
   formatDayWithMonthName,
@@ -47,6 +48,19 @@ describe('parseIsoDate', () => {
     expect(parseIsoDate('')).toBeNull()
     expect(parseIsoDate(null)).toBeNull()
     expect(parseIsoDate(undefined)).toBeNull()
+  })
+})
+
+describe('daysBetweenIsoDates', () => {
+  it('counts whole days across a month, a year and a time change', () => {
+    expect(daysBetweenIsoDates('2026-10-05', '2026-10-12')).toBe(7)
+    expect(daysBetweenIsoDates('2026-12-30', '2027-01-02')).toBe(3)
+    expect(daysBetweenIsoDates('2026-10-30', '2026-10-20')).toBe(-10)
+    expect(daysBetweenIsoDates('2026-10-24', '2026-10-26')).toBe(2)
+  })
+
+  it('treats an invalid date as no distance', () => {
+    expect(daysBetweenIsoDates('later', '2026-10-12')).toBe(0)
   })
 })
 
