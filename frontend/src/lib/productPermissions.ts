@@ -28,3 +28,7 @@ export function isOwnItem(item: ItemOwnership, user: AuthUser | null): boolean {
 export function isUnverified(item: ItemOwnership): boolean {
   return item.status === 'PENDING';
 }
+
+export function isCalendoriesProduct(product: { source?: string }): boolean {
+  return product.source === 'BASIC';
+}

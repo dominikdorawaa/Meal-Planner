@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canDeleteProduct, canEditProduct, isOwnItem, isUnverified } from './productPermissions';
+import { canDeleteProduct, canEditProduct, isCalendoriesProduct, isOwnItem, isUnverified } from './productPermissions';
 
 const user = { userId: 'user-1', email: 'user@example.com', name: 'User', role: 'USER' as const };
 const admin = { ...user, userId: 'admin-1', role: 'ADMIN' as const };
@@ -55,6 +55,15 @@ describe('isUnverified', () => {
     expect(isUnverified({ status: 'PENDING' })).toBe(true);
     expect(isUnverified({ status: 'VERIFIED' })).toBe(false);
     expect(isUnverified({})).toBe(false);
+  });
+});
+
+describe('isCalendoriesProduct', () => {
+  it('marks only base products', () => {
+    expect(isCalendoriesProduct({ source: 'BASIC' })).toBe(true);
+    expect(isCalendoriesProduct({ source: 'OPEN_FOOD_FACTS' })).toBe(false);
+    expect(isCalendoriesProduct({ source: 'USER' })).toBe(false);
+    expect(isCalendoriesProduct({})).toBe(false);
   });
 });
 

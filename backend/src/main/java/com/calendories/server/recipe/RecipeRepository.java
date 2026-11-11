@@ -19,4 +19,7 @@ public interface RecipeRepository extends JpaRepository<Recipe, UUID> {
             """ + "order by collate(r.name as " + Collations.POLISH_NAMES + "), r.id")
     List<Recipe> findVisible(@Param("userId") UUID userId,
                              @Param("publicVisibility") RecipeVisibility publicVisibility);
+
+    @Query(value = "select exists (select 1 from recipe_images where url = :url)", nativeQuery = true)
+    boolean isImageUsed(@Param("url") String url);
 }

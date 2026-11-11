@@ -451,6 +451,22 @@ describe('ProductDetails saving and ownership', () => {
     }));
   });
 
+  it('marks Calendories base products', async () => {
+    mocks.getProduct.mockResolvedValue({ ...BASE, source: 'BASIC', bar_code: null });
+    renderDetails();
+
+    expect(await screen.findByText('Calendories')).toBeTruthy();
+    expect(screen.queryByText('niezweryfikowany')).toBeNull();
+  });
+
+  it('does not mark Open Food Facts products as Calendories products', async () => {
+    mocks.getProduct.mockResolvedValue(BASE);
+    renderDetails();
+
+    await screen.findByRole('button', { name: t('product.menu') });
+    expect(screen.queryByText('Calendories')).toBeNull();
+  });
+
   it('lets the author edit and delete their own product and shows its labels', async () => {
     mocks.getProduct.mockResolvedValue(OWN);
     mocks.update.mockResolvedValue({ ...OWN, name: 'Skyr waniliowy' });

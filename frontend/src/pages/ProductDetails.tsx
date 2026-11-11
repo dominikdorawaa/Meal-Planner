@@ -4,7 +4,7 @@ import { api, type Product } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, formatShortDayLabel } from '../lib/planDates';
 import { productDisplayName } from '../lib/productName';
-import { canEditProduct, isOwnItem, isUnverified } from '../lib/productPermissions';
+import { canEditProduct, isCalendoriesProduct, isOwnItem, isUnverified } from '../lib/productPermissions';
 import { NutritionSummary } from '../components/NutritionSummary';
 import { ItemBadges } from '../components/FoodRows';
 import { OPEN_HEADER_CLASS, OutsidePressLayer } from '../components/OutsidePressLayer';
@@ -280,7 +280,7 @@ export function ProductDetails() {
       <div className="max-w-xl mx-auto w-full px-4 pt-6">
         <h1 className="font-headline font-bold text-2xl text-on-surface tracking-tight leading-tight">{productDisplayName(product)}</h1>
         <div className="mt-2 empty:hidden">
-          <ItemBadges own={own} unverified={isUnverified(product)} />
+          <ItemBadges own={own} unverified={isUnverified(product)} calendories={isCalendoriesProduct(product)} />
         </div>
       </div>
 

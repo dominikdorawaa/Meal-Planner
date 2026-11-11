@@ -309,13 +309,13 @@ class ProductMeasuresIntegrationTest {
     void listsMeasureKindsInTheirOrder() throws Exception {
         mockMvc.perform(get("/api/measure-kinds"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].code", contains("piece", "slice", "bread_slice", "tbsp", "tsp", "pinch", "cup",
+                .andExpect(jsonPath("$[*].code", contains("piece", "clove", "slice", "bread_slice", "tbsp", "tsp", "pinch", "cup",
                         "mug", "serving", "bar", "package")))
-                .andExpect(jsonPath("$[3].names.pl.many").value("łyżek"))
-                .andExpect(jsonPath("$[5].names.pl.one").value("szczypta"))
-                .andExpect(jsonPath("$[6].max_amount").value(50.0))
-                .andExpect(jsonPath("$[10].max_base_amount").value(50000.0))
-                .andExpect(jsonPath("$[*].generic_base_amount", contains(null, null, null, 15.0, 5.0, 0.5, 250.0,
+                .andExpect(jsonPath("$[4].names.pl.many").value("łyżek"))
+                .andExpect(jsonPath("$[6].names.pl.one").value("szczypta"))
+                .andExpect(jsonPath("$[7].max_amount").value(50.0))
+                .andExpect(jsonPath("$[11].max_base_amount").value(50000.0))
+                .andExpect(jsonPath("$[*].generic_base_amount", contains(null, null, null, null, 15.0, 5.0, 0.5, 250.0,
                         null, null, null, null)));
     }
 }
