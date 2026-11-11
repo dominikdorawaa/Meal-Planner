@@ -13,6 +13,7 @@ describe('buildDaySummary', () => {
     expect(fat).toMatchObject({ key: 'fat', target: '63-77' })
     expect(carbs).toMatchObject({ key: 'carbs', target: '225-275' })
     expect([kcal.goal, protein.goal, fat.goal, carbs.goal]).toEqual([2200, 150, 70, 250])
+    expect([protein.min, protein.max, kcal.min, kcal.max]).toEqual([135, 165, 2200, 2200])
   })
 
   it('prefers explicit macro limits from the profile', () => {

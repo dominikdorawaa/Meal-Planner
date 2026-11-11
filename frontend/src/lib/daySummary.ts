@@ -24,6 +24,8 @@ export type SummaryMetric = {
   value: number;
   target: string;
   goal: number;
+  min: number;
+  max: number;
   status: SummaryStatus;
   distance: number;
   exceeded: boolean;
@@ -44,6 +46,8 @@ function metric(key: SummaryMetricKey, consumed: number, min: number, max: numbe
     value: Math.round(consumed),
     target,
     goal: Math.round(goal),
+    min: Math.round(min),
+    max: Math.round(max),
     status,
     distance: status === 'ok' ? 0 : Math.max(1, Math.round(gap)),
     exceeded: status === 'over',
@@ -62,6 +66,8 @@ function kcalMetric(consumed: number, goal: number): SummaryMetric {
     value: Math.round(consumed),
     target: String(goal),
     goal,
+    min: goal,
+    max: goal,
     status,
     distance: status === 'ok' ? distance : Math.max(1, distance),
     exceeded: consumed > goal,

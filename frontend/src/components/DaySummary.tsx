@@ -132,7 +132,7 @@ function DetailRow({ metric }: { metric: SummaryMetric }) {
           {t(fullLabel[metric.key])}
         </span>
         <span className="text-sm font-bold text-on-surface tabular-nums whitespace-nowrap">
-          {formatCompactNumber(metric.value)} / {formatCompactNumber(metric.goal)} {metric.unit}
+          {formatCompactNumber(metric.value)} / {metric.key === 'kcal' ? formatCompactNumber(metric.goal) : `${formatCompactNumber(metric.min)}-${formatCompactNumber(metric.max)}`} {metric.unit}
         </span>
       </div>
       <ProgressBar metric={metric} className="h-1.5" />

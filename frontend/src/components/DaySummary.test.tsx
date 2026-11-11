@@ -183,7 +183,7 @@ describe('DaySummary gestures', () => {
 
     const dialog = within(screen.getByRole('dialog'))
     expect(dialog.getByText('2680 / 2200 kcal')).toBeTruthy()
-    expect(dialog.getByText('100 / 150 g')).toBeTruthy()
+    expect(dialog.getByText('100 / 135-165 g')).toBeTruthy()
     expect(dialog.getByText('480 kcal za dużo').className).toContain('text-error')
     expect(dialog.getByText('brakuje 35 g').className).toContain('text-primary')
     expect(dialog.getAllByTestId('protein-fill').length).toBeGreaterThan(0)
@@ -213,5 +213,6 @@ describe('DaySummary with very large values', () => {
     const dialog = within(screen.getByRole('dialog'))
     expect(dialog.getByText('123,5 tys. / 10 tys. kcal')).toBeTruthy()
     expect(dialog.getByText('113,5 tys. kcal za dużo')).toBeTruthy()
+    expect(dialog.getByText('25 tys. / 450-550 g')).toBeTruthy()
   })
 })
