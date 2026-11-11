@@ -91,8 +91,11 @@ export function Plan() {
 
   const [returnPosition] = useState(readPlanReturnPosition);
   const [baseDate, setBaseDate] = useState<Date>(() => parseIsoDate(returnPosition?.startDate) ?? windowAround(startOfToday()));
-  const [firstVisible, setFirstVisible] = useState(returnPosition ? 0 : LEAD_DAYS);
-  const [settledVisible, setSettledVisible] = useState(returnPosition ? 0 : LEAD_DAYS);
+  const initialVisible = returnPosition ? Math.min(returnPosition.visibleIndex ?? 0, WINDOW_DAYS - VISIBLE_DAYS) : LEAD_DAYS;
+  const [firstVisible, setFirstVisible] = useState(initialVisible);
+  const [settledVisible, setSettledVisible] = useState(initialVisible);
+  const stripStart = useRef<string | undefined>(returnPosition?.stripStart);
+  const rememberStripStart = useCallback((date: string) => { stripStart.current = date; }, []);
   const pendingScrollIndex = useRef<number | null>(returnPosition ? null : LEAD_DAYS);
   const pendingScrollLeft = useRef<number | null>(returnPosition ? returnPosition.scrollLeft : null);
   const settleTimer = useRef(0);
@@ -173,7 +176,12 @@ export function Plan() {
   };
 
   const openPlanItem = (path: string) => {
-    rememberPlanReturnPosition({ startDate: toIsoDate(baseDate), scrollLeft: scrollRef.current?.scrollLeft ?? 0 });
+    rememberPlanReturnPosition({
+      startDate: toIsoDate(baseDate),
+      scrollLeft: scrollRef.current?.scrollLeft ?? 0,
+      visibleIndex: settledVisible,
+      stripStart: stripStart.current,
+    });
     navigate(path);
   };
 
@@ -526,7 +534,9 @@ export function Plan() {
             firstVisible={firstVisible}
             settledVisible={settledVisible}
             visibleCount={VISIBLE_DAYS}
+            initialStart={returnPosition?.stripStart}
             onSelectDay={selectStripDay}
+            onShownStartChange={rememberStripStart}
           />
         </div>
         <div ref={scrollRef} onScroll={handlePlanScroll} className="w-full overflow-x-auto overflow-y-hidden no-scrollbar snap-x snap-mandatory scroll-smooth">

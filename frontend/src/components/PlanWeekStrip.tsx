@@ -9,7 +9,9 @@ type PlanWeekStripProps = {
   firstVisible: number;
   settledVisible: number;
   visibleCount: number;
+  initialStart?: string;
   onSelectDay: (index: number) => void;
+  onShownStartChange?: (date: string) => void;
 };
 
 const SHOWN_DAYS = 7;
@@ -31,7 +33,7 @@ function GoalLeaf() {
   );
 }
 
-export function PlanWeekStrip({ days, firstVisible, settledVisible, visibleCount, onSelectDay }: PlanWeekStripProps) {
+export function PlanWeekStrip({ days, firstVisible, settledVisible, visibleCount, initialStart, onSelectDay, onShownStartChange }: PlanWeekStripProps) {
   const locale = t('recipeDetails.locale');
   const scrollRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLSpanElement>(null);
@@ -39,7 +41,11 @@ export function PlanWeekStrip({ days, firstVisible, settledVisible, visibleCount
   const programmaticScroll = useRef(false);
   const lastWindowStart = useRef<string | undefined>(undefined);
   const lastStart = days.length - SHOWN_DAYS;
-  const [shown, setShown] = useState(() => ({ settled: settledVisible, start: days[clamp(weekStartIndex(settledVisible), 0, lastStart)]?.date }));
+  const [shown, setShown] = useState(() => {
+    const restored = days.findIndex(day => day.date === initialStart);
+    const start = restored === -1 ? weekStartIndex(settledVisible) : restored;
+    return { settled: settledVisible, start: days[clamp(start, 0, lastStart)]?.date };
+  });
 
   const shownIndex = days.findIndex(day => day.date === shown.start);
   if (shown.settled !== settledVisible || shownIndex === -1) {
@@ -73,6 +79,11 @@ export function PlanWeekStrip({ days, firstVisible, settledVisible, visibleCount
     if (windowShifted) strip.scrollLeft = target;
     else scrollStripTo(strip, target);
   }, [startIndex, windowStart]);
+
+  const shownStart = shownDays[0]?.date;
+  useEffect(() => {
+    if (shownStart) onShownStartChange?.(shownStart);
+  }, [shownStart, onShownStartChange]);
 
   useEffect(() => () => window.clearTimeout(settleTimer.current), []);
 

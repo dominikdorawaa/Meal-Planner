@@ -599,7 +599,7 @@ describe('Plan start date', () => {
     fireEvent.click(slot(container, '2026-10-19', 'lunch').getByText('add'))
 
     expect(mocks.navigate).toHaveBeenCalledWith('/add-food?selectDate=2026-10-19&selectType=lunch')
-    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', scrollLeft: 0 })
+    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', scrollLeft: 0, visibleIndex: 7, stripStart: '2026-10-12' })
   })
 
   it('remembers the shown week when opening an item to edit', () => {
@@ -609,7 +609,7 @@ describe('Plan start date', () => {
     click(/Edytuj posiłek/)
 
     expect(mocks.navigate).toHaveBeenCalledWith('/add-food?selectDate=2026-10-12&selectType=lunch&mealId=meal-2')
-    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', scrollLeft: 0 })
+    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', scrollLeft: 0, visibleIndex: 7, stripStart: '2026-10-12' })
   })
 
   it('jumps to today at midnight while the plan stays open', () => {
@@ -930,5 +930,14 @@ describe('Plan scrolling through days', () => {
 
     expect(planScroller(container).scrollLeft).toBe(1200)
     expect(screen.getByRole('button', { name: 'Wróć do dzisiaj' })).toBeTruthy()
+  })
+
+  it('keeps the strip on the remembered week and day after coming back', () => {
+    rememberPlanReturnPosition({ startDate: '2026-10-05', scrollLeft: 1200, visibleIndex: 10, stripStart: '2026-10-14' })
+    const { container } = renderPlan()
+
+    expect(screen.getByTestId('visible-days').style.transform).toBe('translateX(333.33333333333337%)')
+    fireEvent.click(slot(container, '2026-10-19', 'lunch').getByText('add'))
+    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', scrollLeft: 1200, visibleIndex: 10, stripStart: '2026-10-14' })
   })
 })

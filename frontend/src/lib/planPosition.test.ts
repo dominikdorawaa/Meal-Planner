@@ -13,6 +13,18 @@ describe('planPosition', () => {
     expect(readPlanReturnPosition('2026-10-17')).toEqual({ startDate: '2026-10-24', scrollLeft: 120 });
   });
 
+  it('restores the remembered visible day and strip week', () => {
+    rememberPlanReturnPosition({ startDate: '2026-10-24', scrollLeft: 120, visibleIndex: 9, stripStart: '2026-10-31' }, '2026-10-17');
+
+    expect(readPlanReturnPosition('2026-10-17')).toEqual({ startDate: '2026-10-24', scrollLeft: 120, visibleIndex: 9, stripStart: '2026-10-31' });
+  });
+
+  it('drops an invalid visible day or strip week', () => {
+    sessionStorage.setItem('planReturnPosition', JSON.stringify({ startDate: '2026-10-17', scrollLeft: 0, visibleIndex: -1, stripStart: 'soon', savedOn: '2026-10-17' }));
+
+    expect(readPlanReturnPosition('2026-10-17')).toStrictEqual({ startDate: '2026-10-17', scrollLeft: 0, visibleIndex: undefined, stripStart: undefined });
+  });
+
   it('ignores a position remembered on another day', () => {
     rememberPlanReturnPosition({ startDate: '2026-10-24', scrollLeft: 120 }, '2026-10-16');
 

@@ -16,17 +16,29 @@ function windowFrom(start: string, todayIndex: number): StripDay[] {
 
 const days = windowFrom('2026-10-05', 7)
 
-type Props = { days?: StripDay[]; firstVisible?: number; settledVisible?: number }
+type Props = { days?: StripDay[]; firstVisible?: number; settledVisible?: number; initialStart?: string }
 
-function renderStrip({ days: shownDays = days, firstVisible = 7, settledVisible = firstVisible }: Props = {}) {
+function renderStrip({ days: shownDays = days, firstVisible = 7, settledVisible = firstVisible, initialStart }: Props = {}) {
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
     return this.getAttribute('aria-label') === 'Dni planu' ? STRIP_WIDTH : 0
   })
   const onSelectDay = vi.fn()
-  const view = render(<PlanWeekStrip days={shownDays} firstVisible={firstVisible} settledVisible={settledVisible} visibleCount={3} onSelectDay={onSelectDay} />)
+  const onShownStartChange = vi.fn()
+  const strip = (stripDays: StripDay[], first: number, settled: number) => (
+    <PlanWeekStrip
+      days={stripDays}
+      firstVisible={first}
+      settledVisible={settled}
+      visibleCount={3}
+      initialStart={initialStart}
+      onSelectDay={onSelectDay}
+      onShownStartChange={onShownStartChange}
+    />
+  )
+  const view = render(strip(shownDays, firstVisible, settledVisible))
   const rerender = ({ days: nextDays = shownDays, firstVisible: nextFirst = firstVisible, settledVisible: nextSettled = nextFirst }: Props) =>
-    view.rerender(<PlanWeekStrip days={nextDays} firstVisible={nextFirst} settledVisible={nextSettled} visibleCount={3} onSelectDay={onSelectDay} />)
-  return { ...view, onSelectDay, rerender }
+    view.rerender(strip(nextDays, nextFirst, nextSettled))
+  return { ...view, onSelectDay, onShownStartChange, rerender }
 }
 
 function stripScroller() {
@@ -192,5 +204,30 @@ describe('PlanWeekStrip', () => {
 
     expect(stripScroller().scrollLeft).toBe(7 * DAY_WIDTH)
     expect(screen.getByTestId('visible-days').style.transition).toBe('none')
+  })
+
+  it('reports the first shown day whenever the strip moves to another week', () => {
+    const { onShownStartChange } = renderStrip()
+    expect(onShownStartChange).toHaveBeenLastCalledWith('2026-10-12')
+
+    finishScroll(7 * DAY_WIDTH)
+    finishScroll(14 * DAY_WIDTH)
+
+    expect(onShownStartChange).toHaveBeenLastCalledWith('2026-10-19')
+  })
+
+  it('opens on the remembered week instead of recalculating it', () => {
+    const { rerender } = renderStrip({ firstVisible: 0, initialStart: '2026-10-14' })
+    expect(stripScroller().scrollLeft).toBe(9 * DAY_WIDTH)
+
+    rerender({ firstVisible: 10, settledVisible: 10 })
+
+    expect(stripScroller().scrollLeft).toBe(9 * DAY_WIDTH)
+  })
+
+  it('falls back to the week of the visible days when the remembered week is not loaded', () => {
+    renderStrip({ initialStart: '2026-12-01' })
+
+    expect(stripScroller().scrollLeft).toBe(7 * DAY_WIDTH)
   })
 })
