@@ -18,10 +18,18 @@ describe('UndoSnackbar', () => {
     expect(onUndo).toHaveBeenCalledOnce()
   })
 
+  it('confirms the action and counts down the time left to undo', () => {
+    render(<UndoSnackbar message="Usunięto z planu" onUndo={vi.fn()} onClose={vi.fn()} durationMs={3000} />)
+
+    expect(screen.getByRole('status').textContent).toContain('check')
+    expect(screen.getByTestId('undo-countdown').style.animationDuration).toBe('3000ms')
+  })
+
   it('hides the undo action when there is nothing to undo', () => {
     render(<UndoSnackbar message="Nie udało się zapisać zmian." onClose={vi.fn()} />)
 
     expect(screen.queryByRole('button', { name: 'Cofnij' })).toBeNull()
+    expect(screen.getByRole('status').textContent).not.toContain('check')
   })
 
   it('closes itself after a few seconds', () => {

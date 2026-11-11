@@ -160,3 +160,14 @@ html[data-tab-slide='backward']::view-transition-new(root) {
 @keyframes tab-out-to-right {
   to { transform: translateX(20%); opacity: 0; }
 }
+
+.undo-countdown {
+  stroke-dasharray: 113.1;
+  animation-name: undo-countdown;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes undo-countdown {
+  to { stroke-dashoffset: 113.1; }
+}
