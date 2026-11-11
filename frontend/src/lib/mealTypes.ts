@@ -8,12 +8,12 @@ export interface MealType {
 }
 
 const DEFAULT_MEAL_TYPES: { id: string; nameKey: MessageKey; icon: string }[] = [
-  { id: 'breakfast', nameKey: 'mealType.breakfast', icon: 'light_mode' },
+  { id: 'breakfast', nameKey: 'mealType.breakfast', icon: 'egg_alt' },
   { id: 'lunch', nameKey: 'mealType.lunch', icon: 'bakery_dining' },
-  { id: 'dinner', nameKey: 'mealType.dinner', icon: 'restaurant' },
+  { id: 'dinner', nameKey: 'mealType.dinner', icon: 'lunch_dining' },
   { id: 'snack1', nameKey: 'mealType.snack1', icon: 'nutrition' },
   { id: 'snack2', nameKey: 'mealType.snack2', icon: 'cookie' },
-  { id: 'supper', nameKey: 'mealType.supper', icon: 'dark_mode' },
+  { id: 'supper', nameKey: 'mealType.supper', icon: 'dinner_dining' },
 ];
 
 interface MealTypeProfile {

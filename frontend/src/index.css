@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 @layer base {
+  * {
+    scrollbar-width: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
   :root {
     color-scheme: light;
     --color-surface: 248 250 247;
@@ -77,6 +85,14 @@
 }
 
 @layer utilities {
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .pt-safe {
     padding-top: env(safe-area-inset-top);
   }

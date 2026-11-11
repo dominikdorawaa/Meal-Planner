@@ -12,15 +12,22 @@ function renderSummary(interactive = true) {
 }
 
 describe('DaySummary', () => {
+  it('keeps macro bars the same length whatever the numbers next to them', () => {
+    renderSummary()
+
+    const rows = ['protein', 'fat', 'carbs'].map(key => screen.getByTestId(`${key}-fill`).closest('.grid') as HTMLElement)
+    expect(rows.every(row => row.className.includes('grid-cols-[9px_minmax(0,1fr)_44px]'))).toBe(true)
+  })
+
   it('shows consumed values next to their targets in a short form', () => {
     renderSummary()
 
     const summary = screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' })
     const text = summary.textContent ?? ''
-    expect(text).toContain('Kcal2680/2200')
-    expect(text).toContain('B100135-165')
-    expect(text).toContain('T6963-77')
-    expect(text).toContain('W302225-275')
+    expect(text).toContain('2680kcalz 2200')
+    expect(text).toContain('B100/150')
+    expect(text).toContain('T69/70')
+    expect(text).toContain('W302/250')
   })
 
   it('shows the excess on the progress bar', () => {
@@ -55,32 +62,32 @@ describe('DaySummary', () => {
     expect(onParentClick).not.toHaveBeenCalled()
     expect(within(dialog).getByText('Niedziela, 18.10')).toBeTruthy()
     expect(within(dialog).getByText('Kalorie')).toBeTruthy()
-    expect(within(dialog).getByText('Za dużo o 480 kcal')).toBeTruthy()
+    expect(within(dialog).getByText('480 kcal za dużo')).toBeTruthy()
     expect(within(dialog).getByText('Białko')).toBeTruthy()
-    expect(within(dialog).getByText('Brakuje 35 g')).toBeTruthy()
+    expect(within(dialog).getByText('brakuje 35 g')).toBeTruthy()
     expect(within(dialog).getByText('Tłuszcz')).toBeTruthy()
     expect(within(dialog).getByText('W celu')).toBeTruthy()
     expect(within(dialog).getByText('Węglowodany')).toBeTruthy()
-    expect(within(dialog).getByText('Za dużo o 27 g')).toBeTruthy()
+    expect(within(dialog).getByText('27 g za dużo')).toBeTruthy()
   })
 
   it('shows the exact calorie difference to the goal', () => {
     render(<DaySummary consumed={{ ...consumed, kcal: 2243 }} targets={{ ...targets, target_kcal: 3006 }} dayLabel="Niedziela, 18.10" interactive />)
     fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))
 
-    expect(within(screen.getByRole('dialog')).getByText('Brakuje 763 kcal')).toBeTruthy()
+    expect(within(screen.getByRole('dialog')).getByText('brakuje 763 kcal')).toBeTruthy()
   })
 
   it('keeps calories close to the goal green while showing what is left or exceeded', () => {
     const { unmount } = render(<DaySummary consumed={{ ...consumed, kcal: 2170 }} targets={targets} dayLabel="Niedziela, 18.10" interactive />)
     fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))
-    expect(within(screen.getByRole('dialog')).getByText('Brakuje 30 kcal')).toBeTruthy()
+    expect(within(screen.getByRole('dialog')).getByText('brakuje 30 kcal')).toBeTruthy()
     expect(screen.getByTestId('kcal-compact-value').className).toContain('text-primary')
     unmount()
 
     render(<DaySummary consumed={{ ...consumed, kcal: 2220 }} targets={targets} dayLabel="Niedziela, 18.10" interactive />)
     fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))
-    const overLabel = within(screen.getByRole('dialog')).getByText('Za dużo o 20 kcal')
+    const overLabel = within(screen.getByRole('dialog')).getByText('20 kcal za dużo')
     expect(overLabel.className).not.toContain('text-error')
     expect(screen.getByTestId('kcal-compact-value').className).toContain('text-primary')
   })
@@ -136,6 +143,25 @@ describe('DaySummary', () => {
 })
 
 describe('DaySummary gestures', () => {
+  it('closes the details when tapping outside them', () => {
+    renderSummary()
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))
+
+    fireEvent.click(screen.getByRole('dialog').parentElement as HTMLElement)
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('opens the details from the bottom of the screen', () => {
+    renderSummary()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))
+
+    const sheet = screen.getByRole('dialog')
+    expect(sheet.className).toContain('rounded-t-[28px]')
+    expect((sheet.parentElement as HTMLElement).className).toContain('justify-end')
+  })
+
   it('closes the details when they are swiped down', () => {
     vi.useFakeTimers()
     renderSummary()
@@ -149,6 +175,18 @@ describe('DaySummary gestures', () => {
     vi.useRealTimers()
 
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('shows each value next to its goal with a colored dot and a bar', () => {
+    renderSummary()
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))
+
+    const dialog = within(screen.getByRole('dialog'))
+    expect(dialog.getByText('2680 / 2200 kcal')).toBeTruthy()
+    expect(dialog.getByText('100 / 150 g')).toBeTruthy()
+    expect(dialog.getByText('480 kcal za dużo').className).toContain('text-error')
+    expect(dialog.getByText('brakuje 35 g').className).toContain('text-primary')
+    expect(dialog.getAllByTestId('protein-fill').length).toBeGreaterThan(0)
   })
 })
 
@@ -164,8 +202,8 @@ describe('DaySummary with very large values', () => {
     expect(screen.getByTestId('fat-compact-value').textContent).toBe('9999')
     expect(screen.getByTestId('carbs-compact-value').textContent).toBe('1 mln')
     expect(screen.getByTestId('kcal-compact-value').className).toContain('truncate')
-    expect(screen.getByTestId('kcal-compact-value').className).toContain('text-[clamp(7px,2.3vw,9px)]')
-    expect(screen.getByTestId('fat-compact-value').className).toContain('text-[clamp(9px,2.9vw,10px)]')
+    expect(screen.getByTestId('kcal-compact-value').className).toContain('text-[clamp(11px,3.6vw,14px)]')
+    expect(screen.getByTestId('fat-compact-value').parentElement?.className).toContain('text-[clamp(7.5px,2.4vw,8.5px)]')
   })
 
   it('shortens the values and the excess in the details', () => {
@@ -173,7 +211,7 @@ describe('DaySummary with very large values', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pokaż podsumowanie dnia: Niedziela, 18.10' }))
 
     const dialog = within(screen.getByRole('dialog'))
-    expect(dialog.getByText('123,5 tys.')).toBeTruthy()
-    expect(dialog.getByText('Za dużo o 113,5 tys. kcal')).toBeTruthy()
+    expect(dialog.getByText('123,5 tys. / 10 tys. kcal')).toBeTruthy()
+    expect(dialog.getByText('113,5 tys. kcal za dużo')).toBeTruthy()
   })
 })

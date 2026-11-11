@@ -63,8 +63,34 @@ function openMealMenu(container: HTMLElement, mealDate: string, mealType: string
   fireEvent.click(slot(container, mealDate, mealType).getByRole('button', { name: /^Opcje: / }))
 }
 
+const DAYS_BEFORE_TODAY = 7
+
 function openDayMenu(dayIndex: number) {
-  fireEvent.click(screen.getAllByText('edit_square')[dayIndex])
+  fireEvent.click(screen.getAllByRole('button', { name: /^Opcje dnia: / })[dayIndex + DAYS_BEFORE_TODAY])
+}
+
+function selectDay(date: string) {
+  fireEvent.click(document.querySelector(`[data-day="${date}"] > div`) as HTMLElement)
+}
+
+function dayHeader(date: string) {
+  return document.querySelector(`[data-day="${date}"]`) as HTMLElement
+}
+
+function stubDayColumnWidth(width = 120) {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (this: HTMLElement) {
+    return this.hasAttribute('data-day-column') ? width : 0
+  })
+}
+
+function planScroller(container: HTMLElement) {
+  return container.querySelector('.overflow-x-auto.overflow-y-hidden') as HTMLElement
+}
+
+function scrollPlanTo(container: HTMLElement, dayIndex: number) {
+  const scroller = planScroller(container)
+  scroller.scrollLeft = dayIndex * 120
+  fireEvent.scroll(scroller)
 }
 
 function click(name: string | RegExp) {
@@ -179,7 +205,7 @@ describe('Plan copying', () => {
 
     openDayMenu(0)
     click(/Skopiuj posiłki na inne dni/)
-    fireEvent.click(screen.getByText('14.10'))
+    selectDay('2026-10-14')
     click('Wklej (1)')
 
     expect(await screen.findByText('Skopiowano')).toBeTruthy()
@@ -191,7 +217,7 @@ describe('Plan copying', () => {
 
     openDayMenu(0)
     click(/Skopiuj posiłki na inne dni/)
-    fireEvent.click(screen.getByText('13.10'))
+    selectDay('2026-10-13')
     click('Wklej (1)')
 
     const dialog = screen.getByRole('alertdialog')
@@ -259,7 +285,7 @@ describe('Plan copying', () => {
 
     openDayMenu(0)
     click(/Skopiuj posiłki na inne dni/)
-    fireEvent.click(screen.getByText('12.10'))
+    selectDay('2026-10-12')
 
     expect((screen.getByRole('button', { name: 'Wklej (0)' }) as HTMLButtonElement).disabled).toBe(true)
   })
@@ -514,48 +540,85 @@ describe('Plan start date', () => {
     expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).not.toBeNull()
   })
 
-  it('marks only today with a filled date circle', () => {
+  it('names only today as today in the day header and the day strip', () => {
     renderPlan()
 
-    expect(screen.getAllByText('12.10')[0].className).toContain('bg-today')
-    expect(screen.getAllByText('13.10')[0].className).toContain('bg-primary/20')
-    expect(screen.getAllByText('13.10')[0].className).not.toContain('bg-today')
+    expect(dayHeader('2026-10-12').textContent).toMatch(/^Dziś(?! 12)/)
+    expect(dayHeader('2026-10-13').textContent).toContain('Wt 13')
+    expect(dayHeader('2026-10-13').textContent).not.toContain('października')
+    expect(screen.getByRole('button', { name: 'Pon 12' }).getAttribute('aria-current')).toBe('date')
+    expect(screen.getByRole('button', { name: 'Wt 13' }).getAttribute('aria-current')).toBeNull()
+  })
+
+  it('lets today glow only through the band behind its column, without a card around the header', () => {
+    const { container } = renderPlan()
+
+    const todayCard = dayHeader('2026-10-12').firstElementChild as HTMLElement
+    const band = container.querySelector('[data-today-band]') as HTMLElement
+    expect(todayCard.className.split(' ').some(name => name.startsWith('bg-'))).toBe(false)
+    expect(band.className).toContain('bg-gradient-to-b')
+  })
+
+  it('highlights the header of the day whose summary is open', () => {
+    renderPlan()
+
+    const card = dayHeader('2026-10-13').firstElementChild as HTMLElement
+    expect(card.className).toContain('has-[[aria-expanded=true]]:bg-surface-container-lowest')
+    fireEvent.click(within(dayHeader('2026-10-13')).getByRole('button', { name: /^Pokaż podsumowanie dnia/ }))
+
+    expect(within(dayHeader('2026-10-13')).getByRole('button', { name: /^Pokaż podsumowanie dnia/ }).getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('keeps the week before today ready for scrolling back', () => {
+    const { container } = renderPlan()
+
+    expect(container.querySelector('[data-slot="2026-10-05_breakfast"]')).not.toBeNull()
+    expect(container.querySelector('[data-slot="2026-10-25_breakfast"]')).not.toBeNull()
+    expect(container.querySelector('[data-slot="2026-10-26_breakfast"]')).toBeNull()
   })
 
   it('keeps the week when returning from the add screen on the same day', () => {
-    rememberPlanReturnPosition({ startDate: '2026-10-19', scrollLeft: 0 })
+    rememberPlanReturnPosition({ startDate: '2026-10-19', visibleIndex: 7 })
     const { container } = renderPlan()
 
     expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
     expect(container.querySelector('[data-slot="2026-10-19_breakfast"]')).not.toBeNull()
-    expect(readPlanReturnPosition()).toBeNull()
   })
 
   it('ignores a week remembered on an earlier day', () => {
-    rememberPlanReturnPosition({ startDate: '2026-10-19', scrollLeft: 0 }, '2026-10-11')
+    rememberPlanReturnPosition({ startDate: '2026-10-19', visibleIndex: 7 }, '2026-10-11')
     const { container } = renderPlan()
 
     expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).not.toBeNull()
   })
 
-  it('remembers the shown week when opening the add screen', () => {
-    const { container } = renderPlan()
+  it('remembers the shown week when leaving for the add screen', () => {
+    const { container, unmount } = renderPlan()
 
-    click(/Następny/)
     fireEvent.click(slot(container, '2026-10-19', 'lunch').getByText('add'))
+    unmount()
 
     expect(mocks.navigate).toHaveBeenCalledWith('/add-food?selectDate=2026-10-19&selectType=lunch')
-    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-19', scrollLeft: 0 })
+    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', visibleIndex: 7, stripStart: '2026-10-12' })
   })
 
-  it('remembers the shown week when opening an item to edit', () => {
-    const { container } = renderPlan()
+  it('remembers the shown week when leaving to edit an item', () => {
+    const { container, unmount } = renderPlan()
 
     openMealMenu(container, '2026-10-12', 'lunch')
     click(/Edytuj posiłek/)
+    unmount()
 
     expect(mocks.navigate).toHaveBeenCalledWith('/add-food?selectDate=2026-10-12&selectType=lunch&mealId=meal-2')
-    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-12', scrollLeft: 0 })
+    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', visibleIndex: 7, stripStart: '2026-10-12' })
+  })
+
+  it('remembers the shown week when the page is reloaded or closed', () => {
+    renderPlan()
+
+    fireEvent(window, new Event('pagehide'))
+
+    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', visibleIndex: 7, stripStart: '2026-10-12' })
   })
 
   it('jumps to today at midnight while the plan stays open', () => {
@@ -564,29 +627,29 @@ describe('Plan start date', () => {
     const { container } = renderPlan()
 
     act(() => { vi.advanceTimersByTime(30 * 1000) })
-    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).not.toBeNull()
+    expect(dayHeader('2026-10-12').textContent).toContain('Dziś')
 
     act(() => { vi.advanceTimersByTime(60 * 1000) })
-    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
-    expect(container.querySelector('[data-slot="2026-10-13_breakfast"]')).not.toBeNull()
+    expect(dayHeader('2026-10-13').textContent).toContain('Dziś')
+    expect(container.querySelector('[data-slot="2026-10-05_breakfast"]')).toBeNull()
+    expect(container.querySelector('[data-slot="2026-10-06_breakfast"]')).not.toBeNull()
   })
 
   it('jumps back to today when the app is shown again on a new day', () => {
     const { container } = renderPlan()
-    click(/Następny/)
 
     act(() => { document.dispatchEvent(new Event('visibilitychange')) })
-    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
+    expect(dayHeader('2026-10-12').textContent).toContain('Dziś')
 
     vi.setSystemTime(new Date(2026, 9, 13, 8))
     vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
     act(() => { document.dispatchEvent(new Event('visibilitychange')) })
-    expect(container.querySelector('[data-slot="2026-10-13_breakfast"]')).toBeNull()
+    expect(container.querySelector('[data-slot="2026-10-05_breakfast"]')).not.toBeNull()
 
     vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
     act(() => { window.dispatchEvent(new Event('focus')) })
-    expect(container.querySelector('[data-slot="2026-10-13_breakfast"]')).not.toBeNull()
-    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
+    expect(dayHeader('2026-10-13').textContent).toContain('Dziś')
+    expect(container.querySelector('[data-slot="2026-10-05_breakfast"]')).toBeNull()
   })
 })
 
@@ -666,11 +729,12 @@ describe('Plan screen top', () => {
     expect(screen.queryByText('shopping_cart_checkout')).toBeNull()
   })
 
-  it('starts the screen with the week navigation', () => {
+  it('starts the screen with the day strip instead of week buttons', () => {
     renderPlan()
 
-    const weekBar = screen.getByRole('button', { name: 'Dzisiaj' }).closest('.fixed')
-    expect(weekBar?.className.split(' ')).toContain('top-0')
+    const strip = screen.getByLabelText('Dni planu').closest('.fixed')
+    expect(strip?.className.split(' ')).toContain('top-0')
+    expect(screen.queryByRole('button', { name: /tydzień/ })).toBeNull()
   })
 })
 
@@ -712,7 +776,7 @@ describe('Plan profile loading', () => {
 })
 
 describe('Plan cards with very large values', () => {
-  it('shortens calories and macros so they stay inside the card', () => {
+  it('shortens calories so they stay inside the card', () => {
     mocks.userMeals.splice(0, mocks.userMeals.length, {
       id: 'meal-9', meal_date: '2026-10-12', meal_type: 'lunch', manual_name: 'Feast',
       manual_kcal: 45000, manual_protein: 5000, manual_fat: 12345, manual_carbs: 900,
@@ -723,7 +787,7 @@ describe('Plan cards with very large values', () => {
     const kcal = card.getByTestId('plan-card-kcal')
     expect(kcal.textContent).toBe('45 tys. kcal')
     expect(kcal.className).toContain('truncate')
-    expect(card.getByText('B 5000g · T 12,3 tys.g · W 900g').className).toContain('max-w-full')
+    expect(card.queryByText(/B 5000g/)).toBeNull()
   })
 })
 
@@ -738,14 +802,13 @@ describe('Plan last meal of the day', () => {
     expect(scroller.className).toContain('overflow-y-hidden')
   })
 
-  it('leaves room below the last row for the highlight of today and its ring', () => {
+  it('highlights today with one band behind its whole column', () => {
     const { container } = renderPlan()
 
-    const todayLastSlot = container.querySelector('[data-slot="2026-10-12_lunch"]') as HTMLElement
-    const scroller = todayLastSlot.closest('.overflow-x-auto') as HTMLElement
-
-    expect(todayLastSlot.querySelector('.-my-2')).not.toBeNull()
-    expect((scroller.firstElementChild as HTMLElement).className).toContain('pb-6')
+    const bands = container.querySelectorAll('[data-today-band]')
+    expect(bands).toHaveLength(1)
+    expect((bands[0] as HTMLElement).style.left).toBe('calc(7 * var(--plan-column) + 3px)')
+    expect((bands[0] as HTMLElement).style.width).toBe('calc(var(--plan-column) - 6px)')
   })
 })
 
@@ -759,5 +822,159 @@ describe('Plan recipe images', () => {
       DEFAULT_RECIPE_IMAGE_URLS.light,
       DEFAULT_RECIPE_IMAGE_URLS.dark,
     ])
+  })
+})
+
+describe('Plan meal rows', () => {
+  it('names each meal once for all days and keeps the name in place while scrolling sideways', () => {
+    renderPlan()
+
+    const breakfast = screen.getByRole('heading', { name: /Śniadanie/ })
+    expect(breakfast.className).toContain('sticky')
+    expect(breakfast.className).toContain('left-0')
+    expect(screen.getAllByRole('heading', { name: /Śniadanie/ })).toHaveLength(1)
+  })
+
+  it('marks each meal with its own colored dot instead of an icon', () => {
+    const { container } = renderPlan()
+
+    const dots = [...container.querySelectorAll('[data-meal-dot]')] as HTMLElement[]
+    expect(dots).toHaveLength(2)
+    expect(dots[0].style.backgroundColor).not.toBe(dots[1].style.backgroundColor)
+    expect(screen.getByRole('heading', { name: 'Śniadanie' }).querySelector('.material-symbols-outlined')).toBeNull()
+  })
+
+    it('offers adding to an empty meal and adding more to a meal with items', () => {
+    const { container } = renderPlan()
+
+    expect(slot(container, '2026-10-12', 'breakfast').getByRole('button', { name: /Dodaj więcej/ })).toBeTruthy()
+    expect(slot(container, '2026-10-14', 'breakfast').getByRole('button', { name: /Dodaj$/ })).toBeTruthy()
+  })
+
+  it('lets the add field fill the free space so rows stay aligned', () => {
+    const { container } = renderPlan()
+
+    const field = slot(container, '2026-10-14', 'breakfast').getByRole('button', { name: /Dodaj/ })
+    expect(field.className).toContain('flex-1')
+    expect(field.className).toContain('border-dashed')
+    expect(slot(container, '2026-10-12', 'breakfast').getByRole('button', { name: /Dodaj więcej/ }).className).toContain('bg-today/[0.05]')
+  })
+})
+
+describe('Plan scrolling through days', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    vi.setSystemTime(new Date(2026, 9, 12, 12))
+    stubDayColumnWidth()
+  })
+
+  it('adds the next week when scrolling near the end of the shown days', () => {
+    const { container } = renderPlan()
+
+    scrollPlanTo(container, 15)
+    act(() => { vi.advanceTimersByTime(200) })
+
+    expect(container.querySelector('[data-slot="2026-11-01_breakfast"]')).not.toBeNull()
+    expect(container.querySelector('[data-slot="2026-10-05_breakfast"]')).toBeNull()
+    expect(planScroller(container).scrollLeft).toBe(8 * 120)
+  })
+
+  it('adds the previous week when scrolling near the start of the shown days', () => {
+    const { container } = renderPlan()
+
+    scrollPlanTo(container, 2)
+    act(() => { vi.advanceTimersByTime(200) })
+
+    expect(container.querySelector('[data-slot="2026-09-28_breakfast"]')).not.toBeNull()
+    expect(container.querySelector('[data-slot="2026-10-25_breakfast"]')).toBeNull()
+    expect(planScroller(container).scrollLeft).toBe(9 * 120)
+  })
+
+  it('keeps the shown days while scrolling in the middle of them', () => {
+    const { container } = renderPlan()
+
+    scrollPlanTo(container, 10)
+    act(() => { vi.advanceTimersByTime(200) })
+
+    expect(container.querySelector('[data-slot="2026-10-05_breakfast"]')).not.toBeNull()
+    expect(planScroller(container).scrollLeft).toBe(10 * 120)
+  })
+
+  it('offers a way back to today once today is scrolled away', () => {
+    const { container } = renderPlan()
+    expect(screen.queryByRole('button', { name: 'Wróć do dzisiaj' })).toBeNull()
+
+    scrollPlanTo(container, 10)
+    click('Wróć do dzisiaj')
+
+    expect(planScroller(container).scrollLeft).toBe(7 * 120)
+    expect(screen.queryByRole('button', { name: 'Wróć do dzisiaj' })).toBeNull()
+  })
+
+  it('brings today back from a week where today is no longer loaded', () => {
+    const { container } = renderPlan()
+    scrollPlanTo(container, 15)
+    act(() => { vi.advanceTimersByTime(200) })
+    scrollPlanTo(container, 15)
+    act(() => { vi.advanceTimersByTime(200) })
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
+
+    click('Wróć do dzisiaj')
+
+    expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).not.toBeNull()
+    expect(planScroller(container).scrollLeft).toBe(7 * 120)
+  })
+
+  it('scrolls the plan to a day tapped in the strip', () => {
+    const { container } = renderPlan()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pt 16' }))
+
+    expect(planScroller(container).scrollLeft).toBe(11 * 120)
+  })
+
+  it('returns to the remembered day after coming back from another screen', () => {
+    rememberPlanReturnPosition({ startDate: '2026-10-05', visibleIndex: 10 })
+    const { container } = renderPlan()
+
+    expect(planScroller(container).scrollLeft).toBe(10 * 120)
+    expect(screen.getByTestId('visible-days').style.transform).toBe('translateX(333.33333333333337%)')
+    expect(screen.getByRole('button', { name: 'Wróć do dzisiaj' })).toBeTruthy()
+  })
+
+  it('keeps the remembered strip week across another visit', () => {
+    rememberPlanReturnPosition({ startDate: '2026-10-05', visibleIndex: 10, stripStart: '2026-10-14' })
+    const { unmount } = renderPlan()
+
+    unmount()
+
+    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', visibleIndex: 10, stripStart: '2026-10-14' })
+  })
+
+  it('remembers the day scrolled to in the plan when leaving it', () => {
+    const { container, unmount } = renderPlan()
+
+    scrollPlanTo(container, 11)
+    unmount()
+
+    expect(readPlanReturnPosition()).toMatchObject({ startDate: '2026-10-05', visibleIndex: 11 })
+  })
+
+  it('remembers a day near the edge in a window centered on it when leaving before more days load', () => {
+    const { container, unmount } = renderPlan()
+
+    scrollPlanTo(container, 3)
+    unmount()
+
+    expect(readPlanReturnPosition()).toMatchObject({ startDate: '2026-09-28', visibleIndex: 10 })
+  })
+
+  it('remembers a day near the far edge in a window centered on it', () => {
+    const { container, unmount } = renderPlan()
+
+    scrollPlanTo(container, 16)
+    unmount()
+
+    expect(readPlanReturnPosition()).toMatchObject({ startDate: '2026-10-12', visibleIndex: 9 })
   })
 })
