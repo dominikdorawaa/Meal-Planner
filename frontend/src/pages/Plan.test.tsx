@@ -681,10 +681,21 @@ describe('Plan mobile gestures', () => {
     const { container } = renderPlan()
 
     const button = slot(container, '2026-10-12', 'lunch').getByRole('button', { name: 'Opcje: Coffee' })
-    expect(button.className).toContain('w-11 h-11')
+    expect(button.className).toContain('w-14 h-14')
     fireEvent.click(button)
 
     expect(screen.getByRole('dialog', { name: 'Zarządzaj posiłkiem' })).toBeTruthy()
+  })
+
+  it('gives the day menu button a large tap area that opens the menu without opening the day summary', () => {
+    renderPlan()
+
+    const button = within(dayHeader('2026-10-13')).getByRole('button', { name: /^Opcje dnia: / })
+    expect(button.className).toContain('w-11 h-11')
+    fireEvent.click(button)
+
+    expect(screen.getByRole('button', { name: /Skopiuj posiłki na inne dni/ })).toBeTruthy()
+    expect(within(dayHeader('2026-10-13')).getByRole('button', { name: /^Pokaż podsumowanie dnia/ }).getAttribute('aria-expanded')).toBe('false')
   })
 
   it('closes the item menu with the back gesture', async () => {
@@ -806,7 +817,7 @@ describe('Plan profile loading', () => {
 })
 
 describe('Plan cards with very large values', () => {
-  it('shortens calories so they stay inside the card', () => {
+  it('shows shortened calories on the photo so they stay inside the card', () => {
     mocks.userMeals.splice(0, mocks.userMeals.length, {
       id: 'meal-9', meal_date: '2026-10-12', meal_type: 'lunch', manual_name: 'Feast',
       manual_kcal: 45000, manual_protein: 5000, manual_fat: 12345, manual_carbs: 900,
@@ -817,6 +828,7 @@ describe('Plan cards with very large values', () => {
     const kcal = card.getByTestId('plan-card-kcal')
     expect(kcal.textContent).toBe('45 tys. kcal')
     expect(kcal.className).toContain('truncate')
+    expect((kcal.parentElement as HTMLElement).className).toContain('aspect-square')
     expect(card.queryByText(/B 5000g/)).toBeNull()
   })
 })

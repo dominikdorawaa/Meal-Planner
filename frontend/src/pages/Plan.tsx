@@ -571,7 +571,7 @@ export function Plan() {
                       }}
                       className={`flex flex-col gap-1 rounded-[22px] -mx-2 px-2.5 py-2.5 transition-all duration-300 has-[[aria-expanded=true]]:bg-surface-container-lowest ${isSelectedCopyDay ? 'bg-primary/10 ring-2 ring-primary' : ''} ${copyModeMeal ? 'opacity-40 grayscale-[30%]' : ''} ${isDayCopyMode ? 'cursor-pointer hover:bg-primary/5' : ''}`}
                     >
-                      <div className="relative min-h-6 flex items-center">
+                      <div className="relative min-h-9 flex items-center">
                         <span className={`pr-5 font-headline text-[12.5px] font-extrabold leading-tight truncate ${day.isToday ? 'text-primary' : 'text-on-surface'}`}>{weekdayLabel}</span>
                         {isDayCopyMode ? (
                           <div className={`absolute right-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg flex items-center justify-center transition-colors shrink-0 border ${isSelectedCopyDay ? 'bg-primary border-primary text-on-primary' : 'bg-surface-container-lowest border-outline-variant/40 text-transparent hover:border-primary/50'}`}>
@@ -582,9 +582,11 @@ export function Plan() {
                             type="button"
                             aria-label={t('plan.dayMenu', { day: dayLabel })}
                             onClick={(e) => { e.stopPropagation(); setActiveDayMenu(day.date); }}
-                            className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest transition-colors active:scale-95"
+                            className="group/day-menu absolute -right-3 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform"
                           >
-                            <span className="material-symbols-outlined text-[18px]">more_horiz</span>
+                            <span className="w-8 h-8 rounded-full flex items-center justify-center group-hover/day-menu:bg-surface-container-highest transition-colors">
+                              <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+                            </span>
                           </button>
                         ) : null}
                       </div>
@@ -867,6 +869,9 @@ function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuC
     <div onClick={isCopyMode ? onMenuClick : onClick} className={`w-full flex flex-col gap-1.5 group relative transition-all duration-300 ${isCopyMode || onClick ? 'cursor-pointer' : ''}`}>
       <div className={`aspect-square w-full rounded-2xl overflow-hidden bg-surface-container-lowest relative shadow-sm border transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface border-transparent' : 'border-outline-variant/10'}`}>
         {renderImage()}
+        <span data-testid="plan-card-kcal" className="absolute left-1 bottom-1 max-w-[calc(100%-8px)] truncate inline-flex items-baseline gap-[2px] rounded-[5px] bg-black/60 backdrop-blur-md px-[5px] py-[3px] leading-none text-white tabular-nums">
+          <span className="font-headline text-[10.5px] font-bold">{kcal}</span> <span className="text-[8.5px] font-medium text-white/75">kcal</span>
+        </span>
         {isCopyMode ? (
           <div className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors ${isSelected ? 'bg-primary border-primary text-on-primary' : 'bg-surface/50 backdrop-blur-md border-white/80 text-transparent'}`}>
             <span className="material-symbols-outlined text-[14px] font-bold">check</span>
@@ -876,17 +881,16 @@ function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuC
             type="button"
             aria-label={t('plan.itemMenu', { name: title })}
             onClick={(e) => { e.stopPropagation(); onMenuClick(); }}
-            className="absolute top-0 right-0 z-10 w-11 h-11 flex items-center justify-center text-white group/menu active:scale-90 transition-transform"
+            className="absolute top-0 right-0 z-10 w-14 h-14 flex items-start justify-end p-1.5 text-white group/menu active:scale-90 transition-transform"
           >
-            <span className="w-7 h-7 bg-black/40 backdrop-blur-md rounded-full shadow-sm flex items-center justify-center group-hover/menu:bg-black/50 transition-colors">
-              <span className="material-symbols-outlined text-[16px]">more_horiz</span>
+            <span className="w-8 h-8 bg-black/40 backdrop-blur-md rounded-full shadow-sm flex items-center justify-center group-hover/menu:bg-black/50 transition-colors">
+              <span className="material-symbols-outlined text-[18px]">more_horiz</span>
             </span>
           </button>
         )}
       </div>
       <div className="flex flex-col px-0.5 min-w-0">
         <h3 className="font-headline font-semibold text-[12px] sm:text-[13px] text-on-surface leading-tight line-clamp-2">{title}</h3>
-        <span data-testid="plan-card-kcal" className="text-[10.5px] font-medium text-on-surface-variant tabular-nums mt-0.5 truncate">{kcal} kcal</span>
       </div>
     </div>
   );
