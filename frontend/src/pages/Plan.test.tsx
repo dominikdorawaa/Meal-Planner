@@ -24,7 +24,7 @@ vi.mock('../lib/apiClient', () => ({
 
 vi.mock('../lib/AppDataContext', () => ({
   useAppData: () => ({
-    recipes: [{ id: 'recipe-1', name: 'Omelette', kcal: 400, protein: 20, fat: 10, carbs: 30, image_url: null }],
+    recipes: [{ id: 'recipe-1', name: 'Omelette', kcal: 400, protein: 20, fat: 10, carbs: 30, images: [] }],
     profile: { target_kcal: 2000, target_protein: 100, target_fat: 70, target_carbs: 250, visible_meals: ['breakfast', 'lunch'] },
     userMeals: mocks.userMeals,
     setUserMeals: mocks.setUserMeals,

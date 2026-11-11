@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { t } from '../i18n';
 import { RecipeCoverImage } from './RecipeCoverImage';
+import { recipeCoverImage, type RecipeImageInput } from '../lib/recipeImage';
 import { SelectionCheckbox } from './PlanSelectionControls';
 
 interface ItemBadgesProps {
@@ -78,12 +79,12 @@ export function ProductRow(props: FoodRowProps) {
   );
 }
 
-export function RecipeRow({ recipe, ...props }: FoodRowProps & { recipe: { name: string; image_url?: string | null } }) {
+export function RecipeRow({ recipe, ...props }: FoodRowProps & { recipe: { name: string; images?: RecipeImageInput[] | null } }) {
   return (
     <FoodRow {...props}>
       <div className="w-12 h-12 rounded-2xl overflow-hidden shrink-0 relative bg-surface-container-highest">
         <RecipeCoverImage
-          recipe={recipe}
+          image={recipeCoverImage(recipe)}
           alt={recipe.name}
           className="absolute inset-0 w-full h-full"
           imgClassName="w-full h-full object-cover"
