@@ -84,7 +84,7 @@
   "plan.snackbar.copied": "Copied",
   "plan.snackbar.moved": "Moved",
   "plan.snackbar.undo": "Undo",
-  "plan.snackbar.deleted": "Removed {name} from {meal}",
+  "plan.snackbar.deleted": "Removed from plan",
   "plan.snackbar.failed": "Could not save the changes. Try again.",
   "plan.snackbar.emptyDay": "This day has no meals yet",
   "plan.preparingProfile": "Preparing your profile...",
