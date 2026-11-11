@@ -43,7 +43,6 @@ export function activityLabel(kind: ActivityKind, value: number): string {
   return index === -1 ? formatPace(value) : t(`settings.activity.${kind}${index}` as MessageKey);
 }
 
-
 export type HeightUnit = 'cm' | 'ft';
 
 const HEIGHT_UNIT_KEY = 'mp_height_unit';

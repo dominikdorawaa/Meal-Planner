@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
@@ -91,6 +91,12 @@ function manualStart(profile: SettingsProfile): Partial<SettingsProfile> {
   return { target_kcal: remembered.kcal, target_protein: remembered.protein, target_fat: remembered.fat, target_carbs: remembered.carbs, weight: profile.weight };
 }
 
+function guidedPayload(profile: SettingsProfile): Partial<SettingsProfile> {
+  const payload: Partial<SettingsProfile> = { ...profile };
+  delete payload.display_name;
+  return payload;
+}
+
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-h-[66px] flex items-center justify-between gap-3">
@@ -104,6 +110,7 @@ export function Onboarding() {
   const navigate = useNavigate();
   const { refreshProfile } = useAppData();
   const [draft, setDraft] = useState<Draft>(initialDraft);
+  const untouchedDraft = useRef(draft);
   const [overlay, setOverlay] = useState<'manual' | 'breakdown' | null>(null);
   const [loading, setLoading] = useState(false);
   const { step, goal, profile, targetTouched } = draft;
@@ -118,7 +125,7 @@ export function Onboarding() {
         if (!active || !record) return;
         const loaded = { ...toSettingsProfile(record as Record<string, unknown>), is_manual_macros: false };
         const loadedGoal = calorieTarget(loaded).goal;
-        setDraft(current => ({ ...current, goal: loadedGoal, profile: loaded, targetTouched: loadedGoal !== 'maintain' }));
+        setDraft(current => (current === untouchedDraft.current ? { ...current, goal: loadedGoal, profile: loaded, targetTouched: loadedGoal !== 'maintain' } : current));
       });
     return () => {
       active = false;
@@ -153,7 +160,7 @@ export function Onboarding() {
 
   const chooseGoal = (value: WeightGoal) => setDraft(current => ({ ...current, goal: value, targetTouched: value === current.goal ? current.targetTouched : false }));
 
-  const save = async (data: SettingsProfile) => {
+  const save = async (data: Partial<SettingsProfile>) => {
     const user = api.auth.getUser();
     if (!user) {
       alert(t('api.sessionExpired'));
@@ -175,7 +182,7 @@ export function Onboarding() {
     return true;
   };
 
-  const saveManual = async (patch: Partial<SettingsProfile>) => save({ ...final, ...patch });
+  const saveManual = async (patch: Partial<SettingsProfile>) => save(patch);
 
   const goalStep = (
     <>
@@ -376,7 +383,7 @@ export function Onboarding() {
           )}
           <div className="flex">
           {step === 'result' ? (
-            <PrimaryButton onClick={() => void save(final)} disabled={loading} icon="arrow_forward">
+            <PrimaryButton onClick={() => void save(guidedPayload(final))} disabled={loading} icon="arrow_forward">
               {loading ? t('onboarding.saving') : t('onboarding.result.start')}
             </PrimaryButton>
           ) : (

@@ -125,6 +125,7 @@ describe('Onboarding guided setup', () => {
       target_protein_min: 140,
       target_protein_max: 168,
     }))
+    expect(mocks.updateProfile.mock.calls[0][0]).not.toHaveProperty('display_name')
     expect(mocks.refreshProfile).toHaveBeenCalled()
     expect(mocks.navigate).toHaveBeenCalledWith('/')
     expect(localStorage.getItem('mp_onboarding_draft')).toBeNull()
@@ -231,6 +232,23 @@ describe('Onboarding guided setup', () => {
     next()
     expect((screen.getByLabelText('Cel') as HTMLInputElement).value).toBe('84,0')
     expect((screen.getByLabelText('Tempo na tydzień') as HTMLInputElement).value).toBe('0,3')
+  })
+
+  it('keeps the answers given before the existing profile arrives', async () => {
+    let resolveProfile: (value: unknown) => void = () => {}
+    mocks.getProfile.mockReturnValue(new Promise(resolve => {
+      resolveProfile = resolve
+    }))
+    renderOnboarding()
+    fireEvent.click(screen.getByRole('radio', { name: /Utrzymać wagę/ }))
+
+    await act(async () => {
+      resolveProfile({ gender: 'male', weight: 80, target_weight: 84, display_name: 'Ola' })
+    })
+
+    expect(screen.getByRole('radio', { name: /Utrzymać wagę/ }).getAttribute('aria-checked')).toBe('true')
+    next()
+    expect((screen.getByLabelText('Waga') as HTMLInputElement).value).toBe('70,0')
   })
 
   it('does not ask for the profile without a signed in user', () => {
@@ -354,6 +372,8 @@ describe('Onboarding manual goal', () => {
     })
 
     expect(mocks.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ is_manual_macros: true, target_protein: 150, target_kcal: Number(kcal) }))
+    const saved = mocks.updateProfile.mock.calls[0][0]
+    for (const field of ['gender', 'age', 'height', 'weight', 'target_weight', 'display_name']) expect(saved).not.toHaveProperty(field)
     expect(mocks.navigate).toHaveBeenCalledWith('/')
   })
 

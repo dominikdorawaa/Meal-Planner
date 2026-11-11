@@ -559,8 +559,6 @@
   "settings.meals.done": "Gotowe",
   "settings.meals.rename": "Zmień nazwę: {name}",
   "settings.meals.show": "Pokaż w planie: {name}",
-  "settings.meals.moveUp": "Przesuń wyżej: {name}",
-  "settings.meals.moveDown": "Przesuń niżej: {name}",
   "settings.bodyWeight": "Waga",
   "settings.bodyWeight.value": "{weight} kg",
   "settings.bodyWeight.lead": "Wpisz, ile ważysz dziś. Z tego liczymy dzienny cel i datę osiągnięcia celu.",

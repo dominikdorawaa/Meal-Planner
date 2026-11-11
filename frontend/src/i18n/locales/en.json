@@ -559,8 +559,6 @@
   "settings.meals.done": "Done",
   "settings.meals.rename": "Rename: {name}",
   "settings.meals.show": "Show in plan: {name}",
-  "settings.meals.moveUp": "Move up: {name}",
-  "settings.meals.moveDown": "Move down: {name}",
   "settings.bodyWeight": "Weight",
   "settings.bodyWeight.value": "{weight} kg",
   "settings.bodyWeight.lead": "Enter what you weigh today. We use it for your daily goal and the date you reach your goal.",
