@@ -40,7 +40,7 @@ export function Login() {
     <div className="min-h-screen flex items-center justify-center p-6 bg-surface">
       <div className="w-full max-w-sm bg-surface-container-lowest p-8 rounded-[2rem] shadow-ambient">
         <div className="flex flex-col items-center mb-10">
-          <img src="/favicon.svg" alt="" className="w-16 h-16 rounded-2xl mb-4 shadow-ambient" />
+          <img src="/favicon.svg" alt="" className="w-16 h-16 rounded-2xl mb-4" />
           <h1 className="text-2xl text-on-surface"><Wordmark /></h1>
           <p className="text-on-surface-variant mt-2 font-body text-sm">
             {isRegistering ? 'Załóż nowe konto' : 'Zaloguj się do swojego archiwum'}
