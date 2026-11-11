@@ -26,6 +26,13 @@ export const addDaysToIsoDate = (isoDate: string, days: number) => {
   return toIsoDate(date);
 };
 
+export const daysBetweenIsoDates = (from: string, to: string) => {
+  const start = parseIsoDate(from);
+  const end = parseIsoDate(to);
+  if (!start || !end) return 0;
+  return Math.round((end.getTime() - start.getTime()) / DAY_IN_MS);
+};
+
 export const formatDayMonth = (isoDate: string) => {
   const date = parseIsoDate(isoDate);
   return date ? `${pad(date.getDate())}.${pad(date.getMonth() + 1)}` : isoDate;

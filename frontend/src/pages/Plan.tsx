@@ -7,12 +7,12 @@ import { resolveMealProduct } from '../lib/mealProducts';
 import { useNavigate } from 'react-router-dom';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { DaySummary } from '../components/DaySummary';
-import { PlanWeekStrip } from '../components/PlanWeekStrip';
+import { PlanWeekStrip, SHOWN_DAYS } from '../components/PlanWeekStrip';
 import { isDayGoalMet } from '../lib/daySummary';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { recipeCoverImage, type RecipeImage } from '../lib/recipeImage';
 import { mealTypeName, profileMealTypes } from '../lib/mealTypes';
-import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, formatLocalizedDayWithDate, formatRelativeDayLabel, formatShortWeekday, parseIsoDate, planDays, toIsoDate, todayIsoDate } from '../lib/planDates';
+import { addDaysToIsoDate, daysBetweenIsoDates, formatDayMonth, formatDayWithMonthName, formatLocalizedDayWithDate, formatRelativeDayLabel, formatShortWeekday, parseIsoDate, planDays, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { readPlanReturnPosition, rememberPlanReturnPosition, type PlanReturnPosition } from '../lib/planPosition';
 import { PlanConflictDialog } from '../components/PlanConflictDialog';
 import { PlanDayDeleteSheet } from '../components/PlanDayDeleteSheet';
@@ -71,6 +71,11 @@ const shiftDate = (date: Date, days: number) => {
 
 const windowAround = (date: Date) => shiftDate(date, -LEAD_DAYS);
 
+const stripWeekWith = (stripStart: string, date: string) => {
+  const weeks = Math.floor(daysBetweenIsoDates(stripStart, date) / SHOWN_DAYS);
+  return weeks === 0 ? stripStart : addDaysToIsoDate(stripStart, weeks * SHOWN_DAYS);
+};
+
 const returnPositionAt = (start: Date, index: number, stripStart?: string): PlanReturnPosition => {
   let shift = 0;
   if (index < LEAD_DAYS) shift = -LEAD_DAYS;
@@ -102,14 +107,19 @@ export function Plan() {
   const [initialVisible] = useState(() => (returnPosition ? Math.min(returnPosition.visibleIndex, WINDOW_DAYS - VISIBLE_DAYS) : LEAD_DAYS));
   const [firstVisible, setFirstVisible] = useState(initialVisible);
   const [settledVisible, setSettledVisible] = useState(initialVisible);
-  const stripStart = useRef<string | undefined>(returnPosition?.stripStart);
-  const rememberStripStart = useCallback((date: string) => { stripStart.current = date; }, []);
-  const shownPlace = useRef({ baseDate, firstVisible });
+  const [stripStart, setStripStart] = useState(() => returnPosition?.stripStart ?? toIsoDate(shiftDate(baseDate, initialVisible)));
+  const shownPlace = useRef({ baseDate, firstVisible, stripStart });
   const pendingScrollIndex = useRef<number | null>(initialVisible);
   const settleTimer = useRef(0);
 
   const days = planDays(baseDate, WINDOW_DAYS);
   const todayIndex = days.findIndex(day => day.isToday);
+  const settledDate = days[settledVisible]?.date ?? toIsoDate(baseDate);
+  const [followedDate, setFollowedDate] = useState(settledDate);
+  if (followedDate !== settledDate) {
+    setFollowedDate(settledDate);
+    setStripStart(stripWeekWith(stripStart, settledDate));
+  }
   const planReady = !contextLoading && profileStatus === 'ready';
 
   const columnWidth = () => (scrollRef.current?.querySelector('[data-day-column]') as HTMLElement | null)?.offsetWidth ?? 0;
@@ -148,13 +158,13 @@ export function Plan() {
   }, [baseDate, planReady]);
 
   useEffect(() => {
-    shownPlace.current = { baseDate, firstVisible };
-  }, [baseDate, firstVisible]);
+    shownPlace.current = { baseDate, firstVisible, stripStart };
+  }, [baseDate, firstVisible, stripStart]);
 
   useEffect(() => {
     const rememberShownPlace = () => {
-      const { baseDate: start, firstVisible: index } = shownPlace.current;
-      rememberPlanReturnPosition(returnPositionAt(start, index, stripStart.current));
+      const { baseDate: start, firstVisible: index, stripStart: shownStripStart } = shownPlace.current;
+      rememberPlanReturnPosition(returnPositionAt(start, index, shownStripStart));
     };
     window.addEventListener('pagehide', rememberShownPlace);
     return () => {
@@ -179,13 +189,20 @@ export function Plan() {
 
   useEffect(() => () => window.clearTimeout(settleTimer.current), []);
 
-  const selectStripDay = (index: number) => {
-    scrollToDay(Math.max(0, Math.min(WINDOW_DAYS - VISIBLE_DAYS, index)), true);
+  const selectStripDay = (date: string) => {
+    const index = daysBetweenIsoDates(toIsoDate(baseDate), date);
+    if (index >= 0 && index < WINDOW_DAYS) scrollToDay(Math.min(WINDOW_DAYS - VISIBLE_DAYS, index), true);
+    else showWindow(windowAround(parseIsoDate(date) ?? startOfToday()), LEAD_DAYS);
   };
+
+  const swipeStripWeek = (weeks: 1 | -1) => setStripStart(current => addDaysToIsoDate(current, weeks * SHOWN_DAYS));
+
+  const isStripDayGoalMet = (date: string) => isDayGoalMet(getConsumedForDay(date), profile);
 
   const todayVisible = todayIndex >= firstVisible && todayIndex < firstVisible + VISIBLE_DAYS;
 
   const handleGoToToday = () => {
+    setStripStart(todayIsoDate());
     if (todayIndex >= 0) scrollToDay(todayIndex, true);
     else showWindow(windowAround(startOfToday()), LEAD_DAYS);
   };
@@ -197,6 +214,7 @@ export function Plan() {
     const showTodayAfterDayChange = () => {
       if (todayIsoDate() === shownDay) return;
       shownDay = todayIsoDate();
+      setStripStart(shownDay);
       showWindow(windowAround(startOfToday()), LEAD_DAYS);
     };
     const showTodayWhenVisible = () => {
@@ -532,13 +550,13 @@ export function Plan() {
       <main className="pt-[calc(7rem+env(safe-area-inset-top))] max-w-[600px] mx-auto pb-bottom-nav relative">
         <div className="fixed top-0 left-0 right-0 z-40 bg-surface/90 backdrop-blur-md border-b border-outline-variant/5 pt-safe max-w-[600px] mx-auto">
           <PlanWeekStrip
-            days={days.map(day => ({ date: day.date, isToday: day.isToday, goalMet: isDayGoalMet(getConsumedForDay(day.date), profile) }))}
-            firstVisible={firstVisible}
-            settledVisible={settledVisible}
+            start={stripStart}
+            today={todayIsoDate()}
+            visibleStart={days[firstVisible]?.date ?? settledDate}
             visibleCount={VISIBLE_DAYS}
-            initialStart={returnPosition?.stripStart}
+            isGoalMet={isStripDayGoalMet}
+            onSwipeWeek={swipeStripWeek}
             onSelectDay={selectStripDay}
-            onShownStartChange={rememberStripStart}
           />
         </div>
         <div ref={scrollRef} onScroll={handlePlanScroll} className="w-full overflow-x-auto overflow-y-hidden no-scrollbar snap-x snap-mandatory scroll-smooth">
