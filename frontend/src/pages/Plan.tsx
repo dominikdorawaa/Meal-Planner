@@ -893,8 +893,8 @@ function RecipeCard({ title, kcal, imgSrc, isRecipe, onMenuClick, onClick, isCop
     <div onClick={isCopyMode ? onMenuClick : onClick} className={`w-full flex flex-col gap-1.5 group relative transition-all duration-300 ${isCopyMode || onClick ? 'cursor-pointer' : ''}`}>
       <div className={`aspect-square w-full rounded-2xl overflow-hidden bg-surface-container-lowest relative shadow-sm border transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface border-transparent' : 'border-outline-variant/10'}`}>
         {renderImage()}
-        <span data-testid="plan-card-kcal" className="absolute left-1.5 bottom-1.5 max-w-[calc(100%-12px)] truncate rounded-lg bg-black/60 backdrop-blur-md px-1.5 py-[3px] leading-none text-white tabular-nums">
-          <span className="font-headline text-[12px] font-bold">{kcal}</span> <span className="text-[9.5px] font-medium text-white/75">kcal</span>
+        <span data-testid="plan-card-kcal" className="absolute left-1.5 bottom-1.5 max-w-[calc(100%-12px)] truncate rounded-md bg-black/60 backdrop-blur-md px-1.5 py-0.5 leading-none text-white tabular-nums">
+          <span className="font-headline text-[10.5px] font-bold">{kcal}</span> <span className="text-[8.5px] font-medium text-white/75">kcal</span>
         </span>
         {isCopyMode ? (
           <div className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors ${isSelected ? 'bg-primary border-primary text-on-primary' : 'bg-surface/50 backdrop-blur-md border-white/80 text-transparent'}`}>
