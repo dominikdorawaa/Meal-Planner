@@ -18,7 +18,9 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -48,12 +50,16 @@ class RecipeImagesIntegrationTest {
     @MockitoBean
     private RecipeImageStorage storage;
 
-    private String bearer() {
+    private User saveUser() {
         User user = new User();
         user.setEmail("images-" + UUID.randomUUID() + "@example.com");
         user.setPasswordHash("hash");
         user.setRole(UserRole.USER);
-        user = userRepository.save(user);
+        return userRepository.save(user);
+    }
+
+    private String bearer() {
+        User user = saveUser();
         return "Bearer " + jwtService.generateToken(user.getId(), user.getEmail());
     }
 
@@ -121,21 +127,22 @@ class RecipeImagesIntegrationTest {
 
     @Test
     void reordersImagesAndDeletesTheRemovedOnes() throws Exception {
+        String unique = UUID.randomUUID().toString();
         String token = bearer();
-        String id = create(token, "[{\"url\":\"https://cdn.example.com/a.jpg\"},"
-                + "{\"url\":\"https://cdn.example.com/b.jpg\"},{\"url\":\"https://cdn.example.com/c.jpg\"}]");
+        String id = create(token, "[{\"url\":\"https://cdn.example.com/" + unique + "/a.jpg\"},"
+                + "{\"url\":\"https://cdn.example.com/" + unique + "/b.jpg\"},{\"url\":\"https://cdn.example.com/" + unique + "/c.jpg\"}]");
 
-        update(token, id, "[{\"url\":\"https://cdn.example.com/c.jpg\",\"focus_x\":30,\"focus_y\":70},"
-                + "{\"url\":\"https://cdn.example.com/a.jpg\"}]");
+        update(token, id, "[{\"url\":\"https://cdn.example.com/" + unique + "/c.jpg\",\"focus_x\":30,\"focus_y\":70},"
+                + "{\"url\":\"https://cdn.example.com/" + unique + "/a.jpg\"}]");
 
         mockMvc.perform(get("/api/recipes/" + id).header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(jsonPath("$.images.length()").value(2))
-                .andExpect(jsonPath("$.images[0].url").value("https://cdn.example.com/c.jpg"))
+                .andExpect(jsonPath("$.images[0].url").value("https://cdn.example.com/" + unique + "/c.jpg"))
                 .andExpect(jsonPath("$.images[0].focus_x").value(30.0))
-                .andExpect(jsonPath("$.images[1].url").value("https://cdn.example.com/a.jpg"));
-        verify(storage).delete("https://cdn.example.com/b.jpg");
-        verify(storage, never()).delete("https://cdn.example.com/a.jpg");
-        verify(storage, never()).delete("https://cdn.example.com/c.jpg");
+                .andExpect(jsonPath("$.images[1].url").value("https://cdn.example.com/" + unique + "/a.jpg"));
+        verify(storage).delete(eq("https://cdn.example.com/" + unique + "/b.jpg"), any());
+        verify(storage, never()).delete(eq("https://cdn.example.com/" + unique + "/a.jpg"), any());
+        verify(storage, never()).delete(eq("https://cdn.example.com/" + unique + "/c.jpg"), any());
     }
 
     @Test
@@ -159,7 +166,7 @@ class RecipeImagesIntegrationTest {
                         .content("{\"name\":\"Pasta\",\"images\":[],\"steps\":[],\"ingredients\":[{\"amount\":1}]}"))
                 .andExpect(status().isBadRequest());
 
-        verify(storage, never()).delete(anyString());
+        verify(storage, never()).delete(anyString(), any());
     }
     @Test
     void keepsImagesWhenAnOlderClientSendsNoImagesField() throws Exception {
@@ -180,13 +187,48 @@ class RecipeImagesIntegrationTest {
 
     @Test
     void removesAllImagesWhenAnEmptyListIsSent() throws Exception {
+        String unique = UUID.randomUUID().toString();
         String token = bearer();
-        String id = create(token, "[{\"url\":\"https://cdn.example.com/a.jpg\"}]");
+        String id = create(token, "[{\"url\":\"https://cdn.example.com/" + unique + "/a.jpg\"}]");
 
         update(token, id, "[]");
 
         mockMvc.perform(get("/api/recipes/" + id).header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(jsonPath("$.images.length()").value(0));
-        verify(storage).delete("https://cdn.example.com/a.jpg");
+        verify(storage).delete(eq("https://cdn.example.com/" + unique + "/a.jpg"), any());
+    }
+    @Test
+    void deletesRemovedFilesFromTheRecipeOwnerFolder() throws Exception {
+        String unique = UUID.randomUUID().toString();
+        User owner = saveUser();
+        String token = "Bearer " + jwtService.generateToken(owner.getId(), owner.getEmail());
+        String id = create(token, "[{\"url\":\"https://cdn.example.com/" + unique + "/a.jpg\"}]");
+
+        update(token, id, "[]");
+
+        verify(storage).delete("https://cdn.example.com/" + unique + "/a.jpg", owner.getId());
+    }
+
+    @Test
+    void keepsFilesThatAnotherRecipeStillUses() throws Exception {
+        String unique = UUID.randomUUID().toString();
+        String token = bearer();
+        String id = create(token, "[{\"url\":\"https://cdn.example.com/" + unique + "/shared.jpg\"}]");
+        create(bearer(), "[{\"url\":\"https://cdn.example.com/" + unique + "/shared.jpg\"}]");
+
+        update(token, id, "[]");
+
+        verify(storage, never()).delete(anyString(), any());
+    }
+
+    @Test
+    void storesARepeatedImageOnlyOnce() throws Exception {
+        String token = bearer();
+        String id = create(token, "[{\"url\":\"https://cdn.example.com/a.jpg\",\"focus_x\":10},"
+                + "{\"url\":\" https://cdn.example.com/a.jpg\",\"focus_x\":90}]");
+
+        mockMvc.perform(get("/api/recipes/" + id).header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(jsonPath("$.images.length()").value(1))
+                .andExpect(jsonPath("$.images[0].focus_x").value(10.0));
     }
 }

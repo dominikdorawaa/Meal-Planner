@@ -76,7 +76,7 @@ export function RecipePhotoFocusSheet({ image, isMain, onDone, onMakeMain, onRem
         <div
           data-sheet-swipe-ignore
           data-testid="recipe-photo-focus-frame"
-          role="application"
+          role="group"
           tabIndex={0}
           aria-label={t('recipePhoto.focusFrame')}
           onPointerDown={handlePointerDown}

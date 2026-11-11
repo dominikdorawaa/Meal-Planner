@@ -14,6 +14,7 @@ import org.springframework.web.client.RestClientException;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -65,14 +66,13 @@ public class SupabaseRecipeImageStorage implements RecipeImageStorage {
     }
 
     @Override
-    public void delete(String url) {
-        if (baseUrl.isEmpty() || serviceRoleKey.isEmpty() || url == null || !url.startsWith(publicUrlPrefix())) {
+    public void delete(String url, UUID ownerId) {
+        String ownerFolder = publicUrlPrefix() + ownerId + "/";
+        if (baseUrl.isEmpty() || serviceRoleKey.isEmpty() || ownerId == null || url == null
+                || !url.startsWith(ownerFolder) || url.length() == ownerFolder.length()) {
             return;
         }
         String path = url.substring(publicUrlPrefix().length());
-        if (path.isBlank()) {
-            return;
-        }
         try {
             restClient.delete()
                     .uri(URI.create(baseUrl + "/storage/v1/object/" + bucket + "/" + path))

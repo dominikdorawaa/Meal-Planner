@@ -9,6 +9,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import java.util.UUID;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
@@ -21,6 +23,9 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class SupabaseRecipeImageStorageTest {
 
     private static final byte[] CONTENT = {1, 2, 3};
+    private static final UUID OWNER = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final String OWNER_PHOTO = "https://project.supabase.example/storage/v1/object/public/recipe-images/"
+            + OWNER + "/photo.jpg";
 
     @Test
     void uploadsTheFileWithTheServiceKeyAndReturnsItsPublicUrl() {
@@ -75,27 +80,29 @@ class SupabaseRecipeImageStorageTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         SupabaseRecipeImageStorage storage = new SupabaseRecipeImageStorage(
                 "https://project.supabase.example", "example-service-key", "recipe-images", builder);
-        server.expect(requestTo("https://project.supabase.example/storage/v1/object/recipe-images/user/photo.jpg"))
+        server.expect(requestTo("https://project.supabase.example/storage/v1/object/recipe-images/" + OWNER + "/photo.jpg"))
                 .andExpect(method(HttpMethod.DELETE))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer example-service-key"))
                 .andExpect(header("apikey", "example-service-key"))
                 .andRespond(withSuccess());
 
-        storage.delete("https://project.supabase.example/storage/v1/object/public/recipe-images/user/photo.jpg");
+        storage.delete(OWNER_PHOTO, OWNER);
 
         server.verify();
     }
 
     @Test
-    void ignoresFilesOutsideItsBucket() {
+    void ignoresFilesOutsideTheOwnerFolder() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         SupabaseRecipeImageStorage storage = new SupabaseRecipeImageStorage(
                 "https://project.supabase.example", "example-service-key", "recipe-images", builder);
 
-        storage.delete("https://cdn.example.com/photo.jpg");
-        storage.delete("https://project.supabase.example/storage/v1/object/public/recipe-images/");
-        storage.delete(null);
+        storage.delete("https://cdn.example.com/photo.jpg", OWNER);
+        storage.delete("https://project.supabase.example/storage/v1/object/public/recipe-images/other/photo.jpg", OWNER);
+        storage.delete("https://project.supabase.example/storage/v1/object/public/recipe-images/" + OWNER + "/", OWNER);
+        storage.delete(OWNER_PHOTO, null);
+        storage.delete(null, OWNER);
 
         server.verify();
     }
@@ -104,7 +111,7 @@ class SupabaseRecipeImageStorageTest {
     void skipsDeletionWithoutConfiguration() {
         SupabaseRecipeImageStorage storage = new SupabaseRecipeImageStorage(" ", null, "recipe-images");
 
-        storage.delete("/storage/v1/object/public/recipe-images/user/photo.jpg");
+        storage.delete("/storage/v1/object/public/recipe-images/" + OWNER + "/photo.jpg", OWNER);
     }
 
     @Test
@@ -113,10 +120,10 @@ class SupabaseRecipeImageStorageTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         SupabaseRecipeImageStorage storage = new SupabaseRecipeImageStorage(
                 "https://project.supabase.example", "example-service-key", "recipe-images", builder);
-        server.expect(requestTo("https://project.supabase.example/storage/v1/object/recipe-images/user/photo.jpg"))
+        server.expect(requestTo("https://project.supabase.example/storage/v1/object/recipe-images/" + OWNER + "/photo.jpg"))
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
 
-        storage.delete("https://project.supabase.example/storage/v1/object/public/recipe-images/user/photo.jpg");
+        storage.delete(OWNER_PHOTO, OWNER);
 
         server.verify();
     }

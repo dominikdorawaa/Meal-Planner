@@ -14,6 +14,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -81,7 +82,7 @@ public class RecipeService {
         recipe.setName(details.getName());
         if (details.isImagesSent()) {
             List<RecipeImage> images = cleanImages(details.getImages());
-            deleteRemovedImagesAfterCommit(recipe.getImages(), images);
+            deleteRemovedImagesAfterCommit(recipe.getImages(), images, recipe.getCreatedBy());
             recipe.getImages().clear();
             recipe.getImages().addAll(images);
         }
@@ -145,9 +146,11 @@ public class RecipeService {
         if (images == null) {
             return new ArrayList<>();
         }
+        Set<String> seenUrls = new HashSet<>();
         List<RecipeImage> cleaned = images.stream()
                 .filter(image -> image != null && image.hasUrl())
                 .map(RecipeImage::cleaned)
+                .filter(image -> seenUrls.add(image.getUrl()))
                 .toList();
         if (cleaned.size() > MAX_IMAGES) {
             throw new ApiException(HttpStatus.BAD_REQUEST, TOO_MANY_IMAGES);
@@ -155,7 +158,7 @@ public class RecipeService {
         return new ArrayList<>(cleaned);
     }
 
-    private void deleteRemovedImagesAfterCommit(List<RecipeImage> previous, List<RecipeImage> current) {
+    private void deleteRemovedImagesAfterCommit(List<RecipeImage> previous, List<RecipeImage> current, UUID ownerId) {
         Set<String> kept = current.stream().map(RecipeImage::getUrl).collect(Collectors.toSet());
         List<String> removed = previous.stream()
                 .map(RecipeImage::getUrl)
@@ -168,7 +171,9 @@ public class RecipeService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                removed.forEach(imageStorage::delete);
+                removed.stream()
+                        .filter(url -> !recipeRepository.isImageUsed(url))
+                        .forEach(url -> imageStorage.delete(url, ownerId));
             }
         });
     }
