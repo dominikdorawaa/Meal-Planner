@@ -373,6 +373,7 @@
   "food.loading": "Loading database",
   "food.ownBadge": "Yours",
   "food.unverifiedBadge": "unverified",
+  "food.calendoriesBadge": "Calendories",
   "food.save": "Add to saved: {name}",
   "food.unsave": "Remove from saved: {name}",
   "food.portion": "{count} serving",

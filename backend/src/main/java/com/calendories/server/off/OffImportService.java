@@ -47,7 +47,9 @@ public class OffImportService {
     static final String LOCK_PRODUCTS = "SELECT id FROM products WHERE id IN (%s) FOR UPDATE";
     static final String HIDE_USED = """
             UPDATE products SET deleted_at = now()
-            WHERE id IN (%s) AND EXISTS (SELECT 1 FROM user_meals m WHERE m.product_id = products.id)
+            WHERE id IN (%s) AND (EXISTS (SELECT 1 FROM user_meals m WHERE m.product_id = products.id)
+                OR EXISTS (SELECT 1 FROM recipe_ingredients r WHERE r.product_id = products.id)
+                OR EXISTS (SELECT 1 FROM saved_products s WHERE s.product_id = products.id))
             """;
     static final String DELETE_UNUSED = "DELETE FROM products WHERE id IN (%s) AND deleted_at IS NULL";
     static final String SWITCH_MEAL_MEASURE =
