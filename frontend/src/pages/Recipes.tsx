@@ -3,6 +3,7 @@ import { BottomNav } from '../components/BottomNav';
 import { useAppData } from '../lib/AppDataContext';
 import { useNavigate } from 'react-router-dom';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
+import { recipeCoverImage } from '../lib/recipeImage';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { pluralForm, t, type MessageKey } from '../i18n';
 
@@ -230,7 +231,7 @@ export function Recipes() {
               >
                 <div className="aspect-[4/3] w-full bg-surface-container-low relative overflow-hidden">
                   <RecipeCoverImage
-                    recipe={recipe}
+                    image={recipeCoverImage(recipe)}
                     alt={recipe.name}
                     className="absolute inset-0 w-full h-full"
                     imgClassName="w-full h-full object-cover group-active:scale-105 transition-transform duration-300"

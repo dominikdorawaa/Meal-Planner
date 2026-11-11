@@ -8,9 +8,9 @@ afterEach(() => {
 });
 
 describe('RecipePhotoSheet', () => {
-  it('offers the camera and the gallery and passes the chosen photo', () => {
+  it('offers the camera and the gallery and passes the chosen photos', () => {
     const onPick = vi.fn();
-    render(<RecipePhotoSheet hasPhoto={false} onPick={onPick} onRemove={vi.fn()} onClose={vi.fn()} />);
+    render(<RecipePhotoSheet onPick={onPick} onClose={vi.fn()} />);
     const camera = screen.getByTestId('recipe-photo-camera') as HTMLInputElement;
     const gallery = screen.getByTestId('recipe-photo-gallery') as HTMLInputElement;
     const cameraClick = vi.spyOn(camera, 'click');
@@ -18,26 +18,28 @@ describe('RecipePhotoSheet', () => {
 
     fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipePhoto.camera')) }));
     fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipePhoto.gallery')) }));
-    const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
-    fireEvent.change(camera, { target: { files: [file] } });
+    const first = new File(['photo'], 'first.jpg', { type: 'image/jpeg' });
+    const second = new File(['photo'], 'second.jpg', { type: 'image/jpeg' });
+    fireEvent.change(gallery, { target: { files: [first, second] } });
 
     expect(cameraClick).toHaveBeenCalledOnce();
     expect(galleryClick).toHaveBeenCalledOnce();
     expect(camera.getAttribute('capture')).toBe('environment');
+    expect(camera.multiple).toBe(false);
     expect(gallery.hasAttribute('capture')).toBe(false);
-    expect(onPick).toHaveBeenCalledWith(file);
-    expect(screen.queryByRole('button', { name: new RegExp(t('recipePhoto.remove')) })).toBeNull();
+    expect(gallery.multiple).toBe(true);
+    expect(onPick).toHaveBeenCalledWith([first, second]);
   });
 
-  it('removes an existing photo and closes when tapping outside', () => {
-    const onRemove = vi.fn();
+  it('ignores an empty choice and closes when tapping outside', () => {
+    const onPick = vi.fn();
     const onClose = vi.fn();
-    render(<RecipePhotoSheet hasPhoto onPick={vi.fn()} onRemove={onRemove} onClose={onClose} />);
+    render(<RecipePhotoSheet onPick={onPick} onClose={onClose} />);
 
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipePhoto.remove')) }));
+    fireEvent.change(screen.getByTestId('recipe-photo-gallery'), { target: { files: [] } });
     fireEvent.click(screen.getByRole('dialog').parentElement!);
 
-    expect(onRemove).toHaveBeenCalledOnce();
+    expect(onPick).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledOnce();
   });
 });

@@ -8,7 +8,7 @@ import { LoadMoreTrigger } from '../components/LoadMoreTrigger';
 import { recentMealItems } from '../lib/mealProducts';
 import { useProductSearch } from '../lib/useProductSearch';
 import { useSavedFood } from '../lib/useSavedFood';
-import { isOwnItem, isUnverified } from '../lib/productPermissions';
+import { isCalendoriesProduct, isOwnItem, isUnverified } from '../lib/productPermissions';
 import { ProductRow, RecipeRow } from '../components/FoodRows';
 import { BottomPanel } from '../components/BottomPanel';
 import { PlanTargetPicker } from '../components/PlanTargetPicker';
@@ -209,6 +209,7 @@ export function AddFood() {
         amount={`${DEFAULT_PRODUCT_GRAMS}g`}
         own={own}
         unverified={isUnverified(product)}
+        calendories={isCalendoriesProduct(product)}
         selected={isSelected(selection.items, 'product', product.id)}
         onOpen={() => handleSelectProduct(product)}
         onToggleSelected={() => toggleItem('product', product.id)}

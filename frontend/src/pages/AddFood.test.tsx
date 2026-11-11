@@ -579,6 +579,18 @@ describe('AddFood tabs', () => {
     expect(screen.getByRole('tab', { name: /Własne/ }).getAttribute('aria-selected')).toBe('false');
   });
 
+  it('marks Calendories base products in search results', () => {
+    mocks.searchItems = [
+      { id: 'p5', name: 'Czosnek', kcal: 149, status: 'VERIFIED', source: 'BASIC' },
+      { id: 'p6', name: 'Czosnek', brand: 'Example Farm', kcal: 140, status: 'VERIFIED', source: 'OPEN_FOOD_FACTS' },
+    ];
+    renderAddFood();
+    fireEvent.change(screen.getByPlaceholderText('Szukaj przepisów, produktów...'), { target: { value: 'czosnek' } });
+
+    expect(screen.getByText('Czosnek (Example Farm)')).toBeTruthy();
+    expect(screen.getAllByText('Calendories')).toHaveLength(1);
+  });
+
   it('filters recipes by nutrition in search results', () => {
     renderAddFood();
     fireEvent.click(screen.getByTitle('Filtruj wyniki'));

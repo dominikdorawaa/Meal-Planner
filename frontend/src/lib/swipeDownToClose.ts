@@ -7,7 +7,7 @@ const SETTLE_MS = 200;
 
 function canStartDrag(sheet: HTMLElement, target: EventTarget | null): boolean {
   if (!(target instanceof Element) || !sheet.contains(target)) return false;
-  if (target.closest('input, textarea, select')) return false;
+  if (target.closest('input, textarea, select, [data-sheet-swipe-ignore]')) return false;
   for (let node: Element | null = target; node; node = node === sheet ? null : node.parentElement) {
     if (node.scrollTop > 0) return false;
   }

@@ -1,16 +1,20 @@
 package com.calendories.server.recipe;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,9 +32,15 @@ public class Recipe {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "image_url", length = 1024)
-    @JsonProperty("image_url")
-    private String imageUrl;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "recipe_images", joinColumns = @JoinColumn(name = "recipe_id"))
+    @OrderColumn(name = "position")
+    @Fetch(FetchMode.SUBSELECT)
+    private List<RecipeImage> images = new ArrayList<>();
+
+    @Transient
+    @JsonIgnore
+    private boolean imagesSent;
 
     private Double kcal = 0.0;
     private Double protein = 0.0;
@@ -104,6 +114,12 @@ public class Recipe {
         if (steps == null) {
             steps = legacySteps;
         }
+    }
+
+    @JsonSetter("images")
+    public void applySentImages(List<RecipeImage> sentImages) {
+        images = sentImages;
+        imagesSent = true;
     }
 
     void copyStoredNutrition(Recipe source) {

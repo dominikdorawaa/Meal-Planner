@@ -5,6 +5,7 @@ import { useAppData } from '../lib/AppDataContext';
 import { BottomNav } from '../components/BottomNav';
 import { Wordmark } from '../components/Wordmark';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
+import { recipeCoverImage } from '../lib/recipeImage';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { ShoppingFromPlanPicker } from '../components/ShoppingFromPlanPicker';
 import { ConfirmSheet } from '../components/ConfirmSheet';
@@ -315,11 +316,7 @@ export function ShoppingList() {
                            onClick={() => navigate(`/recipe/${r.recipe?.id ?? r.id}`)}
                        >
                           <RecipeCoverImage
-                            recipe={{
-                              id: r.recipe?.id ?? r.id,
-                              name: r.recipe?.name ?? r.name,
-                              image_url: r.recipe?.image_url ?? r.image_url,
-                            }}
+                            image={recipeCoverImage(r.recipe ?? r)}
                             alt={r.recipe?.name || r.name}
                             className="absolute inset-0 w-full h-full"
                             imgClassName="absolute inset-0 w-full h-full object-cover"
