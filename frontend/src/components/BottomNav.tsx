@@ -38,7 +38,7 @@ export function BottomNav() {
               }}
               className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-[18px] active:scale-95 duration-200 ${active ? 'bg-primary/10 text-primary' : 'text-primary/50'}`}
             >
-              <span className="material-symbols-outlined text-[22px]" style={active ? { fontVariationSettings: "'FILL' 1" } : {}}>{tab.icon}</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[22px]" style={active ? { fontVariationSettings: "'FILL' 1" } : {}}>{tab.icon}</span>
               <span className={`font-body text-[10px] leading-none truncate max-w-full ${active ? 'font-bold' : 'font-medium'}`}>{t(tab.label)}</span>
             </Link>
           );

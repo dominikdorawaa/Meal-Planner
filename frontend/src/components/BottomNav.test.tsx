@@ -68,7 +68,7 @@ describe('BottomNav', () => {
     renderApp()
 
     expect(screen.getByRole('navigation').querySelector('div')?.className).toContain('rounded-[22px]')
-    expect(tab('calendar_monthPlan').className).toContain('rounded-[18px]')
+    expect(tab('Plan').className).toContain('rounded-[18px]')
   })
 
   it('links to every main section with translated labels', () => {
@@ -82,18 +82,18 @@ describe('BottomNav', () => {
   it('highlights the section that is currently open', () => {
     renderApp(['/recipes'])
 
-    expect(tab('restaurant_menuPrzepisy').getAttribute('aria-current')).toBe('page')
-    expect(tab('restaurant_menuPrzepisy').className).toContain('bg-primary/10')
-    expect(tab('calendar_monthPlan').getAttribute('aria-current')).toBeNull()
-    expect(tab('calendar_monthPlan').className).toContain('text-primary/50')
+    expect(tab('Przepisy').getAttribute('aria-current')).toBe('page')
+    expect(tab('Przepisy').className).toContain('bg-primary/10')
+    expect(tab('Plan').getAttribute('aria-current')).toBeNull()
+    expect(tab('Plan').className).toContain('text-primary/50')
   })
 
   it('returns to the plan when going back from another tab', () => {
     renderApp()
 
-    fireEvent.click(tab('restaurant_menuPrzepisy'))
-    fireEvent.click(tab('checklistZakupy'))
-    fireEvent.click(tab('more_horizWięcej'))
+    fireEvent.click(tab('Przepisy'))
+    fireEvent.click(tab('Zakupy'))
+    fireEvent.click(tab('Więcej'))
     expect(currentPath()).toBe('/profile')
 
     fireEvent.click(screen.getByText('system back'))
@@ -106,8 +106,8 @@ describe('BottomNav', () => {
   it('goes back in history when the plan tab is picked after leaving the plan', () => {
     renderApp()
 
-    fireEvent.click(tab('checklistZakupy'))
-    fireEvent.click(tab('calendar_monthPlan'))
+    fireEvent.click(tab('Zakupy'))
+    fireEvent.click(tab('Plan'))
     expect(currentPath()).toBe('/')
 
     fireEvent.click(screen.getByText('system back'))
@@ -128,7 +128,7 @@ describe('BottomNav', () => {
   it('returns to the plan after switching tabs from a tab opened directly', () => {
     renderApp(['/recipes'])
 
-    fireEvent.click(tab('checklistZakupy'))
+    fireEvent.click(tab('Zakupy'))
     fireEvent.click(screen.getByText('system back'))
     expect(currentPath()).toBe('/')
 
@@ -139,7 +139,7 @@ describe('BottomNav', () => {
   it('goes back to the plan below when the plan tab is picked on a tab opened directly', () => {
     renderApp(['/profile'])
 
-    fireEvent.click(tab('calendar_monthPlan'))
+    fireEvent.click(tab('Plan'))
     expect(currentPath()).toBe('/')
 
     fireEvent.click(screen.getByText('system back'))
@@ -149,7 +149,7 @@ describe('BottomNav', () => {
   it('keeps the way back to the plan after visiting details from a tab', () => {
     renderApp()
 
-    fireEvent.click(tab('restaurant_menuPrzepisy'))
+    fireEvent.click(tab('Przepisy'))
     fireEvent.click(screen.getByText('open details'))
     fireEvent.click(screen.getByText('system back'))
     expect(currentPath()).toBe('/recipes')
@@ -165,7 +165,7 @@ describe('BottomNav', () => {
     try {
       renderApp(['/recipes'])
 
-      fireEvent.click(tab('restaurant_menuPrzepisy'))
+      fireEvent.click(tab('Przepisy'))
 
       expect(currentPath()).toBe('/recipes')
       expect(calls).toEqual([{ top: 0, behavior: 'smooth' }])
@@ -176,7 +176,7 @@ describe('BottomNav', () => {
 
   it('switches to the neighbouring tab after a horizontal swipe', () => {
     renderApp()
-    fireEvent.click(tab('restaurant_menuPrzepisy'))
+    fireEvent.click(tab('Przepisy'))
 
     swipe(-120)
     expect(currentPath()).toBe('/cart')
@@ -191,7 +191,7 @@ describe('BottomNav', () => {
     swipe(-120)
     expect(currentPath()).toBe('/')
 
-    fireEvent.click(tab('more_horizWięcej'))
+    fireEvent.click(tab('Więcej'))
     swipe(-120)
     expect(currentPath()).toBe('/profile')
   })
