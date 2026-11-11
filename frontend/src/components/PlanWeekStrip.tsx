@@ -88,8 +88,17 @@ export function PlanWeekStrip({ start, today, visibleStart, visibleCount, isGoal
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const current = drag.current;
     if (!current || current.pointerId !== event.pointerId) return;
+    if (event.pointerType === 'mouse' && event.buttons === 0) {
+      drag.current = null;
+      suppressClick.current = false;
+      setTrack(trackTransform(0), true);
+      return;
+    }
     current.dx = event.clientX - current.x;
-    if (Math.abs(current.dx) > TAP_SLOP_PX) suppressClick.current = true;
+    if (!suppressClick.current && Math.abs(current.dx) > TAP_SLOP_PX) {
+      suppressClick.current = true;
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    }
     if (suppressClick.current) setTrack(trackTransform(0, current.dx), false);
   };
 

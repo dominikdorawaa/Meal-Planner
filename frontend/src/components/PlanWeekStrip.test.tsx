@@ -161,6 +161,38 @@ describe('PlanWeekStrip', () => {
     expect(track().style.transform).toBe(at(7))
   })
 
+  it('keeps receiving the drag outside the strip once it moves past a tap', () => {
+    renderStrip()
+    const setPointerCapture = vi.fn()
+    strip().setPointerCapture = setPointerCapture
+
+    fireEvent.pointerDown(strip(), { pointerId: 1, clientX: 200 })
+    fireEvent.pointerMove(strip(), { pointerId: 1, clientX: 196 })
+    expect(setPointerCapture).not.toHaveBeenCalled()
+    fireEvent.pointerMove(strip(), { pointerId: 1, clientX: 150 })
+    fireEvent.pointerMove(strip(), { pointerId: 1, clientX: 140 })
+
+    expect(setPointerCapture).toHaveBeenCalledTimes(1)
+    expect(setPointerCapture).toHaveBeenCalledWith(1)
+  })
+
+  it('drops a mouse drag released outside the strip and accepts the next swipe and tap', () => {
+    const { onSwipeWeek, onSelectDay } = renderStrip()
+
+    fireEvent.pointerDown(strip(), { pointerId: 1, pointerType: 'mouse', buttons: 1, clientX: 200 })
+    fireEvent.pointerMove(strip(), { pointerId: 1, pointerType: 'mouse', buttons: 1, clientX: 100 })
+    fireEvent.pointerMove(strip(), { pointerId: 1, pointerType: 'mouse', buttons: 0, clientX: 50 })
+
+    expect(track().style.transform).toBe(at(7))
+    expect(onSwipeWeek).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pt 16' }))
+    expect(onSelectDay).toHaveBeenCalledWith('2026-10-16')
+
+    swipe(-200)
+    expect(onSwipeWeek).toHaveBeenCalledWith(1)
+  })
+
   it('does not treat the end of a swipe as a tap on a day but accepts the next tap', () => {
     const { onSelectDay } = renderStrip()
 
