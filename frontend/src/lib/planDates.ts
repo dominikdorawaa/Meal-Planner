@@ -89,3 +89,25 @@ export const planDays = (startDate: Date, count: number = 14, today: Date = new 
     return { name: DAY_NAMES[date.getDay()], date: isoDate, active: true, isToday: isoDate === todayIso };
   });
 };
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+export const formatShortWeekday = (isoDate: string, locale: string) => {
+  const date = parseIsoDate(isoDate);
+  return date ? capitalize(date.toLocaleDateString(locale, { weekday: 'short' }).replace('.', '')) : isoDate;
+};
+
+export const formatMonthWithYear = (isoDate: string | null | undefined, locale: string) => {
+  const date = parseIsoDate(isoDate);
+  return date ? capitalize(date.toLocaleDateString(locale, { month: 'long', year: 'numeric' })) : '';
+};
+
+export const formatLongWeekday = (isoDate: string, locale: string) => {
+  const date = parseIsoDate(isoDate);
+  return date ? capitalize(date.toLocaleDateString(locale, { weekday: 'long' })) : isoDate;
+};
+
+export const formatDayWithLongMonth = (isoDate: string, locale: string) => {
+  const date = parseIsoDate(isoDate);
+  return date ? date.toLocaleDateString(locale, { day: 'numeric', month: 'long' }) : isoDate;
+};

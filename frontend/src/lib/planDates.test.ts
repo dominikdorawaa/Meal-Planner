@@ -10,6 +10,10 @@ import {
   formatShortDayLabel,
   parseIsoDate,
   planDays,
+  formatShortWeekday,
+  formatMonthWithYear,
+  formatLongWeekday,
+  formatDayWithLongMonth,
   toIsoDate,
   todayIsoDate,
 } from './planDates'
@@ -194,5 +198,50 @@ describe('formatLocalizedDayWithDate', () => {
 
   it('returns an invalid date unchanged', () => {
     expect(formatLocalizedDayWithDate('not-a-date', 'pl-PL', polish, today)).toBe('not-a-date')
+  })
+})
+
+describe('formatShortWeekday', () => {
+  it('gives a capitalized short weekday without the abbreviation dot', () => {
+    expect(formatShortWeekday('2026-10-12', 'pl-PL')).toBe('Pon')
+    expect(formatShortWeekday('2026-10-14', 'pl-PL')).toBe('Śr')
+    expect(formatShortWeekday('2026-10-14', 'en-US')).toBe('Wed')
+  })
+
+  it('returns the text unchanged when it is not a date', () => {
+    expect(formatShortWeekday('later', 'pl-PL')).toBe('later')
+  })
+})
+
+describe('formatMonthWithYear', () => {
+  it('names the month and the year with a capital letter', () => {
+    expect(formatMonthWithYear('2026-11-03', 'pl-PL')).toBe('Listopad 2026')
+    expect(formatMonthWithYear('2026-11-03', 'en-US')).toBe('November 2026')
+  })
+
+  it('returns an empty label without a date', () => {
+    expect(formatMonthWithYear(undefined, 'pl-PL')).toBe('')
+  })
+})
+
+describe('formatLongWeekday', () => {
+  it('gives the full weekday name with a capital letter', () => {
+    expect(formatLongWeekday('2026-10-12', 'pl-PL')).toBe('Poniedziałek')
+    expect(formatLongWeekday('2026-10-14', 'en-US')).toBe('Wednesday')
+  })
+
+  it('returns the text unchanged when it is not a date', () => {
+    expect(formatLongWeekday('later', 'pl-PL')).toBe('later')
+  })
+})
+
+describe('formatDayWithLongMonth', () => {
+  it('gives the day number with the month name', () => {
+    expect(formatDayWithLongMonth('2026-11-12', 'pl-PL')).toBe('12 listopada')
+    expect(formatDayWithLongMonth('2026-11-12', 'en-US')).toBe('November 12')
+  })
+
+  it('returns the text unchanged when it is not a date', () => {
+    expect(formatDayWithLongMonth('later', 'pl-PL')).toBe('later')
   })
 })

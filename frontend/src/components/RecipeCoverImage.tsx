@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { customRecipeImageUrl, DEFAULT_RECIPE_IMAGE_URLS } from '../lib/recipeImage';
+import { DEFAULT_RECIPE_IMAGE_URLS, imagePosition, type RecipeImage } from '../lib/recipeImage';
 import type { Theme } from '../lib/theme';
 
-type RecipeLike = { id?: string; name?: string; image_url?: string | null };
 type ImageFailures = { url: string | null; custom: boolean; themes: Theme[] };
 
 const THEMES: Theme[] = ['light', 'dark'];
@@ -10,17 +9,17 @@ const IMAGE_VISIBILITY: Record<Theme, string> = { light: 'dark:hidden', dark: 'h
 const PLACEHOLDER_VISIBILITY: Record<Theme, string> = { light: 'flex dark:hidden', dark: 'hidden dark:flex' };
 
 export function RecipeCoverImage({
-  recipe,
+  image,
   alt,
   className = '',
   imgClassName = 'w-full h-full object-cover',
 }: {
-  recipe: RecipeLike;
+  image: RecipeImage | null;
   alt: string;
   className?: string;
   imgClassName?: string;
 }) {
-  const customUrl = customRecipeImageUrl(recipe.image_url);
+  const customUrl = image?.url.trim() || null;
   const noFailures: ImageFailures = { url: customUrl, custom: false, themes: [] };
   const [failures, setFailures] = useState<ImageFailures>(noFailures);
   const current = failures.url === customUrl ? failures : noFailures;
@@ -31,12 +30,13 @@ export function RecipeCoverImage({
       return { ...failed, ...change(failed) };
     });
 
-  if (customUrl && !current.custom) {
+  if (image && customUrl && !current.custom) {
     return (
       <img
         src={customUrl}
         alt={alt}
         className={imgClassName}
+        style={{ objectPosition: imagePosition(image) }}
         onError={() => markFailed(() => ({ custom: true }))}
       />
     );

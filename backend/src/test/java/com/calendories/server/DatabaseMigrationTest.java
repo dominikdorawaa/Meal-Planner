@@ -82,6 +82,7 @@ class DatabaseMigrationTest {
                 "saved_products",
                 "recipes",
                 "recipe_ingredients",
+                "recipe_images",
                 "user_meals",
                 "shopping_list",
                 "shopping_list_recipes",
@@ -98,8 +99,8 @@ class DatabaseMigrationTest {
     }
 
     @Test
-    void seedsSampleRecipesWithoutImageUrls() {
-        assertThat(jdbcTemplate.queryForObject("select count(*) from recipes where image_url is not null", Integer.class))
+    void seedsSampleRecipesWithoutImages() {
+        assertThat(jdbcTemplate.queryForObject("select count(*) from recipe_images", Integer.class))
                 .isZero();
     }
 
@@ -111,12 +112,38 @@ class DatabaseMigrationTest {
                 UUID.randomUUID(), "Old fallback", "https://loremflickr.com/800/533/pasta,pesto?lock=106",
                 UUID.randomUUID(), "Custom photo", "https://example.com/my-photo.jpg");
 
-        Flyway.configure().dataSource(dataSource).schemas(schema).load().migrate();
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("2").load().migrate();
 
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "select name, image_url from " + schema + ".recipes order by name");
         assertThat(rows).extracting(row -> row.get("image_url"))
                 .containsExactly("https://example.com/my-photo.jpg", null);
+        jdbcTemplate.execute("drop schema " + schema + " cascade");
+    }
+
+    @Test
+    void movesRecipeImageUrlsIntoCenteredCoverImages() {
+        String schema = "recipe_images_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("20").load().migrate();
+        UUID withPhoto = UUID.randomUUID();
+        String insertRecipe = "insert into " + schema + ".recipes (id, name, image_url) values (?, ?, ?)";
+        jdbcTemplate.update(insertRecipe, withPhoto, "With photo", " https://example.com/photo.jpg ");
+        jdbcTemplate.update(insertRecipe, UUID.randomUUID(), "Blank photo", "  ");
+        jdbcTemplate.update(insertRecipe, UUID.randomUUID(), "No photo", null);
+
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("21").load().migrate();
+
+        List<Map<String, Object>> images = jdbcTemplate.queryForList(
+                "select recipe_id, position, url, focus_x, focus_y from " + schema + ".recipe_images");
+        assertThat(images).singleElement().satisfies(image -> {
+            assertThat(image.get("recipe_id")).isEqualTo(withPhoto);
+            assertThat(image.get("position")).isEqualTo(0);
+            assertThat(image.get("url")).isEqualTo("https://example.com/photo.jpg");
+            assertThat(image.get("focus_x")).isEqualTo(50.0);
+            assertThat(image.get("focus_y")).isEqualTo(50.0);
+        });
+        assertThat(jdbcTemplate.queryForObject("select count(*) from information_schema.columns where table_schema = ? "
+                + "and table_name = 'recipes' and column_name = 'image_url'", Integer.class, schema)).isZero();
         jdbcTemplate.execute("drop schema " + schema + " cascade");
     }
 

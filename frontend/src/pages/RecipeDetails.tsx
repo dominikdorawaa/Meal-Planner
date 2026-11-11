@@ -3,7 +3,8 @@ import { useLocation, useParams, useNavigate, useSearchParams } from 'react-rout
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { addDaysToIsoDate, formatDayMonth, formatShortDayLabel, todayIsoDate } from '../lib/planDates';
-import { RecipeCoverImage } from '../components/RecipeCoverImage';
+import { RecipeGallery } from '../components/RecipeGallery';
+import { recipeImages } from '../lib/recipeImage';
 import { DayBalancePreview } from '../components/DayBalancePreview';
 import { NutritionSummary } from '../components/NutritionSummary';
 import { recipeExtraNutrients, type ExtraNutrient } from '../lib/nutrients';
@@ -346,13 +347,7 @@ export function RecipeDetails() {
         )}
       </header>
 
-      <div className="relative w-full h-48 sm:h-64 bg-surface-container-highest shrink-0 overflow-hidden">
-        <RecipeCoverImage
-          recipe={recipe}
-          alt={recipe.name}
-          className="absolute inset-0 w-full h-full"
-          imgClassName="w-full h-full object-cover"
-        />
+      <RecipeGallery images={recipeImages(recipe)} alt={recipe.name}>
         <button
           onClick={toggleSaved}
           disabled={isTogglingSaved}
@@ -362,7 +357,7 @@ export function RecipeDetails() {
         >
           <span className="material-symbols-outlined text-[22px]" style={saved ? { fontVariationSettings: "'FILL' 1" } : undefined}>favorite</span>
         </button>
-      </div>
+      </RecipeGallery>
 
       <div className="max-w-xl mx-auto w-full px-4 pt-3">
         <h1 className="font-headline font-bold text-xl text-on-surface tracking-tight leading-tight shrink-0">{recipe.name}</h1>

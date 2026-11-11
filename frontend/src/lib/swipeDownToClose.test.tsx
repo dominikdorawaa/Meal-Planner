@@ -12,6 +12,7 @@ function Sheet({ onClose }: { onClose: () => void }) {
         <button>item</button>
       </div>
       <input aria-label="amount" />
+      <div data-sheet-swipe-ignore><span>photo</span></div>
     </div>
   )
 }
@@ -124,6 +125,7 @@ describe('swipe down to close', () => {
     drag(screen.getByText('item'), 300, 50)
     list.scrollTop = 0
     drag(screen.getByLabelText('amount'), 300, 50)
+    drag(screen.getByText('photo'), 300, 50)
     fireEvent.touchStart(element, { touches: [{ clientX: 100, clientY: 100 }, { clientX: 150, clientY: 100 }] })
     fireEvent.touchMove(element, { touches: [{ clientX: 100, clientY: 400 }] })
     fireEvent.touchEnd(element, { changedTouches: [{ clientX: 100, clientY: 400 }] })

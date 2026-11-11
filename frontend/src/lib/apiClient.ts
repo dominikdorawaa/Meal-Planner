@@ -1,3 +1,4 @@
+import type { RecipeImageInput } from './recipeImage';
 import type { MeasureKind, ProductMeasure } from './measures';
 import { getLanguage, t } from '../i18n';
 
@@ -61,7 +62,7 @@ export interface Product {
 export interface RecipeSummary {
   id: string;
   name: string;
-  image_url?: string | null;
+  images?: RecipeImageInput[] | null;
   kcal?: number | null;
   protein?: number | null;
   fat?: number | null;

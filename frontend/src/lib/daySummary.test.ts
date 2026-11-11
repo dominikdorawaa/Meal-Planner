@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addConsumed, buildDaySummary } from './daySummary'
+import { addConsumed, buildDaySummary, isDayGoalMet } from './daySummary'
 
 const targets = { target_kcal: 2200, target_protein: 150, target_fat: 70, target_carbs: 250 }
 const nothing = { kcal: 0, protein: 0, fat: 0, carbs: 0 }
@@ -12,6 +12,7 @@ describe('buildDaySummary', () => {
     expect(protein).toMatchObject({ key: 'protein', unit: 'g', target: '135-165' })
     expect(fat).toMatchObject({ key: 'fat', target: '63-77' })
     expect(carbs).toMatchObject({ key: 'carbs', target: '225-275' })
+    expect([kcal.goal, protein.goal, fat.goal, carbs.goal]).toEqual([2200, 150, 70, 250])
   })
 
   it('prefers explicit macro limits from the profile', () => {
@@ -98,5 +99,33 @@ describe('addConsumed', () => {
   it('adds an item to the day keeping whole calories and one decimal for macros', () => {
     expect(addConsumed({ kcal: 1000, protein: 50.1, fat: 30.2, carbs: 100 }, { kcal: 177.6, protein: 2.2, fat: 0.06, carbs: 46 }))
       .toEqual({ kcal: 1178, protein: 52.3, fat: 30.3, carbs: 146 })
+  })
+})
+
+describe('isDayGoalMet', () => {
+  const onTarget = { kcal: 2150, protein: 150, fat: 70, carbs: 240 }
+
+  it('accepts a day within five percent of the calorie goal with no macro over its range', () => {
+    expect(isDayGoalMet(onTarget, targets)).toBe(true)
+    expect(isDayGoalMet({ ...onTarget, kcal: 2090 }, targets)).toBe(true)
+    expect(isDayGoalMet({ ...onTarget, kcal: 2310 }, targets)).toBe(true)
+  })
+
+  it('rejects a day with calories more than five percent away from the goal', () => {
+    expect(isDayGoalMet({ ...onTarget, kcal: 2089 }, targets)).toBe(false)
+    expect(isDayGoalMet({ ...onTarget, kcal: 2311 }, targets)).toBe(false)
+  })
+
+  it('rejects a day with a macro over its range even when calories fit', () => {
+    expect(isDayGoalMet({ ...onTarget, fat: 78 }, targets)).toBe(false)
+  })
+
+  it('accepts a day with a macro below its range', () => {
+    expect(isDayGoalMet({ ...onTarget, protein: 60 }, targets)).toBe(true)
+  })
+
+  it('never marks an empty day or a profile without a calorie goal', () => {
+    expect(isDayGoalMet(nothing, { ...targets, target_kcal: 0 })).toBe(false)
+    expect(isDayGoalMet(onTarget, { ...targets, target_kcal: 0 })).toBe(false)
   })
 })

@@ -506,37 +506,57 @@ describe('AddRecipe leaving', () => {
   });
 });
 
-function photoFile() {
-  return new File(['big photo'], 'photo.png', { type: 'image/png' });
+function photoFile(name = 'photo.png') {
+  return new File(['big photo'], name, { type: 'image/png' });
 }
 
-function choosePhoto(source: 'camera' | 'gallery') {
+function choosePhotos(source: 'camera' | 'gallery', files = [photoFile()]) {
   fireEvent.click(screen.getByRole('button', { name: t('recipeForm.photoAdd') }));
   expect(screen.getByRole('button', { name: new RegExp(t('recipePhoto.camera')) })).toBeTruthy();
-  expect(screen.queryByRole('button', { name: new RegExp(t('recipePhoto.remove')) })).toBeNull();
-  const file = photoFile();
-  fireEvent.change(screen.getByTestId(`recipe-photo-${source}`), { target: { files: [file] } });
-  return file;
+  fireEvent.change(screen.getByTestId(`recipe-photo-${source}`), { target: { files } });
+  return files;
 }
 
-describe('AddRecipe photo', () => {
-  it('resizes and uploads the chosen photo and saves its address with the recipe', async () => {
+const editPhoto = (index: number) => t('recipeForm.photoEdit', { index });
+
+function editedRecipeWithPhotos() {
+  mocks.getRecipe.mockResolvedValue({
+    id: 'r1', name: 'Owsianka', kcal: 500, protein: 20, fat: 10, carbs: 80, portions: 1, own: true, ingredients: [],
+    images: [
+      { url: 'https://storage.example.com/a.jpg', focus_x: 50, focus_y: 50 },
+      { url: 'https://storage.example.com/b.jpg', focus_x: 30, focus_y: 40 },
+      { url: 'https://storage.example.com/c.jpg', focus_x: 50, focus_y: 50 },
+    ],
+  });
+  renderAddRecipe('/edit-recipe/r1');
+}
+
+async function saveAndReadImages() {
+  fireEvent.click(screen.getByRole('button', { name: t('recipeForm.save') }));
+  await screen.findByText('recipes screen');
+  const call = mocks.updateRecipe.mock.calls[0] ?? [null, mocks.createRecipe.mock.calls[0][0]];
+  return call[1].images;
+}
+
+describe('AddRecipe photos', () => {
+  it('resizes and uploads the chosen photo and saves it centered with the recipe', async () => {
     renderAddRecipe();
     fireEvent.change(screen.getByLabelText(t('recipeForm.name')), { target: { value: 'Sałatka' } });
+    expect(screen.getByText(t('recipeForm.photoLimitHint', { count: 3 }))).toBeTruthy();
 
-    const file = choosePhoto('gallery');
+    const [file] = choosePhotos('gallery');
 
     expect(screen.queryByRole('dialog')).toBeNull();
-    await screen.findByRole('button', { name: t('recipeForm.photoChange') });
+    await screen.findByRole('button', { name: editPhoto(1) });
     expect(mocks.resizeRecipePhoto).toHaveBeenCalledWith(file);
     expect(mocks.uploadImage).toHaveBeenCalledWith(expect.any(Blob));
     expect(document.querySelector('img')?.getAttribute('src')).toBe('https://storage.example.com/recipe-images/u1/photo.jpg');
+    expect(screen.getByText(t('recipeForm.photoMain'))).toBeTruthy();
+    expect(screen.getByText('1/3')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.save') }));
-    await screen.findByText('recipes screen');
-    expect(mocks.createRecipe).toHaveBeenCalledWith(expect.objectContaining({
-      image_url: 'https://storage.example.com/recipe-images/u1/photo.jpg',
-    }));
+    expect(await saveAndReadImages()).toEqual([
+      { url: 'https://storage.example.com/recipe-images/u1/photo.jpg', focus_x: 50, focus_y: 50 },
+    ]);
   });
 
   it('takes a photo with the camera and disables saving while it uploads', async () => {
@@ -545,20 +565,40 @@ describe('AddRecipe photo', () => {
     renderAddRecipe();
     fireEvent.change(screen.getByLabelText(t('recipeForm.name')), { target: { value: 'Sałatka' } });
 
-    choosePhoto('camera');
+    choosePhotos('camera');
 
     expect(await screen.findByText(t('recipeForm.photoUploading'))).toBeTruthy();
     expect(screen.getByRole('button', { name: t('recipeForm.save') }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: t('recipeForm.photoAdd') }).hasAttribute('disabled')).toBe(true);
     finishUpload('https://storage.example.com/camera.jpg');
-    await screen.findByRole('button', { name: t('recipeForm.photoChange') });
+    await screen.findByRole('button', { name: editPhoto(1) });
     expect(screen.getByRole('button', { name: t('recipeForm.save') }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('uploads several photos at once and skips the ones over the limit', async () => {
+    ['a', 'b', 'c'].forEach(name => mocks.uploadImage.mockResolvedValueOnce(`https://storage.example.com/${name}.jpg`));
+    renderAddRecipe();
+    fireEvent.change(screen.getByLabelText(t('recipeForm.name')), { target: { value: 'Sałatka' } });
+
+    const files = choosePhotos('gallery', ['a', 'b', 'c', 'd'].map(name => photoFile(`${name}.png`)));
+
+    await screen.findByRole('button', { name: editPhoto(3) });
+    expect(mocks.resizeRecipePhoto).toHaveBeenCalledTimes(3);
+    mocks.resizeRecipePhoto.mock.calls.forEach(([file], index) => expect(file).toBe(files[index]));
+    expect(screen.getByRole('alert').textContent).toBe(t('recipeForm.photoLimit', { count: 3 }));
+    expect(screen.queryByRole('button', { name: t('recipeForm.photoAdd') })).toBeNull();
+    expect((await saveAndReadImages()).map((image: { url: string }) => image.url)).toEqual([
+      'https://storage.example.com/a.jpg',
+      'https://storage.example.com/b.jpg',
+      'https://storage.example.com/c.jpg',
+    ]);
   });
 
   it('shows the server message when the upload is rejected', async () => {
     mocks.uploadImage.mockRejectedValue(new ApiError('Zdjęcie jest za duże.', 413));
     renderAddRecipe();
 
-    choosePhoto('gallery');
+    choosePhotos('gallery');
 
     expect((await screen.findByRole('alert')).textContent).toBe('Zdjęcie jest za duże.');
     expect(document.querySelector('img')).toBeNull();
@@ -568,7 +608,7 @@ describe('AddRecipe photo', () => {
     mocks.resizeRecipePhoto.mockRejectedValue(new Error('Unsupported image'));
     renderAddRecipe();
 
-    choosePhoto('gallery');
+    choosePhotos('gallery');
 
     expect((await screen.findByRole('alert')).textContent).toBe(t('recipeForm.photoFailed'));
     expect(mocks.uploadImage).not.toHaveBeenCalled();
@@ -586,19 +626,52 @@ describe('AddRecipe photo', () => {
     expect(mocks.resizeRecipePhoto).not.toHaveBeenCalled();
   });
 
-  it('removes the photo of an edited recipe', async () => {
-    mocks.getRecipe.mockResolvedValue({
-      id: 'r1', name: 'Owsianka', kcal: 500, protein: 20, fat: 10, carbs: 80, portions: 1, own: true,
-      image_url: 'https://storage.example.com/old.jpg', ingredients: [],
-    });
-    renderAddRecipe('/edit-recipe/r1');
+  it('makes another photo the main one and removes a photo from the thumbnails', async () => {
+    editedRecipeWithPhotos();
 
-    fireEvent.click(await screen.findByRole('button', { name: t('recipeForm.photoChange') }));
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipePhoto.remove')) }));
-    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.save') }));
+    fireEvent.click(await screen.findByRole('button', { name: t('recipeForm.photoMakeMain', { index: 3 }) }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeForm.photoRemove', { index: 3 }) }));
 
-    await screen.findByText('recipes screen');
-    expect(mocks.updateRecipe).toHaveBeenCalledWith('r1', expect.objectContaining({ image_url: null }));
+    expect(await saveAndReadImages()).toEqual([
+      { url: 'https://storage.example.com/c.jpg', focus_x: 50, focus_y: 50 },
+      { url: 'https://storage.example.com/a.jpg', focus_x: 50, focus_y: 50 },
+    ]);
+  });
+
+  it('sets the framing of a photo and makes it main from the framing sheet', async () => {
+    editedRecipeWithPhotos();
+
+    fireEvent.click(await screen.findByRole('button', { name: editPhoto(2) }));
+    fireEvent.keyDown(screen.getByTestId('recipe-photo-focus-frame'), { key: 'ArrowRight' });
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipePhoto.makeMain')) }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(await saveAndReadImages()).toEqual([
+      { url: 'https://storage.example.com/b.jpg', focus_x: 35, focus_y: 40 },
+      { url: 'https://storage.example.com/a.jpg', focus_x: 50, focus_y: 50 },
+      { url: 'https://storage.example.com/c.jpg', focus_x: 50, focus_y: 50 },
+    ]);
+  });
+
+  it('keeps the framing after done, discards it on close and removes a photo from the sheet', async () => {
+    editedRecipeWithPhotos();
+
+    fireEvent.click(await screen.findByRole('button', { name: editPhoto(1) }));
+    expect(screen.queryByRole('button', { name: new RegExp(t('recipePhoto.makeMain')) })).toBeNull();
+    fireEvent.keyDown(screen.getByTestId('recipe-photo-focus-frame'), { key: 'ArrowDown' });
+    fireEvent.click(screen.getByRole('button', { name: t('recipePhoto.done') }));
+
+    fireEvent.click(screen.getByRole('button', { name: editPhoto(3) }));
+    fireEvent.keyDown(screen.getByTestId('recipe-photo-focus-frame'), { key: 'ArrowUp' });
+    fireEvent.click(screen.getByRole('dialog').parentElement!);
+
+    fireEvent.click(screen.getByRole('button', { name: editPhoto(2) }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: new RegExp(t('recipePhoto.remove')) }));
+
+    expect(await saveAndReadImages()).toEqual([
+      { url: 'https://storage.example.com/a.jpg', focus_x: 50, focus_y: 55 },
+      { url: 'https://storage.example.com/c.jpg', focus_x: 50, focus_y: 50 },
+    ]);
   });
 });
 
