@@ -11,7 +11,7 @@ import { PlanWeekStrip, SHOWN_DAYS } from '../components/PlanWeekStrip';
 import { isDayGoalMet } from '../lib/daySummary';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { recipeCoverImage, type RecipeImage } from '../lib/recipeImage';
-import { mealTypeName, profileMealTypes } from '../lib/mealTypes';
+import { mealColor, mealTypeName, profileMealTypes } from '../lib/mealTypes';
 import { addDaysToIsoDate, daysBetweenIsoDates, formatDayMonth, formatDayWithMonthName, formatLocalizedDayWithDate, formatRelativeDayLabel, formatShortWeekday, parseIsoDate, planDays, toIsoDate, todayIsoDate } from '../lib/planDates';
 import { readPlanReturnPosition, rememberPlanReturnPosition, type PlanReturnPosition } from '../lib/planPosition';
 import { PlanConflictDialog } from '../components/PlanConflictDialog';
@@ -50,7 +50,6 @@ const DELETED_MEAL_SNACKBAR_DURATION_MS = 3000;
 const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN";
 
 const DAY_COLUMN = "w-[33.3333vw] sm:w-[150px] shrink-0 px-2 sm:px-3";
-const MEAL_COLORS = ["#f2b84b", "#7fc77a", "#a78bfa", "#60a5fa", "#f472b6", "#2dd4bf"];
 const TODAY_BAND_INSET_PX = 3;
 const WINDOW_DAYS = 21;
 const LEAD_DAYS = 7;
@@ -618,7 +617,7 @@ export function Plan() {
             {profileMealTypes(profile)
               .filter(mt => mt.visible)
               .map((mt, mealIndex) => {
-                const mealColor = MEAL_COLORS[mealIndex % MEAL_COLORS.length];
+                const color = mealColor(mealIndex);
                 return (
                 <div key={mt.id} className="flex flex-col relative">
                   <div className="h-14 flex items-end pb-3">
@@ -627,7 +626,7 @@ export function Plan() {
                         aria-hidden="true"
                         data-meal-dot
                         className="w-[9px] h-[9px] rounded-full shrink-0"
-                        style={{ backgroundColor: mealColor, boxShadow: `0 0 0 3px ${mealColor}38` }}
+                        style={{ backgroundColor: color, boxShadow: `0 0 0 3px ${color}38` }}
                       />
                       {mt.name}
                     </h2>
@@ -715,7 +714,7 @@ export function Plan() {
         const meal: PlanMeal = activeMealMenu;
         const mealTypes = profileMealTypes(profile);
         const mealIndex = mealTypes.filter(type => type.visible).findIndex(type => type.id === meal.meal_type);
-        const mealColor = MEAL_COLORS[Math.max(mealIndex, 0) % MEAL_COLORS.length];
+        const color = mealColor(mealIndex);
         const mealKcal = getConsumedForDay(meal.meal_date).kcal - getConsumedForDay(meal.meal_date, meal.id).kcal;
         const recipeId = entityId(meal.recipe);
         const recipe = recipeId ? recipes.find(r => r.id === recipeId) : undefined;
@@ -726,7 +725,7 @@ export function Plan() {
             title={mealTitle(meal)}
             meta={(
               <>
-                <span aria-hidden="true" className="w-[7px] h-[7px] rounded-full shrink-0" style={{ backgroundColor: mealColor, boxShadow: `0 0 0 3px ${mealColor}38` }} />
+                <span aria-hidden="true" className="w-[7px] h-[7px] rounded-full shrink-0" style={{ backgroundColor: color, boxShadow: `0 0 0 3px ${color}38` }} />
                 <span className="truncate">{mealTypeName(meal.meal_type, mealTypes)} · {formatShortWeekday(meal.meal_date, t('recipeDetails.locale'))} {formatDayMonth(meal.meal_date)} · <span className="font-semibold text-primary tabular-nums">{formatCompactNumber(mealKcal)} kcal</span></span>
               </>
             )}

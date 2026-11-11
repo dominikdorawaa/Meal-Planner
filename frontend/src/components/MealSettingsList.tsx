@@ -68,7 +68,7 @@ function SortableMeal<T extends MealSetting>({ meal, index, isReordering, render
       {...attributes}
       {...listeners}
       aria-label={`Przeciągnij: ${meal.name}`}
-      className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-primary shadow-sm border border-primary/5 touch-none [-webkit-touch-callout:none] cursor-grab active:cursor-grabbing"
+      className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high touch-none [-webkit-touch-callout:none] cursor-grab active:cursor-grabbing"
     >
       <span className="material-symbols-outlined text-[18px]">drag_indicator</span>
     </button>
@@ -78,7 +78,7 @@ function SortableMeal<T extends MealSetting>({ meal, index, isReordering, render
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={`p-4 rounded-3xl border border-outline-variant/10 shadow-sm flex flex-col gap-3 transition-colors ${isReordering ? 'border-dashed bg-surface/50 select-none hover:bg-primary/[0.03]' : 'bg-surface-container-lowest'} ${isDragging ? 'relative z-10 opacity-80 border-primary bg-primary/5 shadow-lg' : ''}`}
+      className={`px-3 rounded-2xl border-[1.5px] transition-colors ${isReordering ? 'border-dashed border-outline-variant/30 bg-surface-container-low select-none' : 'border-transparent bg-surface-container-low'} ${isDragging ? 'relative z-10 border-primary bg-surface-container-high shadow-ambient' : ''}`}
     >
       {renderMeal(meal, index, handle)}
     </div>
