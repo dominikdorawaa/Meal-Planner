@@ -338,9 +338,9 @@ class OffImportIntegrationTest {
     void hidesOutdatedProductsThatAreUsedInRecipes() throws IOException {
         Product inRecipe = storedOffProduct("5901234123457", "Kysané podmáslí");
         UUID recipeId = UUID.randomUUID();
-        jdbcTemplate.update("insert into recipes (id, name) values (?, 'Placki')", recipeId);
+        jdbcTemplate.update("insert into recipes (id, name) values (?, 'Pancakes')", recipeId);
         jdbcTemplate.update("insert into recipe_ingredients (id, recipe_id, name, amount, unit, product_id) "
-                + "values (?, ?, 'Maslanka', 200, 'g', ?)", UUID.randomUUID(), recipeId, inRecipe.getId());
+                + "values (?, ?, 'Buttermilk', 200, 'g', ?)", UUID.randomUUID(), recipeId, inRecipe.getId());
 
         ImportReport report = importService.importDump(dump(skyr("Skyr naturalny", 64.6)));
 

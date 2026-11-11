@@ -65,7 +65,7 @@ class DatabaseMigrationTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "select version, success from flyway_schema_history where version is not null order by installed_rank");
 
-        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21");
+        assertThat(history).extracting(row -> row.get("version")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22");
         assertThat(history).allSatisfy(row -> assertThat(row.get("success")).isEqualTo(true));
     }
 
@@ -384,7 +384,7 @@ class DatabaseMigrationTest {
         assertThat(basicMeasures("Chleb pszenny")).containsExactly("bread_slice 35 default");
         assertThat(basicMeasures("Brokuł")).isEmpty();
         assertThat(jdbcTemplate.queryForObject("select count(*) from product_measures m join products p on p.id = m.product_id "
-                + "where p.source = 'BASIC'", Integer.class)).isEqualTo(256);
+                + "where p.source = 'BASIC'", Integer.class)).isEqualTo(270);
         assertThat(jdbcTemplate.queryForObject("select count(*) from (select product_id from product_measures "
                 + "where is_default group by product_id having count(*) > 1) duplicated", Integer.class)).isZero();
     }
@@ -469,9 +469,9 @@ class DatabaseMigrationTest {
         String query = "select array_to_string(kitchen_measures, ',') from products where source = 'BASIC' and name = ?";
         assertThat(basicMeasures("Czosnek")).containsExactly("clove 5 default");
         assertThat(basicMeasures("Limonka")).containsExactly("piece 67 default");
-        assertThat(basicMeasures("Pieprz czarny mielony")).containsExactly("tsp 2");
+        assertThat(basicMeasures("Pieprz czarny mielony")).containsExactly("tsp 2", "tbsp 6");
         assertThat(jdbcTemplate.queryForObject(query, String.class, "Pieprz czarny mielony")).isEqualTo("pinch");
-        assertThat(basicMeasures("Proszek do pieczenia")).containsExactly("tsp 4", "package 18");
+        assertThat(basicMeasures("Proszek do pieczenia")).containsExactly("tsp 4", "tbsp 12", "package 18");
         assertThat(jdbcTemplate.queryForObject(query, String.class, "Proszek do pieczenia")).isEqualTo("pinch");
         assertThat(basicMeasures("Liść laurowy")).containsExactly("piece 0.2 default");
         assertThat(jdbcTemplate.queryForObject(query, String.class, "Mąka tortowa")).isEmpty();
@@ -482,7 +482,7 @@ class DatabaseMigrationTest {
     @Test
     void movesGarlicToClovesWithoutChangingPlansOrRecipes() {
         String schema = "garlic_cloves_" + UUID.randomUUID().toString().replace("-", "");
-        Flyway.configure().dataSource(dataSource).schemas(schema).target("20").load().migrate();
+        Flyway.configure().dataSource(dataSource).schemas(schema).target("21").load().migrate();
         UUID garlic = jdbcTemplate.queryForObject("select id from " + schema + ".products where name = 'Czosnek' "
                 + "and source = 'BASIC'", UUID.class);
         UUID banana = jdbcTemplate.queryForObject("select id from " + schema + ".products where name = 'Banan' "
