@@ -14,6 +14,7 @@ import org.springframework.web.client.RestClientException;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -61,7 +62,31 @@ public class SupabaseRecipeImageStorage implements RecipeImageStorage {
             log.warn("Recipe image upload to Supabase Storage failed: {}", exception.getMessage());
             throw new ApiException(HttpStatus.BAD_GATEWAY, UPLOAD_FAILED);
         }
-        return baseUrl + "/storage/v1/object/public/" + bucket + "/" + path;
+        return publicUrlPrefix() + path;
+    }
+
+    @Override
+    public void delete(String url, UUID ownerId) {
+        String ownerFolder = publicUrlPrefix() + ownerId + "/";
+        if (baseUrl.isEmpty() || serviceRoleKey.isEmpty() || ownerId == null || url == null
+                || !url.startsWith(ownerFolder) || url.length() == ownerFolder.length()) {
+            return;
+        }
+        String path = url.substring(publicUrlPrefix().length());
+        try {
+            restClient.delete()
+                    .uri(URI.create(baseUrl + "/storage/v1/object/" + bucket + "/" + path))
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceRoleKey)
+                    .header("apikey", serviceRoleKey)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException exception) {
+            log.warn("Recipe image removal from Supabase Storage failed: {}", exception.getMessage());
+        }
+    }
+
+    private String publicUrlPrefix() {
+        return baseUrl + "/storage/v1/object/public/" + bucket + "/";
     }
 
     private static SimpleClientHttpRequestFactory requestFactory() {
