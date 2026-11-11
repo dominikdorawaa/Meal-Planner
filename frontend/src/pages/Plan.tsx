@@ -17,8 +17,8 @@ import { readPlanReturnPosition, rememberPlanReturnPosition, type PlanReturnPosi
 import { PlanConflictDialog } from '../components/PlanConflictDialog';
 import { PlanDayDeleteSheet } from '../components/PlanDayDeleteSheet';
 import { useCloseOnBack } from '../lib/backNavigation';
-import { useBottomSheet } from '../lib/bottomSheet';
 import { UndoSnackbar } from '../components/UndoSnackbar';
+import { PlanAction, PlanActionGroup, PlanActionSheet, PlanSheetDayBadge, PlanSheetThumb } from '../components/PlanActionSheet';
 import { t, type MessageKey } from '../i18n';
 import {
   deleteMeals,
@@ -45,7 +45,7 @@ type PendingTransfer = {
 
 type Snackbar = { id: number; message: string; result?: TransferResult; durationMs?: number };
 
-const DELETED_MEAL_SNACKBAR_DURATION_MS = 5000;
+const DELETED_MEAL_SNACKBAR_DURATION_MS = 3000;
 
 const PLACEHOLDER_IMAGE = "PLAN_PLACEHOLDER_TOKEN";
 
@@ -258,8 +258,7 @@ export function Plan() {
       return;
     }
     await refreshMeals();
-    const message = t('plan.snackbar.deleted', { name: mealTitle(meal), meal: mealTypeName(meal.meal_type, profileMealTypes(profile)) });
-    showSnackbar(message, { created: [], removed: [meal], complete: true }, DELETED_MEAL_SNACKBAR_DURATION_MS);
+    showSnackbar(t('plan.snackbar.deleted'), { created: [], removed: [meal], complete: true }, DELETED_MEAL_SNACKBAR_DURATION_MS);
   };
 
   const resetSelectionModes = () => {
@@ -270,8 +269,6 @@ export function Plan() {
     setMealSelectionAction('copy');
   };
 
-  const dayMenuRef = useBottomSheet(!!activeDayMenu, () => setActiveDayMenu(null));
-  const mealMenuRef = useBottomSheet(!!activeMealMenu, () => setActiveMealMenu(null));
   useCloseOnBack(!!copyModeDay || !!copyModeMeal, resetSelectionModes);
   useCloseOnBack(!!pendingTransfer, () => setPendingTransfer(null));
 
@@ -592,7 +589,7 @@ export function Plan() {
                       }}
                       className={`flex flex-col gap-1 rounded-[22px] -mx-2 px-2.5 py-2.5 transition-all duration-300 has-[[aria-expanded=true]]:bg-surface-container-lowest ${isSelectedCopyDay ? 'bg-primary/10 ring-2 ring-primary' : ''} ${copyModeMeal ? 'opacity-40 grayscale-[30%]' : ''} ${isDayCopyMode ? 'cursor-pointer hover:bg-primary/5' : ''}`}
                     >
-                      <div className="relative min-h-6 flex items-center">
+                      <div className="relative min-h-9 flex items-center">
                         <span className={`pr-5 font-headline text-[12.5px] font-extrabold leading-tight truncate ${day.isToday ? 'text-primary' : 'text-on-surface'}`}>{weekdayLabel}</span>
                         {isDayCopyMode ? (
                           <div className={`absolute right-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg flex items-center justify-center transition-colors shrink-0 border ${isSelectedCopyDay ? 'bg-primary border-primary text-on-primary' : 'bg-surface-container-lowest border-outline-variant/40 text-transparent hover:border-primary/50'}`}>
@@ -603,9 +600,11 @@ export function Plan() {
                             type="button"
                             aria-label={t('plan.dayMenu', { day: dayLabel })}
                             onClick={(e) => { e.stopPropagation(); setActiveDayMenu(day.date); }}
-                            className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest transition-colors active:scale-95"
+                            className="group/day-menu absolute -right-3 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform"
                           >
-                            <span className="material-symbols-outlined text-[18px]">more_horiz</span>
+                            <span className="w-8 h-8 rounded-full flex items-center justify-center group-hover/day-menu:bg-surface-container-highest transition-colors">
+                              <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+                            </span>
                           </button>
                         ) : null}
                       </div>
@@ -662,38 +661,22 @@ export function Plan() {
 
       <BottomNav />
 
-      {/* Menu zarządzania DNIEM (BottomSheet) */}
       {activeDayMenu && (
-        <div data-scroll-lock className="fixed inset-0 bg-black/10 z-[200] flex flex-col justify-end sm:justify-center items-center p-0 sm:p-6 animate-fade-in" onClick={() => setActiveDayMenu(null)}>
-          <div ref={dayMenuRef} className="bg-surface-container-lowest rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-ambient w-full sm:max-w-sm border-t sm:border border-outline-variant/10 animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="w-12 h-1.5 bg-surface-container-highest rounded-full mx-auto mb-6 sm:hidden"></div>
-
-            <h3 className="font-headline font-bold text-xl text-on-surface mb-6 tracking-tight text-center">Zarządzaj całym dniem</h3>
-
-            <div className="flex flex-col gap-3 mb-6">
-              <button onClick={() => handleCopyDayNext(activeDayMenu)} className="w-full py-4 px-5 bg-surface-container-low rounded-2xl flex items-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 text-on-surface">
-                <span className="material-symbols-outlined text-primary">event_upcoming</span>
-                <span className="font-bold text-sm">{t('plan.copyToNextDay')}</span>
-              </button>
-
-              <button onClick={() => { setCopyModeDay(activeDayMenu); setSelectedCopyDays([]); setActiveDayMenu(null); }} className="w-full py-4 px-5 bg-surface-container-low rounded-2xl flex items-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 text-on-surface">
-                <span className="material-symbols-outlined text-primary">edit_calendar</span>
-                <span className="font-bold text-sm">{t('plan.day.copyToOtherDays')}</span>
-              </button>
-
-              <div className="h-px w-full bg-outline-variant/20 my-2"></div>
-
-              <button onClick={() => requestDeleteDay(activeDayMenu)} className="w-full py-4 px-5 bg-error/5 rounded-2xl flex items-center gap-4 hover:bg-error/10 transition-colors active:scale-95 text-error">
-                <span className="material-symbols-outlined">delete_sweep</span>
-                <span className="font-bold text-sm">{t('plan.day.delete')}</span>
-              </button>
-            </div>
-
-            <button onClick={() => setActiveDayMenu(null)} className="w-full py-4 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-2xl transition-colors tracking-wide active:scale-95">
-              {t('plan.cancel')}
-            </button>
-          </div>
-        </div>
+        <PlanActionSheet
+          label="Zarządzaj całym dniem"
+          title="Zarządzaj całym dniem"
+          meta={<span className="truncate">{formatLocalizedDayWithDate(activeDayMenu, t('recipeDetails.locale'), { yesterday: t('planTarget.yesterday'), today: t('planTarget.today'), tomorrow: t('planTarget.tomorrow') })} · <span className="font-semibold text-primary tabular-nums">{formatCompactNumber(getConsumedForDay(activeDayMenu).kcal)} kcal</span></span>}
+          leading={<PlanSheetDayBadge day={parseIsoDate(activeDayMenu)?.getDate() ?? 0} weekday={formatShortWeekday(activeDayMenu, t('recipeDetails.locale'))} isToday={activeDayMenu === todayIsoDate()} />}
+          onClose={() => setActiveDayMenu(null)}
+        >
+          <PlanActionGroup>
+            <PlanAction icon="event_upcoming" label={t('plan.copyToNextDay')} onClick={() => handleCopyDayNext(activeDayMenu)} />
+            <PlanAction icon="edit_calendar" label={t('plan.day.copyToOtherDays')} onClick={() => { setCopyModeDay(activeDayMenu); setSelectedCopyDays([]); setActiveDayMenu(null); }} />
+          </PlanActionGroup>
+          <PlanActionGroup>
+            <PlanAction icon="delete_sweep" label={t('plan.day.delete')} onClick={() => requestDeleteDay(activeDayMenu)} danger />
+          </PlanActionGroup>
+        </PlanActionSheet>
       )}
 
       {/* Tryb masowego kopiowania DNIA - Pływający pasek akcji */}
@@ -728,20 +711,35 @@ export function Plan() {
         );
       })()}
 
-      {/* Menu zarządzania posiłkiem (BottomSheet na mobilce) */}
-      {activeMealMenu && (
-        <div data-scroll-lock className="fixed inset-0 bg-black/10 z-[200] flex flex-col justify-end sm:justify-center items-center p-0 sm:p-6 animate-fade-in" onClick={() => setActiveMealMenu(null)}>
-          <div ref={mealMenuRef} className="bg-surface-container-lowest rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-ambient w-full sm:max-w-sm border-t sm:border border-outline-variant/10 animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="w-12 h-1.5 bg-surface-container-highest rounded-full mx-auto mb-6 sm:hidden"></div>
-
-            <h3 className="font-headline font-bold text-xl text-on-surface mb-6 tracking-tight text-center">Zarządzaj posiłkiem</h3>
-
-            <div className="flex flex-col gap-3 mb-6">
-              <button
+      {activeMealMenu && (() => {
+        const meal: PlanMeal = activeMealMenu;
+        const mealTypes = profileMealTypes(profile);
+        const mealIndex = mealTypes.filter(type => type.visible).findIndex(type => type.id === meal.meal_type);
+        const mealColor = MEAL_COLORS[Math.max(mealIndex, 0) % MEAL_COLORS.length];
+        const mealKcal = getConsumedForDay(meal.meal_date).kcal - getConsumedForDay(meal.meal_date, meal.id).kcal;
+        const recipeId = entityId(meal.recipe);
+        const recipe = recipeId ? recipes.find(r => r.id === recipeId) : undefined;
+        const product = recipeId ? null : resolveMealProduct(meal, userMeals);
+        return (
+          <PlanActionSheet
+            label="Zarządzaj posiłkiem"
+            title={mealTitle(meal)}
+            meta={(
+              <>
+                <span aria-hidden="true" className="w-[7px] h-[7px] rounded-full shrink-0" style={{ backgroundColor: mealColor, boxShadow: `0 0 0 3px ${mealColor}38` }} />
+                <span className="truncate">{mealTypeName(meal.meal_type, mealTypes)} · {formatShortWeekday(meal.meal_date, t('recipeDetails.locale'))} {formatDayMonth(meal.meal_date)} · <span className="font-semibold text-primary tabular-nums">{formatCompactNumber(mealKcal)} kcal</span></span>
+              </>
+            )}
+            leading={<PlanSheetThumb kind={recipe ? 'recipe' : product ? 'product' : 'manual'} recipeImage={recipeCoverImage(recipe)} imageUrl={product?.image_url} alt={mealTitle(meal)} />}
+            onClose={() => setActiveMealMenu(null)}
+          >
+            <PlanActionGroup>
+              <PlanAction
+                icon="edit"
+                label="Edytuj posiłek"
                 onClick={() => {
-                  const meal = activeMealMenu;
-                  const rid = meal.recipe?.id || meal.recipe;
-                  const pid = meal.product?.id || meal.product;
+                  const rid = recipeId;
+                  const pid = entityId(meal.product);
                   if (rid) {
                     navigate(`/recipe/${rid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   } else if (pid) {
@@ -751,41 +749,19 @@ export function Plan() {
                   }
                   setActiveMealMenu(null);
                 }}
-                className="w-full py-4 px-5 bg-primary/10 rounded-2xl flex items-center gap-4 hover:bg-primary/20 transition-colors active:scale-95 text-primary"
-              >
-                <span className="material-symbols-outlined">edit</span>
-                <span className="font-bold text-sm">Edytuj posiłek</span>
-              </button>
-
-              <button onClick={() => handleCopyToNextDay(activeMealMenu)} className="w-full py-4 px-5 bg-surface-container-low rounded-2xl flex items-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 text-on-surface">
-                <span className="material-symbols-outlined text-primary">event_upcoming</span>
-                <span className="font-bold text-sm">{t('plan.copyToNextDay')}</span>
-              </button>
-
-              <button onClick={() => { setCopyModeMeal(activeMealMenu); setMealSelectionAction('copy'); setSelectedCopySlots([]); setActiveMealMenu(null); }} className="w-full py-4 px-5 bg-surface-container-low rounded-2xl flex items-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 text-on-surface">
-                <span className="material-symbols-outlined text-primary">edit_calendar</span>
-                <span className="font-bold text-sm">{t('plan.meal.copyToOtherDays')}</span>
-              </button>
-
-              <button onClick={() => { setCopyModeMeal(activeMealMenu); setMealSelectionAction('move'); setSelectedCopySlots([]); setActiveMealMenu(null); }} className="w-full py-4 px-5 bg-surface-container-low rounded-2xl flex items-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 text-on-surface">
-                <span className="material-symbols-outlined text-primary">drive_file_move</span>
-                <span className="font-bold text-sm">{t('plan.meal.moveTo')}</span>
-              </button>
-
-              <div className="h-px w-full bg-outline-variant/20 my-2"></div>
-
-              <button onClick={() => handleDeleteMeal(activeMealMenu)} className="w-full py-4 px-5 bg-error/5 rounded-2xl flex items-center gap-4 hover:bg-error/10 transition-colors active:scale-95 text-error">
-                <span className="material-symbols-outlined">delete</span>
-                <span className="font-bold text-sm">Usuń posiłek</span>
-              </button>
-            </div>
-
-            <button onClick={() => setActiveMealMenu(null)} className="w-full py-4 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-2xl transition-colors tracking-wide active:scale-95">
-              {t('plan.cancel')}
-            </button>
-          </div>
-        </div>
-      )}
+              />
+            </PlanActionGroup>
+            <PlanActionGroup>
+              <PlanAction icon="event_upcoming" label={t('plan.copyToNextDay')} onClick={() => handleCopyToNextDay(meal)} />
+              <PlanAction icon="edit_calendar" label={t('plan.meal.copyToOtherDays')} onClick={() => { setCopyModeMeal(meal); setMealSelectionAction('copy'); setSelectedCopySlots([]); setActiveMealMenu(null); }} />
+              <PlanAction icon="drive_file_move" label={t('plan.meal.moveTo')} onClick={() => { setCopyModeMeal(meal); setMealSelectionAction('move'); setSelectedCopySlots([]); setActiveMealMenu(null); }} />
+            </PlanActionGroup>
+            <PlanActionGroup>
+              <PlanAction icon="delete" label="Usuń posiłek" onClick={() => handleDeleteMeal(meal)} danger />
+            </PlanActionGroup>
+          </PlanActionSheet>
+        );
+      })()}
 
       {/* Tryb masowego kopiowania - Pływający pasek akcji */}
       {copyModeMeal && (() => {
@@ -911,6 +887,9 @@ function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuC
     <div onClick={isCopyMode ? onMenuClick : onClick} className={`w-full flex flex-col gap-1.5 group relative transition-all duration-300 ${isCopyMode || onClick ? 'cursor-pointer' : ''}`}>
       <div className={`aspect-square w-full rounded-2xl overflow-hidden bg-surface-container-lowest relative shadow-sm border transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface border-transparent' : 'border-outline-variant/10'}`}>
         {renderImage()}
+        <span data-testid="plan-card-kcal" className="absolute left-1 bottom-1 max-w-[calc(100%-8px)] truncate inline-flex items-baseline gap-[2px] rounded-[5px] bg-black/60 backdrop-blur-md px-[5px] py-[3px] leading-none text-white tabular-nums">
+          <span className="font-headline text-[10.5px] font-bold">{kcal}</span> <span className="text-[8.5px] font-medium text-white/75">kcal</span>
+        </span>
         {isCopyMode ? (
           <div className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors ${isSelected ? 'bg-primary border-primary text-on-primary' : 'bg-surface/50 backdrop-blur-md border-white/80 text-transparent'}`}>
             <span className="material-symbols-outlined text-[14px] font-bold">check</span>
@@ -920,17 +899,16 @@ function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuC
             type="button"
             aria-label={t('plan.itemMenu', { name: title })}
             onClick={(e) => { e.stopPropagation(); onMenuClick(); }}
-            className="absolute top-0 right-0 z-10 w-11 h-11 flex items-center justify-center text-white group/menu active:scale-90 transition-transform"
+            className="absolute top-0 right-0 z-10 w-14 h-14 flex items-start justify-end p-1.5 text-white group/menu active:scale-90 transition-transform"
           >
-            <span className="w-7 h-7 bg-black/40 backdrop-blur-md rounded-full shadow-sm flex items-center justify-center group-hover/menu:bg-black/50 transition-colors">
-              <span className="material-symbols-outlined text-[16px]">more_horiz</span>
+            <span className="w-8 h-8 bg-black/40 backdrop-blur-md rounded-full shadow-sm flex items-center justify-center group-hover/menu:bg-black/50 transition-colors">
+              <span className="material-symbols-outlined text-[18px]">more_horiz</span>
             </span>
           </button>
         )}
       </div>
       <div className="flex flex-col px-0.5 min-w-0">
         <h3 className="font-headline font-semibold text-[12px] sm:text-[13px] text-on-surface leading-tight line-clamp-2">{title}</h3>
-        <span data-testid="plan-card-kcal" className="text-[10.5px] font-medium text-on-surface-variant tabular-nums mt-0.5 truncate">{kcal} kcal</span>
       </div>
     </div>
   );

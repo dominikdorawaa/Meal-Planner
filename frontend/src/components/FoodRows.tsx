@@ -7,12 +7,21 @@ import { SelectionCheckbox } from './PlanSelectionControls';
 interface ItemBadgesProps {
   own: boolean;
   unverified: boolean;
+  calendories?: boolean;
 }
 
-export function ItemBadges({ own, unverified }: ItemBadgesProps) {
-  if (!own && !unverified) return null;
+export function ItemBadges({ own, unverified, calendories = false }: ItemBadgesProps) {
+  if (!own && !unverified && !calendories) return null;
   return (
     <span className="flex flex-wrap gap-1">
+      {calendories && (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
+          <span aria-hidden="true" className="material-symbols-outlined text-[11px] leading-none" style={{ fontVariationSettings: "'FILL' 1" }}>
+            verified
+          </span>
+          {t('food.calendoriesBadge')}
+        </span>
+      )}
       {own && (
         <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
           {t('food.ownBadge')}
@@ -33,12 +42,13 @@ interface FoodRowProps {
   amount: string;
   own: boolean;
   unverified: boolean;
+  calendories?: boolean;
   selected: boolean;
   onOpen: () => void;
   onToggleSelected: () => void;
 }
 
-function FoodRow({ name, kcal, amount, own, unverified, selected, onOpen, onToggleSelected, children }: FoodRowProps & { children: ReactNode }) {
+function FoodRow({ name, kcal, amount, own, unverified, calendories, selected, onOpen, onToggleSelected, children }: FoodRowProps & { children: ReactNode }) {
   return (
     <div
       onClick={onOpen}
@@ -47,7 +57,7 @@ function FoodRow({ name, kcal, amount, own, unverified, selected, onOpen, onTogg
       {children}
       <div className="flex flex-col justify-center gap-0.5 px-3 flex-1 min-w-0">
         <h3 className="font-headline font-bold text-[13px] text-on-surface line-clamp-2 leading-relaxed">{name}</h3>
-        <ItemBadges own={own} unverified={unverified} />
+        <ItemBadges own={own} unverified={unverified} calendories={calendories} />
       </div>
       <div
         data-testid="food-row-select-area"

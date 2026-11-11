@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/apiClient';
+import { Wordmark } from '../components/Wordmark';
 
 export function Login() {
   const navigate = useNavigate();
@@ -39,8 +40,8 @@ export function Login() {
     <div className="min-h-screen flex items-center justify-center p-6 bg-surface">
       <div className="w-full max-w-sm bg-surface-container-lowest p-8 rounded-[2rem] shadow-ambient">
         <div className="flex flex-col items-center mb-10">
-          <span className="material-symbols-outlined text-primary text-5xl mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>eco</span>
-          <h1 className="font-headline text-2xl font-bold text-on-surface tracking-tight">Calendories</h1>
+          <img src="/favicon.svg" alt="" className="w-16 h-16 rounded-2xl mb-4" />
+          <h1 className="text-2xl text-on-surface"><Wordmark /></h1>
           <p className="text-on-surface-variant mt-2 font-body text-sm">
             {isRegistering ? 'Załóż nowe konto' : 'Zaloguj się do swojego archiwum'}
           </p>

@@ -138,10 +138,10 @@ class ProductSearchIntegrationTest {
 
     @Test
     void ranksNamesStartingWithTheQueryBeforeOtherMatches() throws Exception {
-        Product inside = saveProduct("Napoj kokosowy nieslodzony", null);
-        Product prefix = saveProduct("Kokosowy jogurt roslinny", null);
+        Product inside = saveProduct("Napoj agrestowy nieslodzony", null);
+        Product prefix = saveProduct("Agrestowy jogurt roslinny", null);
 
-        mockMvc.perform(search("kokosowy"))
+        mockMvc.perform(search("agrestowy"))
                 .andExpect(jsonPath("$.items[0].id").value(prefix.getId().toString()))
                 .andExpect(jsonPath("$.items[1].id").value(inside.getId().toString()));
     }
@@ -184,6 +184,29 @@ class ProductSearchIntegrationTest {
                 .andExpect(jsonPath("$.items[0].unit").value("100ml"))
                 .andExpect(jsonPath("$.items[0].measures[*].code", contains("ml", "cup", "package", "mug")))
                 .andExpect(jsonPath("$.items[0].measures[*].base_amount", contains(1.0, 250.0, 1000.0, 300.0)));
+    }
+
+    @Test
+    void findsKitchenBasicsWithTheirKitchenMeasures() throws Exception {
+        Product openFoodFacts = saveProduct("Czosnek", "Example Farm");
+        openFoodFacts.setSource(ProductSource.OPEN_FOOD_FACTS);
+        productRepository.save(openFoodFacts);
+
+        mockMvc.perform(search("czosnek"))
+                .andExpect(jsonPath("$.items[0].source").value("BASIC"))
+                .andExpect(jsonPath("$.items[0].name").value("Czosnek"))
+                .andExpect(jsonPath("$.items[0].measures[0].code").value("clove"))
+                .andExpect(jsonPath("$.items[0].measures[0].names.pl.one").value("ząbek"));
+        mockMvc.perform(search("limonka"))
+                .andExpect(jsonPath("$.items[0].name").value("Limonka"));
+        mockMvc.perform(search("pieprz"))
+                .andExpect(jsonPath("$.items[0].name").value("Pieprz czarny mielony"))
+                .andExpect(jsonPath("$.items[0].generic_measures[*].code", contains("pinch")));
+        mockMvc.perform(search("proszek do pieczenia"))
+                .andExpect(jsonPath("$.items[0].name").value("Proszek do pieczenia"))
+                .andExpect(jsonPath("$.items[0].measures[*].code", hasItem("tsp")));
+        mockMvc.perform(search("mleko 3,2%"))
+                .andExpect(jsonPath("$.items[0].generic_measures[*].code", hasItem("tbsp")));
     }
 
     @Test

@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   reload: vi.fn(),
   profileStatus: 'ready',
   loading: false,
+  consumedKcal: null as null | ((date: string, excludedMealId?: string | null) => number),
 }))
 
 vi.mock('../lib/apiClient', () => ({
@@ -32,7 +33,7 @@ vi.mock('../lib/AppDataContext', () => ({
     loading: mocks.loading,
     reload: mocks.reload,
     refreshMeals: mocks.refreshMeals,
-    getConsumedForDay: () => ({ kcal: 0, protein: 0, fat: 0, carbs: 0 }),
+    getConsumedForDay: (date: string, excludedMealId?: string | null) => ({ kcal: mocks.consumedKcal?.(date, excludedMealId) ?? 0, protein: 0, fat: 0, carbs: 0 }),
     refreshShoppingList: vi.fn(),
   }),
 }))
@@ -110,6 +111,7 @@ function click(name: string | RegExp) {
 }
 
 beforeEach(() => {
+  mocks.consumedKcal = null
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(2026, 9, 12, 12))
   vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -504,7 +506,7 @@ describe('Plan item deletion', () => {
     openMealMenu(container, '2026-10-12', 'lunch')
     click(/Usuń posiłek/)
 
-    expect(await screen.findByText('Usunięto Coffee z II śniadanie')).toBeTruthy()
+    expect(await screen.findByText('Usunięto z planu')).toBeTruthy()
     expect(mocks.refreshMeals).toHaveBeenCalledTimes(2)
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.queryByRole('alertdialog')).toBeNull()
@@ -514,10 +516,10 @@ describe('Plan item deletion', () => {
     click('Cofnij')
 
     await waitFor(() => expect(mocks.add).toHaveBeenCalledWith(expect.objectContaining({ meal_date: '2026-10-12', meal_type: 'lunch', manual_name: 'Coffee' })))
-    expect(screen.queryByText('Usunięto Coffee z II śniadanie')).toBeNull()
+    expect(screen.queryByText('Usunięto z planu')).toBeNull()
   })
 
-  it('hides the deletion message after five seconds', async () => {
+  it('hides the deletion message after three seconds', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
     vi.setSystemTime(new Date(2026, 9, 12, 12))
     const { container } = renderPlan()
@@ -526,11 +528,11 @@ describe('Plan item deletion', () => {
     click(/Usuń posiłek/)
     await act(async () => {})
 
-    act(() => { vi.advanceTimersByTime(4999) })
-    expect(screen.getByText('Usunięto Coffee z II śniadanie')).toBeTruthy()
+    act(() => { vi.advanceTimersByTime(2999) })
+    expect(screen.getByText('Usunięto z planu')).toBeTruthy()
 
     act(() => { vi.advanceTimersByTime(1) })
-    expect(screen.queryByText('Usunięto Coffee z II śniadanie')).toBeNull()
+    expect(screen.queryByText('Usunięto z planu')).toBeNull()
   })
 
   it('shows an error without undo when deleting an item fails', async () => {
@@ -691,20 +693,59 @@ describe('Plan mobile gestures', () => {
     const { container } = renderPlan()
 
     const button = slot(container, '2026-10-12', 'lunch').getByRole('button', { name: 'Opcje: Coffee' })
+    expect(button.className).toContain('w-14 h-14')
+    fireEvent.click(button)
+
+    expect(screen.getByRole('dialog', { name: 'Zarządzaj posiłkiem' })).toBeTruthy()
+  })
+
+  it('gives the day menu button a large tap area that opens the menu without opening the day summary', () => {
+    renderPlan()
+
+    const button = within(dayHeader('2026-10-13')).getByRole('button', { name: /^Opcje dnia: / })
     expect(button.className).toContain('w-11 h-11')
     fireEvent.click(button)
 
-    expect(screen.getByText('Zarządzaj posiłkiem')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Skopiuj posiłki na inne dni/ })).toBeTruthy()
+    expect(within(dayHeader('2026-10-13')).getByRole('button', { name: /^Pokaż podsumowanie dnia/ }).getAttribute('aria-expanded')).toBe('false')
   })
 
   it('closes the item menu with the back gesture', async () => {
     const { container } = renderPlan()
 
     openMealMenu(container, '2026-10-12', 'breakfast')
-    expect(screen.getByText('Zarządzaj posiłkiem')).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'Zarządzaj posiłkiem' })).toBeTruthy()
     await goBack()
 
-    expect(screen.queryByText('Zarządzaj posiłkiem')).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Zarządzaj posiłkiem' })).toBeNull()
+  })
+
+  it('shows the item, its meal, day and calories at the top of the item menu', () => {
+    mocks.consumedKcal = (date, excludedMealId) => (date === '2026-10-12' ? (excludedMealId === 'meal-2' ? 400 : 420) : 0)
+    const { container } = renderPlan()
+
+    openMealMenu(container, '2026-10-12', 'lunch')
+    const dialog = screen.getByRole('dialog', { name: 'Zarządzaj posiłkiem' })
+
+    expect(within(dialog).getByRole('heading', { name: 'Coffee' })).toBeTruthy()
+    expect(dialog.textContent).toContain('II śniadanie')
+    expect(dialog.textContent).toContain('12.10')
+    expect(dialog.textContent).toContain('20 kcal')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Zamknij' }))
+    expect(screen.queryByRole('dialog', { name: 'Zarządzaj posiłkiem' })).toBeNull()
+  })
+
+  it('shows the day and its calories at the top of the day menu', () => {
+    mocks.consumedKcal = date => (date === '2026-10-12' ? 1840 : 0)
+    renderPlan()
+
+    openDayMenu(0)
+    const dialog = screen.getByRole('dialog', { name: 'Zarządzaj całym dniem' })
+
+    expect(dialog.textContent).toContain('1840 kcal')
+    expect(dialog.textContent).toContain('12')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Zamknij' }))
+    expect(screen.queryByRole('dialog', { name: 'Zarządzaj całym dniem' })).toBeNull()
   })
 
   it('cancels copying with the back gesture', async () => {
@@ -722,13 +763,13 @@ describe('Plan mobile gestures', () => {
     renderPlan()
 
     openDayMenu(0)
-    const sheet = screen.getByText('Zarządzaj całym dniem').parentElement as HTMLElement
+    const sheet = screen.getByRole('dialog', { name: 'Zarządzaj całym dniem' })
     fireEvent.touchStart(sheet, { touches: [{ clientX: 100, clientY: 100 }] })
     fireEvent.touchMove(sheet, { touches: [{ clientX: 100, clientY: 400 }] })
     fireEvent.touchEnd(sheet, { changedTouches: [{ clientX: 100, clientY: 400 }] })
     act(() => vi.advanceTimersByTime(200))
 
-    expect(screen.queryByText('Zarządzaj całym dniem')).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Zarządzaj całym dniem' })).toBeNull()
   })
 })
 
@@ -788,7 +829,7 @@ describe('Plan profile loading', () => {
 })
 
 describe('Plan cards with very large values', () => {
-  it('shortens calories so they stay inside the card', () => {
+  it('shows shortened calories on the photo so they stay inside the card', () => {
     mocks.userMeals.splice(0, mocks.userMeals.length, {
       id: 'meal-9', meal_date: '2026-10-12', meal_type: 'lunch', manual_name: 'Feast',
       manual_kcal: 45000, manual_protein: 5000, manual_fat: 12345, manual_carbs: 900,
@@ -799,6 +840,7 @@ describe('Plan cards with very large values', () => {
     const kcal = card.getByTestId('plan-card-kcal')
     expect(kcal.textContent).toBe('45 tys. kcal')
     expect(kcal.className).toContain('truncate')
+    expect((kcal.parentElement as HTMLElement).className).toContain('aspect-square')
     expect(card.queryByText(/B 5000g/)).toBeNull()
   })
 })
