@@ -578,38 +578,47 @@ describe('Plan start date', () => {
   })
 
   it('keeps the week when returning from the add screen on the same day', () => {
-    rememberPlanReturnPosition({ startDate: '2026-10-19', scrollLeft: 0 })
+    rememberPlanReturnPosition({ startDate: '2026-10-19', visibleIndex: 7 })
     const { container } = renderPlan()
 
     expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).toBeNull()
     expect(container.querySelector('[data-slot="2026-10-19_breakfast"]')).not.toBeNull()
-    expect(readPlanReturnPosition()).toBeNull()
   })
 
   it('ignores a week remembered on an earlier day', () => {
-    rememberPlanReturnPosition({ startDate: '2026-10-19', scrollLeft: 0 }, '2026-10-11')
+    rememberPlanReturnPosition({ startDate: '2026-10-19', visibleIndex: 7 }, '2026-10-11')
     const { container } = renderPlan()
 
     expect(container.querySelector('[data-slot="2026-10-12_breakfast"]')).not.toBeNull()
   })
 
-  it('remembers the shown week when opening the add screen', () => {
-    const { container } = renderPlan()
+  it('remembers the shown week when leaving for the add screen', () => {
+    const { container, unmount } = renderPlan()
 
     fireEvent.click(slot(container, '2026-10-19', 'lunch').getByText('add'))
+    unmount()
 
     expect(mocks.navigate).toHaveBeenCalledWith('/add-food?selectDate=2026-10-19&selectType=lunch')
-    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', scrollLeft: 0, visibleIndex: 7, stripStart: '2026-10-12' })
+    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', visibleIndex: 7, stripStart: '2026-10-12' })
   })
 
-  it('remembers the shown week when opening an item to edit', () => {
-    const { container } = renderPlan()
+  it('remembers the shown week when leaving to edit an item', () => {
+    const { container, unmount } = renderPlan()
 
     openMealMenu(container, '2026-10-12', 'lunch')
     click(/Edytuj posiłek/)
+    unmount()
 
     expect(mocks.navigate).toHaveBeenCalledWith('/add-food?selectDate=2026-10-12&selectType=lunch&mealId=meal-2')
-    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', scrollLeft: 0, visibleIndex: 7, stripStart: '2026-10-12' })
+    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', visibleIndex: 7, stripStart: '2026-10-12' })
+  })
+
+  it('remembers the shown week when the page is reloaded or closed', () => {
+    renderPlan()
+
+    fireEvent(window, new Event('pagehide'))
+
+    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', visibleIndex: 7, stripStart: '2026-10-12' })
   })
 
   it('jumps to today at midnight while the plan stays open', () => {
@@ -924,20 +933,48 @@ describe('Plan scrolling through days', () => {
     expect(planScroller(container).scrollLeft).toBe(11 * 120)
   })
 
-  it('returns to the remembered place after coming back from another screen', () => {
-    rememberPlanReturnPosition({ startDate: '2026-10-05', scrollLeft: 1200 })
+  it('returns to the remembered day after coming back from another screen', () => {
+    rememberPlanReturnPosition({ startDate: '2026-10-05', visibleIndex: 10 })
     const { container } = renderPlan()
 
-    expect(planScroller(container).scrollLeft).toBe(1200)
+    expect(planScroller(container).scrollLeft).toBe(10 * 120)
+    expect(screen.getByTestId('visible-days').style.transform).toBe('translateX(333.33333333333337%)')
     expect(screen.getByRole('button', { name: 'Wróć do dzisiaj' })).toBeTruthy()
   })
 
-  it('keeps the strip on the remembered week and day after coming back', () => {
-    rememberPlanReturnPosition({ startDate: '2026-10-05', scrollLeft: 1200, visibleIndex: 10, stripStart: '2026-10-14' })
-    const { container } = renderPlan()
+  it('keeps the remembered strip week across another visit', () => {
+    rememberPlanReturnPosition({ startDate: '2026-10-05', visibleIndex: 10, stripStart: '2026-10-14' })
+    const { unmount } = renderPlan()
 
-    expect(screen.getByTestId('visible-days').style.transform).toBe('translateX(333.33333333333337%)')
-    fireEvent.click(slot(container, '2026-10-19', 'lunch').getByText('add'))
-    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', scrollLeft: 1200, visibleIndex: 10, stripStart: '2026-10-14' })
+    unmount()
+
+    expect(readPlanReturnPosition()).toEqual({ startDate: '2026-10-05', visibleIndex: 10, stripStart: '2026-10-14' })
+  })
+
+  it('remembers the day scrolled to in the plan when leaving it', () => {
+    const { container, unmount } = renderPlan()
+
+    scrollPlanTo(container, 11)
+    unmount()
+
+    expect(readPlanReturnPosition()).toMatchObject({ startDate: '2026-10-05', visibleIndex: 11 })
+  })
+
+  it('remembers a day near the edge in a window centered on it when leaving before more days load', () => {
+    const { container, unmount } = renderPlan()
+
+    scrollPlanTo(container, 3)
+    unmount()
+
+    expect(readPlanReturnPosition()).toMatchObject({ startDate: '2026-09-28', visibleIndex: 10 })
+  })
+
+  it('remembers a day near the far edge in a window centered on it', () => {
+    const { container, unmount } = renderPlan()
+
+    scrollPlanTo(container, 16)
+    unmount()
+
+    expect(readPlanReturnPosition()).toMatchObject({ startDate: '2026-10-12', visibleIndex: 9 })
   })
 })

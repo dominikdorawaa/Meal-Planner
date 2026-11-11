@@ -12,7 +12,7 @@ import { isDayGoalMet } from '../lib/daySummary';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
 import { mealTypeName, profileMealTypes } from '../lib/mealTypes';
 import { addDaysToIsoDate, formatDayMonth, formatDayWithMonthName, formatLocalizedDayWithDate, formatRelativeDayLabel, formatShortWeekday, parseIsoDate, planDays, toIsoDate, todayIsoDate } from '../lib/planDates';
-import { forgetPlanReturnPosition, readPlanReturnPosition, rememberPlanReturnPosition } from '../lib/planPosition';
+import { readPlanReturnPosition, rememberPlanReturnPosition, type PlanReturnPosition } from '../lib/planPosition';
 import { PlanConflictDialog } from '../components/PlanConflictDialog';
 import { PlanDayDeleteSheet } from '../components/PlanDayDeleteSheet';
 import { useCloseOnBack } from '../lib/backNavigation';
@@ -70,6 +70,13 @@ const shiftDate = (date: Date, days: number) => {
 
 const windowAround = (date: Date) => shiftDate(date, -LEAD_DAYS);
 
+const returnPositionAt = (start: Date, index: number, stripStart?: string): PlanReturnPosition => {
+  let shift = 0;
+  if (index < LEAD_DAYS) shift = -LEAD_DAYS;
+  else if (index >= WINDOW_DAYS - LEAD_DAYS) shift = LEAD_DAYS;
+  return { startDate: toIsoDate(shiftDate(start, shift)), visibleIndex: index - shift, stripStart };
+};
+
 export function Plan() {
   const navigate = useNavigate();
   const { recipes, profile, profileStatus, userMeals, setUserMeals, loading: contextLoading, refreshMeals, getConsumedForDay, reload } = useAppData();
@@ -91,13 +98,13 @@ export function Plan() {
 
   const [returnPosition] = useState(readPlanReturnPosition);
   const [baseDate, setBaseDate] = useState<Date>(() => parseIsoDate(returnPosition?.startDate) ?? windowAround(startOfToday()));
-  const initialVisible = returnPosition ? Math.min(returnPosition.visibleIndex ?? 0, WINDOW_DAYS - VISIBLE_DAYS) : LEAD_DAYS;
+  const [initialVisible] = useState(() => (returnPosition ? Math.min(returnPosition.visibleIndex, WINDOW_DAYS - VISIBLE_DAYS) : LEAD_DAYS));
   const [firstVisible, setFirstVisible] = useState(initialVisible);
   const [settledVisible, setSettledVisible] = useState(initialVisible);
   const stripStart = useRef<string | undefined>(returnPosition?.stripStart);
   const rememberStripStart = useCallback((date: string) => { stripStart.current = date; }, []);
-  const pendingScrollIndex = useRef<number | null>(returnPosition ? null : LEAD_DAYS);
-  const pendingScrollLeft = useRef<number | null>(returnPosition ? returnPosition.scrollLeft : null);
+  const shownPlace = useRef({ baseDate, firstVisible });
+  const pendingScrollIndex = useRef<number | null>(initialVisible);
   const settleTimer = useRef(0);
 
   const days = planDays(baseDate, WINDOW_DAYS);
@@ -131,22 +138,29 @@ export function Plan() {
   useLayoutEffect(() => {
     const scroller = scrollRef.current;
     const index = pendingScrollIndex.current;
-    const left = pendingScrollLeft.current;
-    if (!scroller || (index === null && left === null)) return;
+    if (!scroller || index === null) return;
     pendingScrollIndex.current = null;
-    pendingScrollLeft.current = null;
     const width = (scroller.querySelector('[data-day-column]') as HTMLElement | null)?.offsetWidth ?? 0;
     scroller.classList.remove('scroll-smooth');
-    scroller.scrollLeft = index !== null ? index * width : left ?? 0;
-    requestAnimationFrame(() => {
-      scroller.classList.add('scroll-smooth');
-      if (index === null && width) {
-        const restored = Math.round(scroller.scrollLeft / width);
-        setFirstVisible(restored);
-        setSettledVisible(restored);
-      }
-    });
+    scroller.scrollLeft = index * width;
+    requestAnimationFrame(() => scroller.classList.add('scroll-smooth'));
   }, [baseDate, planReady]);
+
+  useEffect(() => {
+    shownPlace.current = { baseDate, firstVisible };
+  }, [baseDate, firstVisible]);
+
+  useEffect(() => {
+    const rememberShownPlace = () => {
+      const { baseDate: start, firstVisible: index } = shownPlace.current;
+      rememberPlanReturnPosition(returnPositionAt(start, index, stripStart.current));
+    };
+    window.addEventListener('pagehide', rememberShownPlace);
+    return () => {
+      window.removeEventListener('pagehide', rememberShownPlace);
+      rememberShownPlace();
+    };
+  }, []);
 
   const handlePlanScroll = () => {
     const scroller = scrollRef.current;
@@ -175,15 +189,6 @@ export function Plan() {
     else showWindow(windowAround(startOfToday()), LEAD_DAYS);
   };
 
-  const openPlanItem = (path: string) => {
-    rememberPlanReturnPosition({
-      startDate: toIsoDate(baseDate),
-      scrollLeft: scrollRef.current?.scrollLeft ?? 0,
-      visibleIndex: settledVisible,
-      stripStart: stripStart.current,
-    });
-    navigate(path);
-  };
 
   useEffect(() => {
     let shownDay = todayIsoDate();
@@ -218,10 +223,8 @@ export function Plan() {
     if (!contextLoading && profileStatus === 'needsOnboarding') navigate('/onboarding');
   }, [contextLoading, profileStatus, navigate]);
 
-  // Odśwież meals po powrocie na stronę (np. po dodaniu przepisu w /recipes)
   useEffect(() => {
     refreshMeals();
-    forgetPlanReturnPosition();
   }, []);
 
   const handleDeleteMeal = async (meal: PlanMeal) => {
@@ -411,7 +414,7 @@ export function Plan() {
         toggleCopySlot(slotKey);
         return;
       }
-      openPlanItem(`/add-food?selectDate=${date}&selectType=${mealType}`);
+      navigate(`/add-food?selectDate=${date}&selectType=${mealType}`);
     };
 
     const onCardMenu = (meal: PlanMeal) => {
@@ -440,7 +443,7 @@ export function Plan() {
             imgSrc={recipe.image_url || PLACEHOLDER_IMAGE}
             isRecipe
             onClick={() => {
-              if (!copyModeDay && !copyModeMeal) openPlanItem(`/recipe/${recipe.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
+              if (!copyModeDay && !copyModeMeal) navigate(`/recipe/${recipe.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
             }}
           />
         );
@@ -459,7 +462,7 @@ export function Plan() {
             imgSrc={product.image_url || PLACEHOLDER_IMAGE}
             isProduct
             onClick={() => {
-              if (!copyModeDay && !copyModeMeal) openPlanItem(`/product/${product.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
+              if (!copyModeDay && !copyModeMeal) navigate(`/product/${product.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
             }}
           />
         );
@@ -473,7 +476,7 @@ export function Plan() {
           imgSrc={PLACEHOLDER_IMAGE}
           isManual
           onClick={() => {
-            if (!copyModeDay && !copyModeMeal) openPlanItem(`/add-food?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
+            if (!copyModeDay && !copyModeMeal) navigate(`/add-food?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
           }}
         />
       );
@@ -720,11 +723,11 @@ export function Plan() {
                   const rid = meal.recipe?.id || meal.recipe;
                   const pid = meal.product?.id || meal.product;
                   if (rid) {
-                    openPlanItem(`/recipe/${rid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
+                    navigate(`/recipe/${rid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   } else if (pid) {
-                    openPlanItem(`/product/${pid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
+                    navigate(`/product/${pid}?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   } else {
-                    openPlanItem(`/add-food?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
+                    navigate(`/add-food?selectDate=${meal.meal_date}&selectType=${meal.meal_type}&mealId=${meal.id}`);
                   }
                   setActiveMealMenu(null);
                 }}

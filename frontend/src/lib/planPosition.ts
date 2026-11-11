@@ -4,8 +4,7 @@ const PLAN_RETURN_POSITION_KEY = 'planReturnPosition';
 
 export type PlanReturnPosition = {
   startDate: string;
-  scrollLeft: number;
-  visibleIndex?: number;
+  visibleIndex: number;
   stripStart?: string;
 };
 
@@ -22,19 +21,10 @@ export function readPlanReturnPosition(today: string = todayIsoDate()): PlanRetu
   try {
     const saved = JSON.parse(sessionStorage.getItem(PLAN_RETURN_POSITION_KEY) ?? 'null');
     if (saved?.savedOn !== today || !parseIsoDate(saved.startDate)) return null;
-    const visibleIndex = Number.isInteger(saved.visibleIndex) && saved.visibleIndex >= 0 ? saved.visibleIndex : undefined;
+    if (!Number.isInteger(saved.visibleIndex) || saved.visibleIndex < 0) return null;
     const stripStart = parseIsoDate(saved.stripStart) ? saved.stripStart : undefined;
-    return { startDate: saved.startDate, scrollLeft: Number(saved.scrollLeft) || 0, visibleIndex, stripStart };
+    return { startDate: saved.startDate, visibleIndex: saved.visibleIndex, stripStart };
   } catch {
     return null;
-  }
-}
-
-export function forgetPlanReturnPosition(): boolean {
-  try {
-    sessionStorage.removeItem(PLAN_RETURN_POSITION_KEY);
-    return true;
-  } catch {
-    return false;
   }
 }
