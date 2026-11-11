@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { t } from '../i18n';
 import { RecipeCoverImage } from './RecipeCoverImage';
+import type { RecipeImage } from '../lib/recipeImage';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { useDialogFocus } from '../lib/dialog';
 
@@ -81,15 +82,16 @@ export function PlanAction({ icon, label, onClick, danger = false }: PlanActionP
 
 type PlanSheetThumbProps = {
   kind: 'recipe' | 'product' | 'manual';
+  recipeImage?: RecipeImage | null;
   imageUrl?: string | null;
   alt: string;
 };
 
-export function PlanSheetThumb({ kind, imageUrl, alt }: PlanSheetThumbProps) {
+export function PlanSheetThumb({ kind, recipeImage = null, imageUrl, alt }: PlanSheetThumbProps) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const frame = 'w-12 h-12 rounded-xl overflow-hidden bg-surface-container-high';
   if (kind === 'recipe') {
-    return <RecipeCoverImage recipe={{ image_url: imageUrl }} alt={alt} className={frame} />;
+    return <RecipeCoverImage image={recipeImage} alt={alt} className={frame} />;
   }
   if (kind === 'product' && imageUrl && failedUrl !== imageUrl) {
     return (

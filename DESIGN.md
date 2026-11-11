@@ -169,7 +169,7 @@ Głębię buduje jasność tła, nie cienie: kolejne poziomy `surface-container-
 
 **Menu posiłku i dnia** (`src/components/PlanActionSheet.tsx`). Arkusz od dołu jak podsumowanie dnia, z krzyżykiem w prawym górnym rogu zamiast przycisku „Anuluj”. Na górze kontekst zamiast dużego tytułu: miniatura pozycji albo kafelek z numerem dnia (dzisiaj w zieleni), nazwa i jedna linia z porą dnia, datą i kaloriami. Akcje to zwykłe wiersze z szarą ikoną, pogrupowane cienkimi liniami. Kolor ma tylko akcja usuwania (`error`).
 
-**Potwierdzenie z cofnięciem** (`src/components/UndoSnackbar.tsx`). Ciemna pastylka `surface-container-highest` nad dolnym paskiem. Gdy można cofnąć, ma zielony ptaszek, krótki tekst i strzałkę cofania otoczoną pierścieniem, który znika przez czas wyświetlania. Usunięcie posiłku z planu pokazuje „Usunięto z planu” przez 3 sekundy.
+**Potwierdzenie z cofnięciem** (`src/components/UndoSnackbar.tsx`). Pastylka `surface-container-highest` nad dolnym paskiem (w ciemnym motywie ciemna). Gdy można cofnąć, ma zielony ptaszek, krótki tekst i strzałkę cofania otoczoną pierścieniem, który znika przez czas wyświetlania. Usunięcie posiłku z planu pokazuje „Usunięto z planu” przez 3 sekundy.
 
 **Dolny pasek nawigacji.** Pływająca, zaokrąglona pastylka z rozmytym tłem. Nie jest częścią redesignu planu.
 

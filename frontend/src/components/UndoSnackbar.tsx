@@ -33,6 +33,7 @@ export function UndoSnackbar({ message, onUndo, onClose, durationMs = UNDO_SNACK
               cx="20"
               cy="20"
               r="18"
+              pathLength={100}
               fill="none"
               stroke="currentColor"
               strokeWidth="2.5"

@@ -162,12 +162,18 @@ html[data-tab-slide='backward']::view-transition-new(root) {
 }
 
 .undo-countdown {
-  stroke-dasharray: 113.1;
+  stroke-dasharray: 100;
   animation-name: undo-countdown;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
 }
 
 @keyframes undo-countdown {
-  to { stroke-dashoffset: 113.1; }
+  to { stroke-dashoffset: 100; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .undo-countdown {
+    animation: none;
+  }
 }

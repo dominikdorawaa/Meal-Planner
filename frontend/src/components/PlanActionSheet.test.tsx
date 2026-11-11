@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { newRecipeImage } from '../lib/recipeImage'
 import { PlanAction, PlanActionGroup, PlanActionSheet, PlanSheetDayBadge, PlanSheetThumb } from './PlanActionSheet'
 
 afterEach(cleanup)
@@ -74,7 +75,7 @@ describe('PlanSheetThumb', () => {
   })
 
   it('shows the recipe cover for a recipe', () => {
-    render(<PlanSheetThumb kind="recipe" imageUrl="https://example.com/oats.png" alt="Oatmeal" />)
+    render(<PlanSheetThumb kind="recipe" recipeImage={newRecipeImage('https://example.com/oats.png')} alt="Oatmeal" />)
 
     expect(screen.getAllByAltText('Oatmeal').length).toBeGreaterThan(0)
   })

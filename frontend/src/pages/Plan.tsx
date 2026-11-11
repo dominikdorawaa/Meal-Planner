@@ -710,7 +710,7 @@ export function Plan() {
                 <span className="truncate">{mealTypeName(meal.meal_type, mealTypes)} · {formatShortWeekday(meal.meal_date, t('recipeDetails.locale'))} {formatDayMonth(meal.meal_date)} · <span className="font-semibold text-primary tabular-nums">{formatCompactNumber(mealKcal)} kcal</span></span>
               </>
             )}
-            leading={<PlanSheetThumb kind={recipe ? 'recipe' : product ? 'product' : 'manual'} imageUrl={recipe?.image_url ?? product?.image_url} alt={mealTitle(meal)} />}
+            leading={<PlanSheetThumb kind={recipe ? 'recipe' : product ? 'product' : 'manual'} recipeImage={recipeCoverImage(recipe)} imageUrl={product?.image_url} alt={mealTitle(meal)} />}
             onClose={() => setActiveMealMenu(null)}
           >
             <PlanActionGroup>
