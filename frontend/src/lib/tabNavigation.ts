@@ -8,7 +8,7 @@ export const HOME_TAB = '/';
 export const TABS: { path: string; icon: string; label: MessageKey }[] = [
   { path: HOME_TAB, icon: 'calendar_month', label: 'nav.plan' },
   { path: '/recipes', icon: 'restaurant_menu', label: 'nav.recipes' },
-  { path: '/cart', icon: 'list_alt', label: 'nav.shopping' },
+  { path: '/cart', icon: 'checklist', label: 'nav.shopping' },
   { path: '/profile', icon: 'more_horiz', label: 'nav.more' },
 ];
 

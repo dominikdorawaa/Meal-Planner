@@ -64,11 +64,18 @@ describe('BottomNav', () => {
     expect(screen.getByRole('navigation').querySelector('div')?.className).toContain('bottom-[calc(0.5rem+env(safe-area-inset-bottom))]')
   })
 
+  it('uses rounded rectangles for the bar and its tabs', () => {
+    renderApp()
+
+    expect(screen.getByRole('navigation').querySelector('div')?.className).toContain('rounded-[22px]')
+    expect(tab('calendar_monthPlan').className).toContain('rounded-[18px]')
+  })
+
   it('links to every main section with translated labels', () => {
     renderApp()
 
     const links = screen.getAllByRole('link')
-    expect(links.map(link => link.textContent)).toEqual(['calendar_monthPlan', 'restaurant_menuPrzepisy', 'list_altZakupy', 'more_horizWięcej'])
+    expect(links.map(link => link.textContent)).toEqual(['calendar_monthPlan', 'restaurant_menuPrzepisy', 'checklistZakupy', 'more_horizWięcej'])
     expect(links.map(link => link.getAttribute('href'))).toEqual(['/', '/recipes', '/cart', '/profile'])
   })
 
@@ -85,7 +92,7 @@ describe('BottomNav', () => {
     renderApp()
 
     fireEvent.click(tab('restaurant_menuPrzepisy'))
-    fireEvent.click(tab('list_altZakupy'))
+    fireEvent.click(tab('checklistZakupy'))
     fireEvent.click(tab('more_horizWięcej'))
     expect(currentPath()).toBe('/profile')
 
@@ -99,7 +106,7 @@ describe('BottomNav', () => {
   it('goes back in history when the plan tab is picked after leaving the plan', () => {
     renderApp()
 
-    fireEvent.click(tab('list_altZakupy'))
+    fireEvent.click(tab('checklistZakupy'))
     fireEvent.click(tab('calendar_monthPlan'))
     expect(currentPath()).toBe('/')
 
@@ -121,7 +128,7 @@ describe('BottomNav', () => {
   it('returns to the plan after switching tabs from a tab opened directly', () => {
     renderApp(['/recipes'])
 
-    fireEvent.click(tab('list_altZakupy'))
+    fireEvent.click(tab('checklistZakupy'))
     fireEvent.click(screen.getByText('system back'))
     expect(currentPath()).toBe('/')
 
