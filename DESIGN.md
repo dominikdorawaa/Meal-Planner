@@ -28,6 +28,8 @@ colors:
   light-macro-protein: "#4f46e5"
   light-macro-fat: "#f59e0b"
   light-macro-carbs: "#10b981"
+  saved: "#fb7185"
+  light-saved: "#e11d48"
   brand-navy: "#16233a"
   brand-plate: "#eef1ec"
   brand-leaf: "#9fd49a"
@@ -116,6 +118,7 @@ Nazwa łączy kalendarz i kalorie, ale produkt to planowanie jedzenia, nie kalen
 - `primary` (zieleń) to jedyny akcent: aktywne elementy, wartości w normie, dzisiejszy dzień. `today` ma tę samą wartość i jest używany do wyróżnienia dzisiaj w pasku dni, w nagłówkach i w kolumnie planu.
 - `error` oznacza przekroczenie celu: liczby kalorii i makro powyżej zakresu oraz napis „za dużo”.
 - Makro mają stałe kolory w całej aplikacji: białko `macro-protein`, tłuszcz `macro-fat`, węglowodany `macro-carbs`. Kalorie zawsze w `primary`.
+- Zapisany przepis ma wypełnione serce w kolorze `saved` (w jasnym motywie `light-saved`). Plakietki na zdjęciach są zawsze ciemne i używają kolorów ciemnego motywu (klasa `dark` na plakietce), więc serce i kcal są tam jasne w obu motywach. Niezapisany to sam obrys.
 - Pory dnia mają kropki w kolorach `meal-1` do `meal-6`, przypisane według kolejności posiłku w profilu, nie jego nazwy, żeby działały też dla posiłków nazwanych przez użytkownika.
 - Ikona aplikacji ma własną paletę marki: granatowe tło `brand-navy`, jasne talerze `brand-plate` i zielony liść `brand-leaf`. Granat występuje tylko w ikonie, interfejs zostaje w zieleni.
 
@@ -170,6 +173,8 @@ Głębię buduje jasność tła, nie cienie: kolejne poziomy `surface-container-
 **Menu posiłku i dnia** (`src/components/PlanActionSheet.tsx`). Arkusz od dołu jak podsumowanie dnia, z krzyżykiem w prawym górnym rogu zamiast przycisku „Anuluj”. Na górze kontekst zamiast dużego tytułu: miniatura pozycji albo kafelek z numerem dnia (dzisiaj w zieleni), nazwa i jedna linia z porą dnia, datą i kaloriami. Akcje to zwykłe wiersze z szarą ikoną, pogrupowane cienkimi liniami. Kolor ma tylko akcja usuwania (`error`).
 
 **Potwierdzenie z cofnięciem** (`src/components/UndoSnackbar.tsx`). Pastylka `surface-container-highest` nad dolnym paskiem (w ciemnym motywie ciemna). Gdy można cofnąć, ma zielony ptaszek, krótki tekst i strzałkę cofania otoczoną pierścieniem, który znika przez czas wyświetlania. Usunięcie posiłku z planu pokazuje „Usunięto z planu” przez 3 sekundy.
+
+**Lista przepisów** (`src/pages/Recipes.tsx`). Bez tytułu: na górze wyszukiwarka i okrągły „+”. Pod nimi zakres „Moje i zapisane” / „Wszystkie”, przewijany rząd pastylek („Filtry” z licznikiem otwiera arkusz z suwakami, dalej presety na jedno dotknięcie) i linia z licznikiem, sortowaniem i jedną ikoną zmiany widoku. Lista: miniatura 64 px, nazwa w dwóch liniach, B/T/W w kolorach makro, kcal w osobnej kolumnie i serce z polem dotyku 44 px. Kafelki: kwadratowe zdjęcie, na nim jedna ciemna ramka z kcal i czasem oraz serce w rogu. Ładowanie to szkielet w kształcie wierszy albo kafelków. Pusta lista ma jedno zdanie i pole dodawania jak w planie. Brak wyników ma zawsze w tym samym miejscu wyśrodkowany nagłówek, przyczynę, aktywne warunki z krzyżykami i „Wyczyść wszystkie”, a pod spodem przepisy, którym brakuje jednego warunku, jeśli takie są.
 
 **Dolny pasek nawigacji.** Pływająca, zaokrąglona pastylka z rozmytym tłem. Nie jest częścią redesignu planu.
 
