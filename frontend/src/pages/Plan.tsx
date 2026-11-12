@@ -538,6 +538,7 @@ export function Plan() {
         {cards}
         <AddField
           label={validMeals.length > 0 ? t('plan.addMore') : t('plan.add')}
+          compact={validMeals.length > 0 && !copyModeMeal}
           onClick={onSlotClick}
           isToday={isToday}
           isCopyMode={!!copyModeMeal}
@@ -948,7 +949,22 @@ function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuC
   );
 }
 
-function AddField({ label, onClick, isToday, isCopyMode, copyLabel, isSelected, disabled }: { label: string, onClick: () => void, isToday?: boolean, isCopyMode?: boolean, copyLabel: string, isSelected?: boolean, disabled?: boolean }) {
+function AddField({ label, onClick, isToday, isCopyMode, copyLabel, isSelected, disabled, compact }: { label: string, onClick: () => void, isToday?: boolean, isCopyMode?: boolean, copyLabel: string, isSelected?: boolean, disabled?: boolean, compact?: boolean }) {
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        className={`relative shrink-0 h-[30px] w-full rounded-full border border-dashed flex items-center justify-center transition-colors active:scale-[0.97] before:absolute before:-inset-y-2 before:inset-x-0 before:content-[''] ${disabled ? 'opacity-30 pointer-events-none' : ''} ${isToday ? 'border-today/30 text-primary hover:bg-today/[0.06]' : 'border-outline-variant/25 text-on-surface-variant hover:bg-surface-container-low'}`}
+      >
+        <span aria-hidden="true" className={`w-[22px] h-[22px] rounded-full flex items-center justify-center ${isToday ? 'bg-today/15' : 'bg-surface-container-highest'}`}>
+          <span className="material-symbols-outlined text-[15px]">add</span>
+        </span>
+      </button>
+    );
+  }
   const tone = isSelected
     ? 'border-solid border-primary bg-primary/10 ring-2 ring-primary text-primary'
     : isToday

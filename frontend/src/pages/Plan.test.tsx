@@ -911,7 +911,27 @@ describe('Plan meal rows', () => {
     const field = slot(container, '2026-10-14', 'breakfast').getByRole('button', { name: /Dodaj/ })
     expect(field.className).toContain('flex-1')
     expect(field.className).toContain('border-dashed')
-    expect(slot(container, '2026-10-12', 'breakfast').getByRole('button', { name: /Dodaj więcej/ }).className).toContain('bg-today/[0.05]')
+    expect(field.className).toContain('bg-surface-container-low')
+  })
+
+  it('shows a low icon-only dashed button for adding more to a meal with items', () => {
+    const { container } = renderPlan()
+
+    const button = slot(container, '2026-10-12', 'breakfast').getByRole('button', { name: 'Dodaj więcej' })
+    expect(button.className).toContain('h-[30px]')
+    expect(button.className).toContain('border-dashed')
+    expect(button.className).toContain('border-today/30')
+    expect(button.className).not.toContain('flex-1')
+    expect(button.textContent).toBe('add')
+    expect(slot(container, '2026-10-13', 'breakfast').getByRole('button', { name: 'Dodaj więcej' }).className).toContain('border-outline-variant/25')
+  })
+
+  it('opens adding to the meal from the low add more button', () => {
+    const { container } = renderPlan()
+
+    fireEvent.click(slot(container, '2026-10-12', 'breakfast').getByRole('button', { name: 'Dodaj więcej' }))
+
+    expect(mocks.navigate).toHaveBeenCalledWith('/add-food?selectDate=2026-10-12&selectType=breakfast')
   })
 })
 
