@@ -56,20 +56,15 @@ function storeView(view: RecipesView) {
   }
 }
 
-function kcalOf(recipe: RecipeSummary): number {
-  return Math.round(Number(recipe.kcal) || 0);
-}
-
-function gramsOf(value: unknown): number {
+function roundedAmount(value: unknown): number {
   return Math.round(Number(value) || 0);
 }
 
-function HeartIcon({ saved, className, onPhoto = false }: { saved: boolean; className: string; onPhoto?: boolean }) {
-  const savedColor = onPhoto ? 'text-rose-400' : 'text-rose-600 dark:text-rose-400';
+function HeartIcon({ saved, className }: { saved: boolean; className: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`material-symbols-outlined ${className} ${saved ? savedColor : ''}`}
+      className={`material-symbols-outlined ${className} ${saved ? 'text-saved' : ''}`}
       style={saved ? FILLED : undefined}
     >
       favorite
@@ -100,14 +95,14 @@ function RecipeRow({ recipe, saved, detail, onOpen, onToggleSaved }: {
             <span className="text-[11px] font-bold text-on-surface-variant">{detail}</span>
           ) : (
             <span className="flex gap-2 text-[11px] font-semibold tabular-nums">
-              <span className="text-macro-protein">{t('plan.summary.proteinShort')} <b>{gramsOf(recipe.protein)}</b></span>
-              <span className="text-macro-fat">{t('plan.summary.fatShort')} <b>{gramsOf(recipe.fat)}</b></span>
-              <span className="text-macro-carbs">{t('plan.summary.carbsShort')} <b>{gramsOf(recipe.carbs)}</b></span>
+              <span className="text-macro-protein">{t('plan.summary.proteinShort')} <b>{roundedAmount(recipe.protein)}</b></span>
+              <span className="text-macro-fat">{t('plan.summary.fatShort')} <b>{roundedAmount(recipe.fat)}</b></span>
+              <span className="text-macro-carbs">{t('plan.summary.carbsShort')} <b>{roundedAmount(recipe.carbs)}</b></span>
             </span>
           )}
         </span>
         <span className="flex shrink-0 flex-col items-end">
-          <span className="font-headline font-extrabold text-[15px] leading-none text-primary tabular-nums">{kcalOf(recipe)}</span>
+          <span className="font-headline font-extrabold text-[15px] leading-none text-primary tabular-nums">{roundedAmount(recipe.kcal)}</span>
           <span className="text-[10.5px] font-semibold text-on-surface-variant mt-0.5">{t('recipes.kcal')}</span>
         </span>
       </button>
@@ -136,8 +131,8 @@ function RecipeTile({ recipe, saved, onOpen, onToggleSaved }: {
       <button type="button" onClick={onOpen} className="block w-full text-left active:scale-[0.98] transition-transform">
         <span className="relative block aspect-square w-full rounded-2xl overflow-hidden bg-surface-container-lowest">
           <RecipeCoverImage image={recipeCoverImage(recipe)} alt="" className="absolute inset-0 w-full h-full" />
-          <span className="absolute bottom-2 left-2 h-6 px-2 rounded-lg bg-black/60 backdrop-blur-md flex items-center text-[11.5px] tabular-nums text-white/90">
-            <span className="font-headline font-extrabold text-[#9fd49a]">{kcalOf(recipe)} {t('recipes.kcal')}</span>
+          <span className="dark absolute bottom-2 left-2 h-6 px-2 rounded-lg bg-black/60 backdrop-blur-md flex items-center text-[11.5px] tabular-nums text-white/90">
+            <span className="font-headline font-extrabold text-primary">{roundedAmount(recipe.kcal)} {t('recipes.kcal')}</span>
             {prepTime > 0 && (
               <>
                 <span aria-hidden="true" className="material-symbols-outlined text-[13px] ml-1.5 mr-0.5">timer</span>
@@ -155,8 +150,8 @@ function RecipeTile({ recipe, saved, onOpen, onToggleSaved }: {
         aria-label={saveLabel(recipe, saved)}
         className="absolute top-0 right-0 w-11 h-11 flex items-center justify-center active:scale-90 transition-transform"
       >
-        <span className="w-[26px] h-[26px] rounded-full bg-black/55 backdrop-blur-md flex items-center justify-center text-white">
-          <HeartIcon saved={saved} className="text-[15px]" onPhoto />
+        <span className="dark w-[26px] h-[26px] rounded-full bg-black/55 backdrop-blur-md flex items-center justify-center text-white">
+          <HeartIcon saved={saved} className="text-[15px]" />
         </span>
       </button>
     </li>
@@ -241,9 +236,10 @@ export function Recipes() {
     [visible.length, scoped, sort, recentIds, conditions, query],
   );
 
-  const pendingCount = pendingFilters
-    ? matchingRecipes(scoped, query ? [query, ...filterConditions(pendingFilters)] : filterConditions(pendingFilters)).length
-    : 0;
+  const pendingCount = useMemo(
+    () => (pendingFilters ? matchingRecipes(scoped, query ? [query, ...filterConditions(pendingFilters)] : filterConditions(pendingFilters)).length : 0),
+    [pendingFilters, scoped, query],
+  );
 
   const sheetCount = sheetFilterCount(filters);
   const hasConstraints = allConditions.length > 0;
@@ -487,7 +483,7 @@ export function Recipes() {
                     type="button"
                     onClick={() => removeCondition(condition.key)}
                     aria-label={t('recipes.noResults.remove', { label: condition.label })}
-                    className="h-9 pl-3 pr-2 rounded-full bg-surface-container-low flex items-center gap-1 text-[12.5px] font-semibold text-on-surface active:scale-95 transition-transform"
+                    className="h-10 pl-3 pr-2 rounded-full bg-surface-container-low flex items-center gap-1 text-[12.5px] font-semibold text-on-surface active:scale-95 transition-transform"
                   >
                     {condition.label}
                     <span aria-hidden="true" className="material-symbols-outlined text-[16px] text-on-surface-variant">close</span>

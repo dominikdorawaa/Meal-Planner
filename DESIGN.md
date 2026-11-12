@@ -118,7 +118,7 @@ Nazwa łączy kalendarz i kalorie, ale produkt to planowanie jedzenia, nie kalen
 - `primary` (zieleń) to jedyny akcent: aktywne elementy, wartości w normie, dzisiejszy dzień. `today` ma tę samą wartość i jest używany do wyróżnienia dzisiaj w pasku dni, w nagłówkach i w kolumnie planu.
 - `error` oznacza przekroczenie celu: liczby kalorii i makro powyżej zakresu oraz napis „za dużo”.
 - Makro mają stałe kolory w całej aplikacji: białko `macro-protein`, tłuszcz `macro-fat`, węglowodany `macro-carbs`. Kalorie zawsze w `primary`.
-- Zapisany przepis ma wypełnione serce w kolorze `saved` (w jasnym motywie `light-saved`). Na zdjęciach, na ciemnej plakietce, zawsze w jaśniejszej wersji. Niezapisany to sam obrys.
+- Zapisany przepis ma wypełnione serce w kolorze `saved` (w jasnym motywie `light-saved`). Plakietki na zdjęciach są zawsze ciemne i używają kolorów ciemnego motywu (klasa `dark` na plakietce), więc serce i kcal są tam jasne w obu motywach. Niezapisany to sam obrys.
 - Pory dnia mają kropki w kolorach `meal-1` do `meal-6`, przypisane według kolejności posiłku w profilu, nie jego nazwy, żeby działały też dla posiłków nazwanych przez użytkownika.
 - Ikona aplikacji ma własną paletę marki: granatowe tło `brand-navy`, jasne talerze `brand-plate` i zielony liść `brand-leaf`. Granat występuje tylko w ikonie, interfejs zostaje w zieleni.
 

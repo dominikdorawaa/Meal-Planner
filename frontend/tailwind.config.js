@@ -32,6 +32,7 @@ export default {
         'macro-protein': token('macro-protein'),
         'macro-fat': token('macro-fat'),
         'macro-carbs': token('macro-carbs'),
+        saved: token('saved'),
         today: token('today'),
         'on-today': token('on-today')
       },

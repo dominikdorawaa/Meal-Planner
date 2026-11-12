@@ -1,4 +1,4 @@
-import { t, type MessageKey } from '../i18n';
+import { getLanguage, t, type MessageKey } from '../i18n';
 
 export type QuickPreset = 'quick' | 'highprotein' | 'lowcarb' | 'lowcal' | 'lowfat';
 export type PrepTimeFilter = number | '' | 'long';
@@ -211,7 +211,7 @@ export function nearMatches<R extends FilterableRecipe>(
 }
 
 function byName(a: FilterableRecipe, b: FilterableRecipe): number {
-  return String(a.name ?? '').localeCompare(String(b.name ?? ''), 'pl', { sensitivity: 'base' });
+  return String(a.name ?? '').localeCompare(String(b.name ?? ''), getLanguage(), { sensitivity: 'base' });
 }
 
 export function sortRecipes<R extends FilterableRecipe>(recipes: R[], sort: RecipeSort, recentIds: string[]): R[] {
