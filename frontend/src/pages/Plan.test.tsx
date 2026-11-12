@@ -914,14 +914,14 @@ describe('Plan meal rows', () => {
     expect(field.className).toContain('bg-surface-container-low')
   })
 
-  it('shows a low icon-only dashed button for adding more to a meal with items', () => {
+  it('shows an icon-only dashed button for adding more that is low unless it has space to fill', () => {
     const { container } = renderPlan()
 
     const button = slot(container, '2026-10-12', 'breakfast').getByRole('button', { name: 'Dodaj więcej' })
-    expect(button.className).toContain('h-[30px]')
+    expect(button.className).toContain('min-h-[30px]')
+    expect(button.className).toContain('flex-1')
     expect(button.className).toContain('border-dashed')
     expect(button.className).toContain('border-today/30')
-    expect(button.className).not.toContain('flex-1')
     expect(button.textContent).toBe('add')
     expect(slot(container, '2026-10-13', 'breakfast').getByRole('button', { name: 'Dodaj więcej' }).className).toContain('border-outline-variant/25')
   })

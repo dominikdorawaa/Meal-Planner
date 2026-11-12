@@ -957,7 +957,7 @@ function AddField({ label, onClick, isToday, isCopyMode, copyLabel, isSelected, 
         onClick={onClick}
         disabled={disabled}
         aria-label={label}
-        className={`relative shrink-0 h-[30px] w-full rounded-full border border-dashed flex items-center justify-center transition-colors active:scale-[0.97] before:absolute before:-inset-y-2 before:inset-x-0 before:content-[''] ${disabled ? 'opacity-30 pointer-events-none' : ''} ${isToday ? 'border-today/30 text-primary hover:bg-today/[0.06]' : 'border-outline-variant/25 text-on-surface-variant hover:bg-surface-container-low'}`}
+        className={`relative flex-1 min-h-[30px] w-full rounded-2xl border border-dashed flex items-center justify-center transition-colors active:scale-[0.97] before:absolute before:-inset-y-2 before:inset-x-0 before:content-[''] ${disabled ? 'opacity-30 pointer-events-none' : ''} ${isToday ? 'border-today/30 text-primary hover:bg-today/[0.06]' : 'border-outline-variant/25 text-on-surface-variant hover:bg-surface-container-low'}`}
       >
         <span aria-hidden="true" className={`w-[22px] h-[22px] rounded-full flex items-center justify-center ${isToday ? 'bg-today/15' : 'bg-surface-container-highest'}`}>
           <span className="material-symbols-outlined text-[15px]">add</span>
