@@ -123,6 +123,40 @@ export function Plan() {
 
   const columnWidth = () => (scrollRef.current?.querySelector('[data-day-column]') as HTMLElement | null)?.offsetWidth ?? 0;
 
+  const fitSlotRowsToVisibleDays = useCallback(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const width = (scroller.querySelector('[data-day-column]') as HTMLElement | null)?.offsetWidth ?? 0;
+    const first = width ? Math.floor((scroller.scrollLeft + 1) / width) : 0;
+    const last = width ? Math.ceil((scroller.scrollLeft + scroller.clientWidth - 1) / width) : VISIBLE_DAYS;
+    scroller.querySelectorAll<HTMLElement>('[data-meal-row]').forEach(row => {
+      const columns = Array.from(row.children) as HTMLElement[];
+      row.style.removeProperty('--slot-fill');
+      columns.forEach(column => {
+        column.style.removeProperty('max-height');
+        column.style.removeProperty('overflow');
+      });
+      const tallest = Math.max(0, ...columns.slice(first, last).map(column => column.offsetHeight));
+      if (tallest === 0) return;
+      row.style.setProperty('--slot-fill', `${tallest}px`);
+      columns.forEach((column, index) => {
+        if (index >= first && index < last) return;
+        column.style.maxHeight = `${tallest}px`;
+        column.style.overflow = 'hidden';
+      });
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    fitSlotRowsToVisibleDays();
+  });
+
+  useEffect(() => {
+    window.addEventListener('resize', fitSlotRowsToVisibleDays);
+    document.fonts?.ready.then(fitSlotRowsToVisibleDays);
+    return () => window.removeEventListener('resize', fitSlotRowsToVisibleDays);
+  }, [fitSlotRowsToVisibleDays]);
+
   const scrollToDay = (index: number, smooth: boolean) => {
     const scroller = scrollRef.current;
     const left = index * columnWidth();
@@ -177,6 +211,7 @@ export function Plan() {
     const width = columnWidth();
     if (!scroller || !width) return;
     const index = Math.round(scroller.scrollLeft / width);
+    fitSlotRowsToVisibleDays();
     setFirstVisible(index);
     window.clearTimeout(settleTimer.current);
     settleTimer.current = window.setTimeout(() => {
@@ -631,9 +666,9 @@ export function Plan() {
                       {mt.name}
                     </h2>
                   </div>
-                  <section className="flex">
+                  <section className="flex items-start" data-meal-row>
                     {days.map(day => (
-                      <div key={day.date} className={`${DAY_COLUMN} flex flex-col gap-2.5`} data-slot={toSlotKey(day.date, mt.id)}>
+                      <div key={day.date} className={`${DAY_COLUMN} flex flex-col gap-2.5 min-h-[var(--slot-fill,0px)]`} data-slot={toSlotKey(day.date, mt.id)}>
                         {renderSlot(day.date, mt.id, day.isToday)}
                       </div>
                     ))}

@@ -915,6 +915,53 @@ describe('Plan meal rows', () => {
   })
 })
 
+describe('Plan meal row height', () => {
+  beforeEach(() => {
+    stubDayColumnWidth()
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('overflow-x-auto') ? 360 : 0
+    })
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      if (!this.hasAttribute('data-slot')) return 0
+      return this.querySelector('[data-testid="plan-card-kcal"]') ? 300 : 65
+    })
+  })
+
+  function slotColumn(container: HTMLElement, mealDate: string, mealType: string) {
+    return container.querySelector(`[data-slot="${mealDate}_${mealType}"]`) as HTMLElement
+  }
+
+  it('stretches empty slots to the tallest visible day of the meal', () => {
+    const { container } = renderPlan()
+
+    scrollPlanTo(container, 7)
+
+    expect(slotColumn(container, '2026-10-14', 'breakfast').parentElement!.style.getPropertyValue('--slot-fill')).toBe('300px')
+  })
+
+  it('keeps empty slots short when only hidden days have meals', () => {
+    const { container } = renderPlan()
+
+    scrollPlanTo(container, 13)
+
+    const soupColumn = slotColumn(container, '2026-10-25', 'lunch')
+    expect(soupColumn.parentElement!.style.getPropertyValue('--slot-fill')).toBe('65px')
+    expect(soupColumn.style.maxHeight).toBe('65px')
+    expect(soupColumn.style.overflow).toBe('hidden')
+    expect(slotColumn(container, '2026-10-19', 'lunch').style.maxHeight).toBe('')
+  })
+
+  it('fits the rows again when the window is resized', () => {
+    const { container } = renderPlan()
+    const row = slotColumn(container, '2026-10-14', 'breakfast').parentElement!
+    row.style.removeProperty('--slot-fill')
+
+    fireEvent(window, new Event('resize'))
+
+    expect(row.style.getPropertyValue('--slot-fill')).toBe('300px')
+  })
+})
+
 describe('Plan scrolling through days', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
