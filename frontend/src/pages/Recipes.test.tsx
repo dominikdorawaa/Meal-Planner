@@ -26,9 +26,9 @@ vi.mock('../components/BottomNav', () => ({
   BottomNav: () => <nav />,
 }));
 
-const OATMEAL = { id: 'r1', name: 'Owsianka', kcal: 412.6, protein: 12.34, fat: 8, carbs: 61, prep_time: 10, own: true, saved: false };
-const SALMON = { id: 'r2', name: 'Łosoś z piekarnika', kcal: 650, protein: 45, fat: 30, carbs: 10, prep_time: 0, own: false, saved: true };
-const PASTA = { id: 'r3', name: 'Makaron', kcal: 380, protein: 14, fat: 9, carbs: 55, prep_time: 75, own: false, saved: false };
+const OATMEAL = { id: 'r1', name: 'Oatmeal', kcal: 412.6, protein: 12.34, fat: 8, carbs: 61, prep_time: 10, own: true, saved: false };
+const SALMON = { id: 'r2', name: 'Baked salmon', kcal: 650, protein: 45, fat: 30, carbs: 10, prep_time: 0, own: false, saved: true };
+const PASTA = { id: 'r3', name: 'Pasta', kcal: 380, protein: 14, fat: 9, carbs: 55, prep_time: 75, own: false, saved: false };
 
 function renderRecipes(recipes: unknown[] = [OATMEAL, SALMON, PASTA], loading = false) {
   data.recipes = recipes;
@@ -85,11 +85,11 @@ describe('Recipes list', () => {
   it('shows own and saved recipes by default and every recipe in the all scope', () => {
     renderRecipes();
 
-    expect(names()).toEqual(['Łosoś z piekarnika', 'Owsianka']);
+    expect(names()).toEqual(['Baked salmon', 'Oatmeal']);
     expect(screen.getByText(t('recipes.count.few', { count: 2 }))).toBeTruthy();
 
     showAll();
-    expect(names()).toEqual(['Łosoś z piekarnika', 'Makaron', 'Owsianka']);
+    expect(names()).toEqual(['Baked salmon', 'Oatmeal', 'Pasta']);
     expect(screen.getByRole('radio', { name: t('recipes.scope.all') }).getAttribute('aria-checked')).toBe('true');
   });
 
@@ -98,18 +98,18 @@ describe('Recipes list', () => {
     expect(screen.getByText(t('recipes.count.one', { count: 1 }))).toBeTruthy();
     cleanup();
 
-    renderRecipes([1, 2, 3, 4, 5].map(index => ({ ...OATMEAL, id: `r${index}`, name: `Owsianka ${index}` })));
+    renderRecipes([1, 2, 3, 4, 5].map(index => ({ ...OATMEAL, id: `r${index}`, name: `Oatmeal ${index}` })));
     expect(screen.getByText(t('recipes.count.many', { count: 5 }))).toBeTruthy();
   });
 
   it('shows rounded calories and macros in rows', () => {
     renderRecipes();
 
-    const row = within(item('Owsianka'));
+    const row = within(item('Oatmeal'));
     expect(row.getByText('413')).toBeTruthy();
-    expect(item('Owsianka').textContent).toContain(`${t('plan.summary.proteinShort')} 12`);
-    expect(item('Owsianka').textContent).toContain(`${t('plan.summary.fatShort')} 8`);
-    expect(item('Owsianka').textContent).toContain(`${t('plan.summary.carbsShort')} 61`);
+    expect(item('Oatmeal').textContent).toContain(`${t('plan.summary.proteinShort')} 12`);
+    expect(item('Oatmeal').textContent).toContain(`${t('plan.summary.fatShort')} 8`);
+    expect(item('Oatmeal').textContent).toContain(`${t('plan.summary.carbsShort')} 61`);
   });
 
   it('puts recently planned recipes first', () => {
@@ -119,7 +119,7 @@ describe('Recipes list', () => {
     ];
     renderRecipes();
 
-    expect(names()).toEqual(['Owsianka', 'Łosoś z piekarnika']);
+    expect(names()).toEqual(['Oatmeal', 'Baked salmon']);
   });
 
   it('changes the sorting from the menu', () => {
@@ -130,13 +130,13 @@ describe('Recipes list', () => {
     fireEvent.click(sortButton);
     expect(sortButton.getAttribute('aria-expanded')).toBe('true');
     fireEvent.click(screen.getByRole('menuitemradio', { name: t('recipes.sort.kcal') }));
-    expect(names()).toEqual(['Makaron', 'Owsianka', 'Łosoś z piekarnika']);
+    expect(names()).toEqual(['Pasta', 'Oatmeal', 'Baked salmon']);
     expect(screen.queryByRole('menu')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: `${t('recipes.sort.label')}: ${t('recipes.sort.kcal')}` }));
     expect(screen.getByRole('menuitemradio', { name: t('recipes.sort.kcal') }).getAttribute('aria-checked')).toBe('true');
     fireEvent.click(screen.getByRole('menuitemradio', { name: t('recipes.sort.protein') }));
-    expect(names()).toEqual(['Łosoś z piekarnika', 'Makaron', 'Owsianka']);
+    expect(names()).toEqual(['Baked salmon', 'Pasta', 'Oatmeal']);
   });
 
   it('closes the sorting menu when tapping outside', () => {
@@ -153,9 +153,9 @@ describe('Recipes list', () => {
 
     fireEvent.click(screen.getByRole('button', { name: t('recipes.view.grid') }));
     expect(localStorage.getItem(RECIPES_VIEW_STORAGE_KEY)).toBe('grid');
-    expect(within(item('Owsianka')).getByText(`413 ${t('recipes.kcal')}`)).toBeTruthy();
-    expect(within(item('Owsianka')).getByText(t('recipes.minutes', { count: 10 }))).toBeTruthy();
-    expect(within(item('Łosoś z piekarnika')).queryByText('timer')).toBeNull();
+    expect(within(item('Oatmeal')).getByText(`413 ${t('recipes.kcal')}`)).toBeTruthy();
+    expect(within(item('Oatmeal')).getByText(t('recipes.minutes', { count: 10 }))).toBeTruthy();
+    expect(within(item('Baked salmon')).queryByText('timer')).toBeNull();
     cleanup();
 
     renderRecipes();
@@ -188,7 +188,7 @@ describe('Recipes list', () => {
   it('opens a recipe and the new recipe form', () => {
     renderRecipes();
 
-    fireEvent.click(within(item('Owsianka')).getAllByRole('button')[0]);
+    fireEvent.click(within(item('Oatmeal')).getAllByRole('button')[0]);
     expect(screen.getByText('details screen')).toBeTruthy();
     cleanup();
 
@@ -201,7 +201,7 @@ describe('Recipes list', () => {
     localStorage.setItem(RECIPES_VIEW_STORAGE_KEY, 'grid');
     renderRecipes();
 
-    fireEvent.click(within(item('Owsianka')).getAllByRole('button')[0]);
+    fireEvent.click(within(item('Oatmeal')).getAllByRole('button')[0]);
     expect(screen.getByText('details screen')).toBeTruthy();
   });
 
@@ -222,7 +222,7 @@ describe('Recipes list', () => {
 
     expect(screen.getByText(t('recipes.empty.mine'))).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipes.empty.browseAll')) }));
-    expect(names()).toEqual(['Makaron']);
+    expect(names()).toEqual(['Pasta']);
     cleanup();
 
     renderRecipes([]);
@@ -239,9 +239,9 @@ describe('Saving recipes from the list', () => {
     renderRecipes();
     showAll();
 
-    fireEvent.click(heart('Makaron', false));
+    fireEvent.click(heart('Pasta', false));
 
-    expect(heart('Makaron', true).getAttribute('aria-pressed')).toBe('true');
+    expect(heart('Pasta', true).getAttribute('aria-pressed')).toBe('true');
     await waitFor(() => expect(data.refreshRecipes).toHaveBeenCalled());
     expect(api.recipes.save).toHaveBeenCalledWith('r3');
   });
@@ -249,24 +249,24 @@ describe('Saving recipes from the list', () => {
   it('hides an unsaved recipe from your list and brings it back with undo', async () => {
     renderRecipes();
 
-    fireEvent.click(heart('Łosoś z piekarnika', true));
+    fireEvent.click(heart('Baked salmon', true));
 
-    expect(names()).toEqual(['Owsianka']);
+    expect(names()).toEqual(['Oatmeal']);
     expect(screen.getByText(t('recipes.unsaved'))).toBeTruthy();
     await waitFor(() => expect(api.recipes.unsave).toHaveBeenCalledWith('r2'));
 
     fireEvent.click(screen.getByRole('button', { name: t('plan.snackbar.undo') }));
     await waitFor(() => expect(api.recipes.save).toHaveBeenCalledWith('r2'));
-    expect(names()).toEqual(['Łosoś z piekarnika', 'Owsianka']);
+    expect(names()).toEqual(['Baked salmon', 'Oatmeal']);
     expect(screen.queryByText(t('recipes.unsaved'))).toBeNull();
   });
 
   it('keeps your own recipe in the list after unsaving it', async () => {
     renderRecipes([{ ...OATMEAL, saved: true }]);
 
-    fireEvent.click(heart('Owsianka', true));
+    fireEvent.click(heart('Oatmeal', true));
 
-    expect(names()).toEqual(['Owsianka']);
+    expect(names()).toEqual(['Oatmeal']);
     expect(screen.queryByText(t('recipes.unsaved'))).toBeNull();
     await waitFor(() => expect(api.recipes.unsave).toHaveBeenCalledWith('r1'));
   });
@@ -275,7 +275,7 @@ describe('Saving recipes from the list', () => {
     localStorage.setItem(RECIPES_VIEW_STORAGE_KEY, 'grid');
     renderRecipes();
 
-    fireEvent.click(heart('Owsianka', false));
+    fireEvent.click(heart('Oatmeal', false));
 
     expect(screen.queryByText('details screen')).toBeNull();
     await waitFor(() => expect(api.recipes.save).toHaveBeenCalledWith('r1'));
@@ -286,17 +286,17 @@ describe('Saving recipes from the list', () => {
     renderRecipes();
     showAll();
 
-    fireEvent.click(heart('Makaron', false));
+    fireEvent.click(heart('Pasta', false));
 
     expect(await screen.findByText(t('recipeDetails.savedFailed'))).toBeTruthy();
-    expect(heart('Makaron', false).getAttribute('aria-pressed')).toBe('false');
+    expect(heart('Pasta', false).getAttribute('aria-pressed')).toBe('false');
   });
 
   it('hides the snackbar after its time', () => {
     vi.useFakeTimers();
     try {
       renderRecipes();
-      fireEvent.click(heart('Łosoś z piekarnika', true));
+      fireEvent.click(heart('Baked salmon', true));
       expect(screen.getByText(t('recipes.unsaved'))).toBeTruthy();
 
       act(() => { vi.advanceTimersByTime(7000); });
@@ -313,8 +313,8 @@ describe('Recipes search and filters', () => {
     showAll();
 
     expect(screen.getByLabelText(t('recipes.searchPlaceholder')).getAttribute('autocomplete')).toBe('off');
-    fireEvent.change(screen.getByLabelText(t('recipes.searchPlaceholder')), { target: { value: 'OWS' } });
-    expect(names()).toEqual(['Owsianka']);
+    fireEvent.change(screen.getByLabelText(t('recipes.searchPlaceholder')), { target: { value: 'OAT' } });
+    expect(names()).toEqual(['Oatmeal']);
 
     fireEvent.click(screen.getByRole('button', { name: t('recipes.clearSearch') }));
     expect(names()).toHaveLength(3);
@@ -327,7 +327,7 @@ describe('Recipes search and filters', () => {
     const preset = screen.getByRole('button', { name: new RegExp(t('recipes.filters.quick.lowfat')) });
     fireEvent.click(preset);
     expect(preset.getAttribute('aria-pressed')).toBe('true');
-    expect(names()).toEqual(['Makaron', 'Owsianka']);
+    expect(names()).toEqual(['Oatmeal', 'Pasta']);
 
     fireEvent.click(preset);
     expect(names()).toHaveLength(3);
@@ -350,8 +350,8 @@ describe('Recipes search and filters', () => {
     fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.prepTimeUpTo', { count: 15 }) }));
     fireEvent.click(showButton(2, 'few'));
 
-    expect(names()).toEqual(['Makaron', 'Owsianka']);
-    expect(screen.getByRole('button', { name: t('recipes.filters.open') }).textContent).toContain('3');
+    expect(names()).toEqual(['Oatmeal', 'Pasta']);
+    expect(screen.getByRole('button', { name: t('recipes.filters.openActive', { count: 3 }) }).textContent).toContain('3');
   });
 
   it('turns sliders back to no limit at their ends and resets without touching presets', () => {
@@ -370,7 +370,7 @@ describe('Recipes search and filters', () => {
     fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.reset') }));
     expect(screen.getByRole('button', { name: t('recipes.filters.prepTimeLong') }).getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(showButton(2, 'few'));
-    expect(names()).toEqual(['Makaron', 'Owsianka']);
+    expect(names()).toEqual(['Oatmeal', 'Pasta']);
   });
 
   it('closes the sheet without applying from the close button or outside', () => {
@@ -403,7 +403,7 @@ describe('Recipes search and filters', () => {
 
     const label = t('recipes.filters.quick.lowcal');
     fireEvent.click(screen.getByRole('button', { name: t('recipes.noResults.remove', { label }) }));
-    expect(names()).toEqual(['Łosoś z piekarnika']);
+    expect(names()).toEqual(['Baked salmon']);
   });
 
   it('explains empty search results without closest recipes and clears everything', () => {

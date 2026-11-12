@@ -356,7 +356,7 @@ export function Recipes() {
           <button
             type="button"
             onClick={() => setPendingFilters({ ...filters })}
-            aria-label={t('recipes.filters.open')}
+            aria-label={sheetCount > 0 ? t('recipes.filters.openActive', { count: sheetCount }) : t('recipes.filters.open')}
             className={`${chipBase} ${chipIdle} text-on-surface`}
           >
             <span aria-hidden="true" className="material-symbols-outlined text-[17px]">tune</span>

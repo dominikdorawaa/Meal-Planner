@@ -195,6 +195,7 @@
   "recipes.empty.add": "Dodaj przepis",
   "recipes.minutes": "{count} min",
   "recipes.filters.open": "Filtry przepisów",
+  "recipes.filters.openActive": "Filtry przepisów, aktywne: {count}",
   "recipes.filters.title": "Filtry",
   "recipes.filters.reset": "Resetuj",
   "recipes.filters.quick.quick": "Szybkie",

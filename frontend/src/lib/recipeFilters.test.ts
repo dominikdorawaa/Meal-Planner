@@ -13,9 +13,9 @@ import {
   type RecipeFilters,
 } from './recipeFilters';
 
-const OATMEAL = { id: 'r1', name: 'Owsianka', kcal: 412.6, protein: 12, fat: 8, carbs: 61, prep_time: 10 };
-const SALMON = { id: 'r2', name: 'Łosoś', kcal: 650, protein: 45, fat: 30, carbs: 10, prep_time: 0 };
-const PASTA = { id: 'r3', name: 'Makaron', kcal: 380, protein: 14, fat: 9, carbs: 55, prep_time: 75 };
+const OATMEAL = { id: 'r1', name: 'Oatmeal', kcal: 412.6, protein: 12, fat: 8, carbs: 61, prep_time: 10 };
+const SALMON = { id: 'r2', name: 'Salmon', kcal: 650, protein: 45, fat: 30, carbs: 10, prep_time: 0 };
+const PASTA = { id: 'r3', name: 'Pasta', kcal: 380, protein: 14, fat: 9, carbs: 55, prep_time: 75 };
 const RECIPES = [OATMEAL, SALMON, PASTA];
 
 function filters(patch: Partial<RecipeFilters>): RecipeFilters {
@@ -28,11 +28,11 @@ function names(list: { name?: string | null }[]) {
 
 describe('recipe filter conditions', () => {
   it.each([
-    ['quick', ['Owsianka']],
-    ['highprotein', ['Łosoś']],
-    ['lowcarb', ['Łosoś']],
-    ['lowcal', ['Makaron']],
-    ['lowfat', ['Owsianka', 'Makaron']],
+    ['quick', ['Oatmeal']],
+    ['highprotein', ['Salmon']],
+    ['lowcarb', ['Salmon']],
+    ['lowcal', ['Pasta']],
+    ['lowfat', ['Oatmeal', 'Pasta']],
   ] as const)('applies the %s preset', (preset, expected) => {
     expect(names(matchingRecipes(RECIPES, filterConditions(filters({ quick: [preset] }))))).toEqual(expected);
   });
@@ -46,11 +46,11 @@ describe('recipe filter conditions', () => {
       t('recipes.filters.carbsChip', { value: 60 }),
       t('recipes.filters.prepTimeLong'),
     ]);
-    expect(names(matchingRecipes(RECIPES, conditions))).toEqual(['Makaron']);
+    expect(names(matchingRecipes(RECIPES, conditions))).toEqual(['Pasta']);
   });
 
   it('treats recipes without a preparation time as not matching time filters', () => {
-    expect(names(matchingRecipes(RECIPES, filterConditions(filters({ maxPrepTime: 15 }))))).toEqual(['Owsianka']);
+    expect(names(matchingRecipes(RECIPES, filterConditions(filters({ maxPrepTime: 15 }))))).toEqual(['Oatmeal']);
     expect(filterConditions(filters({ maxPrepTime: 15 }))[0].label).toBe(t('recipes.filters.prepTimeUpTo', { count: 15 }));
   });
 
@@ -71,11 +71,11 @@ describe('recipe filter conditions', () => {
 
   it('searches names without case and ignores an empty query', () => {
     expect(searchCondition('   ')).toBeNull();
-    const search = searchCondition(' OWS ')!;
+    const search = searchCondition(' OAT ')!;
 
-    expect(search.label).toBe(t('recipes.searchChip', { query: 'OWS' }));
+    expect(search.label).toBe(t('recipes.searchChip', { query: 'OAT' }));
     expect(search.miss(OATMEAL)).toBe('');
-    expect(names(matchingRecipes([...RECIPES, { id: 'r4', name: null }], [search]))).toEqual(['Owsianka']);
+    expect(names(matchingRecipes([...RECIPES, { id: 'r4', name: null }], [search]))).toEqual(['Oatmeal']);
   });
 });
 
@@ -108,8 +108,8 @@ describe('near matches', () => {
     const conditions = filterConditions(filters({ maxKcal: 300, minProtein: 13 }));
 
     expect(nearMatches(RECIPES, conditions, null, 5).map(match => [match.recipe.name, match.miss])).toEqual([
-      ['Łosoś', t('recipes.missing.kcal', { value: 650 })],
-      ['Makaron', t('recipes.missing.kcal', { value: 380 })],
+      ['Salmon', t('recipes.missing.kcal', { value: 650 })],
+      ['Pasta', t('recipes.missing.kcal', { value: 380 })],
     ]);
     expect(nearMatches(RECIPES, conditions, null, 1)).toHaveLength(1);
   });
@@ -117,7 +117,7 @@ describe('near matches', () => {
   it('keeps the search as a hard requirement', () => {
     const conditions = filterConditions(filters({ maxKcal: 300 }));
 
-    expect(nearMatches(RECIPES, conditions, searchCondition('mak'), 5).map(match => match.recipe.name)).toEqual(['Makaron']);
+    expect(nearMatches(RECIPES, conditions, searchCondition('pas'), 5).map(match => match.recipe.name)).toEqual(['Pasta']);
   });
 
   it('shows nothing for a single filter or a search alone', () => {
@@ -128,19 +128,25 @@ describe('near matches', () => {
 
 describe('recipe sorting', () => {
   it('sorts by name, calories and protein', () => {
-    expect(names(sortRecipes(RECIPES, 'name', []))).toEqual(['Łosoś', 'Makaron', 'Owsianka']);
-    expect(names(sortRecipes(RECIPES, 'kcal', []))).toEqual(['Makaron', 'Owsianka', 'Łosoś']);
-    expect(names(sortRecipes(RECIPES, 'protein', []))).toEqual(['Łosoś', 'Makaron', 'Owsianka']);
+    expect(names(sortRecipes(RECIPES, 'name', []))).toEqual(['Oatmeal', 'Pasta', 'Salmon']);
+    expect(names(sortRecipes(RECIPES, 'kcal', []))).toEqual(['Pasta', 'Oatmeal', 'Salmon']);
+    expect(names(sortRecipes(RECIPES, 'protein', []))).toEqual(['Salmon', 'Pasta', 'Oatmeal']);
   });
 
   it('puts recently used recipes first and the rest by name', () => {
-    expect(names(sortRecipes(RECIPES, 'recent', ['r3', 'r1']))).toEqual(['Makaron', 'Owsianka', 'Łosoś']);
+    expect(names(sortRecipes(RECIPES, 'recent', ['r3', 'r1']))).toEqual(['Pasta', 'Oatmeal', 'Salmon']);
   });
 
   it('breaks ties by name', () => {
-    const twin = { ...OATMEAL, id: 'r5', name: 'Amarantus' };
-    expect(names(sortRecipes([OATMEAL, twin], 'kcal', []))).toEqual(['Amarantus', 'Owsianka']);
-    expect(names(sortRecipes([OATMEAL, twin], 'protein', []))).toEqual(['Amarantus', 'Owsianka']);
-    expect(names(sortRecipes([{ id: 'x', name: undefined }, OATMEAL], 'name', []))).toEqual([undefined, 'Owsianka']);
+    const twin = { ...OATMEAL, id: 'r5', name: 'Amaranth' };
+    expect(names(sortRecipes([OATMEAL, twin], 'kcal', []))).toEqual(['Amaranth', 'Oatmeal']);
+    expect(names(sortRecipes([OATMEAL, twin], 'protein', []))).toEqual(['Amaranth', 'Oatmeal']);
+    expect(names(sortRecipes([{ id: 'x', name: undefined }, OATMEAL], 'name', []))).toEqual([undefined, 'Oatmeal']);
+  });
+
+  it('sorts Polish diacritics in Polish alphabet order for the Polish interface', () => {
+    const polishNames = ['Makaron', 'Łosoś', 'Lody'].map((name, index) => ({ id: `p${index}`, name }));
+
+    expect(names(sortRecipes(polishNames, 'name', []))).toEqual(['Lody', 'Łosoś', 'Makaron']);
   });
 });
