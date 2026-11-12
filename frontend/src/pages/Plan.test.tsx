@@ -911,7 +911,74 @@ describe('Plan meal rows', () => {
     const field = slot(container, '2026-10-14', 'breakfast').getByRole('button', { name: /Dodaj/ })
     expect(field.className).toContain('flex-1')
     expect(field.className).toContain('border-dashed')
-    expect(slot(container, '2026-10-12', 'breakfast').getByRole('button', { name: /Dodaj więcej/ }).className).toContain('bg-today/[0.05]')
+    expect(field.className).toContain('bg-surface-container-low')
+  })
+
+  it('shows an icon-only dashed button for adding more that is low unless it has space to fill', () => {
+    const { container } = renderPlan()
+
+    const button = slot(container, '2026-10-12', 'breakfast').getByRole('button', { name: 'Dodaj więcej' })
+    expect(button.className).toContain('min-h-[30px]')
+    expect(button.className).toContain('flex-1')
+    expect(button.className).toContain('border-dashed')
+    expect(button.className).toContain('border-today/30')
+    expect(button.textContent).toBe('add')
+    expect(slot(container, '2026-10-13', 'breakfast').getByRole('button', { name: 'Dodaj więcej' }).className).toContain('border-outline-variant/25')
+  })
+
+  it('opens adding to the meal from the low add more button', () => {
+    const { container } = renderPlan()
+
+    fireEvent.click(slot(container, '2026-10-12', 'breakfast').getByRole('button', { name: 'Dodaj więcej' }))
+
+    expect(mocks.navigate).toHaveBeenCalledWith('/add-food?selectDate=2026-10-12&selectType=breakfast')
+  })
+})
+
+describe('Plan meal row height', () => {
+  beforeEach(() => {
+    stubDayColumnWidth()
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('overflow-x-auto') ? 360 : 0
+    })
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      if (!this.hasAttribute('data-slot')) return 0
+      return this.querySelector('[data-testid="plan-card-kcal"]') ? 300 : 65
+    })
+  })
+
+  function slotColumn(container: HTMLElement, mealDate: string, mealType: string) {
+    return container.querySelector(`[data-slot="${mealDate}_${mealType}"]`) as HTMLElement
+  }
+
+  it('stretches empty slots to the tallest visible day of the meal', () => {
+    const { container } = renderPlan()
+
+    scrollPlanTo(container, 7)
+
+    expect(slotColumn(container, '2026-10-14', 'breakfast').parentElement!.style.getPropertyValue('--slot-fill')).toBe('300px')
+  })
+
+  it('keeps empty slots short when only hidden days have meals', () => {
+    const { container } = renderPlan()
+
+    scrollPlanTo(container, 13)
+
+    const soupColumn = slotColumn(container, '2026-10-25', 'lunch')
+    expect(soupColumn.parentElement!.style.getPropertyValue('--slot-fill')).toBe('65px')
+    expect(soupColumn.style.maxHeight).toBe('65px')
+    expect(soupColumn.style.overflow).toBe('hidden')
+    expect(slotColumn(container, '2026-10-19', 'lunch').style.maxHeight).toBe('')
+  })
+
+  it('fits the rows again when the window is resized', () => {
+    const { container } = renderPlan()
+    const row = slotColumn(container, '2026-10-14', 'breakfast').parentElement!
+    row.style.removeProperty('--slot-fill')
+
+    fireEvent(window, new Event('resize'))
+
+    expect(row.style.getPropertyValue('--slot-fill')).toBe('300px')
   })
 })
 

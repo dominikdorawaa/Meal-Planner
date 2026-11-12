@@ -123,6 +123,40 @@ export function Plan() {
 
   const columnWidth = () => (scrollRef.current?.querySelector('[data-day-column]') as HTMLElement | null)?.offsetWidth ?? 0;
 
+  const fitSlotRowsToVisibleDays = useCallback(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const width = (scroller.querySelector('[data-day-column]') as HTMLElement | null)?.offsetWidth ?? 0;
+    const first = width ? Math.floor((scroller.scrollLeft + 1) / width) : 0;
+    const last = width ? Math.ceil((scroller.scrollLeft + scroller.clientWidth - 1) / width) : VISIBLE_DAYS;
+    scroller.querySelectorAll<HTMLElement>('[data-meal-row]').forEach(row => {
+      const columns = Array.from(row.children) as HTMLElement[];
+      row.style.removeProperty('--slot-fill');
+      columns.forEach(column => {
+        column.style.removeProperty('max-height');
+        column.style.removeProperty('overflow');
+      });
+      const tallest = Math.max(0, ...columns.slice(first, last).map(column => column.offsetHeight));
+      if (tallest === 0) return;
+      row.style.setProperty('--slot-fill', `${tallest}px`);
+      columns.forEach((column, index) => {
+        if (index >= first && index < last) return;
+        column.style.maxHeight = `${tallest}px`;
+        column.style.overflow = 'hidden';
+      });
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    fitSlotRowsToVisibleDays();
+  });
+
+  useEffect(() => {
+    window.addEventListener('resize', fitSlotRowsToVisibleDays);
+    document.fonts?.ready.then(fitSlotRowsToVisibleDays);
+    return () => window.removeEventListener('resize', fitSlotRowsToVisibleDays);
+  }, [fitSlotRowsToVisibleDays]);
+
   const scrollToDay = (index: number, smooth: boolean) => {
     const scroller = scrollRef.current;
     const left = index * columnWidth();
@@ -177,6 +211,7 @@ export function Plan() {
     const width = columnWidth();
     if (!scroller || !width) return;
     const index = Math.round(scroller.scrollLeft / width);
+    fitSlotRowsToVisibleDays();
     setFirstVisible(index);
     window.clearTimeout(settleTimer.current);
     settleTimer.current = window.setTimeout(() => {
@@ -503,6 +538,7 @@ export function Plan() {
         {cards}
         <AddField
           label={validMeals.length > 0 ? t('plan.addMore') : t('plan.add')}
+          compact={validMeals.length > 0 && !copyModeMeal}
           onClick={onSlotClick}
           isToday={isToday}
           isCopyMode={!!copyModeMeal}
@@ -631,9 +667,9 @@ export function Plan() {
                       {mt.name}
                     </h2>
                   </div>
-                  <section className="flex">
+                  <section className="flex items-start" data-meal-row>
                     {days.map(day => (
-                      <div key={day.date} className={`${DAY_COLUMN} flex flex-col gap-2.5`} data-slot={toSlotKey(day.date, mt.id)}>
+                      <div key={day.date} className={`${DAY_COLUMN} flex flex-col gap-2.5 min-h-[var(--slot-fill,0px)]`} data-slot={toSlotKey(day.date, mt.id)}>
                         {renderSlot(day.date, mt.id, day.isToday)}
                       </div>
                     ))}
@@ -913,7 +949,22 @@ function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuC
   );
 }
 
-function AddField({ label, onClick, isToday, isCopyMode, copyLabel, isSelected, disabled }: { label: string, onClick: () => void, isToday?: boolean, isCopyMode?: boolean, copyLabel: string, isSelected?: boolean, disabled?: boolean }) {
+function AddField({ label, onClick, isToday, isCopyMode, copyLabel, isSelected, disabled, compact }: { label: string, onClick: () => void, isToday?: boolean, isCopyMode?: boolean, copyLabel: string, isSelected?: boolean, disabled?: boolean, compact?: boolean }) {
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        className={`relative flex-1 min-h-[30px] w-full rounded-2xl border border-dashed flex items-center justify-center transition-colors active:scale-[0.97] before:absolute before:-inset-y-2 before:inset-x-0 before:content-[''] ${disabled ? 'opacity-30 pointer-events-none' : ''} ${isToday ? 'border-today/30 text-primary hover:bg-today/[0.06]' : 'border-outline-variant/25 text-on-surface-variant hover:bg-surface-container-low'}`}
+      >
+        <span aria-hidden="true" className={`w-[22px] h-[22px] rounded-full flex items-center justify-center ${isToday ? 'bg-today/15' : 'bg-surface-container-highest'}`}>
+          <span className="material-symbols-outlined text-[15px]">add</span>
+        </span>
+      </button>
+    );
+  }
   const tone = isSelected
     ? 'border-solid border-primary bg-primary/10 ring-2 ring-primary text-primary'
     : isToday
