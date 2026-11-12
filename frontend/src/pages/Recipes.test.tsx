@@ -1,14 +1,26 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { Recipes } from './Recipes';
+import { RECIPES_VIEW_STORAGE_KEY, Recipes } from './Recipes';
 import { t } from '../i18n';
 
-const data = vi.hoisted(() => ({ recipes: [] as unknown[], loading: false }));
+const data = vi.hoisted(() => ({
+  recipes: [] as unknown[],
+  userMeals: [] as unknown[],
+  user: null,
+  loading: false,
+  refreshRecipes: vi.fn(),
+}));
+
+const api = vi.hoisted(() => ({
+  recipes: { save: vi.fn(), unsave: vi.fn() },
+}));
 
 vi.mock('../lib/AppDataContext', () => ({
   useAppData: () => data,
 }));
+
+vi.mock('../lib/apiClient', () => ({ api }));
 
 vi.mock('../components/BottomNav', () => ({
   BottomNav: () => <nav />,
@@ -33,188 +45,382 @@ function renderRecipes(recipes: unknown[] = [OATMEAL, SALMON, PASTA], loading = 
 }
 
 function names() {
-  return screen.queryAllByRole('heading', { level: 3 }).map(heading => heading.textContent);
+  return screen.queryAllByRole('listitem').map(item => item.querySelector('.line-clamp-2')?.textContent);
 }
 
-function card(name: string) {
-  return screen.getByRole('heading', { level: 3, name }).parentElement!.parentElement as HTMLElement;
+function item(name: string) {
+  return screen.getAllByRole('listitem').find(entry => entry.textContent?.includes(name)) as HTMLElement;
 }
 
-function applyFilters() {
-  fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipes.filters.apply')) }));
+function showAll() {
+  fireEvent.click(screen.getByRole('radio', { name: t('recipes.scope.all') }));
 }
+
+function openFilters() {
+  fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.open') }));
+}
+
+function showButton(count: number, form: 'one' | 'few' | 'many') {
+  return screen.getByRole('button', { name: t(`recipes.filters.show.${form}`, { count }) });
+}
+
+function heart(name: string, saved: boolean) {
+  return screen.getByRole('button', { name: t(saved ? 'recipes.unsaveNamed' : 'recipes.saveNamed', { name }) });
+}
+
+beforeEach(() => {
+  data.userMeals = [];
+  data.refreshRecipes = vi.fn().mockResolvedValue(undefined);
+  api.recipes.save = vi.fn().mockResolvedValue(undefined);
+  api.recipes.unsave = vi.fn().mockResolvedValue(undefined);
+  localStorage.clear();
+});
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
 
 describe('Recipes list', () => {
-  it('lists recipes alphabetically with the counter in the right plural form', () => {
+  it('shows own and saved recipes by default and every recipe in the all scope', () => {
     renderRecipes();
 
+    expect(names()).toEqual(['Łosoś z piekarnika', 'Owsianka']);
+    expect(screen.getByText(t('recipes.count.few', { count: 2 }))).toBeTruthy();
+
+    showAll();
     expect(names()).toEqual(['Łosoś z piekarnika', 'Makaron', 'Owsianka']);
-    expect(screen.getByText(t('recipes.count.few', { count: 3 }))).toBeTruthy();
+    expect(screen.getByRole('radio', { name: t('recipes.scope.all') }).getAttribute('aria-checked')).toBe('true');
   });
 
-  it('uses the singular form for one recipe', () => {
-    renderRecipes([PASTA]);
-
+  it('uses the singular and plural counter forms', () => {
+    renderRecipes([OATMEAL]);
     expect(screen.getByText(t('recipes.count.one', { count: 1 }))).toBeTruthy();
-  });
+    cleanup();
 
-  it('uses the plural form for five and more recipes', () => {
-    renderRecipes([1, 2, 3, 4, 5].map(index => ({ ...PASTA, id: `r${index}`, name: `Makaron ${index}` })));
-
+    renderRecipes([1, 2, 3, 4, 5].map(index => ({ ...OATMEAL, id: `r${index}`, name: `Owsianka ${index}` })));
     expect(screen.getByText(t('recipes.count.many', { count: 5 }))).toBeTruthy();
   });
 
-  it('rounds the nutrition on the cards and hides an empty preparation time', () => {
+  it('shows rounded calories and macros in rows', () => {
     renderRecipes();
 
-    const oatmeal = within(card('Owsianka'));
-    expect(oatmeal.getByText('413 kcal')).toBeTruthy();
-    expect(oatmeal.getByText(t('recipes.macro.protein', { value: 12.3 }))).toBeTruthy();
-    expect(oatmeal.getByText(t('recipes.minutes', { count: 10 }))).toBeTruthy();
-
-    const salmon = within(card('Łosoś z piekarnika'));
-    expect(salmon.queryByText('0')).toBeNull();
-    expect(salmon.queryByText(t('recipes.minutes', { count: 0 }))).toBeNull();
+    const row = within(item('Owsianka'));
+    expect(row.getByText('413')).toBeTruthy();
+    expect(item('Owsianka').textContent).toContain(`${t('plan.summary.proteinShort')} 12`);
+    expect(item('Owsianka').textContent).toContain(`${t('plan.summary.fatShort')} 8`);
+    expect(item('Owsianka').textContent).toContain(`${t('plan.summary.carbsShort')} 61`);
   });
 
-  it('marks saved recipes', () => {
+  it('puts recently planned recipes first', () => {
+    data.userMeals = [
+      { recipe: { id: 'r1' }, created_at: '2026-11-10T10:00:00Z' },
+      { recipe: 'r2', created_at: '2026-11-01T10:00:00Z' },
+    ];
     renderRecipes();
 
-    expect(within(card('Łosoś z piekarnika')).getByLabelText(t('recipes.savedBadge'))).toBeTruthy();
-    expect(within(card('Makaron')).queryByLabelText(t('recipes.savedBadge'))).toBeNull();
+    expect(names()).toEqual(['Owsianka', 'Łosoś z piekarnika']);
+  });
+
+  it('changes the sorting from the menu', () => {
+    renderRecipes();
+    showAll();
+
+    const sortButton = screen.getByRole('button', { name: `${t('recipes.sort.label')}: ${t('recipes.sort.recent')}` });
+    fireEvent.click(sortButton);
+    expect(sortButton.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(screen.getByRole('menuitemradio', { name: t('recipes.sort.kcal') }));
+    expect(names()).toEqual(['Makaron', 'Owsianka', 'Łosoś z piekarnika']);
+    expect(screen.queryByRole('menu')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: `${t('recipes.sort.label')}: ${t('recipes.sort.kcal')}` }));
+    expect(screen.getByRole('menuitemradio', { name: t('recipes.sort.kcal') }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(screen.getByRole('menuitemradio', { name: t('recipes.sort.protein') }));
+    expect(names()).toEqual(['Łosoś z piekarnika', 'Makaron', 'Owsianka']);
+  });
+
+  it('closes the sorting menu when tapping outside', () => {
+    renderRecipes();
+
+    fireEvent.click(screen.getByRole('button', { name: `${t('recipes.sort.label')}: ${t('recipes.sort.recent')}` }));
+    fireEvent.click(document.querySelector('[data-outside-press-layer]') as HTMLElement);
+
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('switches to tiles, remembers the choice and shows calories with time on the photo', () => {
+    renderRecipes();
+
+    fireEvent.click(screen.getByRole('button', { name: t('recipes.view.grid') }));
+    expect(localStorage.getItem(RECIPES_VIEW_STORAGE_KEY)).toBe('grid');
+    expect(within(item('Owsianka')).getByText(`413 ${t('recipes.kcal')}`)).toBeTruthy();
+    expect(within(item('Owsianka')).getByText(t('recipes.minutes', { count: 10 }))).toBeTruthy();
+    expect(within(item('Łosoś z piekarnika')).queryByText('timer')).toBeNull();
+    cleanup();
+
+    renderRecipes();
+    expect(screen.getByRole('button', { name: t('recipes.view.list') })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('recipes.view.list') }));
+    expect(localStorage.getItem(RECIPES_VIEW_STORAGE_KEY)).toBe('list');
+  });
+
+  it('falls back to the list when storage is unavailable', () => {
+    const getItem = Storage.prototype.getItem;
+    const setItem = Storage.prototype.setItem;
+    const blocked = (key: string) => {
+      if (key === RECIPES_VIEW_STORAGE_KEY) throw new Error('blocked');
+    };
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, key: string) {
+      blocked(key);
+      return getItem.call(this, key);
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+      blocked(key);
+      setItem.call(this, key, value);
+    });
+    renderRecipes();
+
+    expect(screen.getByRole('button', { name: t('recipes.view.grid') })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('recipes.view.grid') }));
+    expect(screen.getByRole('button', { name: t('recipes.view.list') })).toBeTruthy();
   });
 
   it('opens a recipe and the new recipe form', () => {
     renderRecipes();
 
-    fireEvent.click(card('Makaron'));
+    fireEvent.click(within(item('Owsianka')).getAllByRole('button')[0]);
+    expect(screen.getByText('details screen')).toBeTruthy();
+    cleanup();
+
+    renderRecipes();
+    fireEvent.click(screen.getByRole('button', { name: t('recipes.new') }));
+    expect(screen.getByText('new recipe screen')).toBeTruthy();
+  });
+
+  it('opens a recipe from a tile', () => {
+    localStorage.setItem(RECIPES_VIEW_STORAGE_KEY, 'grid');
+    renderRecipes();
+
+    fireEvent.click(within(item('Owsianka')).getAllByRole('button')[0]);
     expect(screen.getByText('details screen')).toBeTruthy();
   });
 
-  it('opens the new recipe form from the header', () => {
-    renderRecipes();
-
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipes.new')) }));
-    expect(screen.getByText('new recipe screen')).toBeTruthy();
-  });
-
-  it('shows a loader while recipes load', () => {
+  it('shows a skeleton while recipes load', () => {
     renderRecipes([], true);
 
-    expect(screen.getByText(t('recipes.loading'))).toBeTruthy();
-    expect(screen.queryByText(t('recipes.empty.title'))).toBeNull();
+    expect(screen.getByRole('status', { name: t('recipes.loading') })).toBeTruthy();
+    expect(screen.queryByText(t('recipes.empty.mine'))).toBeNull();
+    cleanup();
+
+    localStorage.setItem(RECIPES_VIEW_STORAGE_KEY, 'grid');
+    renderRecipes([], true);
+    expect(screen.getByRole('status', { name: t('recipes.loading') }).querySelector('.grid')).toBeTruthy();
   });
 
-  it('invites to add the first recipe when there are none', () => {
-    renderRecipes([]);
+  it('invites to add a recipe or browse all when there are none of your own', () => {
+    renderRecipes([PASTA]);
 
-    expect(screen.getByText(t('recipes.empty.title'))).toBeTruthy();
+    expect(screen.getByText(t('recipes.empty.mine'))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipes.empty.browseAll')) }));
+    expect(names()).toEqual(['Makaron']);
+    cleanup();
+
+    renderRecipes([]);
+    showAll();
+    expect(screen.getByText(t('recipes.empty.all'))).toBeTruthy();
+    expect(screen.queryByRole('button', { name: new RegExp(t('recipes.empty.browseAll')) })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipes.empty.add')) }));
     expect(screen.getByText('new recipe screen')).toBeTruthy();
+  });
+});
+
+describe('Saving recipes from the list', () => {
+  it('saves a recipe with the heart', async () => {
+    renderRecipes();
+    showAll();
+
+    fireEvent.click(heart('Makaron', false));
+
+    expect(heart('Makaron', true).getAttribute('aria-pressed')).toBe('true');
+    await waitFor(() => expect(data.refreshRecipes).toHaveBeenCalled());
+    expect(api.recipes.save).toHaveBeenCalledWith('r3');
+  });
+
+  it('hides an unsaved recipe from your list and brings it back with undo', async () => {
+    renderRecipes();
+
+    fireEvent.click(heart('Łosoś z piekarnika', true));
+
+    expect(names()).toEqual(['Owsianka']);
+    expect(screen.getByText(t('recipes.unsaved'))).toBeTruthy();
+    await waitFor(() => expect(api.recipes.unsave).toHaveBeenCalledWith('r2'));
+
+    fireEvent.click(screen.getByRole('button', { name: t('plan.snackbar.undo') }));
+    await waitFor(() => expect(api.recipes.save).toHaveBeenCalledWith('r2'));
+    expect(names()).toEqual(['Łosoś z piekarnika', 'Owsianka']);
+    expect(screen.queryByText(t('recipes.unsaved'))).toBeNull();
+  });
+
+  it('keeps your own recipe in the list after unsaving it', async () => {
+    renderRecipes([{ ...OATMEAL, saved: true }]);
+
+    fireEvent.click(heart('Owsianka', true));
+
+    expect(names()).toEqual(['Owsianka']);
+    expect(screen.queryByText(t('recipes.unsaved'))).toBeNull();
+    await waitFor(() => expect(api.recipes.unsave).toHaveBeenCalledWith('r1'));
+  });
+
+  it('saves from a tile without opening the recipe', async () => {
+    localStorage.setItem(RECIPES_VIEW_STORAGE_KEY, 'grid');
+    renderRecipes();
+
+    fireEvent.click(heart('Owsianka', false));
+
+    expect(screen.queryByText('details screen')).toBeNull();
+    await waitFor(() => expect(api.recipes.save).toHaveBeenCalledWith('r1'));
+  });
+
+  it('restores the heart and explains when saving fails', async () => {
+    api.recipes.save = vi.fn().mockRejectedValue(new Error('offline'));
+    renderRecipes();
+    showAll();
+
+    fireEvent.click(heart('Makaron', false));
+
+    expect(await screen.findByText(t('recipeDetails.savedFailed'))).toBeTruthy();
+    expect(heart('Makaron', false).getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('hides the snackbar after its time', () => {
+    vi.useFakeTimers();
+    try {
+      renderRecipes();
+      fireEvent.click(heart('Łosoś z piekarnika', true));
+      expect(screen.getByText(t('recipes.unsaved'))).toBeTruthy();
+
+      act(() => { vi.advanceTimersByTime(7000); });
+      expect(screen.queryByText(t('recipes.unsaved'))).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
 describe('Recipes search and filters', () => {
   it('searches by name and clears the search', () => {
     renderRecipes();
+    showAll();
 
     expect(screen.getByLabelText(t('recipes.searchPlaceholder')).getAttribute('autocomplete')).toBe('off');
     fireEvent.change(screen.getByLabelText(t('recipes.searchPlaceholder')), { target: { value: 'OWS' } });
     expect(names()).toEqual(['Owsianka']);
-    expect(screen.getByText(t('recipes.countFor', { query: 'OWS' }))).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: t('recipes.clearSearch') }));
     expect(names()).toHaveLength(3);
   });
 
-  it('shows an empty result and resets everything with one button', () => {
+  it('toggles quick presets right on the list', () => {
     renderRecipes();
+    showAll();
 
-    fireEvent.change(screen.getByLabelText(t('recipes.searchPlaceholder')), { target: { value: 'pizza' } });
-    expect(screen.getByText(t('recipes.empty.noResults'))).toBeTruthy();
-    expect(screen.queryByRole('button', { name: new RegExp(t('recipes.empty.add')) })).toBeNull();
+    const preset = screen.getByRole('button', { name: new RegExp(t('recipes.filters.quick.lowfat')) });
+    fireEvent.click(preset);
+    expect(preset.getAttribute('aria-pressed')).toBe('true');
+    expect(names()).toEqual(['Makaron', 'Owsianka']);
 
-    fireEvent.click(screen.getByText(t('recipes.clearAll')).closest('button')!);
+    fireEvent.click(preset);
     expect(names()).toHaveLength(3);
   });
 
-  it('combines quick filters', () => {
+  it('applies sheet filters with a live result count and shows how many are set', () => {
     renderRecipes();
-    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.open') }));
+    showAll();
+    openFilters();
 
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipes.filters.quick.highprotein')) }));
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipes.filters.quick.lowcarb')) }));
-    applyFilters();
-
-    expect(names()).toEqual(['Łosoś z piekarnika']);
-    expect(screen.getByRole('button', { name: t('recipes.filters.open') }).textContent).toContain('2');
-  });
-
-  it.each([
-    ['quick', ['Owsianka']],
-    ['lowcal', ['Makaron']],
-    ['lowfat', ['Makaron', 'Owsianka']],
-  ])('filters with the %s preset', (preset, expected) => {
-    renderRecipes();
-    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.open') }));
-
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t(`recipes.filters.quick.${preset}` as Parameters<typeof t>[0])) }));
-    applyFilters();
-
-    expect(names()).toEqual(expected);
-  });
-
-  it('filters with sliders and preparation time and resets the panel', () => {
-    renderRecipes();
-    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.open') }));
-
+    expect(screen.getByRole('dialog', { name: t('recipes.filters.title') })).toBeTruthy();
     fireEvent.change(screen.getByLabelText(t('recipes.filters.kcal')), { target: { value: '450' } });
     fireEvent.change(screen.getByLabelText(t('recipes.filters.protein')), { target: { value: '10' } });
-    fireEvent.change(screen.getByLabelText(t('recipes.filters.carbs')), { target: { value: '60' } });
+    fireEvent.change(screen.getByLabelText(t('recipes.filters.carbs')), { target: { value: '70' } });
     expect(screen.getByText(t('recipes.filters.upTo', { value: 450 }))).toBeTruthy();
     expect(screen.getByText(t('recipes.filters.atLeastGrams', { value: 10 }))).toBeTruthy();
-    expect(screen.getByText(t('recipes.filters.upToGrams', { value: 60 }))).toBeTruthy();
-    applyFilters();
-    expect(names()).toEqual(['Makaron']);
-
-    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.open') }));
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipes.filters.reset')) }));
-    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.prepTimeLong') }));
-    applyFilters();
-    expect(names()).toEqual(['Makaron']);
-
-    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.open') }));
-    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.prepTimeLong') }));
+    expect(screen.getByText(t('recipes.filters.upToGrams', { value: 70 }))).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.prepTimeUpTo', { count: 15 }) }));
-    applyFilters();
-    expect(names()).toEqual(['Łosoś z piekarnika', 'Owsianka']);
+    expect(showButton(1, 'one')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.prepTimeUpTo', { count: 15 }) }));
+    fireEvent.click(showButton(2, 'few'));
+
+    expect(names()).toEqual(['Makaron', 'Owsianka']);
+    expect(screen.getByRole('button', { name: t('recipes.filters.open') }).textContent).toContain('3');
   });
 
-  it('turns sliders back to no limit at their ends', () => {
+  it('turns sliders back to no limit at their ends and resets without touching presets', () => {
     renderRecipes();
-    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.open') }));
+    showAll();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipes.filters.quick.lowfat')) }));
+    openFilters();
 
     fireEvent.change(screen.getByLabelText(t('recipes.filters.kcal')), { target: { value: '1500' } });
     fireEvent.change(screen.getByLabelText(t('recipes.filters.protein')), { target: { value: '0' } });
     fireEvent.change(screen.getByLabelText(t('recipes.filters.carbs')), { target: { value: '200' } });
+    expect(screen.getAllByText(t('recipes.filters.noLimitShort'))).toHaveLength(2);
+    expect(screen.getAllByText(t('recipes.filters.any')).length).toBeGreaterThan(0);
 
-    expect(screen.getByText(t('recipes.filters.any'))).toBeTruthy();
-    applyFilters();
+    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.prepTimeLong') }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.reset') }));
+    expect(screen.getByRole('button', { name: t('recipes.filters.prepTimeLong') }).getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(showButton(2, 'few'));
+    expect(names()).toEqual(['Makaron', 'Owsianka']);
+  });
+
+  it('closes the sheet without applying from the close button or outside', () => {
+    renderRecipes();
+    showAll();
+    openFilters();
+    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.prepTimeLong') }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.close') }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(names()).toHaveLength(3);
+
+    openFilters();
+    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.prepTimeLong') }));
+    fireEvent.click(screen.getByTestId('recipe-filters-backdrop'));
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(names()).toHaveLength(3);
   });
 
-  it('closes the filters without applying them when tapping outside', () => {
+  it('explains empty filter results, lists closest recipes and removes conditions one by one', () => {
     renderRecipes();
-    fireEvent.click(screen.getByRole('button', { name: t('recipes.filters.open') }));
+    showAll();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipes.filters.quick.highprotein')) }));
     fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipes.filters.quick.lowcal')) }));
 
-    fireEvent.click(screen.getByText(t('recipes.filters.title')).closest('.fixed') as HTMLElement);
+    expect(screen.getByText(t('recipes.noResults.title'))).toBeTruthy();
+    expect(screen.getByText(t('recipes.noResults.filters'))).toBeTruthy();
+    const near = within(screen.getByRole('region', { name: t('recipes.near.title') }));
+    expect(near.getByText(t('recipes.missing.kcal', { value: 650 }))).toBeTruthy();
+    expect(near.getByText(t('recipes.missing.protein', { value: 14 }))).toBeTruthy();
 
-    expect(screen.queryByText(t('recipes.filters.title'))).toBeNull();
-    expect(names()).toHaveLength(3);
+    const label = t('recipes.filters.quick.lowcal');
+    fireEvent.click(screen.getByRole('button', { name: t('recipes.noResults.remove', { label }) }));
+    expect(names()).toEqual(['Łosoś z piekarnika']);
+  });
+
+  it('explains empty search results without closest recipes and clears everything', () => {
+    renderRecipes();
+    fireEvent.change(screen.getByLabelText(t('recipes.searchPlaceholder')), { target: { value: 'pizza' } });
+
+    expect(screen.getByText(t('recipes.noResults.search'))).toBeTruthy();
+    expect(screen.queryByRole('region', { name: t('recipes.near.title') })).toBeNull();
+    expect(screen.queryByText(t('recipes.empty.mine'))).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: t('recipes.noResults.remove', { label: t('recipes.searchChip', { query: 'pizza' }) }) }));
+    expect(names()).toHaveLength(2);
+
+    fireEvent.change(screen.getByLabelText(t('recipes.searchPlaceholder')), { target: { value: 'pizza' } });
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipes.filters.quick.quick')) }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('recipes.noResults.clearAll')) }));
+    expect(names()).toHaveLength(2);
+    expect(screen.getByRole('button', { name: new RegExp(t('recipes.filters.quick.quick')) }).getAttribute('aria-pressed')).toBe('false');
   });
 });
