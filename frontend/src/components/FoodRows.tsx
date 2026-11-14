@@ -8,14 +8,15 @@ interface ItemBadgesProps {
   own: boolean;
   unverified: boolean;
   calendories?: boolean;
+  singleLine?: boolean;
 }
 
-export function ItemBadges({ own, unverified, calendories = false }: ItemBadgesProps) {
+export function ItemBadges({ own, unverified, calendories = false, singleLine = false }: ItemBadgesProps) {
   if (!own && !unverified && !calendories) return null;
   return (
-    <span className="flex flex-wrap gap-1">
+    <span className={`flex gap-1 ${singleLine ? 'flex-nowrap min-w-0' : 'flex-wrap'}`}>
       {calendories && (
-        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
+        <span className="inline-flex shrink-0 items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
           <span aria-hidden="true" className="material-symbols-outlined text-[11px] leading-none" style={{ fontVariationSettings: "'FILL' 1" }}>
             verified
           </span>
@@ -23,12 +24,12 @@ export function ItemBadges({ own, unverified, calendories = false }: ItemBadgesP
         </span>
       )}
       {own && (
-        <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
+        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
           {t('food.ownBadge')}
         </span>
       )}
       {unverified && (
-        <span className="px-1.5 py-0.5 rounded-md bg-surface-container-highest text-on-surface-variant text-[9px] font-black uppercase tracking-wider">
+        <span className="min-w-0 truncate px-1.5 py-0.5 rounded-md bg-surface-container-highest text-on-surface-variant text-[9px] font-black uppercase tracking-wider">
           {t('food.unverifiedBadge')}
         </span>
       )}
@@ -57,7 +58,7 @@ function FoodRow({ name, kcal, amount, own, unverified, calendories, selected, o
       {children}
       <div className="flex flex-col justify-center gap-0.5 px-3 flex-1 min-w-0">
         <h3 className="font-headline font-bold text-[13px] text-on-surface line-clamp-2 leading-relaxed">{name}</h3>
-        <ItemBadges own={own} unverified={unverified} calendories={calendories} />
+        <ItemBadges own={own} unverified={unverified} calendories={calendories} singleLine />
       </div>
       <div
         data-testid="food-row-select-area"

@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
   unsaveRecipe: vi.fn(),
   searchArgs: [] as { query: string; enabled: boolean }[],
   searchItems: [] as object[],
+  searchLoading: false,
+  searchError: false,
   recipes: [] as object[],
   existingBarCodeProduct: null as object | null,
 }));
@@ -67,8 +69,9 @@ vi.mock('../lib/useProductSearch', () => ({
     return {
     items: mocks.searchItems,
     hasNext: false,
-    loading: false,
-    error: null,
+    loading: mocks.searchLoading,
+    resultsMatchQuery: !mocks.searchLoading && !mocks.searchError,
+    error: mocks.searchError,
     loadMore: vi.fn(),
     reload: vi.fn(),
     };
@@ -141,6 +144,10 @@ async function openSavedTab() {
   await screen.findByRole('checkbox', { name: t('addFood.selectItem', { name: 'Jogurt' }) });
 }
 
+function search(value: string) {
+  fireEvent.change(screen.getByPlaceholderText('Szukaj przepisów, produktów...'), { target: { value } });
+}
+
 function addSelectedButton(count: number) {
   return screen.queryByRole('button', { name: new RegExp(`Dodaj \\(${count}\\)`) });
 }
@@ -160,6 +167,8 @@ beforeEach(() => {
     { id: 'r3', name: 'Moja sałatka', kcal: 210, protein: 5, fat: 15, carbs: 12, created_by: 'user-1' },
   ];
   mocks.searchArgs = [];
+  mocks.searchLoading = false;
+  mocks.searchError = false;
   mocks.searchItems = [
     { id: 'p1', name: 'Jogurt', kcal: 60 },
     { id: 'p4', name: 'Kefir', kcal: 50, status: 'VERIFIED' },
@@ -557,6 +566,15 @@ describe('AddFood tabs', () => {
     expect(screen.queryByRole('button', { name: t('food.save', { name: 'Mój baton' }) })).toBeNull();
   });
 
+  it('keeps all labels of an own unverified product in one line so its card is as tall as a recipe card', async () => {
+    renderAddFood();
+    fireEvent.click(tab('Własne'));
+
+    const unverified = await screen.findByText('niezweryfikowany');
+    expect(unverified.parentElement!.className).toContain('flex-nowrap');
+    expect(unverified.className).toContain('truncate');
+  });
+
   it('shows empty own sections when the user has nothing of their own', async () => {
     mocks.ownProducts.mockResolvedValue([]);
     mocks.recipes = [{ id: 'r1', name: 'Owsianka', kcal: 350, own: false, created_by: 'user-1' }];
@@ -577,6 +595,96 @@ describe('AddFood tabs', () => {
     expect(screen.queryByText('Owsianka')).toBeNull();
     expect(screen.getByText('Kefir')).toBeTruthy();
     expect(screen.getByRole('tab', { name: /Własne/ }).getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('narrows search results to the clicked tab and goes back to all results on a second click', async () => {
+    renderAddFood();
+    search('o');
+    await screen.findByText('Kefir');
+
+    fireEvent.click(tab('Zapisane'));
+
+    expect(await screen.findByText('Owsianka')).toBeTruthy();
+    expect(screen.getByText('Jogurt')).toBeTruthy();
+    expect(screen.queryByText('Omlet')).toBeNull();
+    expect(screen.queryByText('Kefir')).toBeNull();
+    expect(tab('Zapisane').getAttribute('aria-selected')).toBe('true');
+
+    fireEvent.click(tab('Zapisane'));
+
+    expect(screen.getByText('Omlet')).toBeTruthy();
+    expect(screen.getByText('Kefir')).toBeTruthy();
+    expect(tab('Zapisane').getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('applies the phrase and nutrition filters inside the narrowed tab', async () => {
+    renderAddFood();
+    search('o');
+    fireEvent.click(tab('Ostatnie'));
+
+    expect(screen.getAllByRole('checkbox').map(item => item.getAttribute('aria-label'))).toEqual(
+      ['Owsianka', 'Jogurt', 'Omlet'].map(name => t('addFood.selectItem', { name }))
+    );
+
+    search('om');
+    expect(screen.getAllByRole('checkbox').map(item => item.getAttribute('aria-label'))).toEqual([
+      t('addFood.selectItem', { name: 'Omlet' }),
+    ]);
+
+    search('o');
+    fireEvent.click(screen.getByTitle('Filtruj wyniki'));
+    fireEvent.change(screen.getByPlaceholderText('np. 500'), { target: { value: '100' } });
+    expect(screen.getAllByRole('checkbox').map(item => item.getAttribute('aria-label'))).toEqual([
+      t('addFood.selectItem', { name: 'Jogurt' }),
+    ]);
+  });
+
+  it('finds own products by brand regardless of letter case', async () => {
+    mocks.ownProducts.mockResolvedValue([{ id: 'p3', name: 'Mój baton', brand: 'Fit Bar', kcal: 200, created_by: 'user-1' }]);
+    renderAddFood();
+    search('FIT');
+    fireEvent.click(tab('Własne'));
+
+    expect(await screen.findByText('Mój baton (Fit Bar)')).toBeTruthy();
+    expect(screen.queryByText('Moja sałatka')).toBeNull();
+  });
+
+  it('keeps the narrowed tab after coming back from details', async () => {
+    renderAddFood();
+    search('o');
+    fireEvent.click(tab('Zapisane'));
+
+    fireEvent.click(await screen.findByText('Owsianka'));
+    await screen.findByText(/^details \/recipe\/r1/);
+    fireEvent.click(screen.getByText('back'));
+
+    expect(await screen.findByDisplayValue('o')).toBeTruthy();
+    expect(tab('Zapisane').getAttribute('aria-selected')).toBe('true');
+    expect(await screen.findByText('Jogurt')).toBeTruthy();
+    expect(screen.queryByText('Kefir')).toBeNull();
+  });
+
+  it('starts every new search with all results even when a tab was open', async () => {
+    renderAddFood();
+    search('o');
+    fireEvent.click(tab('Własne'));
+    search('');
+    search('om');
+
+    expect(screen.getByText('Kefir')).toBeTruthy();
+    expect(tab('Własne').getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('goes back to the last clicked tab when the phrase is cleared', async () => {
+    renderAddFood();
+    search('o');
+    fireEvent.click(tab('Własne'));
+
+    fireEvent.click(screen.getByRole('button', { name: t('recipes.clearSearch') }));
+
+    expect(tab('Własne').getAttribute('aria-selected')).toBe('true');
+    expect(await screen.findByText('Mój baton')).toBeTruthy();
+    expect((screen.getByPlaceholderText('Szukaj przepisów, produktów...') as HTMLInputElement).value).toBe('');
   });
 
   it('marks Calendories base products in search results', () => {
@@ -614,16 +722,57 @@ describe('AddFood tabs', () => {
 
     fireEvent.change(field('np. 50'), { target: { value: '50' } });
     expect(screen.queryByText('Owsianka')).toBeNull();
-    expect(screen.getByText(t('food.noRecipes'))).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Przepisy' })).toBeNull();
   });
 
-  it('tells when the search finds nothing', () => {
+  it('shows a single message when the search finds nothing', () => {
     mocks.searchItems = [];
     renderAddFood();
-    fireEvent.change(screen.getByPlaceholderText('Szukaj przepisów, produktów...'), { target: { value: 'zzz' } });
+    search('zzz');
 
-    expect(screen.getByText(t('food.noRecipes'))).toBeTruthy();
-    expect(screen.getByText(t('food.noProducts'))).toBeTruthy();
+    expect(screen.getAllByText(t('food.noResults'))).toHaveLength(1);
+    expect(screen.queryByRole('heading', { name: 'Przepisy' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Produkty' })).toBeNull();
+  });
+
+  it('shows only products without a recipes message when no recipe matches', () => {
+    renderAddFood();
+    search('kefir');
+
+    expect(screen.getByText('Kefir')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Przepisy' })).toBeNull();
+    expect(screen.queryByText(t('food.noResults'))).toBeNull();
+  });
+
+  it('shows only recipes when no product matches', () => {
+    mocks.searchItems = [];
+    renderAddFood();
+    search('omlet');
+
+    expect(screen.getByText('Omlet')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Produkty' })).toBeNull();
+    expect(screen.queryByText(t('food.noResults'))).toBeNull();
+  });
+
+  it('does not say nothing was found while products are still loading', () => {
+    mocks.searchItems = [];
+    mocks.searchLoading = true;
+    renderAddFood();
+    search('zzz');
+
+    expect(screen.getByText(t('food.searching'))).toBeTruthy();
+    expect(screen.queryByText(t('food.noResults'))).toBeNull();
+  });
+
+  it('offers a retry when products fail to load and no recipe matches', () => {
+    mocks.searchItems = [];
+    mocks.searchError = true;
+    renderAddFood();
+    search('zzz');
+
+    expect(screen.getByText(t('food.productsFailed'))).toBeTruthy();
+    expect(screen.getByRole('button', { name: t('food.retry') })).toBeTruthy();
+    expect(screen.queryByText(t('food.noResults'))).toBeNull();
   });
 
   it('shows no save hearts on the list rows', async () => {
@@ -656,6 +805,30 @@ describe('AddFood search field', () => {
     renderAddFood();
 
     expect(document.activeElement).not.toBe(screen.getByPlaceholderText('Szukaj przepisów, produktów...'));
+  });
+
+  it('keeps the search phrase and filters after coming back from product details', async () => {
+    renderAddFood();
+    search('om');
+    fireEvent.click(screen.getByTitle('Filtruj wyniki'));
+    fireEvent.change(screen.getByPlaceholderText('np. 500'), { target: { value: '400' } });
+    fireEvent.click(screen.getByRole('button', { name: t('food.filters.show') }));
+
+    fireEvent.click(screen.getByText('Kefir'));
+    await screen.findByDisplayValue('100');
+    fireEvent.click(screen.getByText('arrow_back'));
+
+    expect(await screen.findByDisplayValue('om')).toBeTruthy();
+    expect(screen.getByRole('button', { name: t('food.filters.open') }).textContent).toContain('1');
+    expect(mocks.searchArgs.at(-1)).toEqual(expect.objectContaining({ query: 'om', enabled: true }));
+    expect(screen.getByText('Kefir')).toBeTruthy();
+  });
+
+  it('starts with an empty search when opened again from the plan', () => {
+    renderAddFood(`${ADD_FOOD_URL}&tab=saved`);
+
+    expect((screen.getByPlaceholderText('Szukaj przepisów, produktów...') as HTMLInputElement).value).toBe('');
+    expect(mocks.searchArgs.at(-1)?.enabled).toBe(false);
   });
 });
 
