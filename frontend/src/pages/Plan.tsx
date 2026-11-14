@@ -594,7 +594,7 @@ export function Plan() {
             onSelectDay={selectStripDay}
           />
         </div>
-        <div ref={scrollRef} onScroll={handlePlanScroll} className="w-full overflow-x-auto overflow-y-hidden no-scrollbar snap-x snap-mandatory scroll-smooth">
+        <div ref={scrollRef} onScroll={handlePlanScroll} className="w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth">
           <div className="w-max flex flex-col pb-6 relative [--plan-column:33.3333vw] sm:[--plan-column:150px]">
             {todayIndex >= 0 && (
               <div

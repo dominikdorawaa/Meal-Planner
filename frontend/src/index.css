@@ -117,14 +117,6 @@
   background-image: linear-gradient(135deg, var(--color-primary), var(--color-primary-container));
 }
 
-@utility no-scrollbar {
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
 @utility pt-safe {
   padding-top: env(safe-area-inset-top);
 }

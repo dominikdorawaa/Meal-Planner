@@ -48,7 +48,7 @@ export function SettingsPage({ title, onBack, children, footer, action, depth = 
           {action}
         </div>
       </header>
-      <div className={`flex-1 overflow-y-auto no-scrollbar ${footer ? 'pb-[calc(6.5rem+env(safe-area-inset-bottom))]' : 'pb-[calc(2rem+env(safe-area-inset-bottom))]'}`}>
+      <div className={`flex-1 overflow-y-auto ${footer ? 'pb-bottom-nav' : 'pb-[calc(2rem+env(safe-area-inset-bottom))]'}`}>
         <div className="max-w-xl mx-auto px-4">{children}</div>
       </div>
       {footer && (
