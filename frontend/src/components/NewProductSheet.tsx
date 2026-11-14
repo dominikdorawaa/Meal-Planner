@@ -135,7 +135,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
   };
 
   return (
-    <div data-scroll-lock className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => onClose()}>
+    <div data-scroll-lock className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-xs animate-fade-in" onClick={() => onClose()}>
       <div ref={sheetRef} className="bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[92vh] overflow-y-auto animate-slide-up w-full sm:max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative" onClick={e => e.stopPropagation()}>
         <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
 
@@ -170,7 +170,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
               autoComplete="off"
               value={form.name}
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-              className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
+              className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
               placeholder={t('productForm.namePlaceholder')}
             />
           </div>
@@ -182,7 +182,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
               aria-label={t('productForm.brand')}
               value={form.brand}
               onChange={e => setForm(p => ({ ...p, brand: e.target.value }))}
-              className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
+              className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
               placeholder={t('productForm.brandPlaceholder')}
             />
           </div>
@@ -196,7 +196,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
                     type="button"
                     aria-pressed={unit === option}
                     onClick={() => setUnit(option)}
-                    className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all ${unit === option ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+                    className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all ${unit === option ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}`}
                   >
                     {t('nutrients.per100', { unit: measureUnit(option) })}
                   </button>
@@ -213,7 +213,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
                 onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
                 value={form.kcal}
                 onChange={e => setLimited('kcal', e.target.value)}
-                className="flex-1 bg-transparent py-4 pl-4 pr-16 outline-none text-on-surface font-bold text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="flex-1 bg-transparent py-4 pl-4 pr-16 outline-hidden text-on-surface font-bold text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 placeholder="0"
               />
               <span className="absolute right-4 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest bg-surface-container-highest/60 px-2 py-1.5 rounded-md">kcal</span>
@@ -234,7 +234,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
                     onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
                     value={form[f.key as 'protein' | 'carbs' | 'fat']}
                     onChange={e => setLimited(f.key as 'protein' | 'carbs' | 'fat', e.target.value)}
-                    className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-hidden text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="0"
                   />
                   <span className="absolute right-3 text-[10px] font-black text-on-surface-variant/50 uppercase">g</span>
@@ -288,7 +288,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
         <button
           onClick={handleCreate}
           disabled={creating || !check.valid || !measuresValid || barCodeBlocksSaving}
-          className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
+          className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
         >
           {creating ? (
             <div className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />

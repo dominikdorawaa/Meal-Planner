@@ -98,14 +98,14 @@ export function ShoppingFromPlanPicker({
 
   return (
     <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-6">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !submitting && onClose()} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => !submitting && onClose()} />
       <div
         ref={setDialogRef}
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="shopping-from-plan-title"
-        className="bg-surface w-full sm:max-w-md sm:rounded-[28px] rounded-t-[28px] overflow-hidden shadow-2xl relative z-10 border border-outline-variant/15 max-h-[90vh] flex flex-col outline-none"
+        className="bg-surface w-full sm:max-w-md sm:rounded-[28px] rounded-t-[28px] overflow-hidden shadow-2xl relative z-10 border border-outline-variant/15 max-h-[90vh] flex flex-col outline-hidden"
       >
         <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mt-3 sm:hidden shrink-0" />
         <div className="px-6 pt-5 pb-2 flex items-center justify-between gap-3 shrink-0">
@@ -218,7 +218,7 @@ export function ShoppingFromPlanPicker({
               type="button"
               disabled={submitting || selectedIds.length === 0}
               onClick={() => onConfirm(meals.filter(meal => selectedIds.includes(meal.id)))}
-              className="flex-1 h-12 bg-primary text-on-primary font-bold text-sm rounded-xl active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 h-12 bg-primary text-on-primary font-bold text-sm rounded-xl active:scale-[0.98] transition-all shadow-xs flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {submitting ? (
                 <span className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />

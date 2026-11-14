@@ -21,7 +21,7 @@ function ProductRow({ product, onSelect }: { product: Product; onSelect: (produc
   return (
     <button
       onClick={() => onSelect(product)}
-      className="flex items-center text-left bg-surface-container-lowest p-3 rounded-[20px] shadow-sm border border-outline-variant/10 active:scale-[0.98] transition-all"
+      className="flex items-center text-left bg-surface-container-lowest p-3 rounded-[20px] shadow-xs border border-outline-variant/10 active:scale-[0.98] transition-all"
     >
       <span className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
         <span className="material-symbols-outlined text-[24px]">nutrition</span>
@@ -80,7 +80,7 @@ export function IngredientSearch({ onClose, onSelect, onAddProduct, onScan, init
             value={query}
             onChange={event => setQuery(event.target.value)}
             placeholder={t('recipeIngredients.searchPlaceholder')}
-            className="w-full bg-surface-container-low border-none rounded-2xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50 text-on-surface text-sm font-medium"
+            className="w-full bg-surface-container-low border-none rounded-2xl py-3 pl-12 pr-4 outline-hidden focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50 text-on-surface text-sm font-medium"
           />
         </div>
         <button

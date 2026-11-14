@@ -94,7 +94,7 @@ export function DailyTargetsPage({ profile, depth, onBack, onSave, onExplain }: 
   };
 
   const fieldClass =
-    'w-full h-10 rounded-xl bg-surface-container text-center font-headline font-extrabold text-base tabular-nums text-on-surface outline-none border-[1.5px] border-transparent focus:border-primary caret-primary';
+    'w-full h-10 rounded-xl bg-surface-container text-center font-headline font-extrabold text-base tabular-nums text-on-surface outline-hidden border-[1.5px] border-transparent focus:border-primary caret-primary';
 
   return (
     <SettingsPage
@@ -120,7 +120,7 @@ export function DailyTargetsPage({ profile, depth, onBack, onSave, onExplain }: 
               {...numberFieldProps(PROFILE_LIMITS.targetKcal, 0)}
               value={draft.kcal}
               onChange={event => acceptsLimitedNumber(event.target.value, PROFILE_LIMITS.targetKcal, 0) && setDraft({ ...draft, kcal: event.target.value })}
-              className="w-36 text-center bg-transparent font-headline font-extrabold tracking-tight text-[40px] leading-none text-primary tabular-nums outline-none caret-primary border-b-2 border-primary/30 focus:border-primary"
+              className="w-36 text-center bg-transparent font-headline font-extrabold tracking-tight text-[40px] leading-none text-primary tabular-nums outline-hidden caret-primary border-b-2 border-primary/30 focus:border-primary"
             />
           ) : (
             <output id="settings-target-kcal" className="font-headline font-extrabold tracking-tight text-[40px] leading-none text-primary tabular-nums">{auto.kcal}</output>

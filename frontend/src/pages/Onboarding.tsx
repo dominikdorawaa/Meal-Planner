@@ -195,7 +195,7 @@ export function Onboarding() {
                 <span className="block text-base font-semibold text-on-surface">{t(option.title)}</span>
                 <span className="block mt-0.5 text-[13.5px] text-on-surface-variant">{t(option.hint)}</span>
               </span>
-              <span aria-hidden="true" className={`w-5 h-5 shrink-0 rounded-full border-2 ${selected ? 'border-primary bg-primary shadow-[inset_0_0_0_3px_rgb(var(--color-surface-container-lowest))]' : 'border-on-surface-variant/40'}`}></span>
+              <span aria-hidden="true" className={`w-5 h-5 shrink-0 rounded-full border-2 ${selected ? 'border-primary bg-primary shadow-[inset_0_0_0_3px_var(--color-surface-container-lowest)]' : 'border-on-surface-variant/40'}`}></span>
             </button>
           );
         })}
@@ -366,7 +366,7 @@ export function Onboarding() {
         {current.body}
       </main>
 
-      <footer className="fixed inset-x-0 bottom-0 bg-surface/95 backdrop-blur-sm">
+      <footer className="fixed inset-x-0 bottom-0 bg-surface/95 backdrop-blur-xs">
         <div className="max-w-xl mx-auto px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] flex flex-col gap-2">
           <div className="flex">
           {step === 'result' ? (

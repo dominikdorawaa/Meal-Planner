@@ -14,7 +14,7 @@ export function SelectRow<T extends string>({ label, value, options, onChange }:
           aria-label={label}
           value={value}
           onChange={event => onChange(event.target.value as T)}
-          className="appearance-none max-w-full h-10 rounded-xl bg-surface-container pl-3.5 pr-9 text-[15px] font-medium text-on-surface outline-none border-[1.5px] border-transparent focus:border-primary truncate"
+          className="appearance-none max-w-full h-10 rounded-xl bg-surface-container pl-3.5 pr-9 text-[15px] font-medium text-on-surface outline-hidden border-[1.5px] border-transparent focus:border-primary truncate"
         >
           {options.map(option => (
             <option key={option.value} value={option.value}>

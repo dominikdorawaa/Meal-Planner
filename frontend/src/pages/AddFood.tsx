@@ -306,7 +306,7 @@ export function AddFood() {
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col">
-      <header className={`sticky top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/10 pt-safe`}>
+      <header className={`sticky top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-xs border-b border-outline-variant/10 pt-safe`}>
         <div className="max-w-xl mx-auto px-4 py-4 space-y-4">
 
           <div className="flex items-center gap-3">
@@ -346,7 +346,7 @@ export function AddFood() {
               </div>
               <button
                 onClick={() => setShowScanner(true)}
-                className="bg-primary/10 w-12 h-12 rounded-2xl flex items-center justify-center text-primary hover:bg-primary/20 transition-colors active:scale-95 shrink-0 border border-primary/20 shadow-sm"
+                className="bg-primary/10 w-12 h-12 rounded-2xl flex items-center justify-center text-primary hover:bg-primary/20 transition-colors active:scale-95 shrink-0 border border-primary/20 shadow-xs"
                 title="Skanuj kod"
               >
                 <span className="material-symbols-outlined text-xl">barcode_scanner</span>
@@ -354,7 +354,7 @@ export function AddFood() {
               {/* Filter Button */}
               <button
                 onClick={() => setShowFilters(v => !v)}
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors active:scale-95 shrink-0 shadow-sm relative ${showFilters || hasActiveFilters ? 'bg-primary text-on-primary' : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'}`}
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors active:scale-95 shrink-0 shadow-xs relative ${showFilters || hasActiveFilters ? 'bg-primary text-on-primary' : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'}`}
                 title={t('food.filters.open')}
                 aria-label={t('food.filters.open')}
               >
@@ -384,7 +384,7 @@ export function AddFood() {
                       onChange={e => acceptsLimitedNumber(e.target.value, f.max, 0) && setFilters(prev => ({ ...prev, [f.key]: e.target.value }))}
                       onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
                       placeholder={f.placeholder}
-                      className="w-full bg-surface-container-low rounded-xl py-3 px-3 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-full bg-surface-container-low rounded-xl py-3 px-3 text-sm font-bold text-on-surface outline-hidden focus:ring-2 focus:ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                 ))}
@@ -435,7 +435,7 @@ export function AddFood() {
             <div className="flex items-center justify-between gap-2 pt-1">
               <button
                 onClick={() => setNewProduct({})}
-                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-none bg-surface-container-low rounded-xl border border-outline-variant/10"
+                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-hidden bg-surface-container-low rounded-xl border border-outline-variant/10"
               >
                 <div className="relative flex items-center justify-center">
                   <span className="material-symbols-outlined text-[18px]">grocery</span>
@@ -448,7 +448,7 @@ export function AddFood() {
 
               <button
                 onClick={() => navigate('/add-recipe')}
-                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-none bg-surface-container-low rounded-xl border border-outline-variant/10"
+                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-hidden bg-surface-container-low rounded-xl border border-outline-variant/10"
               >
                 <div className="relative flex items-center justify-center">
                   <span className="material-symbols-outlined text-[18px]">menu_book</span>
@@ -461,7 +461,7 @@ export function AddFood() {
 
               <button
                 onClick={() => setShowQuickAdd(true)}
-                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-none bg-surface-container-low rounded-xl border border-outline-variant/10"
+                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-hidden bg-surface-container-low rounded-xl border border-outline-variant/10"
               >
                 <div className="relative flex items-center justify-center">
                   <span className="material-symbols-outlined text-[18px]">bolt</span>
@@ -562,7 +562,7 @@ export function AddFood() {
 
       {/* Quick Add Form - Modal for new, Page Content for edit */}
       {showQuickAdd && (
-        <div data-scroll-lock={mealId ? undefined : true} className={mealId ? "flex-1 w-full max-w-xl mx-auto px-4 py-6" : "fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-fade-in"} onClick={!mealId ? () => setShowQuickAdd(false) : undefined}>
+        <div data-scroll-lock={mealId ? undefined : true} className={mealId ? "flex-1 w-full max-w-xl mx-auto px-4 py-6" : "fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-xs animate-fade-in"} onClick={!mealId ? () => setShowQuickAdd(false) : undefined}>
           <div ref={mealId ? undefined : quickAddSheetRef} className={mealId ? "bg-transparent" : "bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[90vh] overflow-y-auto animate-slide-up w-full sm:max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative"} onClick={e => e.stopPropagation()}>
             {!mealId && <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6"></div>}
 
@@ -596,7 +596,7 @@ export function AddFood() {
                   aria-label="Nazwa"
                   value={quickAddForm.name}
                   onChange={e => setQuickAddForm({ ...quickAddForm, name: e.target.value })}
-                  className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm transition-shadow placeholder:font-medium placeholder:text-on-surface-variant/40"
+                  className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm transition-shadow placeholder:font-medium placeholder:text-on-surface-variant/40"
                   placeholder="np. Szybki obiad z zewnątrz"
                 />
               </div>
@@ -606,7 +606,7 @@ export function AddFood() {
                 <div className="flex items-center justify-between pl-1">
                   <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Wartość energetyczna</label>
                 </div>
-                <div className={`relative flex items-center rounded-2xl overflow-hidden transition-shadow border ${mealId ? 'bg-primary/5 border-primary/30 ring-1 ring-primary/10 shadow-sm' : 'bg-surface-container-low border-none focus-within:ring-2 focus-within:ring-primary/30'}`}>
+                <div className={`relative flex items-center rounded-2xl overflow-hidden transition-shadow border ${mealId ? 'bg-primary/5 border-primary/30 ring-1 ring-primary/10 shadow-xs' : 'bg-surface-container-low border-none focus-within:ring-2 focus-within:ring-primary/30'}`}>
                   <input
                     {...numberFieldProps(MEAL_LIMITS.kcal, 0)}
                     aria-label="Wartość energetyczna"
@@ -615,7 +615,7 @@ export function AddFood() {
                     }}
                     value={quickAddForm.kcal}
                     onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.kcal, 0) && setQuickAddForm({ ...quickAddForm, kcal: e.target.value })}
-                    className="flex-1 bg-transparent py-4 pl-4 pr-16 outline-none text-on-surface font-bold text-lg leading-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="flex-1 bg-transparent py-4 pl-4 pr-16 outline-hidden text-on-surface font-bold text-lg leading-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="0"
                   />
                   <span className="absolute right-4 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest bg-surface-container-highest/60 px-2 py-1.5 rounded-md">kcal</span>
@@ -635,7 +635,7 @@ export function AddFood() {
                       }}
                       value={quickAddForm.carbs}
                       onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.grams) && setQuickAddForm({ ...quickAddForm, carbs: e.target.value })}
-                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-hidden text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="0"
                     />
                     <span className="absolute right-3 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest">g</span>
@@ -654,7 +654,7 @@ export function AddFood() {
                       }}
                       value={quickAddForm.protein}
                       onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.grams) && setQuickAddForm({ ...quickAddForm, protein: e.target.value })}
-                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-hidden text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="0"
                     />
                     <span className="absolute right-3 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest">g</span>
@@ -673,7 +673,7 @@ export function AddFood() {
                       }}
                       value={quickAddForm.fat}
                       onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.grams) && setQuickAddForm({ ...quickAddForm, fat: e.target.value })}
-                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-hidden text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="0"
                     />
                     <span className="absolute right-3 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest">g</span>
@@ -687,7 +687,7 @@ export function AddFood() {
             <button
               onClick={handleQuickAddSubmit}
               disabled={isAdding || !quickAddForm.name.trim() || !isPositiveWithinLimit(quickAddForm.kcal, MEAL_LIMITS.kcal) || (Boolean(mealId) && !quickAddChanged)}
-              className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
+              className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
             >
               {isAdding ? (
                 <div className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin"></div>

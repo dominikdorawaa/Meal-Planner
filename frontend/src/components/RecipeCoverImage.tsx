@@ -48,7 +48,7 @@ export function RecipeCoverImage({
         current.themes.includes(theme) ? (
           <div
             key={theme}
-            className={`${className} ${PLACEHOLDER_VISIBILITY[theme]} bg-gradient-to-br from-primary/5 to-primary/10 items-center justify-center`}
+            className={`${className} ${PLACEHOLDER_VISIBILITY[theme]} bg-linear-to-br/srgb from-primary/5 to-primary/10 items-center justify-center`}
           >
             <span className="material-symbols-outlined text-primary/20 text-4xl">restaurant</span>
           </div>

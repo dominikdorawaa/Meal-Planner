@@ -293,7 +293,7 @@ export default function AddRecipe() {
         <button
           onClick={handleSaveRecipe}
           disabled={!name.trim() || isSaving || isUploadingPhoto || missingProducts || (portions.trim() !== '' && !isPositiveWithinLimit(portions, AMOUNT_LIMITS.portion))}
-          className="px-5 py-2 bg-primary text-on-primary font-bold text-sm rounded-xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm"
+          className="px-5 py-2 bg-primary text-on-primary font-bold text-sm rounded-xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-xs"
         >
           {isSaving ? t('recipeForm.saving') : t('recipeForm.save')}
         </button>
@@ -305,7 +305,7 @@ export default function AddRecipe() {
         )}
 
         {isLoading && (
-          <div className="absolute inset-0 bg-surface/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-surface/80 backdrop-blur-xs z-50 flex items-center justify-center">
             <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
           </div>
         )}
@@ -395,7 +395,7 @@ export default function AddRecipe() {
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-2xl py-4 px-5 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-headline font-bold text-xl transition-shadow placeholder:font-medium placeholder:text-on-surface-variant/40"
+              className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-2xl py-4 px-5 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-headline font-bold text-xl transition-shadow placeholder:font-medium placeholder:text-on-surface-variant/40"
               placeholder={t('recipeForm.namePlaceholder')}
             />
           </div>
@@ -409,7 +409,7 @@ export default function AddRecipe() {
                   {...numberFieldProps(RECIPE_LIMITS.prepMinutes, 0)}
                   value={prepTime}
                   onChange={e => acceptsLimitedNumber(e.target.value, RECIPE_LIMITS.prepMinutes, 0) && setPrepTime(e.target.value)}
-                  className="w-full bg-transparent py-3.5 pl-4 pr-12 outline-none text-on-surface font-bold text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-full bg-transparent py-3.5 pl-4 pr-12 outline-hidden text-on-surface font-bold text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   placeholder="0"
                 />
                 <span className="absolute right-4 text-xs font-bold text-on-surface-variant">min</span>
@@ -424,7 +424,7 @@ export default function AddRecipe() {
                   {...numberFieldProps(AMOUNT_LIMITS.portion)}
                   value={portions}
                   onChange={e => acceptsLimitedNumber(e.target.value, AMOUNT_LIMITS.portion) && setPortions(e.target.value)}
-                  className="w-full bg-transparent py-3.5 pl-4 pr-16 outline-none text-on-surface font-bold text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-full bg-transparent py-3.5 pl-4 pr-16 outline-hidden text-on-surface font-bold text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   placeholder="1"
                 />
                 <span className="absolute right-4 text-xs font-bold text-on-surface-variant whitespace-nowrap">{t('recipeForm.portionsUnit')}</span>
@@ -454,7 +454,7 @@ export default function AddRecipe() {
               const kcal = ingredientMacros(ing).kcal;
               const product = ing.product;
               return (
-                <div key={ing.id ?? idx} className="flex items-center gap-1 bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/10 shadow-sm">
+                <div key={ing.id ?? idx} className="flex items-center gap-1 bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/10 shadow-xs">
                   <button
                     type="button"
                     onClick={() => (product ? setAmountTarget({ product, index: idx }) : chooseProductFor(idx))}
@@ -491,7 +491,7 @@ export default function AddRecipe() {
           <button
             type="button"
             onClick={() => setShowIngredientSearch(true)}
-            className="w-full py-4 bg-surface-container-low text-on-surface font-bold text-sm rounded-2xl hover:bg-surface-container transition-colors active:scale-[0.98] border border-outline-variant/20 flex items-center justify-center gap-2 shadow-sm"
+            className="w-full py-4 bg-surface-container-low text-on-surface font-bold text-sm rounded-2xl hover:bg-surface-container transition-colors active:scale-[0.98] border border-outline-variant/20 flex items-center justify-center gap-2 shadow-xs"
           >
             <span className="material-symbols-outlined text-[20px]">add</span>
             {t('recipeForm.addIngredient')}
@@ -511,7 +511,7 @@ export default function AddRecipe() {
           <button
             type="button"
             onClick={handleAddStep}
-            className="w-full py-4 bg-surface-container-low text-on-surface font-bold text-sm rounded-2xl hover:bg-surface-container transition-colors active:scale-[0.98] border border-outline-variant/20 flex items-center justify-center gap-2 shadow-sm"
+            className="w-full py-4 bg-surface-container-low text-on-surface font-bold text-sm rounded-2xl hover:bg-surface-container transition-colors active:scale-[0.98] border border-outline-variant/20 flex items-center justify-center gap-2 shadow-xs"
           >
             <span className="material-symbols-outlined text-[20px]">add</span>
             {t('recipeForm.addStep')}

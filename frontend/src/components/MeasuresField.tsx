@@ -40,7 +40,7 @@ export function MeasuresField({ rows, baseUnit, kinds, kindsFailed = false, onRe
                 aria-label={t('productForm.measureKind', { index: index + 1 })}
                 value={row.code}
                 onChange={event => update(index, { code: event.target.value, names: null })}
-                className="min-w-0 flex-1 bg-surface-container-lowest rounded-xl py-2 px-1.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary/20"
+                className="min-w-0 flex-1 bg-surface-container-lowest rounded-xl py-2 px-1.5 text-sm font-bold text-on-surface outline-hidden focus:ring-2 focus:ring-primary/20"
               >
                 {!known && <option value={row.code}>{name}</option>}
                 {options.map(kind => (
@@ -56,7 +56,7 @@ export function MeasuresField({ rows, baseUnit, kinds, kindsFailed = false, onRe
                   onKeyDown={event => ['e', 'E', '+', '-'].includes(event.key) && event.preventDefault()}
                   value={row.amount}
                   onChange={event => acceptsLimitedNumber(event.target.value, max) && update(index, { amount: event.target.value })}
-                  className="w-[72px] bg-surface-container-lowest rounded-xl py-2 pl-2 pr-7 text-sm font-bold text-on-surface text-right outline-none focus:ring-2 focus:ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-[72px] bg-surface-container-lowest rounded-xl py-2 pl-2 pr-7 text-sm font-bold text-on-surface text-right outline-hidden focus:ring-2 focus:ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   placeholder="0"
                 />
                 <span className="absolute right-2 text-[10px] font-black text-on-surface-variant/50 uppercase">{baseUnit}</span>

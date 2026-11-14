@@ -32,7 +32,7 @@ export function PlanActionSheet({ label, title, meta, leading, onClose, children
         aria-label={label}
         tabIndex={-1}
         onClick={event => event.stopPropagation()}
-        className="w-full max-w-[600px] bg-surface-container-low rounded-t-[28px] pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-ambient border-t border-outline-variant/10 outline-none"
+        className="w-full max-w-[600px] bg-surface-container-low rounded-t-[28px] pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-ambient border-t border-outline-variant/10 outline-hidden"
       >
         <div className="w-9 h-1 bg-surface-container-highest rounded-full mx-auto mb-4"></div>
         <div className="flex items-center gap-3 px-5 pb-3.5">

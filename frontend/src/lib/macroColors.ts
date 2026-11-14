@@ -7,4 +7,4 @@ export const macroFillClass: Record<MacroKey, string> = {
 };
 
 export const macroRingBackground = (macro: MacroKey, percent: number) =>
-  `conic-gradient(rgb(var(--color-macro-${macro})) ${percent}%, rgb(var(--color-macro-${macro}) / 0.06) 0)`;
+  `conic-gradient(var(--color-macro-${macro}) ${percent}%, color-mix(in srgb, var(--color-macro-${macro}) 6%, transparent) 0)`;

@@ -20,14 +20,14 @@ export function BottomPanel({ title, onClose, children }: BottomPanelProps) {
   useDialogFocus(dialogRef, onClose);
 
   return createPortal(
-    <div data-scroll-lock className="fixed inset-0 z-[200] flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+    <div data-scroll-lock className="fixed inset-0 z-[200] flex flex-col justify-end bg-black/40 backdrop-blur-xs animate-fade-in" onClick={onClose}>
       <div
         ref={sheetRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="w-full sm:max-w-xl mx-auto bg-surface rounded-t-[32px] px-6 pt-4 pb-safe-6 max-h-[85dvh] overflow-y-auto overscroll-contain animate-slide-up shadow-2xl outline-none"
+        className="w-full sm:max-w-xl mx-auto bg-surface rounded-t-[32px] px-6 pt-4 pb-safe-6 max-h-[85dvh] overflow-y-auto overscroll-contain animate-slide-up shadow-2xl outline-hidden"
         onClick={event => event.stopPropagation()}
       >
         <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-5" />
