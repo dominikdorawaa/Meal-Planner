@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { AddFood } from './AddFood';
+import { AddFood, URL_SYNC_DELAY_MS } from './AddFood';
 import { ProductDetails } from './ProductDetails';
 import { MEASURE_KINDS } from '../lib/measureFixtures';
 import { t } from '../i18n';
@@ -118,12 +118,22 @@ function PlanStub() {
   );
 }
 
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <>
+      <p data-testid="location-search">{location.search}</p>
+      <p data-testid="location-state">{JSON.stringify(location.state)}</p>
+    </>
+  );
+}
+
 function renderAddFood(url = ADD_FOOD_URL) {
   return render(
     <MemoryRouter initialEntries={['/', url]} initialIndex={1}>
       <Routes>
         <Route path="/" element={<PlanStub />} />
-        <Route path="/add-food" element={<AddFood />} />
+        <Route path="/add-food" element={<><AddFood /><LocationProbe /></>} />
         <Route path="/recipe/:id" element={<DetailsStub />} />
         <Route path="/product/:id" element={<ProductDetails />} />
       </Routes>
@@ -680,7 +690,7 @@ describe('AddFood tabs', () => {
     search('o');
     fireEvent.click(tab('Własne'));
 
-    fireEvent.click(screen.getByRole('button', { name: t('recipes.clearSearch') }));
+    fireEvent.click(screen.getByRole('button', { name: t('food.clearSearch') }));
 
     expect(tab('Własne').getAttribute('aria-selected')).toBe('true');
     expect(await screen.findByText('Mój baton')).toBeTruthy();
@@ -822,6 +832,39 @@ describe('AddFood search field', () => {
     expect(screen.getByRole('button', { name: t('food.filters.open') }).textContent).toContain('1');
     expect(mocks.searchArgs.at(-1)).toEqual(expect.objectContaining({ query: 'om', enabled: true }));
     expect(screen.getByText('Kefir')).toBeTruthy();
+  });
+
+  it('writes the search to the address only after typing pauses, together with the checked items', () => {
+    vi.useFakeTimers();
+    try {
+      renderAddFood();
+      fireEvent.click(checkbox('Owsianka'));
+      search('o');
+      act(() => vi.advanceTimersByTime(100));
+      search('om');
+
+      expect(screen.getByTestId('location-search').textContent).not.toContain('q=');
+
+      act(() => vi.advanceTimersByTime(URL_SYNC_DELAY_MS));
+
+      expect(screen.getByTestId('location-search').textContent).toBe('?selectDate=2026-10-17&selectType=lunch&tab=recent&q=om');
+      expect(JSON.parse(screen.getByTestId('location-state').textContent!).planSelection.items).toEqual([{ kind: 'recipe', id: 'r1' }]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('opens the screen scrolled to the top after coming back from details', async () => {
+    renderAddFood();
+    search('om');
+    vi.mocked(window.scrollTo).mockClear();
+
+    fireEvent.click(screen.getByText('Omlet'));
+    await screen.findByText(/^details \/recipe\/r2/);
+    fireEvent.click(screen.getByText('back'));
+
+    await screen.findByDisplayValue('om');
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
   });
 
   it('starts with an empty search when opened again from the plan', () => {

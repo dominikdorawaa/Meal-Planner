@@ -387,6 +387,7 @@
   "food.ownProductsEmpty": "You have no own products yet.",
   "food.ownRecipesEmpty": "You have no own recipes yet.",
   "food.noResults": "No results",
+  "food.clearSearch": "Clear search",
   "food.productsFailed": "Could not load products",
   "food.moreProductsFailed": "Could not load more products",
   "food.retry": "Try again",

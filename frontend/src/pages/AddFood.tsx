@@ -42,6 +42,7 @@ import { MEAL_LIMITS, acceptsLimitedNumber, isPositiveWithinLimit, numberFieldPr
 type FoodTab = 'recent' | 'saved' | 'own';
 
 const RECENT_ITEMS_LIMIT = 15;
+export const URL_SYNC_DELAY_MS = 500;
 const FOOD_TABS: { id: FoodTab; label: MessageKey; icon: string }[] = [
   { id: 'recent', label: 'food.tabRecent', icon: 'history' },
   { id: 'saved', label: 'food.tabSaved', icon: 'favorite' },
@@ -74,25 +75,30 @@ function FoodSection({ title, empty, children }: { title: string; empty: string 
       <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/50 mb-3 pl-1">{title}</h2>
       {children.length > 0 ? (
         <div className="flex flex-col gap-3">{children}</div>
-      ) : empty && (
-        <div className="py-6 px-4 text-center bg-surface-container-lowest rounded-[24px] border border-outline-variant/10 border-dashed">
-          <p className="text-sm font-medium text-on-surface-variant/60">{empty}</p>
-        </div>
-      )}
+      ) : empty && <EmptyBox message={empty} />}
     </section>
   );
 }
 
-function isSearching(query: string, filters: NutritionFiltersValues) {
-  return query.trim() !== '' || Object.values(filters).some(value => value !== '');
+function EmptyBox({ message, children }: { message: string; children?: ReactNode }) {
+  return (
+    <div className="py-6 px-4 text-center bg-surface-container-lowest rounded-[24px] border border-outline-variant/10 border-dashed">
+      <p className="text-sm font-medium text-on-surface-variant/60">{message}</p>
+      {children}
+    </div>
+  );
 }
 
 function NoResults() {
-  return (
-    <div className="py-6 px-4 text-center bg-surface-container-lowest rounded-[24px] border border-outline-variant/10 border-dashed">
-      <p className="text-sm font-medium text-on-surface-variant/60">{t('food.noResults')}</p>
-    </div>
-  );
+  return <EmptyBox message={t('food.noResults')} />;
+}
+
+function hasFilters(filters: NutritionFiltersValues) {
+  return Object.values(filters).some(value => value !== '');
+}
+
+function isSearching(query: string, filters: NutritionFiltersValues) {
+  return query.trim() !== '' || hasFilters(filters);
 }
 
 const EMPTY_FILTERS: NutritionFiltersValues = { maxKcal: '', minProtein: '', maxFat: '', maxCarbs: '' };
@@ -117,14 +123,19 @@ interface AddFoodListState {
   date: string;
   mealType: string;
   tab: FoodTab;
-  narrowed: boolean;
+  searchWithinTab: boolean;
   query: string;
   filters: NutritionFiltersValues;
 }
 
-function addFoodListSearch({ date, mealType, tab, narrowed, query, filters }: AddFoodListState) {
-  const params = new URLSearchParams({ selectDate: date, selectType: mealType, tab });
-  if (narrowed) params.set('narrowed', 'true');
+function planTargetSearch(date: string, mealType: string) {
+  return new URLSearchParams({ selectDate: date, selectType: mealType });
+}
+
+function addFoodListSearch({ date, mealType, tab, searchWithinTab, query, filters }: AddFoodListState) {
+  const params = planTargetSearch(date, mealType);
+  params.set('tab', tab);
+  if (searchWithinTab) params.set('withinTab', 'true');
   if (query !== '') params.set('q', query);
   for (const field of FILTER_FIELDS) {
     if (filters[field.key] !== '') params.set(field.key, filters[field.key]);
@@ -149,27 +160,22 @@ export function AddFood() {
   const [activeTab, setActiveTab] = useState<FoodTab>(() => readFoodTab(searchParams.get('tab')));
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<NutritionFiltersValues>(() => readFilters(searchParams));
-  const [narrowed, setNarrowed] = useState(() => searchParams.get('narrowed') === 'true');
+  const [searchWithinTab, setSearchWithinTab] = useState(() => searchParams.get('withinTab') === 'true');
 
-  const listSearch = addFoodListSearch({ date: activeDate, mealType: activeMealType, tab: activeTab, narrowed, query: searchQuery, filters });
+  const listSearch = addFoodListSearch({ date: activeDate, mealType: activeMealType, tab: activeTab, searchWithinTab, query: searchQuery, filters });
 
-  useEffect(() => {
-    if (mealId || !selectDate || !selectType || listSearch === location.search) return;
-    navigate(`${location.pathname}${listSearch}`, { replace: true, state: location.state });
-  }, [listSearch, location, mealId, navigate, selectDate, selectType]);
-
-  const hasActiveFilters = Object.values(filters).some(v => v !== '');
+  const hasActiveFilters = hasFilters(filters);
   const searching = isSearching(searchQuery, filters);
-  const selectedTab = searching && !narrowed ? null : activeTab;
+  const selectedTab = searching && !searchWithinTab ? null : activeTab;
 
   const changeSearch = (query: string, nextFilters: NutritionFiltersValues) => {
     setSearchQuery(query);
     setFilters(nextFilters);
-    if (!isSearching(query, nextFilters)) setNarrowed(false);
+    if (!isSearching(query, nextFilters)) setSearchWithinTab(false);
   };
 
   const selectTab = (tab: FoodTab) => {
-    if (searching) setNarrowed(!(narrowed && activeTab === tab));
+    if (searching) setSearchWithinTab(!(searchWithinTab && activeTab === tab));
     setActiveTab(tab);
   };
   const productSearch = useProductSearch({
@@ -181,6 +187,16 @@ export function AddFood() {
 
   const [isAdding, setIsAdding] = useState(false);
   const [selection, setSelection] = useState(() => readPlanSelection(location.state) ?? newPlanSelection());
+
+  const { pathname, search: currentSearch } = location;
+  useEffect(() => {
+    if (mealId || !selectDate || !selectType || listSearch === currentSearch) return;
+    const timeoutId = setTimeout(
+      () => navigate(`${pathname}${listSearch}`, { replace: true, state: planSelectionState(selection) }),
+      URL_SYNC_DELAY_MS
+    );
+    return () => clearTimeout(timeoutId);
+  }, [listSearch, currentSearch, pathname, mealId, navigate, selectDate, selectType, selection]);
   const toggleItem = (kind: PlanSelectionKind, id: string | number) =>
     setSelection(current => ({ ...current, items: toggleSelection(current.items, kind, id) }));
 
@@ -257,9 +273,8 @@ export function AddFood() {
   const openDetails = (path: string) => {
     if (!activeDate || !activeMealType) return;
     const state = planSelectionState(selection);
-    const query = `?selectDate=${activeDate}&selectType=${activeMealType}`;
     navigate(`${location.pathname}${listSearch}`, { replace: true, state });
-    navigate(path + query, { state });
+    navigate(`${path}?${planTargetSearch(activeDate, activeMealType)}`, { state });
   };
 
   const handleSelectRecipe = (recipe: any) => openDetails(`/recipe/${recipe.id}`);
@@ -407,7 +422,7 @@ export function AddFood() {
                   autoComplete="off"
                 />
                 {searchQuery && (
-                  <button onClick={() => changeSearch('', filters)} aria-label={t('recipes.clearSearch')} className="absolute inset-y-0 right-4 flex items-center text-on-surface-variant/60 hover:text-on-surface active:scale-90 transition-transform">
+                  <button onClick={() => changeSearch('', filters)} aria-label={t('food.clearSearch')} className="absolute inset-y-0 right-4 flex items-center text-on-surface-variant/60 hover:text-on-surface active:scale-90 transition-transform">
                     <span className="material-symbols-outlined text-[18px]">close</span>
                   </button>
                 )}
@@ -578,8 +593,7 @@ export function AddFood() {
                   ) : isSearchingProducts ? (
                     <p className="py-6 text-center text-sm font-medium text-on-surface-variant/60">{t('food.searching')}</p>
                   ) : (
-                    <div className="py-6 text-center bg-surface-container-lowest rounded-[24px] border border-outline-variant/10 border-dashed">
-                      <p className="text-sm font-medium text-on-surface-variant/60">{t('food.productsFailed')}</p>
+                      <EmptyBox message={t('food.productsFailed')}>
                       <button
                         type="button"
                         onClick={productSearch.reload}
@@ -587,7 +601,7 @@ export function AddFood() {
                       >
                         {t('food.retry')}
                       </button>
-                    </div>
+                    </EmptyBox>
                   )}
                 </section>
               )}

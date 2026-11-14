@@ -387,6 +387,7 @@
   "food.ownProductsEmpty": "Nie masz jeszcze własnych produktów.",
   "food.ownRecipesEmpty": "Nie masz jeszcze własnych przepisów.",
   "food.noResults": "Brak wyników",
+  "food.clearSearch": "Wyczyść wyszukiwanie",
   "food.productsFailed": "Nie udało się pobrać produktów",
   "food.moreProductsFailed": "Nie udało się pobrać kolejnych produktów",
   "food.retry": "Spróbuj ponownie",
