@@ -334,7 +334,7 @@ export function RecipeDetails() {
             onDateChange={setActiveDate}
           />
         ) : (
-          <h1 className="font-headline font-bold text-[15px] sm:text-base text-on-surface leading-tight flex-1">{t('recipeDetails.title')}</h1>
+          <h1 className="font-headline font-bold text-[15px] sm:text-base/6 text-on-surface leading-tight flex-1">{t('recipeDetails.title')}</h1>
         )}
         {isOwn && (
           <button
@@ -460,7 +460,7 @@ export function RecipeDetails() {
         {ingredients && ingredients.length > 0 && (
           <section className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[11px] sm:text-xs font-bold uppercase tracking-wide text-on-surface-variant flex items-center gap-1 flex-wrap leading-tight">
+              <h2 className="text-[11px] sm:text-xs/4 font-bold uppercase tracking-wide text-on-surface-variant flex items-center gap-1 flex-wrap leading-tight">
                 <span>{t('recipeDetails.ingredientsFor', { portions: portionsAccusative(activeIngredientPortions) })}</span>
                 <span className="normal-case opacity-70">({formatCompactNumber(activeIngredientPortions * gramsPerPortion)}g)</span>
               </h2>
