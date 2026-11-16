@@ -40,4 +40,9 @@ public class ShoppingDepartmentController {
             Authentication authentication) {
         return departmentService.assign(userId(authentication), request);
     }
+
+    @DeleteMapping("/{id}")
+    public ShoppingDepartmentService.Departments delete(@PathVariable String id, Authentication authentication) {
+        return departmentService.delete(userId(authentication), id);
+    }
 }

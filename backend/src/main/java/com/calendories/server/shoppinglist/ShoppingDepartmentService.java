@@ -7,9 +7,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class ShoppingDepartmentService {
@@ -69,8 +69,24 @@ public class ShoppingDepartmentService {
                 : existingDepartment(userId, request.department());
 
         assignmentRepository.upsert(userId, productName, department);
-        removeUnusedDepartments(userId);
         return list(userId);
+    }
+
+    @Transactional
+    public Departments delete(UUID userId, String departmentId) {
+        ShoppingDepartment department = ownDepartment(userId, departmentId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "shopping.department.unknown"));
+        assignmentRepository.deleteByUserIdAndDepartment(userId, department.getId().toString());
+        departmentRepository.delete(department);
+        return list(userId);
+    }
+
+    private Optional<ShoppingDepartment> ownDepartment(UUID userId, String departmentId) {
+        try {
+            return departmentRepository.findByIdAndUserId(UUID.fromString(departmentId), userId);
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     private String existingDepartment(UUID userId, String department) {
@@ -80,13 +96,9 @@ public class ShoppingDepartmentService {
         if (BUILT_IN_DEPARTMENTS.contains(department)) {
             return department;
         }
-        try {
-            return departmentRepository.findByIdAndUserId(UUID.fromString(department), userId)
-                    .map(found -> found.getId().toString())
-                    .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "shopping.department.unknown"));
-        } catch (IllegalArgumentException e) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "shopping.department.unknown");
-        }
+        return ownDepartment(userId, department)
+                .map(found -> found.getId().toString())
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "shopping.department.unknown"));
     }
 
     private String createOrFind(UUID userId, String rawName) {
@@ -99,14 +111,5 @@ public class ShoppingDepartmentService {
         }
         departmentRepository.insertIfMissing(userId, name);
         return departmentRepository.findByUserIdAndNameIgnoreCase(userId, name).orElseThrow().getId().toString();
-    }
-
-    private void removeUnusedDepartments(UUID userId) {
-        Set<String> used = assignmentRepository.findByUserIdOrderByProductNameAsc(userId).stream()
-                .map(ShoppingDepartmentAssignment::getDepartment)
-                .collect(Collectors.toSet());
-        departmentRepository.deleteAll(departmentRepository.findByUserIdOrderByCreatedAtAscIdAsc(userId).stream()
-                .filter(department -> !used.contains(department.getId().toString()))
-                .toList());
     }
 }

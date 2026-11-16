@@ -24,6 +24,7 @@ import {
   shoppingDepartmentId,
   shoppingDepartmentList,
   withShoppingAssignment,
+  withoutShoppingDepartment,
   type ShoppingDepartments,
 } from '../lib/shoppingCategories';
 
@@ -235,6 +236,21 @@ export function ShoppingList() {
       return;
     }
     saveDepartment(item, { new_department_name: name }, name);
+  };
+
+  const deleteDepartment = async (departmentId: string) => {
+    const requestId = ++departmentRequests.current;
+    const previous = departments;
+    setDepartments(current => withoutShoppingDepartment(current, departmentId));
+    try {
+      const saved = await api.shoppingList.deleteDepartment(departmentId);
+      if (requestId === departmentRequests.current) setDepartments(saved);
+      showSnackbar(t('shopping.departmentDeleted'));
+    } catch (err) {
+      console.error('Error deleting department:', err);
+      if (requestId === departmentRequests.current) setDepartments(previous);
+      showSnackbar(t('shopping.deleteDepartmentFailed'));
+    }
   };
 
   const openFromPlan = () => {
@@ -471,6 +487,7 @@ export function ShoppingList() {
           departments={shoppingDepartmentList(departments)}
           onPick={departmentId => pickDepartment(movingItem, departmentId)}
           onCreate={name => createDepartment(movingItem, name)}
+          onDelete={deleteDepartment}
           onClose={() => setMovingItem(null)}
         />
       )}

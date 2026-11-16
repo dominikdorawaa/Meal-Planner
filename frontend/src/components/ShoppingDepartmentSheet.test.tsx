@@ -4,16 +4,23 @@ import { ShoppingDepartmentSheet } from './ShoppingDepartmentSheet';
 import { t } from '../i18n';
 
 const onCreate = vi.fn();
+const onDelete = vi.fn();
 
 beforeEach(() => {
   onCreate.mockReset();
+  onDelete.mockReset();
   render(
     <ShoppingDepartmentSheet
       productName="Hummus"
       current="other"
-      departments={[{ id: 'dairy', label: 'Dairy', icon: 'egg' }, { id: 'other', label: 'Other', icon: 'category' }]}
+      departments={[
+        { id: 'dairy', label: 'Dairy', icon: 'egg', custom: false },
+        { id: 'd1', label: 'Pet food', icon: 'label', custom: true },
+        { id: 'other', label: 'Other', icon: 'category', custom: false },
+      ]}
       onPick={vi.fn()}
       onCreate={onCreate}
+      onDelete={onDelete}
       onClose={vi.fn()}
     />
   );
@@ -43,5 +50,15 @@ describe('ShoppingDepartmentSheet new department', () => {
     fireEvent.submit(field());
 
     expect(onCreate).toHaveBeenCalledWith('Pet food');
+  });
+});
+
+describe('ShoppingDepartmentSheet own departments', () => {
+  it('lets only own departments be deleted', () => {
+    expect(screen.queryByRole('button', { name: t('shopping.deleteDepartment', { name: 'Dairy' }) })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: t('shopping.deleteDepartment', { name: 'Pet food' }) }));
+
+    expect(onDelete).toHaveBeenCalledWith('d1');
   });
 });

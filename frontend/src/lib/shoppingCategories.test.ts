@@ -8,6 +8,7 @@ import {
   shoppingDepartmentId,
   shoppingDepartmentList,
   withShoppingAssignment,
+  withoutShoppingDepartment,
 } from './shoppingCategories';
 import { t } from '../i18n';
 
@@ -73,6 +74,13 @@ describe('own departments and remembered assignments', () => {
     expect(findShoppingDepartmentByLabel(' pet  FOOD ', departments)?.id).toBe('d1');
     expect(findShoppingDepartmentByLabel(t('shopping.category.bakery').toUpperCase(), departments)?.id).toBe('bakery');
     expect(findShoppingDepartmentByLabel('Garden', departments)).toBeUndefined();
+  });
+
+  it('drops an own department together with its remembered products', () => {
+    expect(withoutShoppingDepartment(departments, 'd1')).toEqual({
+      custom: [],
+      assignments: [{ product_name: 'mleko', department: 'missing' }],
+    });
   });
 
   it('replaces the remembered department of a product', () => {

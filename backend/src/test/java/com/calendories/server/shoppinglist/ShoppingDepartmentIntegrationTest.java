@@ -15,6 +15,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.util.UUID;
 
@@ -83,7 +84,7 @@ class ShoppingDepartmentIntegrationTest {
     }
 
     @Test
-    void createsACustomDepartmentOnceAndRemovesItWhenNothingUsesIt() throws Exception {
+    void createsACustomDepartmentOnceAndKeepsItWhenNothingUsesIt() throws Exception {
         User user = saveUser();
 
         String created = assign(user, "{\"product_name\":\"Hummus\",\"new_department_name\":\"  Pet \u00a0 food \"}")
@@ -96,13 +97,38 @@ class ShoppingDepartmentIntegrationTest {
                 .andExpect(jsonPath("$.custom", hasSize(1)))
                 .andExpect(jsonPath("$.assignments[*].department", contains(id, id)));
 
-        assign(user, "{\"product_name\":\"dog food\",\"department\":\"" + id + "\"}").andExpect(status().isOk());
+        assign(user, "{\"product_name\":\"dog food\",\"department\":\"other\"}").andExpect(status().isOk());
         assign(user, "{\"product_name\":\"hummus\",\"department\":\"dairy\"}")
-                .andExpect(jsonPath("$.custom", hasSize(1)));
-        assign(user, "{\"product_name\":\"dog food\",\"department\":\"other\"}")
-                .andExpect(jsonPath("$.custom", empty()));
+                .andExpect(jsonPath("$.custom[0].id").value(id));
 
-        assertThat(departmentRepository.findByUserIdOrderByCreatedAtAscIdAsc(user.getId())).isEmpty();
+        assertThat(departmentRepository.findByUserIdOrderByCreatedAtAscIdAsc(user.getId())).hasSize(1);
+    }
+
+    @Test
+    void deletesAnOwnDepartmentWithItsRememberedProducts() throws Exception {
+        User owner = saveUser();
+        User other = saveUser();
+        String created = assign(owner, "{\"product_name\":\"Hummus\",\"new_department_name\":\"Deli\"}")
+                .andReturn().getResponse().getContentAsString();
+        String id = JsonPath.read(created, "$.custom[0].id");
+        assign(owner, "{\"product_name\":\"Bread\",\"department\":\"bakery\"}");
+
+        delete(other, id)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("This department does not exist."));
+        delete(owner, "not-an-id").andExpect(status().isNotFound());
+
+        delete(owner, id)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.custom", empty()))
+                .andExpect(jsonPath("$.assignments[*].product_name", contains("bread")));
+        delete(owner, id).andExpect(status().isNotFound());
+    }
+
+    private ResultActions delete(User user, String id) throws Exception {
+        return mockMvc.perform(MockMvcRequestBuilders.delete("/api/shopping-list/departments/" + id)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.generateToken(user.getId(), user.getEmail()))
+                .header(HttpHeaders.ACCEPT_LANGUAGE, "en"));
     }
 
     @Test

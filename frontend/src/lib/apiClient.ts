@@ -380,6 +380,9 @@ export const api = {
     async assignDepartment(data: { product_name: string; department?: string; new_department_name?: string }): Promise<ShoppingDepartments> {
       return request<ShoppingDepartments>('PUT', '/api/shopping-list/departments/assignments', data);
     },
+    async deleteDepartment(id: string): Promise<ShoppingDepartments> {
+      return request<ShoppingDepartments>('DELETE', `/api/shopping-list/departments/${encodeURIComponent(id)}`);
+    },
     async clearAll(): Promise<void> {
       return request<void>('DELETE', '/api/shopping-list/clear');
     }

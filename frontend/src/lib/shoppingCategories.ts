@@ -38,6 +38,7 @@ export interface ShoppingDepartment {
   id: string;
   label: string;
   icon: string;
+  custom: boolean;
 }
 
 export const NO_SHOPPING_DEPARTMENTS: ShoppingDepartments = { custom: [], assignments: [] };
@@ -52,8 +53,8 @@ export function shoppingCategoryId(name: string | null | undefined): ShoppingCat
 }
 
 export function shoppingDepartmentList(departments: ShoppingDepartments): ShoppingDepartment[] {
-  const builtIn = SHOPPING_CATEGORIES.map(category => ({ id: category.id as string, label: t(category.labelKey), icon: category.icon }));
-  const custom = departments.custom.map(department => ({ id: department.id, label: department.name, icon: 'label' }));
+  const builtIn = SHOPPING_CATEGORIES.map(category => ({ id: category.id as string, label: t(category.labelKey), icon: category.icon, custom: false }));
+  const custom = departments.custom.map(department => ({ id: department.id, label: department.name, icon: 'label', custom: true }));
   return [...builtIn.slice(0, -1), ...custom, builtIn[builtIn.length - 1]];
 }
 
@@ -88,6 +89,13 @@ export function withShoppingAssignment(
   const key = normalizeProductName(productName);
   const others = departments.assignments.filter(assignment => assignment.product_name !== key);
   return { ...departments, assignments: department ? [...others, { product_name: key, department }] : others };
+}
+
+export function withoutShoppingDepartment(departments: ShoppingDepartments, departmentId: string): ShoppingDepartments {
+  return {
+    custom: departments.custom.filter(department => department.id !== departmentId),
+    assignments: departments.assignments.filter(assignment => assignment.department !== departmentId),
+  };
 }
 
 export function formatShoppingAmount(amount: number, unit: string | null | undefined): string {

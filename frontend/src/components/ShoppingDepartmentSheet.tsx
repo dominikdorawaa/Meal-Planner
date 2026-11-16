@@ -11,10 +11,11 @@ interface ShoppingDepartmentSheetProps {
   departments: ShoppingDepartment[];
   onPick: (departmentId: string) => void;
   onCreate: (name: string) => void;
+  onDelete: (departmentId: string) => void;
   onClose: () => void;
 }
 
-export function ShoppingDepartmentSheet({ productName, current, departments, onPick, onCreate, onClose }: ShoppingDepartmentSheetProps) {
+export function ShoppingDepartmentSheet({ productName, current, departments, onPick, onCreate, onDelete, onClose }: ShoppingDepartmentSheetProps) {
   const inputId = useId();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
@@ -37,17 +38,28 @@ export function ShoppingDepartmentSheet({ productName, current, departments, onP
     <ShoppingSheet title={productName} hint={t('shopping.moveHint')} onClose={onClose}>
       <div className="border-t border-outline-variant/10 py-1.5 flex flex-col">
         {departments.map(department => (
-          <button
-            key={department.id}
-            type="button"
-            aria-pressed={department.id === current}
-            onClick={() => onPick(department.id)}
-            className="-mx-2 h-[50px] px-2 rounded-2xl flex items-center gap-4 text-left text-[15px] font-medium text-on-surface hover:bg-surface-container active:bg-surface-container-high transition-colors"
-          >
-            <span aria-hidden="true" className="material-symbols-outlined text-[22px] text-on-surface-variant">{department.icon}</span>
-            <span className="flex-1 min-w-0 truncate">{department.label}</span>
-            {department.id === current && <span aria-hidden="true" className="material-symbols-outlined text-[22px] text-primary">check</span>}
-          </button>
+          <div key={department.id} className="-mx-2 flex items-center">
+            <button
+              type="button"
+              aria-pressed={department.id === current}
+              onClick={() => onPick(department.id)}
+              className="flex-1 min-w-0 h-[50px] px-2 rounded-2xl flex items-center gap-4 text-left text-[15px] font-medium text-on-surface hover:bg-surface-container active:bg-surface-container-high transition-colors"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-[22px] text-on-surface-variant">{department.icon}</span>
+              <span className="flex-1 min-w-0 truncate">{department.label}</span>
+              {department.id === current && <span aria-hidden="true" className="material-symbols-outlined text-[22px] text-primary">check</span>}
+            </button>
+            {department.custom && (
+              <button
+                type="button"
+                onClick={() => onDelete(department.id)}
+                aria-label={t('shopping.deleteDepartment', { name: department.label })}
+                className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-on-surface-variant/70 hover:text-error hover:bg-surface-container-high active:scale-95 transition-colors"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-[20px]">delete</span>
+              </button>
+            )}
+          </div>
         ))}
       </div>
       <div className="border-t border-outline-variant/10 py-1.5">

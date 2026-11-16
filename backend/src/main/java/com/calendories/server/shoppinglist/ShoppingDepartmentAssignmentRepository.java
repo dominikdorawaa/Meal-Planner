@@ -13,6 +13,9 @@ public interface ShoppingDepartmentAssignmentRepository extends JpaRepository<Sh
     List<ShoppingDepartmentAssignment> findByUserIdOrderByProductNameAsc(UUID userId);
 
     @Modifying
+    void deleteByUserIdAndDepartment(UUID userId, String department);
+
+    @Modifying
     @Query(value = "insert into shopping_department_assignments (id, user_id, product_name, department) "
             + "values (gen_random_uuid(), :userId, :productName, :department) "
             + "on conflict (user_id, product_name) do update set department = excluded.department", nativeQuery = true)
