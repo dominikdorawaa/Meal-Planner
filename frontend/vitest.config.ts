@@ -70,6 +70,8 @@ export default defineConfig({
         'src/pages/AddRecipe.tsx',
         'src/pages/Plan.tsx',
         'src/pages/Recipes.tsx',
+        'src/components/RecipeFiltersSheet.tsx',
+        'src/lib/recipeFilters.ts',
         'src/pages/RecipeDetails.tsx',
         'src/components/RecipePhotoSheet.tsx',
         'src/components/ConfirmSheet.tsx',

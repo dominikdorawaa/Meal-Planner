@@ -19,6 +19,7 @@ import { PlanDayDeleteSheet } from '../components/PlanDayDeleteSheet';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { UndoSnackbar } from '../components/UndoSnackbar';
 import { PlanAction, PlanActionGroup, PlanActionSheet, PlanSheetDayBadge, PlanSheetThumb } from '../components/PlanActionSheet';
+import { FoodPlaceholder } from '../components/FoodPlaceholder';
 import { t, type MessageKey } from '../i18n';
 import {
   deleteMeals,
@@ -123,6 +124,40 @@ export function Plan() {
 
   const columnWidth = () => (scrollRef.current?.querySelector('[data-day-column]') as HTMLElement | null)?.offsetWidth ?? 0;
 
+  const fitSlotRowsToVisibleDays = useCallback(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const width = (scroller.querySelector('[data-day-column]') as HTMLElement | null)?.offsetWidth ?? 0;
+    const first = width ? Math.floor((scroller.scrollLeft + 1) / width) : 0;
+    const last = width ? Math.ceil((scroller.scrollLeft + scroller.clientWidth - 1) / width) : VISIBLE_DAYS;
+    scroller.querySelectorAll<HTMLElement>('[data-meal-row]').forEach(row => {
+      const columns = Array.from(row.children) as HTMLElement[];
+      row.style.removeProperty('--slot-fill');
+      columns.forEach(column => {
+        column.style.removeProperty('max-height');
+        column.style.removeProperty('overflow');
+      });
+      const tallest = Math.max(0, ...columns.slice(first, last).map(column => column.offsetHeight));
+      if (tallest === 0) return;
+      row.style.setProperty('--slot-fill', `${tallest}px`);
+      columns.forEach((column, index) => {
+        if (index >= first && index < last) return;
+        column.style.maxHeight = `${tallest}px`;
+        column.style.overflow = 'hidden';
+      });
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    fitSlotRowsToVisibleDays();
+  });
+
+  useEffect(() => {
+    window.addEventListener('resize', fitSlotRowsToVisibleDays);
+    document.fonts?.ready.then(fitSlotRowsToVisibleDays);
+    return () => window.removeEventListener('resize', fitSlotRowsToVisibleDays);
+  }, [fitSlotRowsToVisibleDays]);
+
   const scrollToDay = (index: number, smooth: boolean) => {
     const scroller = scrollRef.current;
     const left = index * columnWidth();
@@ -177,6 +212,7 @@ export function Plan() {
     const width = columnWidth();
     if (!scroller || !width) return;
     const index = Math.round(scroller.scrollLeft / width);
+    fitSlotRowsToVisibleDays();
     setFirstVisible(index);
     window.clearTimeout(settleTimer.current);
     settleTimer.current = window.setTimeout(() => {
@@ -476,7 +512,6 @@ export function Plan() {
             title={productDisplayName(product)}
             kcal={formatCompactNumber(Math.round(product.kcal * factor))}
             imgSrc={product.image_url || PLACEHOLDER_IMAGE}
-            isProduct
             onClick={() => {
               if (!copyModeDay && !copyModeMeal) navigate(`/product/${product.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
             }}
@@ -503,6 +538,7 @@ export function Plan() {
         {cards}
         <AddField
           label={validMeals.length > 0 ? t('plan.addMore') : t('plan.add')}
+          compact={validMeals.length > 0 && !copyModeMeal}
           onClick={onSlotClick}
           isToday={isToday}
           isCopyMode={!!copyModeMeal}
@@ -558,13 +594,13 @@ export function Plan() {
             onSelectDay={selectStripDay}
           />
         </div>
-        <div ref={scrollRef} onScroll={handlePlanScroll} className="w-full overflow-x-auto overflow-y-hidden no-scrollbar snap-x snap-mandatory scroll-smooth">
+        <div ref={scrollRef} onScroll={handlePlanScroll} className="w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth">
           <div className="w-max flex flex-col pb-6 relative [--plan-column:33.3333vw] sm:[--plan-column:150px]">
             {todayIndex >= 0 && (
               <div
                 aria-hidden="true"
                 data-today-band
-                className="absolute top-2 bottom-2 rounded-[22px] bg-gradient-to-b from-today/[0.11] via-today/[0.05] via-30% to-today/[0.035] pointer-events-none"
+                className="absolute top-2 bottom-2 rounded-[22px] bg-linear-to-b/srgb from-today/[0.11] via-today/[0.05] via-30% to-today/[0.035] pointer-events-none"
                 style={{ left: `calc(${todayIndex} * var(--plan-column) + ${TODAY_BAND_INSET_PX}px)`, width: `calc(var(--plan-column) - ${TODAY_BAND_INSET_PX * 2}px)` }}
               />
             )}
@@ -631,9 +667,9 @@ export function Plan() {
                       {mt.name}
                     </h2>
                   </div>
-                  <section className="flex">
+                  <section className="flex items-start" data-meal-row>
                     {days.map(day => (
-                      <div key={day.date} className={`${DAY_COLUMN} flex flex-col gap-2.5`} data-slot={toSlotKey(day.date, mt.id)}>
+                      <div key={day.date} className={`${DAY_COLUMN} flex flex-col gap-2.5 min-h-[var(--slot-fill,0px)]`} data-slot={toSlotKey(day.date, mt.id)}>
                         {renderSlot(day.date, mt.id, day.isToday)}
                       </div>
                     ))}
@@ -694,14 +730,14 @@ export function Plan() {
               </div>
             </div>
 
-            <div className="flex gap-2 ml-2 flex-shrink-0">
+            <div className="flex gap-2 ml-2 shrink-0">
               <button onClick={resetSelectionModes} className="px-3 py-2.5 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-xl transition-colors text-xs active:scale-95">
                 {t('plan.cancel')}
               </button>
               <button
                 onClick={handlePreSubmitCopyMode}
                 disabled={selectedCopyDays.length === 0 || transferBusy}
-                className="px-4 py-2.5 font-bold text-on-primary bg-primary rounded-xl shadow-sm hover:bg-primary/90 transition-colors text-xs disabled:opacity-50 active:scale-95 whitespace-nowrap"
+                className="px-4 py-2.5 font-bold text-on-primary bg-primary rounded-xl shadow-xs hover:bg-primary/90 transition-colors text-xs disabled:opacity-50 active:scale-95 whitespace-nowrap"
               >
                 {t('plan.pasteCount', { count: selectedCopyDays.length })}
               </button>
@@ -773,7 +809,7 @@ export function Plan() {
 
             <div className="flex items-center w-[55%] gap-3 overflow-hidden">
               {copyRecipe && (
-                <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm flex-shrink-0">
+                <div className="w-10 h-10 rounded-full overflow-hidden shadow-xs shrink-0">
                   <RecipeCoverImage
                     image={recipeCoverImage(copyRecipe)}
                     alt="Kopiowany posiłek"
@@ -788,14 +824,14 @@ export function Plan() {
               </div>
             </div>
 
-            <div className="flex gap-2 ml-2 flex-shrink-0">
+            <div className="flex gap-2 ml-2 shrink-0">
               <button onClick={resetSelectionModes} className="px-3 py-2.5 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-xl transition-colors text-xs active:scale-95">
                 {t('plan.cancel')}
               </button>
               <button
                 onClick={handlePreSubmitCopyMode}
                 disabled={selectedCopySlots.length === 0 || transferBusy}
-                className="px-4 py-2.5 font-bold text-on-primary bg-primary rounded-xl shadow-sm hover:bg-primary/90 transition-colors text-xs disabled:opacity-50 active:scale-95 whitespace-nowrap"
+                className="px-4 py-2.5 font-bold text-on-primary bg-primary rounded-xl shadow-xs hover:bg-primary/90 transition-colors text-xs disabled:opacity-50 active:scale-95 whitespace-nowrap"
               >
                 {isMove ? t('plan.move.confirm') : t('plan.pasteCount', { count: selectedCopySlots.length })}
               </button>
@@ -840,7 +876,7 @@ export function Plan() {
   );
 }
 
-function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuClick, onClick, isCopyMode, isSelected, isProduct, isManual }: { title: string, kcal: string, imgSrc: string, recipeImage?: RecipeImage | null, isRecipe?: boolean, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, isProduct?: boolean, isManual?: boolean }) {
+function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuClick, onClick, isCopyMode, isSelected, isManual }: { title: string, kcal: string, imgSrc: string, recipeImage?: RecipeImage | null, isRecipe?: boolean, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, isManual?: boolean }) {
   const primaryImageUrl = imgSrc && !imgSrc.includes('PLAN_PLACEHOLDER_TOKEN') ? imgSrc : null;
   const imageUrls = useMemo(() => (primaryImageUrl ? [primaryImageUrl] : []), [primaryImageUrl]);
 
@@ -872,19 +908,17 @@ function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuC
       );
     }
     return (
-      <div className={`absolute inset-0 w-full h-full flex items-center justify-center transition-all ${isManual ? 'bg-orange-50 group-hover:bg-orange-100 dark:bg-orange-500/10 dark:group-hover:bg-orange-500/20' : isProduct ? 'bg-primary/[0.03] group-hover:bg-primary/[0.06]' : 'bg-[#f1f6ed] group-hover:bg-[#e8f1e2] dark:bg-[#6B8E23]/10 dark:group-hover:bg-[#6B8E23]/20'}`}>
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner ${isManual ? 'bg-orange-100/50 text-orange-500 dark:bg-orange-500/20' : isProduct ? 'bg-primary/10 text-primary' : 'bg-white/50 text-[#6B8E23] dark:bg-white/10'}`}>
-          <span className="material-symbols-outlined text-xl opacity-80">
-            {isManual ? 'bolt' : isProduct ? 'nutrition' : 'photo_camera'}
-          </span>
-        </div>
-      </div>
+      <FoodPlaceholder
+        kind={isManual ? 'manual' : 'product'}
+        className="absolute inset-0 w-full h-full"
+        iconClassName="text-[56px] sm:text-[76px]"
+      />
     );
   };
 
   return (
     <div onClick={isCopyMode ? onMenuClick : onClick} className={`w-full flex flex-col gap-1.5 group relative transition-all duration-300 ${isCopyMode || onClick ? 'cursor-pointer' : ''}`}>
-      <div className={`aspect-square w-full rounded-2xl overflow-hidden bg-surface-container-lowest relative shadow-sm border transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface border-transparent' : 'border-outline-variant/10'}`}>
+      <div className={`aspect-square w-full rounded-2xl overflow-hidden bg-surface-container-lowest relative shadow-xs border transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface border-transparent' : 'border-outline-variant/10'}`}>
         {renderImage()}
         <span data-testid="plan-card-kcal" className="absolute left-1 bottom-1 max-w-[calc(100%-8px)] truncate inline-flex items-baseline gap-[2px] rounded-[5px] bg-black/60 backdrop-blur-md px-[5px] py-[3px] leading-none text-white tabular-nums">
           <span className="font-headline text-[10.5px] font-bold">{kcal}</span> <span className="text-[8.5px] font-medium text-white/75">kcal</span>
@@ -900,7 +934,7 @@ function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuC
             onClick={(e) => { e.stopPropagation(); onMenuClick(); }}
             className="absolute top-0 right-0 z-10 w-14 h-14 flex items-start justify-end p-1.5 text-white group/menu active:scale-90 transition-transform"
           >
-            <span className="w-8 h-8 bg-black/40 backdrop-blur-md rounded-full shadow-sm flex items-center justify-center group-hover/menu:bg-black/50 transition-colors">
+            <span className="w-8 h-8 bg-black/40 backdrop-blur-md rounded-full shadow-xs flex items-center justify-center group-hover/menu:bg-black/50 transition-colors">
               <span className="material-symbols-outlined text-[18px]">more_horiz</span>
             </span>
           </button>
@@ -913,7 +947,22 @@ function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuC
   );
 }
 
-function AddField({ label, onClick, isToday, isCopyMode, copyLabel, isSelected, disabled }: { label: string, onClick: () => void, isToday?: boolean, isCopyMode?: boolean, copyLabel: string, isSelected?: boolean, disabled?: boolean }) {
+function AddField({ label, onClick, isToday, isCopyMode, copyLabel, isSelected, disabled, compact }: { label: string, onClick: () => void, isToday?: boolean, isCopyMode?: boolean, copyLabel: string, isSelected?: boolean, disabled?: boolean, compact?: boolean }) {
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        className={`relative flex-1 min-h-[30px] w-full rounded-2xl border border-dashed flex items-center justify-center transition-colors active:scale-[0.97] before:absolute before:-inset-y-2 before:inset-x-0 before:content-[''] ${disabled ? 'opacity-30 pointer-events-none' : ''} ${isToday ? 'border-today/30 text-primary hover:bg-today/[0.06]' : 'border-outline-variant/25 text-on-surface-variant hover:bg-surface-container-low'}`}
+      >
+        <span aria-hidden="true" className={`w-[22px] h-[22px] rounded-full flex items-center justify-center ${isToday ? 'bg-today/15' : 'bg-surface-container-highest'}`}>
+          <span className="material-symbols-outlined text-[15px]">add</span>
+        </span>
+      </button>
+    );
+  }
   const tone = isSelected
     ? 'border-solid border-primary bg-primary/10 ring-2 ring-primary text-primary'
     : isToday

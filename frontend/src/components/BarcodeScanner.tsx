@@ -165,7 +165,7 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
       role="dialog"
       aria-modal="true"
       aria-label={t('scanner.title')}
-      data-scroll-lock className="fixed inset-0 z-[150] flex flex-col justify-end bg-black/60 backdrop-blur-sm animate-fade-in"
+      data-scroll-lock className="fixed inset-0 z-[150] flex flex-col justify-end bg-black/60 backdrop-blur-xs animate-fade-in"
       onClick={onClose}
     >
       <div
@@ -239,7 +239,7 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
                 setManualCode(event.target.value);
                 setManualError(false);
               }}
-              className="flex-1 bg-surface-container-low rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm"
+              className="flex-1 bg-surface-container-low rounded-2xl py-3 px-4 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm"
               placeholder="5900000000000"
             />
             <button type="submit" className="px-5 rounded-2xl bg-primary text-on-primary font-bold text-sm active:scale-95">

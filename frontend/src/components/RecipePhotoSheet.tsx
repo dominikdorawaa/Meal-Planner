@@ -22,7 +22,7 @@ export function RecipePhotoSheet({ onPick, onClose }: RecipePhotoSheetProps) {
   };
 
   return (
-    <div data-scroll-lock className="fixed inset-0 z-[160] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+    <div data-scroll-lock className="fixed inset-0 z-[160] flex items-end justify-center bg-black/40 backdrop-blur-xs animate-fade-in" onClick={onClose}>
       <div
         ref={sheetRef}
         role="dialog"

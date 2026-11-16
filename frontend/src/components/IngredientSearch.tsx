@@ -6,6 +6,7 @@ import { measureUnit } from '../lib/nutrients';
 import { productDisplayName } from '../lib/productName';
 import { useProductSearch } from '../lib/useProductSearch';
 import { t } from '../i18n';
+import { FoodPlaceholder } from './FoodPlaceholder';
 import { LoadMoreTrigger } from './LoadMoreTrigger';
 
 export const MIN_SEARCH_LENGTH = 3;
@@ -21,11 +22,9 @@ function ProductRow({ product, onSelect }: { product: Product; onSelect: (produc
   return (
     <button
       onClick={() => onSelect(product)}
-      className="flex items-center text-left bg-surface-container-lowest p-3 rounded-[20px] shadow-sm border border-outline-variant/10 active:scale-[0.98] transition-all"
+      className="flex items-center text-left bg-surface-container-lowest p-3 rounded-[20px] shadow-xs border border-outline-variant/10 active:scale-[0.98] transition-all"
     >
-      <span className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-        <span className="material-symbols-outlined text-[24px]">nutrition</span>
-      </span>
+      <FoodPlaceholder kind="product" className="w-12 h-12 rounded-2xl shrink-0" iconClassName="text-[28px]" />
       <span className="flex-1 min-w-0 px-3 font-bold text-[13px] leading-relaxed line-clamp-2">{productDisplayName(product)}</span>
       <span className="flex flex-col items-end shrink-0 pr-1">
         <span className="text-xs font-black">{product.kcal} kcal</span>
@@ -80,7 +79,7 @@ export function IngredientSearch({ onClose, onSelect, onAddProduct, onScan, init
             value={query}
             onChange={event => setQuery(event.target.value)}
             placeholder={t('recipeIngredients.searchPlaceholder')}
-            className="w-full bg-surface-container-low border-none rounded-2xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50 text-on-surface text-sm font-medium"
+            className="w-full bg-surface-container-low border-none rounded-2xl py-3 pl-12 pr-4 outline-hidden focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50 text-on-surface text-sm font-medium"
           />
         </div>
         <button

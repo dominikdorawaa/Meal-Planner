@@ -325,7 +325,7 @@ export function RecipeDetails() {
             onDateChange={setActiveDate}
           />
         ) : (
-          <h1 className="font-headline font-bold text-[15px] sm:text-base text-on-surface leading-tight flex-1">{t('recipeDetails.title')}</h1>
+          <h1 className="font-headline font-bold text-[15px] sm:text-base/6 text-on-surface leading-tight flex-1">{t('recipeDetails.title')}</h1>
         )}
         {isOwn && (
           <button
@@ -408,7 +408,7 @@ export function RecipeDetails() {
                     }}
                     className={`shrink-0 w-[78px] py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 flex flex-col items-center justify-center snap-center ${
                       isSelected
-                        ? 'bg-[#e2f0d9] text-[#2d4d1e] border-[#b5ccaa] shadow-sm dark:bg-primary/20 dark:text-primary dark:border-primary/40'
+                        ? 'bg-[#e2f0d9] text-[#2d4d1e] border-[#b5ccaa] shadow-xs dark:bg-primary/20 dark:text-primary dark:border-primary/40'
                         : 'bg-surface-container-lowest text-on-surface border-outline-variant/20 hover:border-on-surface/30'
                     }`}
                   >
@@ -451,12 +451,12 @@ export function RecipeDetails() {
         {ingredients && ingredients.length > 0 && (
           <section className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[11px] sm:text-xs font-bold uppercase tracking-wide text-on-surface-variant flex items-center gap-1 flex-wrap leading-tight">
+              <h2 className="text-[11px] sm:text-xs/4 font-bold uppercase tracking-wide text-on-surface-variant flex items-center gap-1 flex-wrap leading-tight">
                 <span>{t('recipeDetails.ingredientsFor', { portions: portionsAccusative(activeIngredientPortions) })}</span>
                 <span className="normal-case opacity-70">({formatCompactNumber(activeIngredientPortions * gramsPerPortion)}g)</span>
               </h2>
 
-              <div className="flex items-center bg-surface-container-low rounded-xl p-1 shadow-sm border border-outline-variant/10">
+              <div className="flex items-center bg-surface-container-low rounded-xl p-1 shadow-xs border border-outline-variant/10">
                 <button
                   onClick={() => setIngredientPortions(Math.max(PORTION_STEP, activeIngredientPortions - PORTION_STEP))}
                   aria-label={t('recipeDetails.fewerPortions')}
@@ -565,7 +565,7 @@ export function RecipeDetails() {
           <div className="max-w-xl mx-auto w-full flex gap-3 items-center">
 
             {!mealId && (
-              <div className="flex items-center bg-surface-container-low border border-outline-variant/20 rounded-2xl p-1 h-[56px] shadow-sm">
+              <div className="flex items-center bg-surface-container-low border border-outline-variant/20 rounded-2xl p-1 h-[56px] shadow-xs">
                 <button
                   onClick={() => setDaysToAdd(prev => Math.max(1, prev - 1))}
                   aria-label={t('recipeDetails.fewerDays')}
@@ -620,7 +620,7 @@ export function RecipeDetails() {
       )}
 
       {showAddToPlan && (
-        <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowAddToPlan(false)}>
+        <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-xs animate-fade-in" onClick={() => setShowAddToPlan(false)}>
           <div ref={addToPlanSheetRef} className="w-full sm:max-w-xl max-h-[92dvh] overflow-y-auto overscroll-contain bg-surface rounded-t-[32px] p-6 pb-8 animate-slide-up shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
             <h2 className="font-headline font-bold text-xl text-on-surface mb-5">{t('recipeDetails.planSheetTitle')}</h2>
@@ -711,7 +711,7 @@ export function RecipeDetails() {
       )}
 
       {showMenu && (
-        <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setShowMenu(false)}>
+        <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-xs animate-fade-in" onClick={() => setShowMenu(false)}>
           <div
             ref={menuSheetRef}
             role="dialog"

@@ -48,11 +48,11 @@ export function SettingsPage({ title, onBack, children, footer, action, depth = 
           {action}
         </div>
       </header>
-      <div className={`flex-1 overflow-y-auto no-scrollbar ${footer ? 'pb-[calc(6.5rem+env(safe-area-inset-bottom))]' : 'pb-[calc(2rem+env(safe-area-inset-bottom))]'}`}>
+      <div className={`flex-1 overflow-y-auto ${footer ? 'pb-bottom-nav' : 'pb-[calc(2rem+env(safe-area-inset-bottom))]'}`}>
         <div className="max-w-xl mx-auto px-4">{children}</div>
       </div>
       {footer && (
-        <div className="fixed bottom-0 inset-x-0 bg-gradient-to-t from-surface via-surface to-surface/0 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <div className="fixed bottom-0 inset-x-0 bg-linear-to-t/srgb from-surface via-surface to-surface/0 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <div className="max-w-xl mx-auto px-4 flex gap-2">{footer}</div>
         </div>
       )}

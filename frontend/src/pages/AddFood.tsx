@@ -42,6 +42,7 @@ import { MEAL_LIMITS, acceptsLimitedNumber, isPositiveWithinLimit, numberFieldPr
 type FoodTab = 'recent' | 'saved' | 'own';
 
 const RECENT_ITEMS_LIMIT = 15;
+export const URL_SYNC_DELAY_MS = 500;
 const FOOD_TABS: { id: FoodTab; label: MessageKey; icon: string }[] = [
   { id: 'recent', label: 'food.tabRecent', icon: 'history' },
   { id: 'saved', label: 'food.tabSaved', icon: 'favorite' },
@@ -74,13 +75,30 @@ function FoodSection({ title, empty, children }: { title: string; empty: string 
       <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/50 mb-3 pl-1">{title}</h2>
       {children.length > 0 ? (
         <div className="flex flex-col gap-3">{children}</div>
-      ) : empty && (
-        <div className="py-6 px-4 text-center bg-surface-container-lowest rounded-[24px] border border-outline-variant/10 border-dashed">
-          <p className="text-sm font-medium text-on-surface-variant/60">{empty}</p>
-        </div>
-      )}
+      ) : empty && <EmptyBox message={empty} />}
     </section>
   );
+}
+
+function EmptyBox({ message, children }: { message: string; children?: ReactNode }) {
+  return (
+    <div className="py-6 px-4 text-center bg-surface-container-lowest rounded-[24px] border border-outline-variant/10 border-dashed">
+      <p className="text-sm font-medium text-on-surface-variant/60">{message}</p>
+      {children}
+    </div>
+  );
+}
+
+function NoResults() {
+  return <EmptyBox message={t('food.noResults')} />;
+}
+
+function hasFilters(filters: NutritionFiltersValues) {
+  return Object.values(filters).some(value => value !== '');
+}
+
+function isSearching(query: string, filters: NutritionFiltersValues) {
+  return query.trim() !== '' || hasFilters(filters);
 }
 
 const EMPTY_FILTERS: NutritionFiltersValues = { maxKcal: '', minProtein: '', maxFat: '', maxCarbs: '' };
@@ -91,6 +109,39 @@ const FILTER_FIELDS: { key: keyof NutritionFiltersValues; label: MessageKey; ico
   { key: 'maxFat', label: 'food.filters.maxFat', icon: 'water_drop', placeholder: 'np. 15', max: MEAL_LIMITS.grams },
   { key: 'maxCarbs', label: 'food.filters.maxCarbs', icon: 'grain', placeholder: 'np. 50', max: MEAL_LIMITS.grams },
 ];
+
+function readFilters(params: URLSearchParams): NutritionFiltersValues {
+  const filters = { ...EMPTY_FILTERS };
+  for (const field of FILTER_FIELDS) {
+    const value = params.get(field.key) ?? '';
+    if (value !== '' && acceptsLimitedNumber(value, field.max, 0)) filters[field.key] = value;
+  }
+  return filters;
+}
+
+interface AddFoodListState {
+  date: string;
+  mealType: string;
+  tab: FoodTab;
+  searchWithinTab: boolean;
+  query: string;
+  filters: NutritionFiltersValues;
+}
+
+function planTargetSearch(date: string, mealType: string) {
+  return new URLSearchParams({ selectDate: date, selectType: mealType });
+}
+
+function addFoodListSearch({ date, mealType, tab, searchWithinTab, query, filters }: AddFoodListState) {
+  const params = planTargetSearch(date, mealType);
+  params.set('tab', tab);
+  if (searchWithinTab) params.set('withinTab', 'true');
+  if (query !== '') params.set('q', query);
+  for (const field of FILTER_FIELDS) {
+    if (filters[field.key] !== '') params.set(field.key, filters[field.key]);
+  }
+  return `?${params.toString()}`;
+}
 
 export function AddFood() {
   const navigate = useNavigate();
@@ -105,13 +156,28 @@ export function AddFood() {
   const [activeDate, setActiveDate] = useState(selectDate || '');
   const [activeMealType, setActiveMealType] = useState(selectType || '');
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') ?? '');
   const [activeTab, setActiveTab] = useState<FoodTab>(() => readFoodTab(searchParams.get('tab')));
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState<NutritionFiltersValues>(EMPTY_FILTERS);
+  const [filters, setFilters] = useState<NutritionFiltersValues>(() => readFilters(searchParams));
+  const [searchWithinTab, setSearchWithinTab] = useState(() => searchParams.get('withinTab') === 'true');
 
-  const hasActiveFilters = Object.values(filters).some(v => v !== '');
-  const searching = searchQuery.trim() !== '' || hasActiveFilters;
+  const listSearch = addFoodListSearch({ date: activeDate, mealType: activeMealType, tab: activeTab, searchWithinTab, query: searchQuery, filters });
+
+  const hasActiveFilters = hasFilters(filters);
+  const searching = isSearching(searchQuery, filters);
+  const selectedTab = searching && !searchWithinTab ? null : activeTab;
+
+  const changeSearch = (query: string, nextFilters: NutritionFiltersValues) => {
+    setSearchQuery(query);
+    setFilters(nextFilters);
+    if (!isSearching(query, nextFilters)) setSearchWithinTab(false);
+  };
+
+  const selectTab = (tab: FoodTab) => {
+    if (searching) setSearchWithinTab(!(searchWithinTab && activeTab === tab));
+    setActiveTab(tab);
+  };
   const productSearch = useProductSearch({
     query: searchQuery,
     filters,
@@ -121,6 +187,16 @@ export function AddFood() {
 
   const [isAdding, setIsAdding] = useState(false);
   const [selection, setSelection] = useState(() => readPlanSelection(location.state) ?? newPlanSelection());
+
+  const { pathname, search: currentSearch } = location;
+  useEffect(() => {
+    if (mealId || !selectDate || !selectType || listSearch === currentSearch) return;
+    const timeoutId = setTimeout(
+      () => navigate(`${pathname}${listSearch}`, { replace: true, state: planSelectionState(selection) }),
+      URL_SYNC_DELAY_MS
+    );
+    return () => clearTimeout(timeoutId);
+  }, [listSearch, currentSearch, pathname, mealId, navigate, selectDate, selectType, selection]);
   const toggleItem = (kind: PlanSelectionKind, id: string | number) =>
     setSelection(current => ({ ...current, items: toggleSelection(current.items, kind, id) }));
 
@@ -176,22 +252,29 @@ export function AddFood() {
 
 
 
-  const searchedRecipes = useMemo(() => {
-    const lowerQ = searchQuery.trim().toLowerCase();
-    return recipes.filter(r => String(r.name ?? '').toLowerCase().includes(lowerQ) && matchesFilters(r, filters));
-  }, [recipes, searchQuery, filters]);
+  const lowerQuery = searchQuery.trim().toLowerCase();
+  const matchesRecipe = (recipe: RecipeSummary) =>
+    String(recipe.name ?? '').toLowerCase().includes(lowerQuery) && matchesFilters(recipe, filters);
+  const matchesProduct = (product: Product) =>
+    productDisplayName(product).toLowerCase().includes(lowerQuery) && matchesFilters(product, filters);
 
-  const recentItems = useMemo(() => recentMealItems(userMeals, recipes, RECENT_ITEMS_LIMIT), [userMeals, recipes]);
-  const ownRecipes = useMemo(() => recipes.filter(recipe => isOwnItem(recipe, user)), [recipes, user]);
+  const allRecentItems = useMemo(() => recentMealItems(userMeals, recipes, RECENT_ITEMS_LIMIT), [userMeals, recipes]);
+  const searchedRecipes = recipes.filter(matchesRecipe);
+  const recentItems = allRecentItems.filter(entry => (entry.kind === 'product' ? matchesProduct(entry.item) : matchesRecipe(entry.item)));
+  const ownRecipes = recipes.filter(recipe => isOwnItem(recipe, user) && matchesRecipe(recipe));
+  const savedRecipes = savedFood.savedRecipes.filter(matchesRecipe);
+  const savedProducts = savedFood.savedProducts.filter(matchesProduct);
+  const ownProducts = savedFood.ownProducts.filter(matchesProduct);
 
-  const isSearchingProducts = productSearch.loading && productSearch.items.length === 0;
+  const productsSettled = productSearch.resultsMatchQuery || productSearch.error;
+  const isSearchingProducts = !productsSettled && productSearch.items.length === 0;
+  const noProductsFound = productsSettled && !productSearch.error && productSearch.items.length === 0;
 
   const openDetails = (path: string) => {
     if (!activeDate || !activeMealType) return;
     const state = planSelectionState(selection);
-    const query = `?selectDate=${activeDate}&selectType=${activeMealType}`;
-    navigate(`${location.pathname}${query}&tab=${activeTab}`, { replace: true, state });
-    navigate(path + query, { state });
+    navigate(`${location.pathname}${listSearch}`, { replace: true, state });
+    navigate(`${path}?${planTargetSearch(activeDate, activeMealType)}`, { state });
   };
 
   const handleSelectRecipe = (recipe: any) => openDetails(`/recipe/${recipe.id}`);
@@ -306,7 +389,7 @@ export function AddFood() {
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col">
-      <header className={`sticky top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/10 pt-safe`}>
+      <header className={`sticky top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-xs border-b border-outline-variant/10 pt-safe`}>
         <div className="max-w-xl mx-auto px-4 py-4 space-y-4">
 
           <div className="flex items-center gap-3">
@@ -331,7 +414,7 @@ export function AddFood() {
                 </div>
                 <input
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => changeSearch(e.target.value, filters)}
                   className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 pl-12 pr-4 focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50 text-on-surface text-sm font-medium transition-all shadow-inner"
                   placeholder={t('food.searchPlaceholder')}
                   type="search"
@@ -339,14 +422,14 @@ export function AddFood() {
                   autoComplete="off"
                 />
                 {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="absolute inset-y-0 right-4 flex items-center text-on-surface-variant/60 hover:text-on-surface active:scale-90 transition-transform">
+                  <button onClick={() => changeSearch('', filters)} aria-label={t('food.clearSearch')} className="absolute inset-y-0 right-4 flex items-center text-on-surface-variant/60 hover:text-on-surface active:scale-90 transition-transform">
                     <span className="material-symbols-outlined text-[18px]">close</span>
                   </button>
                 )}
               </div>
               <button
                 onClick={() => setShowScanner(true)}
-                className="bg-primary/10 w-12 h-12 rounded-2xl flex items-center justify-center text-primary hover:bg-primary/20 transition-colors active:scale-95 shrink-0 border border-primary/20 shadow-sm"
+                className="bg-primary/10 w-12 h-12 rounded-2xl flex items-center justify-center text-primary hover:bg-primary/20 transition-colors active:scale-95 shrink-0 border border-primary/20 shadow-xs"
                 title="Skanuj kod"
               >
                 <span className="material-symbols-outlined text-xl">barcode_scanner</span>
@@ -354,7 +437,7 @@ export function AddFood() {
               {/* Filter Button */}
               <button
                 onClick={() => setShowFilters(v => !v)}
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors active:scale-95 shrink-0 shadow-sm relative ${showFilters || hasActiveFilters ? 'bg-primary text-on-primary' : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'}`}
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors active:scale-95 shrink-0 shadow-xs relative ${showFilters || hasActiveFilters ? 'bg-primary text-on-primary' : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'}`}
                 title={t('food.filters.open')}
                 aria-label={t('food.filters.open')}
               >
@@ -381,10 +464,10 @@ export function AddFood() {
                       {...numberFieldProps(f.max, 0)}
                       id={`filter-${f.key}`}
                       value={filters[f.key]}
-                      onChange={e => acceptsLimitedNumber(e.target.value, f.max, 0) && setFilters(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      onChange={e => acceptsLimitedNumber(e.target.value, f.max, 0) && changeSearch(searchQuery, { ...filters, [f.key]: e.target.value })}
                       onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
                       placeholder={f.placeholder}
-                      className="w-full bg-surface-container-low rounded-xl py-3 px-3 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-full bg-surface-container-low rounded-xl py-3 px-3 text-sm font-bold text-on-surface outline-hidden focus:ring-2 focus:ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                 ))}
@@ -393,7 +476,7 @@ export function AddFood() {
                 <button
                   type="button"
                   disabled={!hasActiveFilters}
-                  onClick={() => setFilters(EMPTY_FILTERS)}
+                  onClick={() => changeSearch(searchQuery, EMPTY_FILTERS)}
                   className="flex-1 py-4 bg-surface-container-low text-on-surface font-bold text-sm rounded-2xl active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <span className="material-symbols-outlined text-[18px]">filter_alt_off</span>
@@ -418,9 +501,9 @@ export function AddFood() {
                   <button
                     key={tab.id}
                     role="tab"
-                    aria-selected={!searching && activeTab === tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex flex-1 items-center justify-center gap-1 sm:gap-1.5 py-2.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all overflow-hidden ${!searching && activeTab === tab.id ? 'bg-on-surface text-surface shadow-md' : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'}`}
+                    aria-selected={selectedTab === tab.id}
+                    onClick={() => selectTab(tab.id)}
+                    className={`flex flex-1 items-center justify-center gap-1 sm:gap-1.5 py-2.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all overflow-hidden ${selectedTab === tab.id ? 'bg-on-surface text-surface shadow-md' : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'}`}
                   >
                     <span className="material-symbols-outlined shrink-0 text-[14px]">{tab.icon}</span>
                     <span className="truncate">{t(tab.label)}</span>
@@ -435,7 +518,7 @@ export function AddFood() {
             <div className="flex items-center justify-between gap-2 pt-1">
               <button
                 onClick={() => setNewProduct({})}
-                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-none bg-surface-container-low rounded-xl border border-outline-variant/10"
+                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-hidden bg-surface-container-low rounded-xl border border-outline-variant/10"
               >
                 <div className="relative flex items-center justify-center">
                   <span className="material-symbols-outlined text-[18px]">grocery</span>
@@ -448,7 +531,7 @@ export function AddFood() {
 
               <button
                 onClick={() => navigate('/add-recipe')}
-                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-none bg-surface-container-low rounded-xl border border-outline-variant/10"
+                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-hidden bg-surface-container-low rounded-xl border border-outline-variant/10"
               >
                 <div className="relative flex items-center justify-center">
                   <span className="material-symbols-outlined text-[18px]">menu_book</span>
@@ -461,7 +544,7 @@ export function AddFood() {
 
               <button
                 onClick={() => setShowQuickAdd(true)}
-                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-none bg-surface-container-low rounded-xl border border-outline-variant/10"
+                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-hidden bg-surface-container-low rounded-xl border border-outline-variant/10"
               >
                 <div className="relative flex items-center justify-center">
                   <span className="material-symbols-outlined text-[18px]">bolt</span>
@@ -488,31 +571,29 @@ export function AddFood() {
             </div>
           )}
 
-          {!contextLoading && searching && (
+          {!contextLoading && selectedTab === null && (
             <>
-              <FoodSection title={t('food.recipes')} empty={t('food.noRecipes')}>
+              <FoodSection title={t('food.recipes')} empty={null}>
                 {searchedRecipes.map(renderRecipe)}
               </FoodSection>
-              <section className="mb-4 overflow-hidden">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/50 mb-3 pl-1">{t('food.products')}</h2>
-                {productSearch.items.length > 0 ? (
-                  <div className="flex flex-col gap-3">
-                    {productSearch.items.map(renderProduct)}
-                    {productSearch.error && (
-                      <p className="pt-3 text-center text-sm font-medium text-error">{t('food.moreProductsFailed')}</p>
-                    )}
-                    {productSearch.hasNext && (
-                      <LoadMoreTrigger onLoadMore={productSearch.loadMore} loading={productSearch.loading} />
-                    )}
-                  </div>
-                ) : isSearchingProducts ? (
-                  <p className="py-6 text-center text-sm font-medium text-on-surface-variant/60">{t('food.searching')}</p>
-                ) : (
-                  <div className="py-6 text-center bg-surface-container-lowest rounded-[24px] border border-outline-variant/10 border-dashed">
-                    <p className="text-sm font-medium text-on-surface-variant/60">
-                      {productSearch.error ? t('food.productsFailed') : t('food.noProducts')}
-                    </p>
-                    {productSearch.error && (
+              {noProductsFound && searchedRecipes.length === 0 && <NoResults />}
+              {!noProductsFound && (
+                <section className="mb-4 overflow-hidden">
+                  <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/50 mb-3 pl-1">{t('food.products')}</h2>
+                  {productSearch.items.length > 0 ? (
+                    <div className="flex flex-col gap-3">
+                      {productSearch.items.map(renderProduct)}
+                      {productSearch.error && (
+                        <p className="pt-3 text-center text-sm font-medium text-error">{t('food.moreProductsFailed')}</p>
+                      )}
+                      {productSearch.hasNext && (
+                        <LoadMoreTrigger onLoadMore={productSearch.loadMore} loading={productSearch.loading} />
+                      )}
+                    </div>
+                  ) : isSearchingProducts ? (
+                    <p className="py-6 text-center text-sm font-medium text-on-surface-variant/60">{t('food.searching')}</p>
+                  ) : (
+                      <EmptyBox message={t('food.productsFailed')}>
                       <button
                         type="button"
                         onClick={productSearch.reload}
@@ -520,41 +601,43 @@ export function AddFood() {
                       >
                         {t('food.retry')}
                       </button>
-                    )}
-                  </div>
-                )}
-              </section>
-            </>
-          )}
-
-          {!contextLoading && !searching && activeTab === 'recent' && (
-            <FoodSection title={t('food.recentTitle')} empty={t('food.recentEmpty')}>
-              {recentItems.map(entry => entry.kind === 'product' ? renderProduct(entry.item) : renderRecipe(entry.item))}
-            </FoodSection>
-          )}
-
-          {!contextLoading && !searching && activeTab === 'saved' && (
-            <>
-              {savedFood.savedRecipes.length === 0 && savedFood.savedProducts.length === 0 ? (
-                <FoodSection title={t('food.tabSaved')} empty={t('food.savedEmpty')}>{[]}</FoodSection>
-              ) : (
-                <>
-                  <FoodSection title={t('food.recipes')} empty={null}>{savedFood.savedRecipes.map(renderRecipe)}</FoodSection>
-                  <FoodSection title={t('food.products')} empty={null}>{savedFood.savedProducts.map(renderProduct)}</FoodSection>
-                </>
+                    </EmptyBox>
+                  )}
+                </section>
               )}
             </>
           )}
 
-          {!contextLoading && !searching && activeTab === 'own' && (
-            <>
-              <FoodSection title={t('food.products')} empty={t('food.ownProductsEmpty')}>
-                {savedFood.ownProducts.map(renderProduct)}
+          {!contextLoading && selectedTab === 'recent' && (
+            searching && recentItems.length === 0 ? <NoResults /> : (
+              <FoodSection title={t('food.recentTitle')} empty={t('food.recentEmpty')}>
+                {recentItems.map(entry => entry.kind === 'product' ? renderProduct(entry.item) : renderRecipe(entry.item))}
               </FoodSection>
-              <FoodSection title={t('food.recipes')} empty={t('food.ownRecipesEmpty')}>
-                {ownRecipes.map(renderRecipe)}
-              </FoodSection>
-            </>
+            )
+          )}
+
+          {!contextLoading && selectedTab === 'saved' && (
+            savedRecipes.length === 0 && savedProducts.length === 0 ? (
+              searching ? <NoResults /> : <FoodSection title={t('food.tabSaved')} empty={t('food.savedEmpty')}>{[]}</FoodSection>
+            ) : (
+              <>
+                <FoodSection title={t('food.recipes')} empty={null}>{savedRecipes.map(renderRecipe)}</FoodSection>
+                <FoodSection title={t('food.products')} empty={null}>{savedProducts.map(renderProduct)}</FoodSection>
+              </>
+            )
+          )}
+
+          {!contextLoading && selectedTab === 'own' && (
+            searching && ownProducts.length === 0 && ownRecipes.length === 0 ? <NoResults /> : (
+              <>
+                <FoodSection title={t('food.products')} empty={searching ? null : t('food.ownProductsEmpty')}>
+                  {ownProducts.map(renderProduct)}
+                </FoodSection>
+                <FoodSection title={t('food.recipes')} empty={searching ? null : t('food.ownRecipesEmpty')}>
+                  {ownRecipes.map(renderRecipe)}
+                </FoodSection>
+              </>
+            )
           )}
         </main>
       )}
@@ -562,7 +645,7 @@ export function AddFood() {
 
       {/* Quick Add Form - Modal for new, Page Content for edit */}
       {showQuickAdd && (
-        <div data-scroll-lock={mealId ? undefined : true} className={mealId ? "flex-1 w-full max-w-xl mx-auto px-4 py-6" : "fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-fade-in"} onClick={!mealId ? () => setShowQuickAdd(false) : undefined}>
+        <div data-scroll-lock={mealId ? undefined : true} className={mealId ? "flex-1 w-full max-w-xl mx-auto px-4 py-6" : "fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-xs animate-fade-in"} onClick={!mealId ? () => setShowQuickAdd(false) : undefined}>
           <div ref={mealId ? undefined : quickAddSheetRef} className={mealId ? "bg-transparent" : "bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[90vh] overflow-y-auto animate-slide-up w-full sm:max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative"} onClick={e => e.stopPropagation()}>
             {!mealId && <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6"></div>}
 
@@ -596,7 +679,7 @@ export function AddFood() {
                   aria-label="Nazwa"
                   value={quickAddForm.name}
                   onChange={e => setQuickAddForm({ ...quickAddForm, name: e.target.value })}
-                  className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm transition-shadow placeholder:font-medium placeholder:text-on-surface-variant/40"
+                  className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm transition-shadow placeholder:font-medium placeholder:text-on-surface-variant/40"
                   placeholder="np. Szybki obiad z zewnątrz"
                 />
               </div>
@@ -606,7 +689,7 @@ export function AddFood() {
                 <div className="flex items-center justify-between pl-1">
                   <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Wartość energetyczna</label>
                 </div>
-                <div className={`relative flex items-center rounded-2xl overflow-hidden transition-shadow border ${mealId ? 'bg-primary/5 border-primary/30 ring-1 ring-primary/10 shadow-sm' : 'bg-surface-container-low border-none focus-within:ring-2 focus-within:ring-primary/30'}`}>
+                <div className={`relative flex items-center rounded-2xl overflow-hidden transition-shadow border ${mealId ? 'bg-primary/5 border-primary/30 ring-1 ring-primary/10 shadow-xs' : 'bg-surface-container-low border-none focus-within:ring-2 focus-within:ring-primary/30'}`}>
                   <input
                     {...numberFieldProps(MEAL_LIMITS.kcal, 0)}
                     aria-label="Wartość energetyczna"
@@ -615,7 +698,7 @@ export function AddFood() {
                     }}
                     value={quickAddForm.kcal}
                     onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.kcal, 0) && setQuickAddForm({ ...quickAddForm, kcal: e.target.value })}
-                    className="flex-1 bg-transparent py-4 pl-4 pr-16 outline-none text-on-surface font-bold text-lg leading-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="flex-1 bg-transparent py-4 pl-4 pr-16 outline-hidden text-on-surface font-bold text-lg leading-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="0"
                   />
                   <span className="absolute right-4 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest bg-surface-container-highest/60 px-2 py-1.5 rounded-md">kcal</span>
@@ -635,7 +718,7 @@ export function AddFood() {
                       }}
                       value={quickAddForm.carbs}
                       onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.grams) && setQuickAddForm({ ...quickAddForm, carbs: e.target.value })}
-                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-hidden text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="0"
                     />
                     <span className="absolute right-3 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest">g</span>
@@ -654,7 +737,7 @@ export function AddFood() {
                       }}
                       value={quickAddForm.protein}
                       onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.grams) && setQuickAddForm({ ...quickAddForm, protein: e.target.value })}
-                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-hidden text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="0"
                     />
                     <span className="absolute right-3 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest">g</span>
@@ -673,7 +756,7 @@ export function AddFood() {
                       }}
                       value={quickAddForm.fat}
                       onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.grams) && setQuickAddForm({ ...quickAddForm, fat: e.target.value })}
-                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-hidden text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="0"
                     />
                     <span className="absolute right-3 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest">g</span>
@@ -687,7 +770,7 @@ export function AddFood() {
             <button
               onClick={handleQuickAddSubmit}
               disabled={isAdding || !quickAddForm.name.trim() || !isPositiveWithinLimit(quickAddForm.kcal, MEAL_LIMITS.kcal) || (Boolean(mealId) && !quickAddChanged)}
-              className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
+              className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
             >
               {isAdding ? (
                 <div className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin"></div>

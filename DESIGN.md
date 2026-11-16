@@ -28,6 +28,8 @@ colors:
   light-macro-protein: "#4f46e5"
   light-macro-fat: "#f59e0b"
   light-macro-carbs: "#10b981"
+  saved: "#fb7185"
+  light-saved: "#e11d48"
   brand-navy: "#16233a"
   brand-plate: "#eef1ec"
   brand-leaf: "#9fd49a"
@@ -116,6 +118,7 @@ Nazwa łączy kalendarz i kalorie, ale produkt to planowanie jedzenia, nie kalen
 - `primary` (zieleń) to jedyny akcent: aktywne elementy, wartości w normie, dzisiejszy dzień. `today` ma tę samą wartość i jest używany do wyróżnienia dzisiaj w pasku dni, w nagłówkach i w kolumnie planu.
 - `error` oznacza przekroczenie celu: liczby kalorii i makro powyżej zakresu oraz napis „za dużo”.
 - Makro mają stałe kolory w całej aplikacji: białko `macro-protein`, tłuszcz `macro-fat`, węglowodany `macro-carbs`. Kalorie zawsze w `primary`.
+- Zapisany przepis ma wypełnione serce w kolorze `saved` (w jasnym motywie `light-saved`). Plakietki na zdjęciach są zawsze ciemne i używają kolorów ciemnego motywu (klasa `dark` na plakietce), więc serce i kcal są tam jasne w obu motywach. Niezapisany to sam obrys.
 - Pory dnia mają kropki w kolorach `meal-1` do `meal-6`, przypisane według kolejności posiłku w profilu, nie jego nazwy, żeby działały też dla posiłków nazwanych przez użytkownika.
 - Ikona aplikacji ma własną paletę marki: granatowe tło `brand-navy`, jasne talerze `brand-plate` i zielony liść `brand-leaf`. Granat występuje tylko w ikonie, interfejs zostaje w zieleni.
 
@@ -125,7 +128,7 @@ Nazwa łączy kalendarz i kalorie, ale produkt to planowanie jedzenia, nie kalen
 - Tekst, etykiety i drobne wartości: Inter.
 - Liczby, które stoją obok siebie w kolumnach (kalorie, makro, kcal w kartach), używają cyfr tabelarycznych.
 - Długie wartości zmniejszają się stopniowo zamiast się ucinać (`fitTextClass` w `src/lib/fitText.ts`).
-- Napis „Calendories” to wordmark: „Cal” i „ories” w grubości 800, „end” w 400, w tym samym kolorze (`src/components/Wordmark.tsx`). Używany tylko tam, gdzie nazwa działa jak logo (logowanie, nagłówek listy zakupów), a w zwykłym tekście zostaje zwykłym słowem.
+- Napis „Calendories” to wordmark: „Cal” i „ories” w grubości 800, „end” w 400, w tym samym kolorze (`src/components/Wordmark.tsx`). Używany tylko tam, gdzie nazwa działa jak logo (logowanie), a w zwykłym tekście zostaje zwykłym słowem.
 
 ## Layout
 
@@ -163,13 +166,17 @@ Głębię buduje jasność tła, nie cienie: kolejne poziomy `surface-container-
 
 **Nazwa posiłku.** Kolorowa kropka pory dnia z jasną poświatą, obok nazwa. Bez ikon.
 
-**Karta pozycji.** Kwadratowe zdjęcie z przyciskiem „⋯” w rogu, pod nim nazwa w maksymalnie dwóch liniach i kalorie. Bez makro na karcie. Pozycje bez zdjęcia mają placeholder: zdjęcie przepisu domyślne dla motywu, produkt z ikoną owocu, szybki posiłek z błyskawicą.
+**Karta pozycji.** Kwadratowe zdjęcie z przyciskiem „⋯” w rogu, pod nim nazwa w maksymalnie dwóch liniach i kalorie. Bez makro na karcie. Pozycje bez zdjęcia mają placeholder w jednym stylu: zielonkawy gradient i duży, przygaszony znak. Przepis ma domyślne zdjęcie z liściem, produkt owoc, szybki posiłek błyskawicę (`src/components/FoodPlaceholder.tsx`). Ten sam placeholder produktu jest w wierszach list i w menu pozycji.
 
 **Pole dodawania.** Wypełnia całe wolne miejsce w komórce: ciemne tło, cienka przerywana ramka, okrągły plus i napis „Dodaj” w pustym posiłku albo „Dodaj więcej” pod pozycjami. W dzisiejszej kolumnie w zieleni. W trybie kopiowania pokazuje „Wklej” i zaznaczenie.
 
 **Menu posiłku i dnia** (`src/components/PlanActionSheet.tsx`). Arkusz od dołu jak podsumowanie dnia, z krzyżykiem w prawym górnym rogu zamiast przycisku „Anuluj”. Na górze kontekst zamiast dużego tytułu: miniatura pozycji albo kafelek z numerem dnia (dzisiaj w zieleni), nazwa i jedna linia z porą dnia, datą i kaloriami. Akcje to zwykłe wiersze z szarą ikoną, pogrupowane cienkimi liniami. Kolor ma tylko akcja usuwania (`error`).
 
 **Potwierdzenie z cofnięciem** (`src/components/UndoSnackbar.tsx`). Pastylka `surface-container-highest` nad dolnym paskiem (w ciemnym motywie ciemna). Gdy można cofnąć, ma zielony ptaszek, krótki tekst i strzałkę cofania otoczoną pierścieniem, który znika przez czas wyświetlania. Usunięcie posiłku z planu pokazuje „Usunięto z planu” przez 3 sekundy.
+
+**Lista przepisów** (`src/pages/Recipes.tsx`). Bez tytułu: na górze wyszukiwarka i okrągły „+”. Pod nimi zakres „Moje i zapisane” / „Wszystkie”, przewijany rząd pastylek („Filtry” z licznikiem otwiera arkusz z suwakami, dalej presety na jedno dotknięcie) i linia z licznikiem, sortowaniem i jedną ikoną zmiany widoku. Lista: miniatura 64 px, nazwa w dwóch liniach, B/T/W w kolorach makro, kcal w osobnej kolumnie i serce z polem dotyku 44 px. Kafelki: kwadratowe zdjęcie, na nim jedna ciemna ramka z kcal i czasem oraz serce w rogu. Ładowanie to szkielet w kształcie wierszy albo kafelków. Pusta lista ma jedno zdanie i pole dodawania jak w planie. Brak wyników ma zawsze w tym samym miejscu wyśrodkowany nagłówek, przyczynę, aktywne warunki z krzyżykami i „Wyczyść wszystkie”, a pod spodem przepisy, którym brakuje jednego warunku, jeśli takie są.
+
+**Lista zakupów** (`src/pages/ShoppingList.tsx`). Tytuł „Zakupy”, ikona czyszczenia listy, pod nim „Utwórz z planu” w zieleni i „Dodaj produkt” na szarym tle. Pastylki „Produkty” / „Przepisy” i ikona półek, która włącza grupowanie w działy (wybór zostaje na urządzeniu). Każdy dział to jedna karta z wierszami rozdzielonymi cienką linią: okrągłe pole zaznaczenia w zieleni, nazwa, ilość na szaro i krzyżyk usuwania z cofnięciem. Arkusze („Utwórz listę z planu”, „Dodaj produkt”) mają krzyżyk w rogu i jeden przycisk akcji na dole, pory dnia z kolorowymi kropkami. Dotknięcie nazwy produktu otwiera arkusz „Przenieś do działu”: działy jako zwykłe wiersze z szarą ikoną, bieżący z zielonym ptaszkiem, na dole „Nowy dział”. Wybór jest zapamiętany dla nazwy produktu. Własne działy stoją przed „Inne”, mają ikonę kosza do usunięcia i nie znikają same.
 
 **Dolny pasek nawigacji.** Pływająca, zaokrąglona pastylka z rozmytym tłem. Nie jest częścią redesignu planu.
 

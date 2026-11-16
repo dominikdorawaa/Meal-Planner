@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { t } from '../i18n';
 import { RecipeCoverImage } from './RecipeCoverImage';
+import { FoodPlaceholder } from './FoodPlaceholder';
 import { recipeCoverImage, type RecipeImageInput } from '../lib/recipeImage';
 import { SelectionCheckbox } from './PlanSelectionControls';
 
@@ -8,14 +9,15 @@ interface ItemBadgesProps {
   own: boolean;
   unverified: boolean;
   calendories?: boolean;
+  singleLine?: boolean;
 }
 
-export function ItemBadges({ own, unverified, calendories = false }: ItemBadgesProps) {
+export function ItemBadges({ own, unverified, calendories = false, singleLine = false }: ItemBadgesProps) {
   if (!own && !unverified && !calendories) return null;
   return (
-    <span className="flex flex-wrap gap-1">
+    <span className={`flex gap-1 ${singleLine ? 'flex-nowrap min-w-0' : 'flex-wrap'}`}>
       {calendories && (
-        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
+        <span className="inline-flex shrink-0 items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
           <span aria-hidden="true" className="material-symbols-outlined text-[11px] leading-none" style={{ fontVariationSettings: "'FILL' 1" }}>
             verified
           </span>
@@ -23,12 +25,12 @@ export function ItemBadges({ own, unverified, calendories = false }: ItemBadgesP
         </span>
       )}
       {own && (
-        <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
+        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
           {t('food.ownBadge')}
         </span>
       )}
       {unverified && (
-        <span className="px-1.5 py-0.5 rounded-md bg-surface-container-highest text-on-surface-variant text-[9px] font-black uppercase tracking-wider">
+        <span className="min-w-0 truncate px-1.5 py-0.5 rounded-md bg-surface-container-highest text-on-surface-variant text-[9px] font-black uppercase tracking-wider">
           {t('food.unverifiedBadge')}
         </span>
       )}
@@ -52,12 +54,12 @@ function FoodRow({ name, kcal, amount, own, unverified, calendories, selected, o
   return (
     <div
       onClick={onOpen}
-      className="flex items-center bg-surface-container-lowest p-2.5 rounded-[20px] shadow-sm border border-outline-variant/10 active:scale-[0.98] transition-all cursor-pointer"
+      className="flex items-center bg-surface-container-lowest p-2.5 rounded-[20px] shadow-xs border border-outline-variant/10 active:scale-[0.98] transition-all cursor-pointer"
     >
       {children}
       <div className="flex flex-col justify-center gap-0.5 px-3 flex-1 min-w-0">
         <h3 className="font-headline font-bold text-[13px] text-on-surface line-clamp-2 leading-relaxed">{name}</h3>
-        <ItemBadges own={own} unverified={unverified} calendories={calendories} />
+        <ItemBadges own={own} unverified={unverified} calendories={calendories} singleLine />
       </div>
       <div
         data-testid="food-row-select-area"
@@ -82,9 +84,7 @@ function FoodRow({ name, kcal, amount, own, unverified, calendories, selected, o
 export function ProductRow(props: FoodRowProps) {
   return (
     <FoodRow {...props}>
-      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-        <span className="material-symbols-outlined text-[24px]">nutrition</span>
-      </div>
+      <FoodPlaceholder kind="product" className="w-12 h-12 rounded-2xl shrink-0" iconClassName="text-[28px]" />
     </FoodRow>
   );
 }
