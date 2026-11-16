@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { t } from '../i18n';
 import { api } from '../lib/apiClient';
 import { AMOUNT_LIMITS, acceptsLimitedNumber } from '../lib/inputLimits';
@@ -14,11 +14,17 @@ const LABEL = 'block mb-1.5 px-1 text-[13px] font-semibold text-on-surface-varia
 
 export function ShoppingAddProductSheet({ onAdded, onClose }: ShoppingAddProductSheetProps) {
   const ids = useId();
+  const formId = `${ids}-form`;
+  const nameRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('1');
-  const [unit, setUnit] = useState('szt');
+  const [unit, setUnit] = useState(() => t('shopping.unitPlaceholder'));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    nameRef.current?.focus({ preventScroll: true });
+  }, []);
 
   const submit = async () => {
     const trimmedName = name.trim();
@@ -37,7 +43,7 @@ export function ShoppingAddProductSheet({ onAdded, onClose }: ShoppingAddProduct
       await api.shoppingList.addItem({
         ingredient_name: trimmedName,
         quantity: amount,
-        unit: unit.trim() || 'szt',
+        unit: unit.trim() || t('shopping.unitPlaceholder'),
         is_checked: false,
       });
       await onAdded();
@@ -53,15 +59,22 @@ export function ShoppingAddProductSheet({ onAdded, onClose }: ShoppingAddProduct
       title={t('shopping.addProduct')}
       busy={submitting}
       onClose={onClose}
-      footer={<ShoppingSheetSubmit label={t('shopping.addToList')} busy={submitting} onClick={submit} />}
+      footer={<ShoppingSheetSubmit label={t('shopping.addToList')} busy={submitting} form={formId} />}
     >
-      <div className="flex flex-col gap-3.5 pt-1 pb-1">
+      <form
+        id={formId}
+        className="flex flex-col gap-3.5 pt-1 pb-1"
+        onSubmit={event => {
+          event.preventDefault();
+          if (!submitting) void submit();
+        }}
+      >
         <div>
           <label htmlFor={`${ids}-name`} className={LABEL}>{t('shopping.name')}</label>
           <input
+            ref={nameRef}
             id={`${ids}-name`}
             autoComplete="off"
-            autoFocus
             type="text"
             value={name}
             onChange={event => setName(event.target.value)}
@@ -96,7 +109,7 @@ export function ShoppingAddProductSheet({ onAdded, onClose }: ShoppingAddProduct
           </div>
         </div>
         {error && <p role="alert" className="px-1 text-error text-sm font-medium">{error}</p>}
-      </div>
+      </form>
     </ShoppingSheet>
   );
 }

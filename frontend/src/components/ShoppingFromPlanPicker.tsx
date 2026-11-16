@@ -135,6 +135,7 @@ export function ShoppingFromPlanPicker({
               const name = mealName(meal);
               const typeIndex = typeOrder(meal.meal_type);
               const typeName = visibleTypes[typeIndex].name;
+              const color = mealColor(typeIndex);
               const checked = selectedIds.includes(meal.id);
               return (
                 <button
@@ -149,7 +150,12 @@ export function ShoppingFromPlanPicker({
                   <Checkbox checked={checked} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5 text-[12.5px] text-on-surface-variant">
-                      <span aria-hidden="true" data-meal-dot className="w-[7px] h-[7px] rounded-full shrink-0" style={{ backgroundColor: mealColor(typeIndex) }} />
+                      <span
+                        aria-hidden="true"
+                        data-meal-dot
+                        className="w-[7px] h-[7px] rounded-full shrink-0"
+                        style={{ backgroundColor: color, boxShadow: `0 0 0 3px ${color}38` }}
+                      />
                       <span className="truncate">{typeName}</span>
                     </span>
                     <span className="block text-[15px] font-medium text-on-surface truncate">{name}</span>

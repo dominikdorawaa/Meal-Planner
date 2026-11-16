@@ -1,10 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { BottomNav } from '../components/BottomNav';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
-import { recipeCoverImage } from '../lib/recipeImage';
+import { recipeCoverImage, type RecipeImageInput } from '../lib/recipeImage';
 import { ShoppingFromPlanPicker } from '../components/ShoppingFromPlanPicker';
 import { ShoppingAddProductSheet } from '../components/ShoppingAddProductSheet';
 import { ShoppingItemRow } from '../components/ShoppingItemRow';
@@ -45,6 +45,7 @@ interface SourceRecipe {
   id: string;
   name: string;
   kcal?: number | string | null;
+  images?: (RecipeImageInput | null)[] | null;
   portions: number;
   ingredients?: SourceIngredient[];
   recipe?: SourceRecipe;
@@ -54,6 +55,13 @@ type Snackbar = { id: number; message: string; removed?: ShoppingItem };
 
 const CARD = 'bg-surface-container-low rounded-2xl px-4';
 const PILL = 'h-[34px] px-3.5 rounded-full text-[13px] font-semibold transition-colors';
+
+function restoreAt(list: ShoppingItem[], target: ShoppingItem, index: number): ShoppingItem[] {
+  if (list.some(other => other.id === target.id)) return list;
+  const next = [...list];
+  next.splice(Math.min(Math.max(index, 0), next.length), 0, target);
+  return next;
+}
 
 export function ShoppingList() {
   const navigate = useNavigate();
@@ -68,10 +76,27 @@ export function ShoppingList() {
   const [fromPlanSubmitting, setFromPlanSubmitting] = useState(false);
   const [fromPlanError, setFromPlanError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<Snackbar | null>(null);
+  const pendingMutations = useRef(0);
 
   const showSnackbar = (message: string, removed?: ShoppingItem) =>
     setSnackbar(previous => ({ id: (previous?.id ?? 0) + 1, message, removed }));
   const closeSnackbar = useCallback(() => setSnackbar(null), []);
+
+  const runMutation = async (action: () => Promise<void>, label: string, onFailure: () => void) => {
+    pendingMutations.current += 1;
+    try {
+      await action();
+    } catch (err) {
+      console.error(label, err);
+      onFailure();
+      return;
+    } finally {
+      pendingMutations.current -= 1;
+    }
+    if (pendingMutations.current === 0) {
+      await refreshShoppingList().catch(err => console.error('Error refreshing shopping list:', err));
+    }
+  };
 
   const toggleGrouped = () => {
     const next = !grouped;
@@ -79,44 +104,54 @@ export function ShoppingList() {
     localStorage.setItem(SHOPPING_GROUPED_STORAGE_KEY, next ? '1' : '0');
   };
 
-  const toggleCheck = async (id: string, currentStatus: boolean) => {
-    setShoppingList(prev => prev.map(item => item.id === id ? { ...item, is_checked: !currentStatus } : item));
-
-    try {
-      await api.shoppingList.toggleItem(id, !currentStatus);
-      await refreshShoppingList();
-    } catch (err) {
-      console.error("Error toggling item:", err);
-      refreshShoppingList();
-    }
+  const toggleCheck = (id: string, currentStatus: boolean) => {
+    const nextStatus = !currentStatus;
+    setShoppingList((prev: ShoppingItem[]) =>
+      prev.map(item => (item.id === id ? { ...item, is_checked: nextStatus } : item)),
+    );
+    return runMutation(
+      async () => {
+        await api.shoppingList.toggleItem(id, nextStatus);
+      },
+      'Error toggling item:',
+      () => {
+        setShoppingList((prev: ShoppingItem[]) =>
+          prev.map(item => (item.id === id ? { ...item, is_checked: currentStatus } : item)),
+        );
+      },
+    );
   };
 
-  const removeItem = async (item: ShoppingItem) => {
-    setShoppingList(prev => prev.filter(other => other.id !== item.id));
-    try {
-      await api.shoppingList.deleteItem(item.id);
-      showSnackbar(t('shopping.itemRemoved'), item);
-    } catch (err) {
-      console.error('Error removing item:', err);
-      showSnackbar(t('shopping.removeFailed'));
-    }
-    await refreshShoppingList().catch(err => console.error('Error refreshing shopping list:', err));
+  const removeItem = (item: ShoppingItem) => {
+    const index = items.findIndex(other => other.id === item.id);
+    setShoppingList((prev: ShoppingItem[]) => prev.filter(other => other.id !== item.id));
+    return runMutation(
+      async () => {
+        await api.shoppingList.deleteItem(item.id);
+        showSnackbar(t('shopping.itemRemoved'), item);
+      },
+      'Error removing item:',
+      () => {
+        setShoppingList((prev: ShoppingItem[]) => restoreAt(prev, item, index));
+        showSnackbar(t('shopping.removeFailed'));
+      },
+    );
   };
 
-  const restoreItem = async (item: ShoppingItem) => {
+  const restoreItem = (item: ShoppingItem) => {
     setSnackbar(null);
-    try {
-      await api.shoppingList.addItem({
-        ingredient_name: item.ingredient_name,
-        quantity: item.quantity,
-        unit: item.unit,
-        is_checked: !!item.is_checked,
-      });
-    } catch (err) {
-      console.error('Error restoring item:', err);
-      showSnackbar(t('shopping.addFailed'));
-    }
-    await refreshShoppingList().catch(err => console.error('Error refreshing shopping list:', err));
+    return runMutation(
+      async () => {
+        await api.shoppingList.addItem({
+          ingredient_name: item.ingredient_name,
+          quantity: item.quantity,
+          unit: item.unit,
+          is_checked: !!item.is_checked,
+        });
+      },
+      'Error restoring item:',
+      () => showSnackbar(t('shopping.addFailed')),
+    );
   };
 
   const openFromPlan = () => {
@@ -148,16 +183,21 @@ export function ShoppingList() {
     await refreshShoppingList().catch(err => console.error('Error refreshing shopping list:', err));
   };
 
-  const clearList = async () => {
+  const clearList = () => {
+    const previous = items;
     setShowConfirm(false);
+    setSnackbar(current => (current?.removed ? null : current));
     setShoppingList([]);
-    try {
-      await api.shoppingList.clearAll();
-      await refreshShoppingList();
-    } catch (err) {
-      console.error("Error clearing list:", err);
-      refreshShoppingList();
-    }
+    return runMutation(
+      async () => {
+        await api.shoppingList.clearAll();
+      },
+      'Error clearing list:',
+      () => {
+        setShoppingList((prev: ShoppingItem[]) => (prev.length === 0 ? previous : prev));
+        showSnackbar(t('shopping.clearFailed'));
+      },
+    );
   };
 
   const groups = groupByShoppingCategory(items);
@@ -242,13 +282,13 @@ export function ShoppingList() {
           )}
         </div>
 
-        {items.length === 0 ? (
-          <div className="pt-16 px-6 text-center">
-            <p className="font-headline font-extrabold text-base tracking-tight text-on-surface">{t('shopping.empty')}</p>
-            <p className="mt-1.5 text-sm text-on-surface-variant text-balance">{t('shopping.emptyHint')}</p>
-          </div>
-        ) : activeTab === 'products' ? (
-          grouped ? (
+        {activeTab === 'products' ? (
+          items.length === 0 ? (
+            <div className="pt-16 px-6 text-center">
+              <p className="font-headline font-extrabold text-base tracking-tight text-on-surface">{t('shopping.empty')}</p>
+              <p className="mt-1.5 text-sm text-on-surface-variant text-balance">{t('shopping.emptyHint')}</p>
+            </div>
+          ) : grouped ? (
             <div className="flex flex-col gap-5">
               {groups.map(group => (
                 <section key={group.category.id}>
@@ -261,7 +301,7 @@ export function ShoppingList() {
               ))}
             </div>
           ) : (
-            <ul className={CARD}>{groups.flatMap(group => group.items).map(itemRow)}</ul>
+            <ul className={CARD}>{items.map(itemRow)}</ul>
           )
         ) : (
           <div className="flex flex-col gap-5">
@@ -269,7 +309,7 @@ export function ShoppingList() {
               const recipe = r.recipe ?? r;
               const kcal = Math.round(Number(recipe.kcal) || 0);
               return (
-                <section key={idx}>
+                <section key={recipe.id ?? idx}>
                   <button
                     type="button"
                     onClick={() => navigate(`/recipe/${recipe.id}`)}
@@ -281,7 +321,8 @@ export function ShoppingList() {
                     <span className="flex-1 min-w-0">
                       <span className="block font-headline font-extrabold text-[15px] leading-tight tracking-tight text-on-surface line-clamp-2">{recipe.name}</span>
                       <span className="block mt-0.5 text-[12.5px] text-on-surface-variant tabular-nums">
-                        {t(`shopping.portions.${pluralForm(r.portions)}`, { count: r.portions })}, {kcal} kcal
+                        {t(`shopping.portions.${pluralForm(r.portions)}`, { count: r.portions })},{' '}
+                        <span className="font-semibold text-primary">{kcal} kcal</span>
                       </span>
                     </span>
                     <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-on-surface-variant">chevron_right</span>

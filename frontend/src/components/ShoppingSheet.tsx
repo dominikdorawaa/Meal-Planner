@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useId, useRef, type ReactNode } from 'react';
+import { useCallback, useId, useRef, type ReactNode } from 'react';
 import { t } from '../i18n';
 import { useBottomSheet } from '../lib/bottomSheet';
+import { useDialogFocus, useLockPageScroll } from '../lib/dialog';
 
 interface ShoppingSheetProps {
   title: string;
@@ -14,29 +15,21 @@ interface ShoppingSheetProps {
 export function ShoppingSheet({ title, hint, busy = false, onClose, children, footer }: ShoppingSheetProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const requestClose = useCallback(() => {
+    if (!busy) onClose();
+  }, [busy, onClose]);
   const sheetRef = useBottomSheet(true, onClose, busy);
   const setDialogRef = useCallback((node: HTMLDivElement | null) => {
     dialogRef.current = node;
     return sheetRef(node);
   }, [sheetRef]);
 
-  useEffect(() => {
-    const previousFocus = document.activeElement as HTMLElement | null;
-    dialogRef.current?.focus();
-    return () => previousFocus?.focus();
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !busy) onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [busy, onClose]);
+  useLockPageScroll();
+  useDialogFocus(dialogRef, requestClose);
 
   return (
     <div data-scroll-lock className="fixed inset-0 z-[200] flex flex-col justify-end items-center animate-fade-in">
-      <div className="absolute inset-0 bg-black/40" onClick={() => !busy && onClose()} />
+      <div className="absolute inset-0 bg-black/40" onClick={requestClose} />
       <div
         ref={setDialogRef}
         tabIndex={-1}
@@ -54,7 +47,7 @@ export function ShoppingSheet({ title, hint, busy = false, onClose, children, fo
           <button
             type="button"
             disabled={busy}
-            onClick={onClose}
+            onClick={requestClose}
             aria-label={t('shopping.close')}
             className="w-10 h-10 shrink-0 rounded-full bg-surface-container text-on-surface-variant flex items-center justify-center hover:bg-surface-container-high transition-colors active:scale-95 disabled:opacity-50"
           >
@@ -72,13 +65,15 @@ interface ShoppingSheetSubmitProps {
   label: string;
   busy: boolean;
   disabled?: boolean;
-  onClick: () => void;
+  form?: string;
+  onClick?: () => void;
 }
 
-export function ShoppingSheetSubmit({ label, busy, disabled = false, onClick }: ShoppingSheetSubmitProps) {
+export function ShoppingSheetSubmit({ label, busy, disabled = false, form, onClick }: ShoppingSheetSubmitProps) {
   return (
     <button
-      type="button"
+      type={form ? 'submit' : 'button'}
+      form={form}
       disabled={busy || disabled}
       onClick={onClick}
       className="w-full h-[52px] rounded-2xl bg-primary text-on-primary font-bold text-[15px] flex items-center justify-center active:scale-[0.98] transition-all disabled:opacity-50"
