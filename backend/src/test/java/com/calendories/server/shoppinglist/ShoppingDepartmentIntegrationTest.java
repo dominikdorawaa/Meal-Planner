@@ -105,6 +105,21 @@ class ShoppingDepartmentIntegrationTest {
     }
 
     @Test
+    void matchesDepartmentNamesTheSameWayAsTheUniqueIndexAndTreatsEverySpaceAlike() throws Exception {
+        User user = saveUser();
+
+        assign(user, "{\"product_name\":\"Dog\\ufefffood\\u0085\",\"new_department_name\":\"Straße\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assignments[0].product_name").value("dog food"));
+        assign(user, "{\"product_name\":\"Cat food\",\"new_department_name\":\"STRAßE\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.custom", hasSize(1)));
+        assign(user, "{\"product_name\":\"Bird food\",\"new_department_name\":\"STRASSE\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.custom[*].name", contains("Straße", "STRASSE")));
+    }
+
+    @Test
     void deletesAnOwnDepartmentWithItsRememberedProducts() throws Exception {
         User owner = saveUser();
         User other = saveUser();

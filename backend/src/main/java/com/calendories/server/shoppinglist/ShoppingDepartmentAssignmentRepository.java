@@ -12,10 +12,11 @@ import java.util.UUID;
 public interface ShoppingDepartmentAssignmentRepository extends JpaRepository<ShoppingDepartmentAssignment, UUID> {
     List<ShoppingDepartmentAssignment> findByUserIdOrderByProductNameAsc(UUID userId);
 
-    @Modifying
-    void deleteByUserIdAndDepartment(UUID userId, String department);
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from ShoppingDepartmentAssignment a where a.userId = :userId and a.department = :department")
+    void deleteAllInDepartment(UUID userId, String department);
 
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(value = "insert into shopping_department_assignments (id, user_id, product_name, department) "
             + "values (gen_random_uuid(), :userId, :productName, :department) "
             + "on conflict (user_id, product_name) do update set department = excluded.department", nativeQuery = true)

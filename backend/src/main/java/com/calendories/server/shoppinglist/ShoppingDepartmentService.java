@@ -44,7 +44,7 @@ public class ShoppingDepartmentService {
     }
 
     static String collapseSpaces(String text) {
-        return text == null ? "" : text.replaceAll("(?U)\\s+", " ").strip();
+        return text == null ? "" : text.replaceAll("[\\p{IsWhite_Space}\\uFEFF]+", " ").strip();
     }
 
     @Transactional(readOnly = true)
@@ -76,14 +76,14 @@ public class ShoppingDepartmentService {
     public Departments delete(UUID userId, String departmentId) {
         ShoppingDepartment department = ownDepartment(userId, departmentId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "shopping.department.unknown"));
-        assignmentRepository.deleteByUserIdAndDepartment(userId, department.getId().toString());
-        departmentRepository.delete(department);
+        assignmentRepository.deleteAllInDepartment(userId, department.getId().toString());
+        departmentRepository.deleteDepartment(department.getId());
         return list(userId);
     }
 
     private Optional<ShoppingDepartment> ownDepartment(UUID userId, String departmentId) {
         try {
-            return departmentRepository.findByIdAndUserId(UUID.fromString(departmentId), userId);
+            return departmentRepository.lockByIdAndUserId(UUID.fromString(departmentId), userId);
         } catch (IllegalArgumentException e) {
             return Optional.empty();
         }
@@ -110,6 +110,9 @@ public class ShoppingDepartmentService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "shopping.department.name-too-long");
         }
         departmentRepository.insertIfMissing(userId, name);
-        return departmentRepository.findByUserIdAndNameIgnoreCase(userId, name).orElseThrow().getId().toString();
+        return departmentRepository.lockByUserIdAndName(userId, name)
+                .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "shopping.department.unknown"))
+                .getId()
+                .toString();
     }
 }

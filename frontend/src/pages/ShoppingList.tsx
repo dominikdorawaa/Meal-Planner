@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
@@ -11,21 +11,17 @@ import { ShoppingItemRow } from '../components/ShoppingItemRow';
 import { ShoppingDepartmentSheet } from '../components/ShoppingDepartmentSheet';
 import { ConfirmSheet } from '../components/ConfirmSheet';
 import { UndoSnackbar } from '../components/UndoSnackbar';
+import { useShoppingDepartments, type DepartmentMove } from '../lib/useShoppingDepartments';
 import { pluralForm, t } from '../i18n';
 import { ingredientBaseAmountLabel, ingredientUnitLabel } from '../lib/recipeIngredient';
 import { profileMealTypes } from '../lib/mealTypes';
 import { addPlanMealsToShoppingList, type PlanMeal, type ShoppingFromPlanResult } from '../lib/shoppingFromPlan';
 import {
-  NO_SHOPPING_DEPARTMENTS,
   findShoppingDepartmentByLabel,
   formatShoppingAmount,
-  normalizeProductName,
   groupByShoppingCategory,
   shoppingDepartmentId,
   shoppingDepartmentList,
-  withShoppingAssignment,
-  withoutShoppingDepartment,
-  type ShoppingDepartments,
 } from '../lib/shoppingCategories';
 
 const SUCCESS_TOAST_MS = 3500;
@@ -63,7 +59,7 @@ interface SourceRecipe {
   recipe?: SourceRecipe;
 }
 
-type Snackbar = { id: number; message: string; removed?: ShoppingItem };
+type Snackbar = { id: number; message: string; onUndo?: () => void; durationMs?: number };
 
 const CARD = 'bg-surface-container-low rounded-2xl px-4';
 const PILL = 'h-[34px] px-3.5 rounded-full text-[13px] font-semibold transition-colors';
@@ -105,24 +101,20 @@ export function ShoppingList() {
   const [fromPlanError, setFromPlanError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<Snackbar | null>(null);
   const pendingMutations = useRef(0);
-  const departmentRequests = useRef(0);
-  const [departments, setDepartments] = useState<ShoppingDepartments>(NO_SHOPPING_DEPARTMENTS);
   const [movingItem, setMovingItem] = useState<ShoppingItem | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    api.shoppingList.getDepartments()
-      .then(loaded => {
-        if (active && departmentRequests.current === 0) setDepartments(loaded);
-      })
-      .catch(err => console.error('Error loading shopping departments:', err));
-    return () => {
-      active = false;
-    };
-  }, []);
+  const showSnackbar = (message: string, onUndo?: () => void) =>
+    setSnackbar(previous => ({ id: (previous?.id ?? 0) + 1, message, onUndo, durationMs: onUndo ? undefined : SUCCESS_TOAST_MS }));
 
-  const showSnackbar = (message: string, removed?: ShoppingItem) =>
-    setSnackbar(previous => ({ id: (previous?.id ?? 0) + 1, message, removed }));
+  const { departments, move, remove } = useShoppingDepartments({
+    onMoved: label => showSnackbar(t('shopping.moved', { department: label })),
+    onMoveFailed: () => showSnackbar(t('shopping.moveFailed')),
+    onDeleted: undo => showSnackbar(t('shopping.departmentDeleted'), () => {
+      setSnackbar(null);
+      undo();
+    }),
+    onDeleteFailed: () => showSnackbar(t('shopping.deleteDepartmentFailed')),
+  });
   const closeSnackbar = useCallback(() => setSnackbar(null), []);
 
   const runMutation = async (action: () => Promise<void>, label: string, onFailure: () => void) => {
@@ -171,7 +163,7 @@ export function ShoppingList() {
     return runMutation(
       async () => {
         await api.shoppingList.deleteItem(item.id);
-        showSnackbar(t('shopping.itemRemoved'), item);
+        showSnackbar(t('shopping.itemRemoved'), () => restoreItem(item));
       },
       'Error removing item:',
       () => {
@@ -197,23 +189,9 @@ export function ShoppingList() {
     );
   };
 
-  const saveDepartment = async (item: ShoppingItem, request: { department: string } | { new_department_name: string }, label: string) => {
+  const saveDepartment = (item: ShoppingItem, request: DepartmentMove, label: string) => {
     setMovingItem(null);
-    const requestId = ++departmentRequests.current;
-    const productName = normalizeProductName(item.ingredient_name);
-    const previousDepartment = departments.assignments.find(assignment => assignment.product_name === productName)?.department;
-    if ('department' in request) setDepartments(current => withShoppingAssignment(current, item.ingredient_name, request.department));
-    try {
-      const saved = await api.shoppingList.assignDepartment({ product_name: item.ingredient_name, ...request });
-      if (requestId === departmentRequests.current) setDepartments(saved);
-      showSnackbar(t('shopping.moved', { department: label }));
-    } catch (err) {
-      console.error('Error moving item:', err);
-      if (requestId === departmentRequests.current) {
-        setDepartments(current => withShoppingAssignment(current, item.ingredient_name, previousDepartment));
-      }
-      showSnackbar(t('shopping.moveFailed'));
-    }
+    move(item.ingredient_name, request, label);
   };
 
   const pickDepartment = (item: ShoppingItem, departmentId: string) => {
@@ -236,21 +214,6 @@ export function ShoppingList() {
       return;
     }
     saveDepartment(item, { new_department_name: name }, name);
-  };
-
-  const deleteDepartment = async (departmentId: string) => {
-    const requestId = ++departmentRequests.current;
-    const previous = departments;
-    setDepartments(current => withoutShoppingDepartment(current, departmentId));
-    try {
-      const saved = await api.shoppingList.deleteDepartment(departmentId);
-      if (requestId === departmentRequests.current) setDepartments(saved);
-      showSnackbar(t('shopping.departmentDeleted'));
-    } catch (err) {
-      console.error('Error deleting department:', err);
-      if (requestId === departmentRequests.current) setDepartments(previous);
-      showSnackbar(t('shopping.deleteDepartmentFailed'));
-    }
   };
 
   const openFromPlan = () => {
@@ -285,7 +248,7 @@ export function ShoppingList() {
   const clearList = () => {
     const previous = items;
     setShowConfirm(false);
-    setSnackbar(current => (current?.removed ? null : current));
+    setSnackbar(current => (current?.onUndo ? null : current));
     setShoppingList([]);
     return runMutation(
       async () => {
@@ -458,9 +421,9 @@ export function ShoppingList() {
         <UndoSnackbar
           key={snackbar.id}
           message={snackbar.message}
-          onUndo={snackbar.removed ? () => restoreItem(snackbar.removed!) : undefined}
+          onUndo={snackbar.onUndo}
           onClose={closeSnackbar}
-          durationMs={snackbar.removed ? undefined : SUCCESS_TOAST_MS}
+          durationMs={snackbar.durationMs}
         />
       )}
 
@@ -483,7 +446,7 @@ export function ShoppingList() {
           departments={shoppingDepartmentList(departments)}
           onPick={departmentId => pickDepartment(movingItem, departmentId)}
           onCreate={name => createDepartment(movingItem, name)}
-          onDelete={deleteDepartment}
+          onDelete={remove}
           onClose={() => setMovingItem(null)}
         />
       )}

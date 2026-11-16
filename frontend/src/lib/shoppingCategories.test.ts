@@ -58,6 +58,7 @@ describe('own departments and remembered assignments', () => {
 
   it('normalizes product names like the server', () => {
     expect(normalizeProductName('  Dog \u00a0 FOOD ')).toBe('dog food');
+    expect(normalizeProductName('﻿Dog\u0085food')).toBe('dog food');
     expect(normalizeProductName(undefined)).toBe('');
   });
 
@@ -89,9 +90,6 @@ describe('own departments and remembered assignments', () => {
     expect(changed.assignments).toEqual([
       { product_name: 'mleko', department: 'missing' },
       { product_name: 'dog food', department: 'other' },
-    ]);
-    expect(withShoppingAssignment(departments, 'Dog food', undefined).assignments).toEqual([
-      { product_name: 'mleko', department: 'missing' },
     ]);
   });
 });

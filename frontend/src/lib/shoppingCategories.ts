@@ -44,7 +44,7 @@ export interface ShoppingDepartment {
 export const NO_SHOPPING_DEPARTMENTS: ShoppingDepartments = { custom: [], assignments: [] };
 
 export function normalizeProductName(name: string | null | undefined): string {
-  return (name ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+  return (name ?? '').replace(/[\s\u0085]+/g, ' ').trim().toLowerCase();
 }
 
 export function shoppingCategoryId(name: string | null | undefined): ShoppingCategoryId {
@@ -81,14 +81,10 @@ export function groupByShoppingCategory<T extends { ingredient_name?: string | n
     .filter(group => group.items.length > 0);
 }
 
-export function withShoppingAssignment(
-  departments: ShoppingDepartments,
-  productName: string,
-  department: string | undefined,
-): ShoppingDepartments {
+export function withShoppingAssignment(departments: ShoppingDepartments, productName: string, department: string): ShoppingDepartments {
   const key = normalizeProductName(productName);
   const others = departments.assignments.filter(assignment => assignment.product_name !== key);
-  return { ...departments, assignments: department ? [...others, { product_name: key, department }] : others };
+  return { ...departments, assignments: [...others, { product_name: key, department }] };
 }
 
 export function withoutShoppingDepartment(departments: ShoppingDepartments, departmentId: string): ShoppingDepartments {
