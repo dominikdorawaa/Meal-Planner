@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
@@ -8,13 +8,23 @@ import { recipeCoverImage } from '../lib/recipeImage';
 import { ShoppingFromPlanPicker } from '../components/ShoppingFromPlanPicker';
 import { ShoppingAddProductSheet } from '../components/ShoppingAddProductSheet';
 import { ShoppingItemRow } from '../components/ShoppingItemRow';
+import { ShoppingDepartmentSheet } from '../components/ShoppingDepartmentSheet';
 import { ConfirmSheet } from '../components/ConfirmSheet';
 import { UndoSnackbar } from '../components/UndoSnackbar';
 import { pluralForm, t } from '../i18n';
 import { ingredientBaseAmountLabel, ingredientUnitLabel } from '../lib/recipeIngredient';
 import { profileMealTypes } from '../lib/mealTypes';
 import { addPlanMealsToShoppingList, type PlanMeal, type ShoppingFromPlanResult } from '../lib/shoppingFromPlan';
-import { formatShoppingAmount, groupByShoppingCategory } from '../lib/shoppingCategories';
+import {
+  NO_SHOPPING_DEPARTMENTS,
+  findShoppingDepartmentByLabel,
+  formatShoppingAmount,
+  groupByShoppingCategory,
+  shoppingDepartmentId,
+  shoppingDepartmentList,
+  withShoppingAssignment,
+  type ShoppingDepartments,
+} from '../lib/shoppingCategories';
 
 const SUCCESS_TOAST_MS = 3500;
 export const SHOPPING_GROUPED_STORAGE_KEY = 'mp_shopping_grouped';
@@ -68,6 +78,18 @@ export function ShoppingList() {
   const [fromPlanSubmitting, setFromPlanSubmitting] = useState(false);
   const [fromPlanError, setFromPlanError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<Snackbar | null>(null);
+  const [departments, setDepartments] = useState<ShoppingDepartments>(NO_SHOPPING_DEPARTMENTS);
+  const [movingItem, setMovingItem] = useState<ShoppingItem | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    api.shoppingList.getDepartments()
+      .then(loaded => active && setDepartments(loaded))
+      .catch(err => console.error('Error loading shopping departments:', err));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const showSnackbar = (message: string, removed?: ShoppingItem) =>
     setSnackbar(previous => ({ id: (previous?.id ?? 0) + 1, message, removed }));
@@ -119,6 +141,38 @@ export function ShoppingList() {
     await refreshShoppingList().catch(err => console.error('Error refreshing shopping list:', err));
   };
 
+  const saveDepartment = async (item: ShoppingItem, request: { department: string } | { new_department_name: string }, label: string) => {
+    setMovingItem(null);
+    const previous = departments;
+    if ('department' in request) setDepartments(withShoppingAssignment(departments, item.ingredient_name, request.department));
+    try {
+      setDepartments(await api.shoppingList.assignDepartment({ product_name: item.ingredient_name, ...request }));
+      showSnackbar(t('shopping.moved', { department: label }));
+    } catch (err) {
+      console.error('Error moving item:', err);
+      setDepartments(previous);
+      showSnackbar(t('shopping.moveFailed'));
+    }
+  };
+
+  const pickDepartment = (item: ShoppingItem, departmentId: string) => {
+    if (departmentId === shoppingDepartmentId(item.ingredient_name, departments)) {
+      setMovingItem(null);
+      return;
+    }
+    const label = shoppingDepartmentList(departments).find(department => department.id === departmentId)!.label;
+    saveDepartment(item, { department: departmentId }, label);
+  };
+
+  const createDepartment = (item: ShoppingItem, name: string) => {
+    const existing = findShoppingDepartmentByLabel(name, departments);
+    if (existing) {
+      pickDepartment(item, existing.id);
+      return;
+    }
+    saveDepartment(item, { new_department_name: name }, name);
+  };
+
   const openFromPlan = () => {
     setFromPlanError(null);
     setShowFromPlan(true);
@@ -160,7 +214,7 @@ export function ShoppingList() {
     }
   };
 
-  const groups = groupByShoppingCategory(items);
+  const groups = groupByShoppingCategory(items, departments);
   const boughtCount = items.filter(item => item.is_checked).length;
 
   const itemRow = (item: ShoppingItem) => (
@@ -170,6 +224,7 @@ export function ShoppingList() {
       amount={`${formatShoppingAmount(item.quantity, item.unit)} ${item.unit}`}
       checked={!!item.is_checked}
       onToggle={() => toggleCheck(item.id, !!item.is_checked)}
+      onOpen={() => setMovingItem(item)}
       onRemove={() => removeItem(item)}
     />
   );
@@ -251,9 +306,9 @@ export function ShoppingList() {
           grouped ? (
             <div className="flex flex-col gap-5">
               {groups.map(group => (
-                <section key={group.category.id}>
+                <section key={group.department.id}>
                   <div className="flex items-baseline gap-2 px-1 pb-2">
-                    <h2 className="flex-1 min-w-0 font-headline font-extrabold text-[15px] tracking-tight text-on-surface">{t(group.category.labelKey)}</h2>
+                    <h2 className="flex-1 min-w-0 font-headline font-extrabold text-[15px] tracking-tight text-on-surface">{group.department.label}</h2>
                     <span className="text-[12.5px] text-on-surface-variant tabular-nums">{group.items.length}</span>
                   </div>
                   <ul className={CARD}>{group.items.map(itemRow)}</ul>
@@ -336,6 +391,17 @@ export function ShoppingList() {
           error={fromPlanError}
           onConfirm={handleAddFromPlan}
           onClose={closeFromPlan}
+        />
+      )}
+
+      {movingItem && (
+        <ShoppingDepartmentSheet
+          productName={movingItem.ingredient_name}
+          current={shoppingDepartmentId(movingItem.ingredient_name, departments)}
+          departments={shoppingDepartmentList(departments)}
+          onPick={departmentId => pickDepartment(movingItem, departmentId)}
+          onCreate={name => createDepartment(movingItem, name)}
+          onClose={() => setMovingItem(null)}
         />
       )}
 
