@@ -37,7 +37,7 @@ type StepProps = {
 function Step({ marker, markerClass, title, value, valueClass = 'text-on-surface', text, children }: StepProps) {
   return (
     <li className="relative pb-5">
-      <span aria-hidden="true" className={`absolute -left-11 -top-0.5 w-8 h-8 rounded-[10px] flex items-center justify-center font-headline font-extrabold text-[15px] shadow-[0_0_0_5px_rgb(var(--color-surface))] ${markerClass}`}>{marker}</span>
+      <span aria-hidden="true" className={`absolute -left-11 -top-0.5 w-8 h-8 rounded-[10px] flex items-center justify-center font-headline font-extrabold text-[15px] shadow-[0_0_0_5px_var(--color-surface)] ${markerClass}`}>{marker}</span>
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-base font-semibold text-on-surface">{title}</h3>
         <span className={`font-headline font-extrabold text-lg tabular-nums ${valueClass}`}>{value}</span>

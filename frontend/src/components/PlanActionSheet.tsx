@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { t } from '../i18n';
 import { RecipeCoverImage } from './RecipeCoverImage';
+import { FoodPlaceholder } from './FoodPlaceholder';
 import type { RecipeImage } from '../lib/recipeImage';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { useDialogFocus } from '../lib/dialog';
@@ -32,7 +33,7 @@ export function PlanActionSheet({ label, title, meta, leading, onClose, children
         aria-label={label}
         tabIndex={-1}
         onClick={event => event.stopPropagation()}
-        className="w-full max-w-[600px] bg-surface-container-low rounded-t-[28px] pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-ambient border-t border-outline-variant/10 outline-none"
+        className="w-full max-w-[600px] bg-surface-container-low rounded-t-[28px] pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-ambient border-t border-outline-variant/10 outline-hidden"
       >
         <div className="w-9 h-1 bg-surface-container-highest rounded-full mx-auto mb-4"></div>
         <div className="flex items-center gap-3 px-5 pb-3.5">
@@ -100,11 +101,7 @@ export function PlanSheetThumb({ kind, recipeImage = null, imageUrl, alt }: Plan
       </div>
     );
   }
-  return (
-    <div className={`${frame} flex items-center justify-center text-primary`}>
-      <span aria-hidden="true" className="material-symbols-outlined text-[22px]">{kind === 'manual' ? 'bolt' : 'nutrition'}</span>
-    </div>
-  );
+  return <FoodPlaceholder kind={kind === 'manual' ? 'manual' : 'product'} className={frame} iconClassName="text-[28px]" />;
 }
 
 export function PlanSheetDayBadge({ day, weekday, isToday }: { day: number; weekday: string; isToday: boolean }) {

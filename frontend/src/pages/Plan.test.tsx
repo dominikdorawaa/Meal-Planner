@@ -570,7 +570,7 @@ describe('Plan start date', () => {
     const todayCard = dayHeader('2026-10-12').firstElementChild as HTMLElement
     const band = container.querySelector('[data-today-band]') as HTMLElement
     expect(todayCard.className.split(' ').some(name => name.startsWith('bg-'))).toBe(false)
-    expect(band.className).toContain('bg-gradient-to-b')
+    expect(band.className).toContain('bg-linear-to-b/srgb')
   })
 
   it('highlights the header of the day whose summary is open', () => {

@@ -73,7 +73,7 @@ export function NumberStepper({ label, value, onChange, min, max, step, decimals
             if (event.key === 'Enter') event.currentTarget.blur();
           }}
           style={{ width: `${Math.max(shown.length, 1) + 0.2}ch` }}
-          className={`bg-transparent outline-none text-center font-headline font-extrabold text-xl tabular-nums caret-primary min-w-0 ${accent ? 'text-primary' : 'text-on-surface'}`}
+          className={`bg-transparent outline-hidden text-center font-headline font-extrabold text-xl tabular-nums caret-primary min-w-0 ${accent ? 'text-primary' : 'text-on-surface'}`}
         />
         <span className="text-[13px] font-semibold text-on-surface-variant">{unit}</span>
       </label>

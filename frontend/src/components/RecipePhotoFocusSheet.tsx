@@ -60,7 +60,7 @@ export function RecipePhotoFocusSheet({ image, isMain, onDone, onMakeMain, onRem
   };
 
   return (
-    <div data-scroll-lock className="fixed inset-0 z-[160] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+    <div data-scroll-lock className="fixed inset-0 z-[160] flex items-end justify-center bg-black/40 backdrop-blur-xs animate-fade-in" onClick={onClose}>
       <div
         ref={sheetRef}
         role="dialog"
@@ -84,7 +84,7 @@ export function RecipePhotoFocusSheet({ image, isMain, onDone, onMakeMain, onRem
           onPointerUp={stopDragging}
           onPointerCancel={stopDragging}
           onKeyDown={handleKeyDown}
-          className="relative w-full aspect-[4/3] rounded-3xl overflow-hidden bg-surface-container-highest touch-none cursor-grab active:cursor-grabbing select-none outline-none focus-visible:ring-2 focus-visible:ring-primary mb-2"
+          className="relative w-full aspect-[4/3] rounded-3xl overflow-hidden bg-surface-container-highest touch-none cursor-grab active:cursor-grabbing select-none outline-hidden focus-visible:ring-2 focus-visible:ring-primary mb-2"
         >
           <img
             ref={imageRef}

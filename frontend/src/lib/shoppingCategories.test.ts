@@ -29,7 +29,7 @@ describe('shoppingCategoryId', () => {
 describe('groupByShoppingCategory', () => {
   it('keeps the department order and skips empty departments', () => {
     const groups = groupByShoppingCategory([
-      { ingredient_name: 'Papier' },
+      { ingredient_name: 'Paper towels' },
       { ingredient_name: 'Mleko' },
       { ingredient_name: 'Banan' },
       { ingredient_name: 'Jogurt' },
@@ -44,7 +44,7 @@ describe('formatShoppingAmount', () => {
   it('rounds weights and volumes to whole numbers and keeps fractions of pieces', () => {
     expect(formatShoppingAmount(134.25, 'g')).toBe('134');
     expect(formatShoppingAmount(199.5, ' ML ')).toBe('200');
-    expect(formatShoppingAmount(1.255, 'szt')).toBe('1.25');
+    expect(formatShoppingAmount(1.255, 'pcs')).toBe('1.25');
     expect(formatShoppingAmount(2, null)).toBe('2');
   });
 });

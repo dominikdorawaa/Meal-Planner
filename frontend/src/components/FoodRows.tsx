@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { t } from '../i18n';
 import { RecipeCoverImage } from './RecipeCoverImage';
+import { FoodPlaceholder } from './FoodPlaceholder';
 import { recipeCoverImage, type RecipeImageInput } from '../lib/recipeImage';
 import { SelectionCheckbox } from './PlanSelectionControls';
 
@@ -53,7 +54,7 @@ function FoodRow({ name, kcal, amount, own, unverified, calendories, selected, o
   return (
     <div
       onClick={onOpen}
-      className="flex items-center bg-surface-container-lowest p-2.5 rounded-[20px] shadow-sm border border-outline-variant/10 active:scale-[0.98] transition-all cursor-pointer"
+      className="flex items-center bg-surface-container-lowest p-2.5 rounded-[20px] shadow-xs border border-outline-variant/10 active:scale-[0.98] transition-all cursor-pointer"
     >
       {children}
       <div className="flex flex-col justify-center gap-0.5 px-3 flex-1 min-w-0">
@@ -83,9 +84,7 @@ function FoodRow({ name, kcal, amount, own, unverified, calendories, selected, o
 export function ProductRow(props: FoodRowProps) {
   return (
     <FoodRow {...props}>
-      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-        <span className="material-symbols-outlined text-[24px]">nutrition</span>
-      </div>
+      <FoodPlaceholder kind="product" className="w-12 h-12 rounded-2xl shrink-0" iconClassName="text-[28px]" />
     </FoodRow>
   );
 }

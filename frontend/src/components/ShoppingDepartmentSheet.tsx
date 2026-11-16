@@ -73,7 +73,7 @@ export function ShoppingDepartmentSheet({ productName, current, departments, onP
                   setError(null);
                 }}
                 placeholder={t('shopping.newDepartmentPlaceholder')}
-                className="flex-1 min-w-0 h-12 bg-surface-container rounded-2xl px-4 text-on-surface font-medium text-[15px] outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-on-surface-variant/70"
+                className="flex-1 min-w-0 h-12 bg-surface-container rounded-2xl px-4 text-on-surface font-medium text-[15px] outline-hidden focus:ring-2 focus:ring-primary/40 placeholder:text-on-surface-variant/70"
               />
               <button type="submit" className="h-12 px-4 shrink-0 rounded-2xl bg-primary text-on-primary font-bold text-[15px] active:scale-[0.98] transition-transform">
                 {t('shopping.newDepartmentAdd')}
