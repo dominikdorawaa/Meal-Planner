@@ -19,6 +19,7 @@ import {
   NO_SHOPPING_DEPARTMENTS,
   findShoppingDepartmentByLabel,
   formatShoppingAmount,
+  normalizeProductName,
   groupByShoppingCategory,
   shoppingDepartmentId,
   shoppingDepartmentList,
@@ -66,6 +67,22 @@ type Snackbar = { id: number; message: string; removed?: ShoppingItem };
 const CARD = 'bg-surface-container-low rounded-2xl px-4';
 const PILL = 'h-[34px] px-3.5 rounded-full text-[13px] font-semibold transition-colors';
 
+function readGrouped(): boolean {
+  try {
+    return localStorage.getItem(SHOPPING_GROUPED_STORAGE_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+function writeGrouped(grouped: boolean) {
+  try {
+    localStorage.setItem(SHOPPING_GROUPED_STORAGE_KEY, grouped ? '1' : '0');
+  } catch {
+    return;
+  }
+}
+
 function restoreAt(list: ShoppingItem[], target: ShoppingItem, index: number): ShoppingItem[] {
   if (list.some(other => other.id === target.id)) return list;
   const next = [...list];
@@ -79,7 +96,7 @@ export function ShoppingList() {
   const items: ShoppingItem[] = shoppingList || [];
   const sourceRecipes: SourceRecipe[] = shoppingListRecipes || [];
   const [activeTab, setActiveTab] = useState<'products' | 'recipes'>('products');
-  const [grouped, setGrouped] = useState(() => localStorage.getItem(SHOPPING_GROUPED_STORAGE_KEY) !== '0');
+  const [grouped, setGrouped] = useState(readGrouped);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showFromPlan, setShowFromPlan] = useState(false);
@@ -87,13 +104,16 @@ export function ShoppingList() {
   const [fromPlanError, setFromPlanError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<Snackbar | null>(null);
   const pendingMutations = useRef(0);
+  const departmentRequests = useRef(0);
   const [departments, setDepartments] = useState<ShoppingDepartments>(NO_SHOPPING_DEPARTMENTS);
   const [movingItem, setMovingItem] = useState<ShoppingItem | null>(null);
 
   useEffect(() => {
     let active = true;
     api.shoppingList.getDepartments()
-      .then(loaded => active && setDepartments(loaded))
+      .then(loaded => {
+        if (active && departmentRequests.current === 0) setDepartments(loaded);
+      })
       .catch(err => console.error('Error loading shopping departments:', err));
     return () => {
       active = false;
@@ -123,7 +143,7 @@ export function ShoppingList() {
   const toggleGrouped = () => {
     const next = !grouped;
     setGrouped(next);
-    localStorage.setItem(SHOPPING_GROUPED_STORAGE_KEY, next ? '1' : '0');
+    writeGrouped(next);
   };
 
   const toggleCheck = (id: string, currentStatus: boolean) => {
@@ -178,14 +198,19 @@ export function ShoppingList() {
 
   const saveDepartment = async (item: ShoppingItem, request: { department: string } | { new_department_name: string }, label: string) => {
     setMovingItem(null);
-    const previous = departments;
-    if ('department' in request) setDepartments(withShoppingAssignment(departments, item.ingredient_name, request.department));
+    const requestId = ++departmentRequests.current;
+    const productName = normalizeProductName(item.ingredient_name);
+    const previousDepartment = departments.assignments.find(assignment => assignment.product_name === productName)?.department;
+    if ('department' in request) setDepartments(current => withShoppingAssignment(current, item.ingredient_name, request.department));
     try {
-      setDepartments(await api.shoppingList.assignDepartment({ product_name: item.ingredient_name, ...request }));
+      const saved = await api.shoppingList.assignDepartment({ product_name: item.ingredient_name, ...request });
+      if (requestId === departmentRequests.current) setDepartments(saved);
       showSnackbar(t('shopping.moved', { department: label }));
     } catch (err) {
       console.error('Error moving item:', err);
-      setDepartments(previous);
+      if (requestId === departmentRequests.current) {
+        setDepartments(current => withShoppingAssignment(current, item.ingredient_name, previousDepartment));
+      }
       showSnackbar(t('shopping.moveFailed'));
     }
   };
@@ -195,8 +220,12 @@ export function ShoppingList() {
       setMovingItem(null);
       return;
     }
-    const label = shoppingDepartmentList(departments).find(department => department.id === departmentId)!.label;
-    saveDepartment(item, { department: departmentId }, label);
+    const target = shoppingDepartmentList(departments).find(department => department.id === departmentId);
+    if (!target) {
+      setMovingItem(null);
+      return;
+    }
+    saveDepartment(item, { department: departmentId }, target.label);
   };
 
   const createDepartment = (item: ShoppingItem, name: string) => {

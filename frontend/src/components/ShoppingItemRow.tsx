@@ -10,8 +10,6 @@ interface ShoppingItemRowProps {
   onRemove?: () => void;
 }
 
-const TEXT = 'transition-colors';
-
 export function ShoppingItemRow({ name, amount, checked, disabled = false, onToggle, onOpen, onRemove }: ShoppingItemRowProps) {
   const circle = (
     <>
@@ -26,8 +24,8 @@ export function ShoppingItemRow({ name, amount, checked, disabled = false, onTog
   );
   const text = (
     <>
-      <span className={`flex-1 min-w-0 truncate text-[15px] ${TEXT} ${checked ? 'text-on-surface-variant/70 line-through' : 'text-on-surface'}`}>{name}</span>
-      <span className={`shrink-0 text-sm font-semibold tabular-nums ${TEXT} ${checked ? 'text-on-surface-variant/70 line-through' : 'text-on-surface-variant'}`}>{amount}</span>
+      <span className={`flex-1 min-w-0 truncate text-[15px] transition-colors ${checked ? 'text-on-surface-variant/70 line-through' : 'text-on-surface'}`}>{name}</span>
+      <span className={`shrink-0 text-sm font-semibold tabular-nums transition-colors ${checked ? 'text-on-surface-variant/70 line-through' : 'text-on-surface-variant'}`}>{amount}</span>
     </>
   );
 

@@ -51,12 +51,12 @@ describe('formatShoppingAmount', () => {
 
 describe('own departments and remembered assignments', () => {
   const departments = {
-    custom: [{ id: 'd1', name: 'Dla psa' }],
-    assignments: [{ product_name: 'karma dla psa', department: 'd1' }, { product_name: 'mleko', department: 'missing' }],
+    custom: [{ id: 'd1', name: 'Pet food' }],
+    assignments: [{ product_name: 'dog food', department: 'd1' }, { product_name: 'mleko', department: 'missing' }],
   };
 
   it('normalizes product names like the server', () => {
-    expect(normalizeProductName('  Karma   DLA psa ')).toBe('karma dla psa');
+    expect(normalizeProductName('  Dog \u00a0 FOOD ')).toBe('dog food');
     expect(normalizeProductName(undefined)).toBe('');
   });
 
@@ -65,22 +65,25 @@ describe('own departments and remembered assignments', () => {
   });
 
   it('prefers a remembered department and ignores unknown ones', () => {
-    expect(shoppingDepartmentId('Karma dla psa', departments)).toBe('d1');
+    expect(shoppingDepartmentId('Dog food', departments)).toBe('d1');
     expect(shoppingDepartmentId('Mleko', departments)).toBe('dairy');
   });
 
   it('finds departments by their visible name', () => {
-    expect(findShoppingDepartmentByLabel(' dla  PSA ', departments)?.id).toBe('d1');
+    expect(findShoppingDepartmentByLabel(' pet  FOOD ', departments)?.id).toBe('d1');
     expect(findShoppingDepartmentByLabel(t('shopping.category.bakery').toUpperCase(), departments)?.id).toBe('bakery');
     expect(findShoppingDepartmentByLabel('Garden', departments)).toBeUndefined();
   });
 
   it('replaces the remembered department of a product', () => {
-    const changed = withShoppingAssignment(departments, ' Karma dla psa', 'other');
+    const changed = withShoppingAssignment(departments, ' Dog food', 'other');
 
     expect(changed.assignments).toEqual([
       { product_name: 'mleko', department: 'missing' },
-      { product_name: 'karma dla psa', department: 'other' },
+      { product_name: 'dog food', department: 'other' },
+    ]);
+    expect(withShoppingAssignment(departments, 'Dog food', undefined).assignments).toEqual([
+      { product_name: 'mleko', department: 'missing' },
     ]);
   });
 });

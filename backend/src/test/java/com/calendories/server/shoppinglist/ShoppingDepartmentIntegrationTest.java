@@ -69,13 +69,13 @@ class ShoppingDepartmentIntegrationTest {
     void remembersTheBuiltInDepartmentForANormalizedProductName() throws Exception {
         User user = saveUser();
 
-        assign(user, "{\"product_name\":\"  Papier   do PIECZENIA \",\"department\":\"other\"}")
+        assign(user, "{\"product_name\":\"  Baking \u00a0 PAPER \",\"department\":\"other\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.custom", empty()))
-                .andExpect(jsonPath("$.assignments[0].product_name").value("papier do pieczenia"))
+                .andExpect(jsonPath("$.assignments[0].product_name").value("baking paper"))
                 .andExpect(jsonPath("$.assignments[0].department").value("other"));
 
-        assign(user, "{\"product_name\":\"papier do pieczenia\",\"department\":\"bakery\"}").andExpect(status().isOk());
+        assign(user, "{\"product_name\":\"baking paper\",\"department\":\"bakery\"}").andExpect(status().isOk());
 
         list(user)
                 .andExpect(jsonPath("$.assignments", hasSize(1)))
@@ -86,20 +86,20 @@ class ShoppingDepartmentIntegrationTest {
     void createsACustomDepartmentOnceAndRemovesItWhenNothingUsesIt() throws Exception {
         User user = saveUser();
 
-        String created = assign(user, "{\"product_name\":\"Hummus\",\"new_department_name\":\"  Dla   psa \"}")
+        String created = assign(user, "{\"product_name\":\"Hummus\",\"new_department_name\":\"  Pet \u00a0 food \"}")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.custom[0].name").value("Dla psa"))
+                .andExpect(jsonPath("$.custom[0].name").value("Pet food"))
                 .andReturn().getResponse().getContentAsString();
         String id = JsonPath.read(created, "$.custom[0].id");
 
-        assign(user, "{\"product_name\":\"Karma\",\"new_department_name\":\"dla PSA\"}")
+        assign(user, "{\"product_name\":\"Dog food\",\"new_department_name\":\"pet FOOD\"}")
                 .andExpect(jsonPath("$.custom", hasSize(1)))
                 .andExpect(jsonPath("$.assignments[*].department", contains(id, id)));
 
-        assign(user, "{\"product_name\":\"karma\",\"department\":\"" + id + "\"}").andExpect(status().isOk());
+        assign(user, "{\"product_name\":\"dog food\",\"department\":\"" + id + "\"}").andExpect(status().isOk());
         assign(user, "{\"product_name\":\"hummus\",\"department\":\"dairy\"}")
                 .andExpect(jsonPath("$.custom", hasSize(1)));
-        assign(user, "{\"product_name\":\"karma\",\"department\":\"other\"}")
+        assign(user, "{\"product_name\":\"dog food\",\"department\":\"other\"}")
                 .andExpect(jsonPath("$.custom", empty()));
 
         assertThat(departmentRepository.findByUserIdOrderByCreatedAtAscIdAsc(user.getId())).isEmpty();

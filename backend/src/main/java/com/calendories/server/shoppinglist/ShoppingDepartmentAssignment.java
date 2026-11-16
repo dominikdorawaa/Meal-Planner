@@ -30,9 +30,4 @@ public class ShoppingDepartmentAssignment {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
-
-    public ShoppingDepartmentAssignment(UUID userId, String productName) {
-        this.userId = userId;
-        this.productName = productName;
-    }
 }

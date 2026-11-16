@@ -67,7 +67,6 @@ export function ShoppingDepartmentSheet({ productName, current, departments, onP
                 autoComplete="off"
                 type="text"
                 value={name}
-                maxLength={MAX_DEPARTMENT_NAME_LENGTH + 10}
                 onChange={event => {
                   setName(event.target.value);
                   setError(null);

@@ -80,12 +80,14 @@ export function groupByShoppingCategory<T extends { ingredient_name?: string | n
     .filter(group => group.items.length > 0);
 }
 
-export function withShoppingAssignment(departments: ShoppingDepartments, productName: string, department: string): ShoppingDepartments {
+export function withShoppingAssignment(
+  departments: ShoppingDepartments,
+  productName: string,
+  department: string | undefined,
+): ShoppingDepartments {
   const key = normalizeProductName(productName);
-  return {
-    ...departments,
-    assignments: [...departments.assignments.filter(assignment => assignment.product_name !== key), { product_name: key, department }],
-  };
+  const others = departments.assignments.filter(assignment => assignment.product_name !== key);
+  return { ...departments, assignments: department ? [...others, { product_name: key, department }] : others };
 }
 
 export function formatShoppingAmount(amount: number, unit: string | null | undefined): string {

@@ -217,6 +217,28 @@ const ITEMS = [
   { id: 's3', ingredient_name: 'Banana', quantity: 1.255, unit: 'pcs', is_checked: true },
 ];
 
+describe('ShoppingList without device storage', () => {
+  it('still groups by department and switches grouping when storage is blocked', () => {
+    const getItem = Storage.prototype.getItem;
+    const setItem = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, key: string) {
+      if (key === SHOPPING_GROUPED_STORAGE_KEY) throw new Error('blocked');
+      return getItem.call(this, key);
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+      if (key === SHOPPING_GROUPED_STORAGE_KEY) throw new Error('blocked');
+      setItem.call(this, key, value);
+    });
+    APP_DATA.shoppingList = ITEMS;
+    renderPage();
+    const toggle = () => screen.getByRole('button', { name: t('shopping.groupByCategory') });
+
+    expect(toggle().getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(toggle());
+    expect(toggle().getAttribute('aria-pressed')).toBe('false');
+  });
+});
+
 describe('ShoppingList products', () => {
   beforeEach(() => {
     APP_DATA.shoppingList = ITEMS;
@@ -470,6 +492,59 @@ describe('ShoppingList departments', () => {
 
     await waitFor(() => expect(console.error).toHaveBeenCalledWith('Error loading shopping departments:', expect.any(Error)));
     expect(groupNames()).toEqual([t('shopping.category.produce'), t('shopping.category.grains'), t('shopping.category.other')]);
+  });
+
+  it('does not let the first load undo a move made before it answered', async () => {
+    let answerLoad!: (value: { custom: never[]; assignments: never[] }) => void;
+    vi.mocked(api.shoppingList.getDepartments).mockImplementation(() => new Promise(resolve => { answerLoad = resolve; }));
+    vi.spyOn(api.shoppingList, 'assignDepartment').mockResolvedValue({
+      custom: [],
+      assignments: [{ product_name: 'paper towels', department: 'dairy' }],
+    });
+    renderPage();
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.category.dairy') }));
+    await act(async () => answerLoad({ custom: [], assignments: [] }));
+
+    expect(groupNames()).toEqual([t('shopping.category.produce'), t('shopping.category.dairy'), t('shopping.category.grains')]);
+  });
+
+  it('keeps the newest move when an earlier one fails or answers late', async () => {
+    let failFirst!: (reason?: unknown) => void;
+    let answerSecond!: (value: { custom: never[]; assignments: { product_name: string; department: string }[] }) => void;
+    vi.spyOn(api.shoppingList, 'assignDepartment')
+      .mockImplementationOnce(() => new Promise((_, reject) => { failFirst = reject; }))
+      .mockImplementationOnce(() => new Promise(resolve => { answerSecond = resolve; }));
+    renderPage();
+    await act(async () => {});
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.category.dairy') }));
+    openMove('Quinoa');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.category.bakery') }));
+
+    await act(async () => failFirst(new Error('offline')));
+    expect(groupNames()).toEqual([t('shopping.category.produce'), t('shopping.category.bakery'), t('shopping.category.dairy')]);
+
+    await act(async () => answerSecond({
+      custom: [],
+      assignments: [{ product_name: 'quinoa', department: 'bakery' }],
+    }));
+    expect(groupNames()).toEqual([t('shopping.category.produce'), t('shopping.category.bakery'), t('shopping.category.other')]);
+  });
+
+  it('ignores a department that is no longer listed', () => {
+    const assign = vi.spyOn(api.shoppingList, 'assignDepartment');
+    renderPage();
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.newDepartment') }));
+    fireEvent.change(sheet().getByLabelText(t('shopping.newDepartmentName')), { target: { value: t('shopping.category.other') } });
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.newDepartmentAdd') }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(assign).not.toHaveBeenCalled();
   });
 
   it('closes the sheet from the close button', () => {

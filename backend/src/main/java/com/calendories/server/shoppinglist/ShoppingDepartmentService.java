@@ -40,7 +40,11 @@ public class ShoppingDepartmentService {
     }
 
     static String normalizeProductName(String name) {
-        return name == null ? "" : name.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+        return collapseSpaces(name).toLowerCase(Locale.ROOT);
+    }
+
+    static String collapseSpaces(String text) {
+        return text == null ? "" : text.replaceAll("(?U)\\s+", " ").strip();
     }
 
     @Transactional(readOnly = true)
@@ -64,10 +68,7 @@ public class ShoppingDepartmentService {
                 ? createOrFind(userId, request.newDepartmentName())
                 : existingDepartment(userId, request.department());
 
-        ShoppingDepartmentAssignment assignment = assignmentRepository.findByUserIdAndProductName(userId, productName)
-                .orElseGet(() -> new ShoppingDepartmentAssignment(userId, productName));
-        assignment.setDepartment(department);
-        assignmentRepository.save(assignment);
+        assignmentRepository.upsert(userId, productName, department);
         removeUnusedDepartments(userId);
         return list(userId);
     }
@@ -89,16 +90,15 @@ public class ShoppingDepartmentService {
     }
 
     private String createOrFind(UUID userId, String rawName) {
-        String name = rawName.trim().replaceAll("\\s+", " ");
+        String name = collapseSpaces(rawName);
         if (name.isEmpty()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "shopping.department.name-missing");
         }
         if (name.length() > MAX_NAME_LENGTH) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "shopping.department.name-too-long");
         }
-        ShoppingDepartment department = departmentRepository.findByUserIdAndNameIgnoreCase(userId, name)
-                .orElseGet(() -> departmentRepository.save(new ShoppingDepartment(userId, name)));
-        return department.getId().toString();
+        departmentRepository.insertIfMissing(userId, name);
+        return departmentRepository.findByUserIdAndNameIgnoreCase(userId, name).orElseThrow().getId().toString();
     }
 
     private void removeUnusedDepartments(UUID userId) {
