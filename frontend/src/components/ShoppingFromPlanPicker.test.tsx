@@ -131,14 +131,23 @@ describe('ShoppingFromPlanPicker', () => {
     expect(onConfirm).toHaveBeenCalledWith([MEALS[0], MEALS[7]]);
   });
 
-  it('closes from the close button, cancel and the backdrop', () => {
+  it('closes from the close button and the backdrop, without a cancel button', () => {
     const { container } = renderPicker();
 
     fireEvent.click(screen.getByRole('button', { name: t('shopping.close') }));
-    fireEvent.click(screen.getByRole('button', { name: t('shopping.cancel') }));
     fireEvent.click(container.firstElementChild!.firstElementChild!);
 
-    expect(onClose).toHaveBeenCalledTimes(3);
+    expect(onClose).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('button', { name: t('common.cancel') })).toBeNull();
+  });
+
+  it('marks each meal with the colour and halo of its place in the meal settings', () => {
+    renderPicker();
+
+    const dot = (name: string) => (mealCheckbox(name).querySelector('[data-meal-dot]') as HTMLElement).style;
+    expect(dot('Breakfast: Omelette').backgroundColor).toBe(dot('Breakfast: Yogurt (Bio)').backgroundColor);
+    expect(dot('Breakfast: Omelette').backgroundColor).not.toBe(dot('Dinner: Spaghetti').backgroundColor);
+    expect(dot('Breakfast: Omelette').boxShadow).toContain('0 0 0 3px');
   });
 
   it('shows the error and blocks closing while saving', () => {
@@ -147,30 +156,33 @@ describe('ShoppingFromPlanPicker', () => {
     expect(screen.getByText('Something went wrong')).toBeTruthy();
     fireEvent.click(container.firstElementChild!.firstElementChild!);
     expect(onClose).not.toHaveBeenCalled();
-    expect((screen.getByRole('button', { name: t('shopping.cancel') }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: t('shopping.close') }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('closes on Escape unless saving', () => {
     const { rerender } = renderPicker({ submitting: true });
 
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
 
     rerender(
       <ShoppingFromPlanPicker meals={MEALS} recipes={RECIPES} mealTypes={MEAL_TYPES} submitting={false} error={null} onConfirm={onConfirm} onClose={onClose} />
     );
-    fireEvent.keyDown(window, { key: 'Enter' });
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Enter' });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('moves focus into the dialog and gives it back when closed', () => {
+  it('moves focus into the dialog, traps Tab and gives focus back when closed', () => {
     const opener = document.createElement('button');
     document.body.appendChild(opener);
     opener.focus();
 
     const { unmount } = renderPicker();
     expect(document.activeElement).toBe(screen.getByRole('dialog'));
+
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: t('shopping.close') }));
 
     unmount();
     expect(document.activeElement).toBe(opener);

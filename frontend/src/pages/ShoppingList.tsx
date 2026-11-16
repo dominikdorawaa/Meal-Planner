@@ -1,111 +1,158 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
 import { BottomNav } from '../components/BottomNav';
-import { Wordmark } from '../components/Wordmark';
 import { RecipeCoverImage } from '../components/RecipeCoverImage';
-import { recipeCoverImage } from '../lib/recipeImage';
-import { useBottomSheet } from '../lib/bottomSheet';
+import { recipeCoverImage, type RecipeImageInput } from '../lib/recipeImage';
 import { ShoppingFromPlanPicker } from '../components/ShoppingFromPlanPicker';
+import { ShoppingAddProductSheet } from '../components/ShoppingAddProductSheet';
+import { ShoppingItemRow } from '../components/ShoppingItemRow';
 import { ConfirmSheet } from '../components/ConfirmSheet';
-import { t } from '../i18n';
+import { UndoSnackbar } from '../components/UndoSnackbar';
+import { pluralForm, t } from '../i18n';
 import { ingredientBaseAmountLabel, ingredientUnitLabel } from '../lib/recipeIngredient';
 import { profileMealTypes } from '../lib/mealTypes';
 import { addPlanMealsToShoppingList, type PlanMeal, type ShoppingFromPlanResult } from '../lib/shoppingFromPlan';
-import { AMOUNT_LIMITS, acceptsLimitedNumber } from '../lib/inputLimits';
+import { formatShoppingAmount, groupByShoppingCategory } from '../lib/shoppingCategories';
 
 const SUCCESS_TOAST_MS = 3500;
+export const SHOPPING_GROUPED_STORAGE_KEY = 'mp_shopping_grouped';
 
 const FROM_PLAN_MESSAGES: Record<Exclude<ShoppingFromPlanResult, 'added'>, Parameters<typeof t>[0]> = {
   'no-recipes': 'shopping.noRecipesSelected',
   'no-ingredients': 'shopping.noIngredients',
 };
 
+interface ShoppingItem {
+  id: string;
+  ingredient_name: string;
+  quantity: number;
+  unit: string;
+  is_checked?: boolean;
+}
+
+type IngredientAmount = Parameters<typeof ingredientBaseAmountLabel>[0];
+
+interface SourceIngredient {
+  name: string;
+  amount: number | string;
+  unit: IngredientAmount['unit'];
+  product?: IngredientAmount['product'];
+}
+
+interface SourceRecipe {
+  id: string;
+  name: string;
+  kcal?: number | string | null;
+  images?: (RecipeImageInput | null)[] | null;
+  portions: number;
+  ingredients?: SourceIngredient[];
+  recipe?: SourceRecipe;
+}
+
+type Snackbar = { id: number; message: string; removed?: ShoppingItem };
+
+const CARD = 'bg-surface-container-low rounded-2xl px-4';
+const PILL = 'h-[34px] px-3.5 rounded-full text-[13px] font-semibold transition-colors';
+
+function restoreAt(list: ShoppingItem[], target: ShoppingItem, index: number): ShoppingItem[] {
+  if (list.some(other => other.id === target.id)) return list;
+  const next = [...list];
+  next.splice(Math.min(Math.max(index, 0), next.length), 0, target);
+  return next;
+}
+
 export function ShoppingList() {
   const navigate = useNavigate();
   const { shoppingList, shoppingListRecipes, refreshShoppingList, setShoppingList, userMeals, recipes, profile } = useAppData();
-  const [items, setItems] = useState<any[]>(shoppingList || []);
-  const [sourceRecipes, setSourceRecipes] = useState<any[]>(shoppingListRecipes || []);
-  const [activeTab, setActiveTab] = useState<'categories' | 'recipes'>('categories');
+  const items: ShoppingItem[] = shoppingList || [];
+  const sourceRecipes: SourceRecipe[] = shoppingListRecipes || [];
+  const [activeTab, setActiveTab] = useState<'products' | 'recipes'>('products');
+  const [grouped, setGrouped] = useState(() => localStorage.getItem(SHOPPING_GROUPED_STORAGE_KEY) !== '0');
   const [showConfirm, setShowConfirm] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newIngredientName, setNewIngredientName] = useState('');
-  const [newQuantity, setNewQuantity] = useState('1');
-  const [newUnit, setNewUnit] = useState('szt');
-  const [addSubmitting, setAddSubmitting] = useState(false);
-  const addSheetRef = useBottomSheet(showAddModal, () => setShowAddModal(false), addSubmitting);
-  const [addError, setAddError] = useState<string | null>(null);
   const [showFromPlan, setShowFromPlan] = useState(false);
   const [fromPlanSubmitting, setFromPlanSubmitting] = useState(false);
   const [fromPlanError, setFromPlanError] = useState<string | null>(null);
-  const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState<Snackbar | null>(null);
+  const pendingMutations = useRef(0);
 
-  useEffect(() => {
-    setItems(shoppingList || []);
-    setSourceRecipes(shoppingListRecipes || []);
-  }, [shoppingList, shoppingListRecipes]);
+  const showSnackbar = (message: string, removed?: ShoppingItem) =>
+    setSnackbar(previous => ({ id: (previous?.id ?? 0) + 1, message, removed }));
+  const closeSnackbar = useCallback(() => setSnackbar(null), []);
 
-  const toggleCheck = async (id: string, currentStatus: boolean) => {
-    // Functional Optimistic update local
-    setItems(prev => prev.map(item => item.id === id ? { ...item, is_checked: !currentStatus } : item));
-    
-    // Functional Optimistic update context
-    setShoppingList(prev => prev.map(item => item.id === id ? { ...item, is_checked: !currentStatus } : item));
-
+  const runMutation = async (action: () => Promise<void>, label: string, onFailure: () => void) => {
+    pendingMutations.current += 1;
     try {
-      await api.shoppingList.toggleItem(id, !currentStatus);
-      await refreshShoppingList();
+      await action();
     } catch (err) {
-      console.error("Error toggling item:", err);
-      refreshShoppingList();
-    }
-  };
-
-  const openAddModal = () => {
-    setAddError(null);
-    setShowAddModal(true);
-  };
-
-  const handleAddProduct = async () => {
-    const name = newIngredientName.trim();
-    if (!name) {
-      setAddError('Podaj nazwę produktu.');
+      console.error(label, err);
+      onFailure();
       return;
-    }
-    const qty = parseFloat(String(newQuantity).replace(',', '.'));
-    if (Number.isNaN(qty) || qty <= 0) {
-      setAddError('Podaj dodatnią ilość.');
-      return;
-    }
-    const unit = newUnit.trim() || 'szt';
-    setAddError(null);
-    setAddSubmitting(true);
-    try {
-      await api.shoppingList.addItem({
-        ingredient_name: name,
-        quantity: qty,
-        unit,
-        is_checked: false,
-      });
-      await refreshShoppingList();
-      setShowAddModal(false);
-      setNewIngredientName('');
-      setNewQuantity('1');
-      setNewUnit('szt');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Nie udało się dodać produktu.';
-      setAddError(msg);
     } finally {
-      setAddSubmitting(false);
+      pendingMutations.current -= 1;
+    }
+    if (pendingMutations.current === 0) {
+      await refreshShoppingList().catch(err => console.error('Error refreshing shopping list:', err));
     }
   };
 
-  useEffect(() => {
-    if (!successToast) return;
-    const timer = setTimeout(() => setSuccessToast(null), SUCCESS_TOAST_MS);
-    return () => clearTimeout(timer);
-  }, [successToast]);
+  const toggleGrouped = () => {
+    const next = !grouped;
+    setGrouped(next);
+    localStorage.setItem(SHOPPING_GROUPED_STORAGE_KEY, next ? '1' : '0');
+  };
+
+  const toggleCheck = (id: string, currentStatus: boolean) => {
+    const nextStatus = !currentStatus;
+    setShoppingList((prev: ShoppingItem[]) =>
+      prev.map(item => (item.id === id ? { ...item, is_checked: nextStatus } : item)),
+    );
+    return runMutation(
+      async () => {
+        await api.shoppingList.toggleItem(id, nextStatus);
+      },
+      'Error toggling item:',
+      () => {
+        setShoppingList((prev: ShoppingItem[]) =>
+          prev.map(item => (item.id === id ? { ...item, is_checked: currentStatus } : item)),
+        );
+      },
+    );
+  };
+
+  const removeItem = (item: ShoppingItem) => {
+    const index = items.findIndex(other => other.id === item.id);
+    setShoppingList((prev: ShoppingItem[]) => prev.filter(other => other.id !== item.id));
+    return runMutation(
+      async () => {
+        await api.shoppingList.deleteItem(item.id);
+        showSnackbar(t('shopping.itemRemoved'), item);
+      },
+      'Error removing item:',
+      () => {
+        setShoppingList((prev: ShoppingItem[]) => restoreAt(prev, item, index));
+        showSnackbar(t('shopping.removeFailed'));
+      },
+    );
+  };
+
+  const restoreItem = (item: ShoppingItem) => {
+    setSnackbar(null);
+    return runMutation(
+      async () => {
+        await api.shoppingList.addItem({
+          ingredient_name: item.ingredient_name,
+          quantity: item.quantity,
+          unit: item.unit,
+          is_checked: !!item.is_checked,
+        });
+      },
+      'Error restoring item:',
+      () => showSnackbar(t('shopping.addFailed')),
+    );
+  };
 
   const openFromPlan = () => {
     setFromPlanError(null);
@@ -113,6 +160,7 @@ export function ShoppingList() {
   };
 
   const closeFromPlan = useCallback(() => setShowFromPlan(false), []);
+  const closeAddModal = useCallback(() => setShowAddModal(false), []);
 
   const handleAddFromPlan = async (meals: PlanMeal[]) => {
     setFromPlanError(null);
@@ -131,251 +179,189 @@ export function ShoppingList() {
       setFromPlanSubmitting(false);
     }
     setShowFromPlan(false);
-    setSuccessToast(t('shopping.ingredientsAdded'));
+    showSnackbar(t('shopping.ingredientsAdded'));
     await refreshShoppingList().catch(err => console.error('Error refreshing shopping list:', err));
   };
 
-  const clearList = async () => {
-    // Ukrywamy od razu dla płynnego UX
+  const clearList = () => {
+    const previous = items;
     setShowConfirm(false);
-    
-    // Optimistic update
-    setItems([]);
+    setSnackbar(current => (current?.removed ? null : current));
     setShoppingList([]);
-    try {
-      await api.shoppingList.clearAll();
-      await refreshShoppingList();
-    } catch (err) {
-      console.error("Error clearing list:", err);
-      refreshShoppingList();
-    }
+    return runMutation(
+      async () => {
+        await api.shoppingList.clearAll();
+      },
+      'Error clearing list:',
+      () => {
+        setShoppingList((prev: ShoppingItem[]) => (prev.length === 0 ? previous : prev));
+        showSnackbar(t('shopping.clearFailed'));
+      },
+    );
   };
 
-  const getCategory = (name: string) => {
-    const n = (name || '').toLowerCase();
-    
-    if (/awokado|sałat|pomidor|owoc|warzyw|szparag|cytryn|mieszanka|fasol|ziemniak|cebul|czosn|jabłk|banan|marchew|papryk|ogórek|brokuł|kalafior|pieczark/i.test(n)) 
-      return { title: 'Warzywa i Owoce', icon: 'eco' };
-      
-    if (/chleb|bułk|bagietk|rogal|tortill|pumpernikiel/i.test(n)) 
-      return { title: 'Pieczywo', icon: 'bakery_dining' };
-      
-    if (/kurczak|mięs|indyk|wołow|wieprzow|stek|ryb|łosoś|tuńczyk|krewet|szynk|boczek|kiełbas|parówk/i.test(n)) 
-      return { title: 'Mięso i Ryby', icon: 'set_meal' };
-      
-    if (/mleko|jaj|białko|ser|parmezan|masło|jogurt|śmietan|kefir|twar|tofu/i.test(n)) 
-      return { title: 'Nabiał i Jaja', icon: 'egg' };
+  const groups = groupByShoppingCategory(items);
 
-    if (/ryż|makaron|kasza|komosa|płatki|mąka|cukier|sól|quinoa|ciecierzyc/i.test(n))
-      return { title: 'Zbożowe i Sypkie', icon: 'grain' };
+  const itemRow = (item: ShoppingItem) => (
+    <ShoppingItemRow
+      key={item.id}
+      name={item.ingredient_name}
+      amount={`${formatShoppingAmount(item.quantity, item.unit)} ${item.unit}`}
+      checked={!!item.is_checked}
+      onToggle={() => toggleCheck(item.id, !!item.is_checked)}
+      onRemove={() => removeItem(item)}
+    />
+  );
 
-    if (/oliw|olej|sos|pesto|ketchup|majonez|musztard|pieprz|zioł/i.test(n))
-      return { title: 'Dodatki i Sosy', icon: 'local_dining' };
-      
-    return { title: 'Inne', icon: 'shopping_basket' };
+  const recipeAmount = (ingredient: SourceIngredient, portions: number) => {
+    const amount = Number(ingredient.amount) * portions;
+    const base = ingredientBaseAmountLabel({ amount, unit: ingredient.unit, product: ingredient.product });
+    return `${formatShoppingAmount(amount, ingredient.unit)} ${ingredientUnitLabel(ingredient.unit, amount, ingredient.product)}${base ? ` (${base})` : ''}`;
   };
-
-  const baseAmountSuffix = (ingredient: Parameters<typeof ingredientBaseAmountLabel>[0]) => {
-    const base = ingredientBaseAmountLabel(ingredient);
-    return base ? ` (${base})` : '';
-  };
-
-  const formatIngredientAmount = (amount: number, unit: string) => {
-    const u = (unit || '').toLowerCase().trim();
-    
-    // Jednostki płynne / sypkie -> tu zaokrąglenie do pełnych wartości ma sens (np. 134g ryżu, nie 134.25g)
-    if (['g', 'ml', 'kcal', 'mg'].includes(u)) {
-      return String(Math.round(amount));
-    }
-    
-    // Zostawiamy oryginalną wartość ułamkową (do max 2 miejsc po przecinku) dla sztuk, opakowań, itd.
-    // Dzięki temu ułamek (np. 1.25 avokado) jest widoczny bez narzutów.
-    const rounded = Math.round(amount * 100) / 100;
-    return String(rounded);
-  };
-
-  // Grupowanie
-  const groupedItems = items.reduce((acc: any, item: any) => {
-    const cat = getCategory(item.ingredient_name).title;
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(item);
-    return acc;
-  }, {});
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-bottom-nav">
-      <nav className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-xs pt-safe">
-        <div className="flex justify-between items-center px-6 h-16 w-full max-w-screen-xl mx-auto">
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-primary">shopping_basket</span>
-            <h1 className="text-lg text-primary"><Wordmark /></h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <button onClick={() => setShowConfirm(true)} aria-label={t('shopping.clearConfirm')} className="p-2 rounded-full hover:bg-surface-container-highest transition-colors text-on-surface-variant group relative">
-              <span aria-hidden="true" className="material-symbols-outlined group-hover:text-error transition-colors">delete_sweep</span>
-            </button>
-            <button className="p-2 rounded-full hover:bg-surface-container-highest transition-colors text-on-surface-variant">
-              <span className="material-symbols-outlined">settings</span>
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      <main className="pt-[calc(6rem+env(safe-area-inset-top))] px-6 max-w-screen-md mx-auto">
-        <div className="mb-5">
-          <div>
-            <p className="text-on-surface-variant font-medium text-sm mb-1 uppercase tracking-widest">Twoja Kolekcja</p>
-            <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Koszyk</h2>
-          </div>
+      <main className="pt-[calc(1rem+env(safe-area-inset-top))] max-w-xl mx-auto px-4">
+        <div className="flex items-center justify-between gap-2.5 pl-1 pb-3">
+          <h1 className="font-headline font-extrabold text-xl tracking-tight text-on-surface">{t('nav.shopping')}</h1>
+          <button
+            type="button"
+            onClick={() => setShowConfirm(true)}
+            aria-label={t('shopping.clearConfirm')}
+            className="w-10 h-10 -my-1 shrink-0 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high active:scale-95 transition-colors"
+          >
+            <span aria-hidden="true" className="material-symbols-outlined text-[22px]">delete_sweep</span>
+          </button>
         </div>
 
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-3">
           <button
             type="button"
             onClick={openFromPlan}
-            className="flex-1 bg-primary-gradient text-on-primary px-3 py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-ambient active:scale-95 transition-transform font-semibold text-[13px] sm:text-sm whitespace-nowrap"
+            className="flex-1 min-w-0 h-12 px-3 rounded-2xl bg-primary text-on-primary flex items-center justify-center gap-1.5 font-semibold text-sm whitespace-nowrap active:scale-[0.98] transition-transform"
           >
-            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">event_note</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[19px]">event_note</span>
             {t('shopping.fromPlan')}
           </button>
           <button
             type="button"
-            onClick={openAddModal}
-            className="flex-1 bg-primary/10 text-primary px-3 py-3 rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-transform font-semibold text-[13px] sm:text-sm whitespace-nowrap"
+            onClick={() => setShowAddModal(true)}
+            className="flex-1 min-w-0 h-12 px-3 rounded-2xl bg-surface-container-high text-on-surface flex items-center justify-center gap-1.5 font-semibold text-sm whitespace-nowrap active:scale-[0.98] transition-transform"
           >
-            <span aria-hidden="true" className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>add</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[19px]">add</span>
             {t('shopping.addProduct')}
           </button>
         </div>
 
-        <div className="flex bg-surface-container-highest/30 p-1.5 rounded-xl mb-6">
-           <button onClick={() => setActiveTab('categories')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'categories' ? 'bg-surface shadow-[0_2px_8px_rgba(0,0,0,0.06)] text-primary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface/50'}`}>Według Działów</button>
-           <button onClick={() => setActiveTab('recipes')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'recipes' ? 'bg-surface shadow-[0_2px_8px_rgba(0,0,0,0.06)] text-primary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface/50'}`}>Według Przepisów</button>
+        <div className="flex items-center gap-1.5 mb-4">
+          {(['products', 'recipes'] as const).map(tab => (
+            <button
+              key={tab}
+              type="button"
+              aria-pressed={activeTab === tab}
+              onClick={() => setActiveTab(tab)}
+              className={`${PILL} ${activeTab === tab ? 'bg-surface-container-high text-on-surface' : 'bg-surface-container-low text-on-surface-variant'}`}
+            >
+              {t(tab === 'products' ? 'shopping.viewProducts' : 'shopping.viewRecipes')}
+            </button>
+          ))}
+          {activeTab === 'products' && (
+            <button
+              type="button"
+              aria-pressed={grouped}
+              aria-label={t('shopping.groupByCategory')}
+              onClick={toggleGrouped}
+              className={`ml-auto w-10 h-10 -my-1 rounded-full flex items-center justify-center active:scale-95 transition-colors ${grouped ? 'bg-primary/15 text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-[21px]">shelves</span>
+            </button>
+          )}
         </div>
 
-        {items.length === 0 ? (
-           <div className="flex flex-col items-center justify-center text-center mt-20 opacity-60">
-              <span className="material-symbols-outlined text-[64px] text-on-surface-variant mb-4">shopping_cart</span>
-              <p className="text-on-surface-variant font-medium">Twój koszyk jest pusty.</p>
-              <p className="text-xs text-on-surface-variant mt-2">{t('shopping.emptyHint')}</p>
-           </div>
+        {activeTab === 'products' ? (
+          items.length === 0 ? (
+            <div className="pt-16 px-6 text-center">
+              <p className="font-headline font-extrabold text-base tracking-tight text-on-surface">{t('shopping.empty')}</p>
+              <p className="mt-1.5 text-sm text-on-surface-variant text-balance">{t('shopping.emptyHint')}</p>
+            </div>
+          ) : grouped ? (
+            <div className="flex flex-col gap-5">
+              {groups.map(group => (
+                <section key={group.category.id}>
+                  <div className="flex items-baseline gap-2 px-1 pb-2">
+                    <h2 className="flex-1 min-w-0 font-headline font-extrabold text-[15px] tracking-tight text-on-surface">{t(group.category.labelKey)}</h2>
+                    <span className="text-[12.5px] text-on-surface-variant tabular-nums">{group.items.length}</span>
+                  </div>
+                  <ul className={CARD}>{group.items.map(itemRow)}</ul>
+                </section>
+              ))}
+            </div>
+          ) : (
+            <ul className={CARD}>{items.map(itemRow)}</ul>
+          )
         ) : (
-          <div className="space-y-10">
-            {activeTab === 'categories' && (
-              <>
-                {['Warzywa i Owoce', 'Pieczywo', 'Mięso i Ryby', 'Nabiał i Jaja', 'Zbożowe i Sypkie', 'Dodatki i Sosy', 'Inne'].filter(cat => groupedItems[cat]).map(categoryName => {
-                   const catInfo = getCategory(groupedItems[categoryName][0].ingredient_name);
-                   return (
-                     <section key={categoryName}>
-                       <div className="flex items-center gap-1.5 mb-3">
-                         <span className="material-symbols-outlined text-primary-container text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>{catInfo.icon}</span>
-                         <h3 className="font-headline font-bold text-lg text-on-surface">{categoryName}</h3>
-                       </div>
-                       <div className="bg-surface-container-low rounded-xl p-1.5 space-y-0.5">
-                         {groupedItems[categoryName].map((item: any) => (
-                           <label key={item.id} className="flex items-center justify-between p-3 bg-surface-container-lowest rounded-lg group cursor-pointer active:scale-[0.99] transition-all">
-                             <div className="flex items-center gap-3 min-w-0 flex-1">
-                               <div className="relative flex items-center shrink-0">
-                                 <input 
-                                   checked={item.is_checked} 
-                                   onChange={() => toggleCheck(item.id, !!item.is_checked)} 
-                                   className="w-5 h-5 rounded-md border-outline-variant/[0.15] text-primary focus:ring-primary-container bg-surface-container-low cursor-pointer" 
-                                   type="checkbox"
-                                 />
-                               </div>
-                               <div className="min-w-0 flex-1 truncate pr-2">
-                                 <p className={`font-medium text-sm truncate transition-opacity duration-300 ${item.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-on-surface'}`}>{item.ingredient_name}</p>
-                               </div>
-                             </div>
-                             <span className={`font-bold text-sm shrink-0 transition-opacity duration-300 ${item.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-primary'}`}>
-                               {formatIngredientAmount(item.quantity, item.unit)} {item.unit}
-                             </span>
-                           </label>
-                         ))}
-                       </div>
-                     </section>
-                   );
-                })}
-              </>
-            )}
-
-            {activeTab === 'recipes' && (
-              <>
-                 {sourceRecipes.map((r: any, idx: number) => (
-                    <div key={idx} className="flex flex-col gap-4 p-4 rounded-2xl bg-surface-container-low border border-outline-variant/10 mb-6 relative">
-                       <div className="absolute top-3 right-3 bg-surface/80 backdrop-blur-md px-2 py-1 rounded-lg border border-outline-variant/20 z-10 flex items-center gap-0.5 shadow-xs">
-                          <span className="material-symbols-outlined text-[12px] text-primary">local_fire_department</span>
-                          <span className="text-[10px] uppercase font-bold text-primary leading-none">{Math.round(Number(r.recipe?.kcal || r.kcal) || 0)} kcal</span>
-                       </div>
-                       <div className="absolute top-3 left-3 bg-primary text-on-primary px-2.5 py-1 rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.15)] z-10 flex items-center gap-1.5 border border-primary-container/20">
-                          <span className="material-symbols-outlined text-[14px]">restaurant</span>
-                          <span className="text-[10px] uppercase font-black tracking-wide">{r.portions} {r.portions === 1 ? 'Porcja' : (r.portions > 1 && r.portions < 5 ? 'Porcje' : 'Porcji')}</span>
-                       </div>
-                       <div 
-                           className="h-28 sm:h-32 w-full relative cursor-pointer active:scale-[0.98] transition-transform overflow-hidden rounded-t-2xl"
-                           onClick={() => navigate(`/recipe/${r.recipe?.id ?? r.id}`)}
-                       >
-                          <RecipeCoverImage
-                            image={recipeCoverImage(r.recipe ?? r)}
-                            alt={r.recipe?.name || r.name}
-                            className="absolute inset-0 w-full h-full"
-                            imgClassName="absolute inset-0 w-full h-full object-cover"
+          <div className="flex flex-col gap-5">
+            {sourceRecipes.map((r, idx) => {
+              const recipe = r.recipe ?? r;
+              const kcal = Math.round(Number(recipe.kcal) || 0);
+              return (
+                <section key={recipe.id ?? idx}>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/recipe/${recipe.id}`)}
+                    className="w-full flex items-center gap-3 px-1 pb-2.5 text-left active:opacity-70 transition-opacity"
+                  >
+                    <span className="block w-12 h-12 shrink-0 rounded-xl overflow-hidden bg-surface-container-high">
+                      <RecipeCoverImage image={recipeCoverImage(recipe)} alt="" className="w-full h-full" />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-headline font-extrabold text-[15px] leading-tight tracking-tight text-on-surface line-clamp-2">{recipe.name}</span>
+                      <span className="block mt-0.5 text-[12.5px] text-on-surface-variant tabular-nums">
+                        {t(`shopping.portions.${pluralForm(r.portions)}`, { count: r.portions })},{' '}
+                        <span className="font-semibold text-primary">{kcal} kcal</span>
+                      </span>
+                    </span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-on-surface-variant">chevron_right</span>
+                  </button>
+                  {r.ingredients && r.ingredients.length > 0 ? (
+                    <ul className={CARD}>
+                      {r.ingredients.map((ing, i) => {
+                        const shopItem = items.find(it => (it.ingredient_name || '').toLowerCase() === (ing.name || '').toLowerCase());
+                        return (
+                          <ShoppingItemRow
+                            key={i}
+                            name={ing.name}
+                            amount={recipeAmount(ing, r.portions)}
+                            checked={!!shopItem?.is_checked}
+                            disabled={!shopItem}
+                            onToggle={() => shopItem && toggleCheck(shopItem.id, !!shopItem.is_checked)}
                           />
-                          <div className="absolute inset-0 bg-linear-to-t/srgb from-black/80 via-black/20 to-transparent pointer-events-none"></div>
-                          <div className="absolute bottom-3 left-4 right-4">
-                             <h3 className="font-headline font-bold text-lg text-white leading-tight drop-shadow-md">{r.recipe?.name || r.name}</h3>
-                          </div>
-                       </div>
-                       <div className="p-2 space-y-1 bg-surface-container-low">
-                           {(r.ingredients && r.ingredients.length > 0) ? r.ingredients.map((ing: any, i: number) => {
-                              const shopItem = items.find(it => (it.ingredient_name || '').toLowerCase() === (ing.name || '').toLowerCase());
-                              return (
-                                <label key={i} className={`flex items-center justify-between p-3 bg-surface-container-lowest rounded-lg transition-all ${shopItem ? 'group cursor-pointer active:scale-[0.99] hover:bg-surface-container-highest/20' : 'opacity-50'}`}>
-                                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                                    <div className="relative flex items-center shrink-0">
-                                      <input 
-                                        checked={shopItem ? shopItem.is_checked : false} 
-                                        onChange={() => shopItem && toggleCheck(shopItem.id, !!shopItem.is_checked)} 
-                                        disabled={!shopItem}
-                                        className="w-5 h-5 rounded-md border-outline-variant/[0.15] text-primary focus:ring-primary-container bg-surface-container-low cursor-pointer disabled:opacity-50" 
-                                        type="checkbox"
-                                      />
-                                    </div>
-                                    <div className="min-w-0 flex-1 truncate pr-2">
-                                      <p className={`font-medium text-sm truncate transition-opacity duration-300 ${shopItem?.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-on-surface'}`}>{ing.name}</p>
-                                    </div>
-                                  </div>
-                                  <span className={`font-bold text-sm shrink-0 transition-opacity duration-300 ${shopItem?.is_checked ? 'text-on-surface-variant line-through opacity-60' : 'text-primary'}`}>
-                                    {formatIngredientAmount(Number(ing.amount) * r.portions, ing.unit)} {ingredientUnitLabel(ing.unit, Number(ing.amount) * r.portions, ing.product)}
-                                    {baseAmountSuffix({ amount: Number(ing.amount) * r.portions, unit: ing.unit, product: ing.product })}
-                                  </span>
-                                </label>
-                              );
-                           }) : (
-                              <p className="text-center text-xs text-on-surface-variant p-4">Brak wprowadzonych składników dla tego przepisu.</p>
-                           )}
-                       </div>
-                    </div>
-                 ))}
-                 {sourceRecipes.length === 0 && (
-                    <div className="text-center opacity-60 mt-10">
-                       <span className="material-symbols-outlined text-[48px] text-on-surface-variant mb-2">restaurant_menu</span>
-                       <p className="text-sm font-medium text-on-surface-variant">Brak przepisów powiązanych ze składnikami.</p>
-                    </div>
-                 )}
-              </>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="px-1 text-sm text-on-surface-variant">{t('shopping.noRecipeIngredients')}</p>
+                  )}
+                </section>
+              );
+            })}
+            {sourceRecipes.length === 0 && (
+              <p className="pt-12 px-6 text-center text-sm text-on-surface-variant">{t('shopping.noSourceRecipes')}</p>
             )}
           </div>
         )}
       </main>
-      
+
       <BottomNav />
 
-      {successToast && (
-        <div role="status" className="fixed top-[calc(1.25rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 bg-primary/10 backdrop-blur-md border border-primary/20 text-primary px-4 py-2.5 rounded-full shadow-xs z-[110] flex items-center justify-center gap-2 animate-slide-up whitespace-nowrap">
-          <span className="material-symbols-outlined text-[16px] font-bold">check_circle</span>
-          <span className="font-headline font-bold text-xs tracking-wide">{successToast}</span>
-        </div>
+      {snackbar && (
+        <UndoSnackbar
+          key={snackbar.id}
+          message={snackbar.message}
+          onUndo={snackbar.removed ? () => restoreItem(snackbar.removed!) : undefined}
+          onClose={closeSnackbar}
+          durationMs={snackbar.removed ? undefined : SUCCESS_TOAST_MS}
+        />
       )}
 
       {showFromPlan && (
@@ -390,92 +376,11 @@ export function ShoppingList() {
         />
       )}
 
-      {/* Dodaj produkt */}
-      {showAddModal && (
-        <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-6">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-xs"
-            onClick={() => !addSubmitting && setShowAddModal(false)}
-          />
-          <div ref={addSheetRef} className="bg-surface w-full sm:max-w-md sm:rounded-[28px] rounded-t-[28px] overflow-hidden shadow-2xl relative z-10 border border-outline-variant/15 max-h-[90vh] flex flex-col">
-            <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mt-3 sm:hidden shrink-0" />
-            <div className="p-6 pb-4 flex items-center justify-between gap-3">
-              <h3 className="font-headline font-bold text-lg text-on-surface">Dodaj produkt</h3>
-              <button
-                type="button"
-                disabled={addSubmitting}
-                onClick={() => setShowAddModal(false)}
-                className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-highest transition-colors disabled:opacity-50"
-                aria-label="Zamknij"
-              >
-                <span className="material-symbols-outlined text-[22px]">close</span>
-              </button>
-            </div>
-            <div className="px-6 pb-6 overflow-y-auto space-y-4">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">Nazwa</label>
-                <input
-                  autoComplete="off"
-                  type="text"
-                  value={newIngredientName}
-                  onChange={e => setNewIngredientName(e.target.value)}
-                  placeholder="np. Mleko 2%"
-                  className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-hidden focus:ring-2 focus:ring-primary/25 border border-transparent"
-                  autoFocus
-                />
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1 min-w-0">
-                  <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">Ilość</label>
-                  <input
-                    autoComplete="off"
-                    type="text"
-                    inputMode="decimal"
-                    aria-label="Ilość"
-                    value={newQuantity}
-                    onChange={e => acceptsLimitedNumber(e.target.value, AMOUNT_LIMITS.g) && setNewQuantity(e.target.value)}
-                    className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-hidden focus:ring-2 focus:ring-primary/25"
-                  />
-                </div>
-                <div className="w-28 shrink-0">
-                  <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">Jedn.</label>
-                  <input
-                    autoComplete="off"
-                    type="text"
-                    value={newUnit}
-                    onChange={e => setNewUnit(e.target.value)}
-                    placeholder="szt"
-                    className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-hidden focus:ring-2 focus:ring-primary/25"
-                  />
-                </div>
-              </div>
-              {addError && (
-                <p className="text-error text-sm font-medium">{addError}</p>
-              )}
-              <button
-                type="button"
-                disabled={addSubmitting}
-                onClick={handleAddProduct}
-                className="w-full h-12 bg-primary text-on-primary font-bold text-sm rounded-xl active:scale-[0.98] transition-all shadow-xs flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {addSubmitting ? (
-                  <span className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[20px]">add_shopping_cart</span>
-                    Dodaj do listy
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showAddModal && <ShoppingAddProductSheet onAdded={refreshShoppingList} onClose={closeAddModal} />}
 
       {showConfirm && (
         <ConfirmSheet
-          question={t('shopping.clearQuestion')}
-          title={t('shopping.clearTitle')}
+          title={t('shopping.clearQuestion')}
           description={t('shopping.clearText')}
           confirmLabel={t('shopping.clearConfirm')}
           onConfirm={clearList}
