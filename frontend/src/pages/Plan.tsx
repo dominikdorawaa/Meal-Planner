@@ -19,6 +19,7 @@ import { PlanDayDeleteSheet } from '../components/PlanDayDeleteSheet';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { UndoSnackbar } from '../components/UndoSnackbar';
 import { PlanAction, PlanActionGroup, PlanActionSheet, PlanSheetDayBadge, PlanSheetThumb } from '../components/PlanActionSheet';
+import { FoodPlaceholder } from '../components/FoodPlaceholder';
 import { t, type MessageKey } from '../i18n';
 import {
   deleteMeals,
@@ -511,7 +512,6 @@ export function Plan() {
             title={productDisplayName(product)}
             kcal={formatCompactNumber(Math.round(product.kcal * factor))}
             imgSrc={product.image_url || PLACEHOLDER_IMAGE}
-            isProduct
             onClick={() => {
               if (!copyModeDay && !copyModeMeal) navigate(`/product/${product.id}?selectDate=${date}&selectType=${mealType}&mealId=${assignedMeal.id}`);
             }}
@@ -876,7 +876,7 @@ export function Plan() {
   );
 }
 
-function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuClick, onClick, isCopyMode, isSelected, isProduct, isManual }: { title: string, kcal: string, imgSrc: string, recipeImage?: RecipeImage | null, isRecipe?: boolean, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, isProduct?: boolean, isManual?: boolean }) {
+function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuClick, onClick, isCopyMode, isSelected, isManual }: { title: string, kcal: string, imgSrc: string, recipeImage?: RecipeImage | null, isRecipe?: boolean, onMenuClick: () => void, onClick?: () => void, isCopyMode?: boolean, isSelected?: boolean, isManual?: boolean }) {
   const primaryImageUrl = imgSrc && !imgSrc.includes('PLAN_PLACEHOLDER_TOKEN') ? imgSrc : null;
   const imageUrls = useMemo(() => (primaryImageUrl ? [primaryImageUrl] : []), [primaryImageUrl]);
 
@@ -908,13 +908,11 @@ function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuC
       );
     }
     return (
-      <div className={`absolute inset-0 w-full h-full flex items-center justify-center transition-all ${isManual ? 'bg-orange-50 group-hover:bg-orange-100 dark:bg-orange-500/10 dark:group-hover:bg-orange-500/20' : isProduct ? 'bg-primary/[0.03] group-hover:bg-primary/[0.06]' : 'bg-[#f1f6ed] group-hover:bg-[#e8f1e2] dark:bg-[#6B8E23]/10 dark:group-hover:bg-[#6B8E23]/20'}`}>
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner ${isManual ? 'bg-orange-100/50 text-orange-500 dark:bg-orange-500/20' : isProduct ? 'bg-primary/10 text-primary' : 'bg-white/50 text-[#6B8E23] dark:bg-white/10'}`}>
-          <span className="material-symbols-outlined text-xl opacity-80">
-            {isManual ? 'bolt' : isProduct ? 'nutrition' : 'photo_camera'}
-          </span>
-        </div>
-      </div>
+      <FoodPlaceholder
+        kind={isManual ? 'manual' : 'product'}
+        className="absolute inset-0 w-full h-full"
+        iconClassName="text-[56px] sm:text-[76px]"
+      />
     );
   };
 
