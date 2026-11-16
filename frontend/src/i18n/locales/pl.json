@@ -151,7 +151,6 @@
   "shopping.clearText": "Wszystkie produkty znikną na stałe.",
   "shopping.clearConfirm": "Wyczyść listę",
   "shopping.clearFailed": "Nie udało się wyczyścić listy. Spróbuj ponownie.",
-  "shopping.progress": "{done} z {total} kupione",
   "shopping.viewProducts": "Produkty",
   "shopping.viewRecipes": "Przepisy",
   "shopping.groupByCategory": "Grupuj według działów",

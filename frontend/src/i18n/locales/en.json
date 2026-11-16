@@ -151,7 +151,6 @@
   "shopping.clearText": "All products will be removed for good.",
   "shopping.clearConfirm": "Clear list",
   "shopping.clearFailed": "Could not clear the list. Try again.",
-  "shopping.progress": "{done} of {total} bought",
   "shopping.viewProducts": "Products",
   "shopping.viewRecipes": "Recipes",
   "shopping.groupByCategory": "Group by department",
