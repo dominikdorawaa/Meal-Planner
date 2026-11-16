@@ -300,7 +300,6 @@ export function ShoppingList() {
   };
 
   const groups = groupByShoppingCategory(items, departments);
-  const boughtCount = items.filter(item => item.is_checked).length;
 
   const itemRow = (item: ShoppingItem) => (
     <ShoppingItemRow
@@ -323,11 +322,8 @@ export function ShoppingList() {
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-bottom-nav">
       <main className="pt-[calc(1rem+env(safe-area-inset-top))] max-w-xl mx-auto px-4">
-        <div className="flex items-center gap-2.5 pl-1 pb-3">
+        <div className="flex items-center justify-between gap-2.5 pl-1 pb-3">
           <h1 className="font-headline font-extrabold text-xl tracking-tight text-on-surface">{t('nav.shopping')}</h1>
-          <p className="flex-1 min-w-0 truncate pt-0.5 text-[13px] font-medium text-on-surface-variant tabular-nums">
-            {items.length > 0 && t('shopping.progress', { done: boughtCount, total: items.length })}
-          </p>
           <button
             type="button"
             onClick={() => setShowConfirm(true)}

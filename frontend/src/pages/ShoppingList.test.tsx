@@ -244,11 +244,10 @@ describe('ShoppingList products', () => {
     APP_DATA.shoppingList = ITEMS;
   });
 
-  it('shows the tab title, the progress and the products grouped by department', () => {
+  it('shows the tab title and the products grouped by department', () => {
     renderPage();
 
     expect(screen.getByRole('heading', { level: 1, name: t('nav.shopping') })).toBeTruthy();
-    expect(screen.getByText(t('shopping.progress', { done: 1, total: 3 }))).toBeTruthy();
     expect(screen.getByRole('heading', { name: t('shopping.category.produce') })).toBeTruthy();
     expect(screen.getByRole('heading', { name: t('shopping.category.grains') })).toBeTruthy();
     expect(screen.getByRole('heading', { name: t('shopping.category.other') })).toBeTruthy();
