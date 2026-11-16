@@ -9,7 +9,7 @@ interface ShoppingAddProductSheetProps {
   onClose: () => void;
 }
 
-const FIELD = 'w-full h-12 bg-surface-container rounded-2xl px-4 text-on-surface font-medium text-[15px] outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-on-surface-variant/70';
+const FIELD = 'w-full h-12 bg-surface-container rounded-2xl px-4 text-on-surface font-medium text-[15px] outline-hidden focus:ring-2 focus:ring-primary/40 placeholder:text-on-surface-variant/70';
 const LABEL = 'block mb-1.5 px-1 text-[13px] font-semibold text-on-surface-variant';
 
 export function ShoppingAddProductSheet({ onAdded, onClose }: ShoppingAddProductSheetProps) {

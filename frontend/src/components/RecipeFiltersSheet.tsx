@@ -50,7 +50,7 @@ export function RecipeFiltersSheet({ open, filters, onChange, matchCount, onAppl
     <div
       data-scroll-lock
       data-testid="recipe-filters-backdrop"
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-xs animate-fade-in"
       onClick={onClose}
     >
       <div

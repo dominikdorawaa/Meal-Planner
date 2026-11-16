@@ -24,7 +24,7 @@ type Drag = { pointerId: number; x: number; dx: number; width: number };
 function GoalLeaf() {
   return (
     <svg aria-hidden="true" data-testid="goal-leaf" viewBox="-2 -2 28 24" className="absolute -right-1.5 -top-1 w-[15px] h-[13px]">
-      <path d="M2 18C2 8 8 2 22 2C22 12 16 18 2 18Z" className="fill-primary" stroke="rgb(var(--color-surface))" strokeWidth="3" paintOrder="stroke" />
+      <path d="M2 18C2 8 8 2 22 2C22 12 16 18 2 18Z" className="fill-primary stroke-surface" strokeWidth="3" paintOrder="stroke" />
     </svg>
   );
 }

@@ -312,7 +312,7 @@ export function Recipes() {
               onChange={event => setSearch(event.target.value)}
               placeholder={t('recipes.searchPlaceholder')}
               aria-label={t('recipes.searchPlaceholder')}
-              className="w-full h-[46px] rounded-2xl bg-surface-container-low pl-11 pr-10 text-sm font-medium text-on-surface placeholder:text-on-surface-variant/80 outline-none focus:ring-2 focus:ring-primary/30 transition-shadow"
+              className="w-full h-[46px] rounded-2xl bg-surface-container-low pl-11 pr-10 text-sm font-medium text-on-surface placeholder:text-on-surface-variant/80 outline-hidden focus:ring-2 focus:ring-primary/30 transition-shadow"
             />
             {search && (
               <button

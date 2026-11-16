@@ -36,7 +36,7 @@ export function ShoppingSheet({ title, hint, busy = false, onClose, children, fo
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative w-full max-w-[600px] max-h-[90dvh] flex flex-col bg-surface-container-low rounded-t-[28px] pt-3 shadow-ambient border-t border-outline-variant/10 outline-none"
+        className="relative w-full max-w-[600px] max-h-[90dvh] flex flex-col bg-surface-container-low rounded-t-[28px] pt-3 shadow-ambient border-t border-outline-variant/10 outline-hidden"
       >
         <div className="w-9 h-1 bg-surface-container-highest rounded-full mx-auto mb-4 shrink-0" />
         <div className="flex items-start gap-3 px-5 pb-3 shrink-0">

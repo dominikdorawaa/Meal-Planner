@@ -32,7 +32,7 @@ export function BarCodeField({ value, onChange, existingProduct, existingProduct
           autoComplete="off"
           value={value}
           onChange={event => onChange(normalizeBarCode(event.target.value))}
-          className="flex-1 min-w-0 bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
+          className="flex-1 min-w-0 bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
           placeholder="5900000000000"
         />
         <button

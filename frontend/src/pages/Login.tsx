@@ -53,7 +53,7 @@ export function Login() {
               <label className="text-on-surface-variant font-body text-xs font-semibold uppercase tracking-widest pl-4">Imię</label>
               <input
                 type="text"
-                className="bg-surface-container-low border-none rounded-xl py-3.5 px-4 focus:ring-2 focus:ring-primary/20 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/50 font-medium"
+                className="bg-surface-container-low border-none rounded-xl py-3.5 px-4 focus:ring-2 focus:ring-primary/20 text-on-surface outline-hidden transition-all placeholder:text-on-surface-variant/50 font-medium"
                 placeholder="Twoje imię"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -65,7 +65,7 @@ export function Login() {
             <label className="text-on-surface-variant font-body text-xs font-semibold uppercase tracking-widest pl-4">Email</label>
             <input
               type="email"
-              className="bg-surface-container-low border-none rounded-xl py-3.5 px-4 focus:ring-2 focus:ring-primary/20 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/50 font-medium"
+              className="bg-surface-container-low border-none rounded-xl py-3.5 px-4 focus:ring-2 focus:ring-primary/20 text-on-surface outline-hidden transition-all placeholder:text-on-surface-variant/50 font-medium"
               placeholder="twój@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -76,7 +76,7 @@ export function Login() {
             <label className="text-on-surface-variant font-body text-xs font-semibold uppercase tracking-widest pl-4">Hasło</label>
             <input
               type="password"
-              className="bg-surface-container-low border-none rounded-xl py-3.5 px-4 focus:ring-2 focus:ring-primary/20 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/50 font-medium"
+              className="bg-surface-container-low border-none rounded-xl py-3.5 px-4 focus:ring-2 focus:ring-primary/20 text-on-surface outline-hidden transition-all placeholder:text-on-surface-variant/50 font-medium"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -100,7 +100,7 @@ export function Login() {
           <button
             type="button"
             onClick={() => { setIsRegistering(!isRegistering); setErrorMsg(''); }}
-            className="text-on-surface-variant font-body text-xs mt-2 hover:text-primary transition-colors text-center w-full focus:outline-none"
+            className="text-on-surface-variant font-body text-xs mt-2 hover:text-primary transition-colors text-center w-full focus:outline-hidden"
           >
             {isRegistering ? 'Wróć do logowania' : 'Pierwszy raz? Załóż konto próbne'}
           </button>
