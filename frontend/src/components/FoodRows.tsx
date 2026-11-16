@@ -53,7 +53,7 @@ function FoodRow({ name, kcal, amount, own, unverified, calendories, selected, o
   return (
     <div
       onClick={onOpen}
-      className="flex items-center bg-surface-container-lowest p-2.5 rounded-[20px] shadow-sm border border-outline-variant/10 active:scale-[0.98] transition-all cursor-pointer"
+      className="flex items-center bg-surface-container-lowest p-2.5 rounded-[20px] shadow-xs border border-outline-variant/10 active:scale-[0.98] transition-all cursor-pointer"
     >
       {children}
       <div className="flex flex-col justify-center gap-0.5 px-3 flex-1 min-w-0">

@@ -100,7 +100,7 @@ function SortableStep({ step, index, onNameChange, onTextChange, onRemove }: Sor
           onChange={e => onNameChange(limitStepName(e.target.value))}
           placeholder={t('recipeForm.step', { number })}
           aria-label={t('recipeForm.stepName', { number })}
-          className="flex-1 min-w-0 bg-surface-container-low rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/60"
+          className="flex-1 min-w-0 bg-surface-container-low rounded-xl px-3 py-2 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/60"
         />
         <button
           type="button"
@@ -117,7 +117,7 @@ function SortableStep({ step, index, onNameChange, onTextChange, onRemove }: Sor
         onChange={e => onTextChange(e.target.value)}
         placeholder={t('recipeForm.stepTextPlaceholder')}
         aria-label={t('recipeForm.stepText', { number })}
-        className="w-full bg-surface-container-low rounded-2xl p-3 min-h-[88px] outline-none focus:ring-2 focus:ring-primary/20 text-on-surface font-medium text-sm transition-shadow resize-y [overflow-wrap:anywhere]"
+        className="w-full bg-surface-container-low rounded-2xl p-3 min-h-[88px] outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-medium text-sm transition-shadow resize-y [overflow-wrap:anywhere]"
       />
     </div>
   );

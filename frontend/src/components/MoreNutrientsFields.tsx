@@ -44,7 +44,7 @@ export function MoreNutrientsFields({ values, onChange, limited = true }: MoreNu
                     if (!acceptsLimitedNumber(event.target.value, limited ? NUTRITION_LIMITS[nutrient] : Number.MAX_SAFE_INTEGER, NUTRITION_DECIMALS)) return;
                     onChange(nutrient, event.target.value);
                   }}
-                  className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-none text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-hidden text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   placeholder="0"
                 />
                 <span className="absolute right-3 text-[10px] font-black text-on-surface-variant/50 uppercase">g</span>

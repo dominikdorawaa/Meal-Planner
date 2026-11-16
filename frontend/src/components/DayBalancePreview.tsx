@@ -40,7 +40,7 @@ export function DayBalancePreview({ dayLabel, dayWithoutItem, item, targets, edi
       </button>
 
       {open && (
-        <div id={panelId} className="bg-surface-container-low rounded-[32px] p-6 border border-outline-variant/10 shadow-sm animate-slide-up">
+        <div id={panelId} className="bg-surface-container-low rounded-[32px] p-6 border border-outline-variant/10 shadow-xs animate-slide-up">
           <div className="flex items-center justify-between gap-3 mb-6">
             <div className="flex items-center gap-3 min-w-0">
               <div aria-hidden="true" className="w-10 h-10 shrink-0 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
@@ -59,7 +59,7 @@ export function DayBalancePreview({ dayLabel, dayWithoutItem, item, targets, edi
                   type="button"
                   aria-pressed={mode === option}
                   onClick={() => setMode(option)}
-                  className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === option ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+                  className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === option ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}`}
                 >
                   {t(option === 'before' ? 'dayBalance.before' : 'dayBalance.after')}
                 </button>

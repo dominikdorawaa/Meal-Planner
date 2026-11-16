@@ -90,7 +90,7 @@ export function IngredientAmountScreen({ product, initial, submitLabel, onSubmit
         <button
           onClick={() => onSubmit({ amount, unit: activeUnit })}
           disabled={!isPositiveWithinLimit(amount, maxAmount)}
-          className="w-full max-w-xl mx-auto block py-4 bg-primary text-on-primary font-black text-sm rounded-2xl active:scale-95 transition-transform disabled:opacity-50 shadow-sm"
+          className="w-full max-w-xl mx-auto block py-4 bg-primary text-on-primary font-black text-sm rounded-2xl active:scale-95 transition-transform disabled:opacity-50 shadow-xs"
         >
           {submitLabel}
         </button>

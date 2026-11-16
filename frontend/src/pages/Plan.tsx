@@ -594,13 +594,13 @@ export function Plan() {
             onSelectDay={selectStripDay}
           />
         </div>
-        <div ref={scrollRef} onScroll={handlePlanScroll} className="w-full overflow-x-auto overflow-y-hidden no-scrollbar snap-x snap-mandatory scroll-smooth">
+        <div ref={scrollRef} onScroll={handlePlanScroll} className="w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth">
           <div className="w-max flex flex-col pb-6 relative [--plan-column:33.3333vw] sm:[--plan-column:150px]">
             {todayIndex >= 0 && (
               <div
                 aria-hidden="true"
                 data-today-band
-                className="absolute top-2 bottom-2 rounded-[22px] bg-gradient-to-b from-today/[0.11] via-today/[0.05] via-30% to-today/[0.035] pointer-events-none"
+                className="absolute top-2 bottom-2 rounded-[22px] bg-linear-to-b/srgb from-today/[0.11] via-today/[0.05] via-30% to-today/[0.035] pointer-events-none"
                 style={{ left: `calc(${todayIndex} * var(--plan-column) + ${TODAY_BAND_INSET_PX}px)`, width: `calc(var(--plan-column) - ${TODAY_BAND_INSET_PX * 2}px)` }}
               />
             )}
@@ -730,14 +730,14 @@ export function Plan() {
               </div>
             </div>
 
-            <div className="flex gap-2 ml-2 flex-shrink-0">
+            <div className="flex gap-2 ml-2 shrink-0">
               <button onClick={resetSelectionModes} className="px-3 py-2.5 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-xl transition-colors text-xs active:scale-95">
                 {t('plan.cancel')}
               </button>
               <button
                 onClick={handlePreSubmitCopyMode}
                 disabled={selectedCopyDays.length === 0 || transferBusy}
-                className="px-4 py-2.5 font-bold text-on-primary bg-primary rounded-xl shadow-sm hover:bg-primary/90 transition-colors text-xs disabled:opacity-50 active:scale-95 whitespace-nowrap"
+                className="px-4 py-2.5 font-bold text-on-primary bg-primary rounded-xl shadow-xs hover:bg-primary/90 transition-colors text-xs disabled:opacity-50 active:scale-95 whitespace-nowrap"
               >
                 {t('plan.pasteCount', { count: selectedCopyDays.length })}
               </button>
@@ -809,7 +809,7 @@ export function Plan() {
 
             <div className="flex items-center w-[55%] gap-3 overflow-hidden">
               {copyRecipe && (
-                <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm flex-shrink-0">
+                <div className="w-10 h-10 rounded-full overflow-hidden shadow-xs shrink-0">
                   <RecipeCoverImage
                     image={recipeCoverImage(copyRecipe)}
                     alt="Kopiowany posiłek"
@@ -824,14 +824,14 @@ export function Plan() {
               </div>
             </div>
 
-            <div className="flex gap-2 ml-2 flex-shrink-0">
+            <div className="flex gap-2 ml-2 shrink-0">
               <button onClick={resetSelectionModes} className="px-3 py-2.5 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-xl transition-colors text-xs active:scale-95">
                 {t('plan.cancel')}
               </button>
               <button
                 onClick={handlePreSubmitCopyMode}
                 disabled={selectedCopySlots.length === 0 || transferBusy}
-                className="px-4 py-2.5 font-bold text-on-primary bg-primary rounded-xl shadow-sm hover:bg-primary/90 transition-colors text-xs disabled:opacity-50 active:scale-95 whitespace-nowrap"
+                className="px-4 py-2.5 font-bold text-on-primary bg-primary rounded-xl shadow-xs hover:bg-primary/90 transition-colors text-xs disabled:opacity-50 active:scale-95 whitespace-nowrap"
               >
                 {isMove ? t('plan.move.confirm') : t('plan.pasteCount', { count: selectedCopySlots.length })}
               </button>
@@ -920,7 +920,7 @@ function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuC
 
   return (
     <div onClick={isCopyMode ? onMenuClick : onClick} className={`w-full flex flex-col gap-1.5 group relative transition-all duration-300 ${isCopyMode || onClick ? 'cursor-pointer' : ''}`}>
-      <div className={`aspect-square w-full rounded-2xl overflow-hidden bg-surface-container-lowest relative shadow-sm border transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface border-transparent' : 'border-outline-variant/10'}`}>
+      <div className={`aspect-square w-full rounded-2xl overflow-hidden bg-surface-container-lowest relative shadow-xs border transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface border-transparent' : 'border-outline-variant/10'}`}>
         {renderImage()}
         <span data-testid="plan-card-kcal" className="absolute left-1 bottom-1 max-w-[calc(100%-8px)] truncate inline-flex items-baseline gap-[2px] rounded-[5px] bg-black/60 backdrop-blur-md px-[5px] py-[3px] leading-none text-white tabular-nums">
           <span className="font-headline text-[10.5px] font-bold">{kcal}</span> <span className="text-[8.5px] font-medium text-white/75">kcal</span>
@@ -936,7 +936,7 @@ function RecipeCard({ title, kcal, imgSrc, recipeImage = null, isRecipe, onMenuC
             onClick={(e) => { e.stopPropagation(); onMenuClick(); }}
             className="absolute top-0 right-0 z-10 w-14 h-14 flex items-start justify-end p-1.5 text-white group/menu active:scale-90 transition-transform"
           >
-            <span className="w-8 h-8 bg-black/40 backdrop-blur-md rounded-full shadow-sm flex items-center justify-center group-hover/menu:bg-black/50 transition-colors">
+            <span className="w-8 h-8 bg-black/40 backdrop-blur-md rounded-full shadow-xs flex items-center justify-center group-hover/menu:bg-black/50 transition-colors">
               <span className="material-symbols-outlined text-[18px]">more_horiz</span>
             </span>
           </button>

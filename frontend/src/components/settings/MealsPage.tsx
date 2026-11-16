@@ -83,7 +83,7 @@ export function MealsPage({ meals, depth, onBack, onSave }: MealsPageProps) {
                   onKeyDown={event => {
                     if (event.key === 'Enter') event.currentTarget.blur();
                   }}
-                  className="flex-1 min-w-0 h-10 rounded-xl bg-surface-container px-3 text-base font-semibold text-on-surface outline-none border-[1.5px] border-primary caret-primary"
+                  className="flex-1 min-w-0 h-10 rounded-xl bg-surface-container px-3 text-base font-semibold text-on-surface outline-hidden border-[1.5px] border-primary caret-primary"
                 />
               ) : (
                 <button

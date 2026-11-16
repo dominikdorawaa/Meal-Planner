@@ -70,7 +70,7 @@ export function ProfileDetailsPage({ profile, accountName, depth, onBack, onSave
                 value={draft.display_name}
                 placeholder={accountName || t('settings.profile.namePlaceholder')}
                 onChange={event => update({ display_name: event.target.value })}
-                className="mt-2 w-full h-11 rounded-[14px] bg-surface-container px-3.5 text-base text-on-surface placeholder:text-on-surface-variant/60 outline-none border-[1.5px] border-transparent focus:border-primary caret-primary"
+                className="mt-2 w-full h-11 rounded-[14px] bg-surface-container px-3.5 text-base text-on-surface placeholder:text-on-surface-variant/60 outline-hidden border-[1.5px] border-transparent focus:border-primary caret-primary"
               />
             </label>
           </SettingsGroup>

@@ -204,7 +204,7 @@ export function ShoppingList() {
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-bottom-nav">
-      <nav className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm pt-safe">
+      <nav className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-xs pt-safe">
         <div className="flex justify-between items-center px-6 h-16 w-full max-w-screen-xl mx-auto">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-primary">shopping_basket</span>
@@ -303,7 +303,7 @@ export function ShoppingList() {
               <>
                  {sourceRecipes.map((r: any, idx: number) => (
                     <div key={idx} className="flex flex-col gap-4 p-4 rounded-2xl bg-surface-container-low border border-outline-variant/10 mb-6 relative">
-                       <div className="absolute top-3 right-3 bg-surface/80 backdrop-blur-md px-2 py-1 rounded-lg border border-outline-variant/20 z-10 flex items-center gap-0.5 shadow-sm">
+                       <div className="absolute top-3 right-3 bg-surface/80 backdrop-blur-md px-2 py-1 rounded-lg border border-outline-variant/20 z-10 flex items-center gap-0.5 shadow-xs">
                           <span className="material-symbols-outlined text-[12px] text-primary">local_fire_department</span>
                           <span className="text-[10px] uppercase font-bold text-primary leading-none">{Math.round(Number(r.recipe?.kcal || r.kcal) || 0)} kcal</span>
                        </div>
@@ -321,7 +321,7 @@ export function ShoppingList() {
                             className="absolute inset-0 w-full h-full"
                             imgClassName="absolute inset-0 w-full h-full object-cover"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none"></div>
+                          <div className="absolute inset-0 bg-linear-to-t/srgb from-black/80 via-black/20 to-transparent pointer-events-none"></div>
                           <div className="absolute bottom-3 left-4 right-4">
                              <h3 className="font-headline font-bold text-lg text-white leading-tight drop-shadow-md">{r.recipe?.name || r.name}</h3>
                           </div>
@@ -372,7 +372,7 @@ export function ShoppingList() {
       <BottomNav />
 
       {successToast && (
-        <div role="status" className="fixed top-[calc(1.25rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 bg-primary/10 backdrop-blur-md border border-primary/20 text-primary px-4 py-2.5 rounded-full shadow-sm z-[110] flex items-center justify-center gap-2 animate-slide-up whitespace-nowrap">
+        <div role="status" className="fixed top-[calc(1.25rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 bg-primary/10 backdrop-blur-md border border-primary/20 text-primary px-4 py-2.5 rounded-full shadow-xs z-[110] flex items-center justify-center gap-2 animate-slide-up whitespace-nowrap">
           <span className="material-symbols-outlined text-[16px] font-bold">check_circle</span>
           <span className="font-headline font-bold text-xs tracking-wide">{successToast}</span>
         </div>
@@ -394,7 +394,7 @@ export function ShoppingList() {
       {showAddModal && (
         <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-6">
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-xs"
             onClick={() => !addSubmitting && setShowAddModal(false)}
           />
           <div ref={addSheetRef} className="bg-surface w-full sm:max-w-md sm:rounded-[28px] rounded-t-[28px] overflow-hidden shadow-2xl relative z-10 border border-outline-variant/15 max-h-[90vh] flex flex-col">
@@ -420,7 +420,7 @@ export function ShoppingList() {
                   value={newIngredientName}
                   onChange={e => setNewIngredientName(e.target.value)}
                   placeholder="np. Mleko 2%"
-                  className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-none focus:ring-2 focus:ring-primary/25 border border-transparent"
+                  className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-hidden focus:ring-2 focus:ring-primary/25 border border-transparent"
                   autoFocus
                 />
               </div>
@@ -434,7 +434,7 @@ export function ShoppingList() {
                     aria-label="Ilość"
                     value={newQuantity}
                     onChange={e => acceptsLimitedNumber(e.target.value, AMOUNT_LIMITS.g) && setNewQuantity(e.target.value)}
-                    className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                    className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-hidden focus:ring-2 focus:ring-primary/25"
                   />
                 </div>
                 <div className="w-28 shrink-0">
@@ -445,7 +445,7 @@ export function ShoppingList() {
                     value={newUnit}
                     onChange={e => setNewUnit(e.target.value)}
                     placeholder="szt"
-                    className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                    className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-medium text-sm outline-hidden focus:ring-2 focus:ring-primary/25"
                   />
                 </div>
               </div>
@@ -456,7 +456,7 @@ export function ShoppingList() {
                 type="button"
                 disabled={addSubmitting}
                 onClick={handleAddProduct}
-                className="w-full h-12 bg-primary text-on-primary font-bold text-sm rounded-xl active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                className="w-full h-12 bg-primary text-on-primary font-bold text-sm rounded-xl active:scale-[0.98] transition-all shadow-xs flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {addSubmitting ? (
                   <span className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
