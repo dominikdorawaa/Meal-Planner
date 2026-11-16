@@ -1,20 +1,22 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
 import { FoodPlaceholder } from './FoodPlaceholder'
 
 describe('FoodPlaceholder', () => {
+  afterEach(cleanup)
+
   it('shows the fruit sign for a product', () => {
     render(<FoodPlaceholder kind="product" />)
     const placeholder = screen.getByTestId('food-placeholder')
-    expect(placeholder).toHaveAttribute('data-kind', 'product')
-    expect(placeholder).toHaveTextContent('nutrition')
+    expect(placeholder.dataset.kind).toBe('product')
+    expect(placeholder.textContent).toBe('nutrition')
   })
 
   it('shows the bolt sign for a quick meal', () => {
     render(<FoodPlaceholder kind="manual" />)
     const placeholder = screen.getByTestId('food-placeholder')
-    expect(placeholder).toHaveAttribute('data-kind', 'manual')
-    expect(placeholder).toHaveTextContent('bolt')
+    expect(placeholder.dataset.kind).toBe('manual')
+    expect(placeholder.textContent).toBe('bolt')
   })
 
   it('uses the same quiet green look for both kinds, without orange', () => {

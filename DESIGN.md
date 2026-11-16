@@ -166,7 +166,7 @@ Głębię buduje jasność tła, nie cienie: kolejne poziomy `surface-container-
 
 **Nazwa posiłku.** Kolorowa kropka pory dnia z jasną poświatą, obok nazwa. Bez ikon.
 
-**Karta pozycji.** Kwadratowe zdjęcie z przyciskiem „⋯” w rogu, pod nim nazwa w maksymalnie dwóch liniach i kalorie. Bez makro na karcie. Pozycje bez zdjęcia mają placeholder: zdjęcie przepisu domyślne dla motywu, produkt z ikoną owocu, szybki posiłek z błyskawicą.
+**Karta pozycji.** Kwadratowe zdjęcie z przyciskiem „⋯” w rogu, pod nim nazwa w maksymalnie dwóch liniach i kalorie. Bez makro na karcie. Pozycje bez zdjęcia mają placeholder w jednym stylu: zielonkawy gradient i duży, przygaszony znak. Przepis ma domyślne zdjęcie z liściem, produkt owoc, szybki posiłek błyskawicę (`src/components/FoodPlaceholder.tsx`). Ten sam placeholder produktu jest w wierszach list i w menu pozycji.
 
 **Pole dodawania.** Wypełnia całe wolne miejsce w komórce: ciemne tło, cienka przerywana ramka, okrągły plus i napis „Dodaj” w pustym posiłku albo „Dodaj więcej” pod pozycjami. W dzisiejszej kolumnie w zieleni. W trybie kopiowania pokazuje „Wklej” i zaznaczenie.
 
