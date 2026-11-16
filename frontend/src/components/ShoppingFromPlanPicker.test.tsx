@@ -131,14 +131,22 @@ describe('ShoppingFromPlanPicker', () => {
     expect(onConfirm).toHaveBeenCalledWith([MEALS[0], MEALS[7]]);
   });
 
-  it('closes from the close button, cancel and the backdrop', () => {
+  it('closes from the close button and the backdrop, without a cancel button', () => {
     const { container } = renderPicker();
 
     fireEvent.click(screen.getByRole('button', { name: t('shopping.close') }));
-    fireEvent.click(screen.getByRole('button', { name: t('shopping.cancel') }));
     fireEvent.click(container.firstElementChild!.firstElementChild!);
 
-    expect(onClose).toHaveBeenCalledTimes(3);
+    expect(onClose).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('button', { name: t('common.cancel') })).toBeNull();
+  });
+
+  it('marks each meal with the colour of its place in the meal settings', () => {
+    renderPicker();
+
+    const dot = (name: string) => (mealCheckbox(name).querySelector('[data-meal-dot]') as HTMLElement).style.backgroundColor;
+    expect(dot('Breakfast: Omelette')).toBe(dot('Breakfast: Yogurt (Bio)'));
+    expect(dot('Breakfast: Omelette')).not.toBe(dot('Dinner: Spaghetti'));
   });
 
   it('shows the error and blocks closing while saving', () => {
@@ -147,7 +155,7 @@ describe('ShoppingFromPlanPicker', () => {
     expect(screen.getByText('Something went wrong')).toBeTruthy();
     fireEvent.click(container.firstElementChild!.firstElementChild!);
     expect(onClose).not.toHaveBeenCalled();
-    expect((screen.getByRole('button', { name: t('shopping.cancel') }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: t('shopping.close') }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('closes on Escape unless saving', () => {

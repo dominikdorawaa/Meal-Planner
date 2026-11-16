@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import { ShoppingList } from './ShoppingList';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { SHOPPING_GROUPED_STORAGE_KEY, ShoppingList } from './ShoppingList';
 import { t } from '../i18n';
 import { api } from '../lib/apiClient';
 import { measure, withMeasures } from '../lib/measureFixtures';
@@ -42,8 +42,11 @@ vi.mock('../lib/AppDataContext', () => ({
 
 function renderPage() {
   return render(
-    <MemoryRouter>
-      <ShoppingList />
+    <MemoryRouter initialEntries={['/cart']}>
+      <Routes>
+        <Route path="/cart" element={<ShoppingList />} />
+        <Route path="/recipe/:id" element={<p>Recipe page</p>} />
+      </Routes>
     </MemoryRouter>
   );
 }
@@ -64,6 +67,9 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
+  APP_DATA.shoppingListRecipes = [];
+  APP_DATA.shoppingList = [];
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -117,7 +123,7 @@ describe('ShoppingList create from plan', () => {
     pickTodayAndConfirm();
 
     expect(await screen.findByText(t('shopping.fromPlanFailed'))).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: t('shopping.cancel') }));
+    fireEvent.click(screen.getByRole('button', { name: t('shopping.close') }));
     expect(screen.queryByRole('dialog')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: t('shopping.fromPlan') }));
@@ -137,9 +143,9 @@ describe('ShoppingList add product form', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: new RegExp(t('shopping.addProduct')) }));
 
-    expect(screen.getByPlaceholderText('np. Mleko 2%').getAttribute('autocomplete')).toBe('off');
-    expect(screen.getByPlaceholderText('szt').getAttribute('autocomplete')).toBe('off');
-    const amount = screen.getByLabelText('Ilość') as HTMLInputElement;
+    expect(screen.getByLabelText(t('shopping.name')).getAttribute('autocomplete')).toBe('off');
+    expect(screen.getByLabelText(t('shopping.unit')).getAttribute('autocomplete')).toBe('off');
+    const amount = screen.getByLabelText(t('shopping.quantity')) as HTMLInputElement;
     expect(amount.getAttribute('autocomplete')).toBe('off');
     fireEvent.change(amount, { target: { value: '2,5' } });
     expect(amount.value).toBe('2,5');
@@ -150,11 +156,6 @@ describe('ShoppingList add product form', () => {
 });
 
 describe('ShoppingList by recipes', () => {
-  afterEach(() => {
-    APP_DATA.shoppingListRecipes = [];
-    APP_DATA.shoppingList = [];
-  });
-
   it('shows the total amount of kitchen measures in the base unit', () => {
     APP_DATA.shoppingList = [{ id: 's1', ingredient_name: 'Olej', quantity: 2, unit: 'łyżki', is_checked: false }];
     const oil = withMeasures({ unit: '100ml' }, measure('tbsp', 15));
@@ -167,7 +168,7 @@ describe('ShoppingList by recipes', () => {
     }];
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Według Przepisów' }));
+    fireEvent.click(screen.getByRole('button', { name: t('shopping.viewRecipes') }));
 
     expect(screen.getByText('2 łyżki (30 ml)')).toBeTruthy();
     expect(screen.getByText('200 ml')).toBeTruthy();
@@ -180,7 +181,7 @@ describe('ShoppingList clearing', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: t('shopping.clearConfirm') }));
-    const sheet = within(screen.getByRole('alertdialog', { name: `${t('shopping.clearQuestion')} ${t('shopping.clearTitle')}` }));
+    const sheet = within(screen.getByRole('alertdialog', { name: t('shopping.clearQuestion') }));
     expect(sheet.getByText(t('shopping.clearText'))).toBeTruthy();
     fireEvent.click(sheet.getByRole('button', { name: t('common.cancel') }));
     expect(screen.queryByRole('alertdialog')).toBeNull();
@@ -192,5 +193,143 @@ describe('ShoppingList clearing', () => {
     await waitFor(() => expect(mocks.refreshShoppingList).toHaveBeenCalled());
     expect(clearAll).toHaveBeenCalledOnce();
     expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+});
+
+const ITEMS = [
+  { id: 's1', ingredient_name: 'Ziemniaki', quantity: 500.4, unit: 'g', is_checked: false },
+  { id: 's2', ingredient_name: 'Banan', quantity: 1.255, unit: 'szt', is_checked: true },
+  { id: 's3', ingredient_name: 'Papier', quantity: 1, unit: 'szt', is_checked: false },
+];
+
+describe('ShoppingList products', () => {
+  beforeEach(() => {
+    APP_DATA.shoppingList = ITEMS;
+  });
+
+  it('shows the tab title, the progress and the products grouped by department', () => {
+    renderPage();
+
+    expect(screen.getByRole('heading', { level: 1, name: t('nav.shopping') })).toBeTruthy();
+    expect(screen.getByText(t('shopping.progress', { done: 1, total: 3 }))).toBeTruthy();
+    expect(screen.getByRole('heading', { name: t('shopping.category.produce') })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: t('shopping.category.other') })).toBeTruthy();
+    expect(screen.getByText('500 g')).toBeTruthy();
+    expect(screen.getByText('1.25 szt')).toBeTruthy();
+    expect((screen.getByRole('checkbox', { name: /Banan/ }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('turns the departments off and on and remembers the choice', () => {
+    const { unmount } = renderPage();
+    const toggle = () => screen.getByRole('button', { name: t('shopping.groupByCategory') });
+
+    expect(toggle().getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(toggle());
+
+    expect(toggle().getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByRole('heading', { name: t('shopping.category.produce') })).toBeNull();
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3);
+    expect(localStorage.getItem(SHOPPING_GROUPED_STORAGE_KEY)).toBe('0');
+
+    unmount();
+    renderPage();
+    expect(toggle().getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(toggle());
+    expect(localStorage.getItem(SHOPPING_GROUPED_STORAGE_KEY)).toBe('1');
+    expect(screen.getByRole('heading', { name: t('shopping.category.produce') })).toBeTruthy();
+  });
+
+  it('marks a product as bought and reloads the list even when saving fails', async () => {
+    const toggleItem = vi.spyOn(api.shoppingList, 'toggleItem').mockResolvedValueOnce(undefined as never).mockRejectedValueOnce(new Error('offline'));
+    renderPage();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Ziemniaki/ }));
+    await waitFor(() => expect(mocks.refreshShoppingList).toHaveBeenCalledTimes(1));
+    expect(toggleItem).toHaveBeenCalledWith('s1', true);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Banan/ }));
+    await waitFor(() => expect(mocks.refreshShoppingList).toHaveBeenCalledTimes(2));
+    expect(toggleItem).toHaveBeenLastCalledWith('s2', false);
+  });
+
+  it('removes a single product and puts it back on undo', async () => {
+    const deleteItem = vi.spyOn(api.shoppingList, 'deleteItem').mockResolvedValue(undefined as never);
+    const addItem = vi.spyOn(api.shoppingList, 'addItem').mockResolvedValue({} as never);
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: t('shopping.removeItem', { name: 'Banan' }) }));
+
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain(t('shopping.itemRemoved')));
+    expect(deleteItem).toHaveBeenCalledWith('s2');
+    expect(APP_DATA.setShoppingList).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: t('plan.snackbar.undo') }));
+
+    await waitFor(() => expect(addItem).toHaveBeenCalledWith({ ingredient_name: 'Banan', quantity: 1.255, unit: 'szt', is_checked: true }));
+    expect(screen.queryByRole('status')).toBeNull();
+    await waitFor(() => expect(mocks.refreshShoppingList).toHaveBeenCalledTimes(2));
+  });
+
+  it('says when a product could not be removed or restored', async () => {
+    const deleteItem = vi.spyOn(api.shoppingList, 'deleteItem').mockRejectedValueOnce(new Error('offline')).mockResolvedValue(undefined as never);
+    vi.spyOn(api.shoppingList, 'addItem').mockRejectedValue(new Error('offline'));
+    mocks.refreshShoppingList.mockRejectedValue(new Error('offline'));
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: t('shopping.removeItem', { name: 'Papier' }) }));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain(t('shopping.removeFailed')));
+    expect(screen.queryByRole('button', { name: t('plan.snackbar.undo') })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: t('shopping.removeItem', { name: 'Papier' }) }));
+    await waitFor(() => expect(deleteItem).toHaveBeenCalledTimes(2));
+    fireEvent.click(await screen.findByRole('button', { name: t('plan.snackbar.undo') }));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain(t('shopping.addFailed')));
+  });
+
+  it('reloads the list when clearing fails', async () => {
+    vi.spyOn(api.shoppingList, 'clearAll').mockRejectedValue(new Error('offline'));
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: t('shopping.clearConfirm') }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: t('shopping.clearConfirm') }));
+
+    await waitFor(() => expect(mocks.refreshShoppingList).toHaveBeenCalled());
+    expect(console.error).toHaveBeenCalledWith('Error clearing list:', expect.any(Error));
+  });
+});
+
+describe('ShoppingList recipes view', () => {
+  it('lists recipe ingredients, ticks the ones on the list and opens the recipe', async () => {
+    const toggleItem = vi.spyOn(api.shoppingList, 'toggleItem').mockResolvedValue(undefined as never);
+    APP_DATA.shoppingList = ITEMS;
+    APP_DATA.shoppingListRecipes = [
+      { id: 'r1', name: 'Omelette', kcal: 610.4, portions: 2, ingredients: [{ name: 'ziemniaki', amount: 250, unit: 'g' }, { name: 'Sól', amount: 1, unit: 'g' }] },
+      { recipe: { id: 'r2', name: 'Soup' }, portions: 1, ingredients: [] },
+    ];
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: t('shopping.viewRecipes') }));
+
+    expect(screen.queryByRole('button', { name: t('shopping.groupByCategory') })).toBeNull();
+    expect(screen.getByText(`${t('shopping.portions.few', { count: 2 })}, 610 kcal`)).toBeTruthy();
+    expect(screen.getByText(`${t('shopping.portions.one', { count: 1 })}, 0 kcal`)).toBeTruthy();
+    expect(screen.getByText(t('shopping.noRecipeIngredients'))).toBeTruthy();
+    expect((screen.getByRole('checkbox', { name: /Sól/ }) as HTMLInputElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: t('shopping.removeItem', { name: 'ziemniaki' }) })).toBeNull();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /ziemniaki/ }));
+    await waitFor(() => expect(toggleItem).toHaveBeenCalledWith('s1', true));
+
+    fireEvent.click(screen.getByRole('button', { name: /Soup/ }));
+    expect(screen.getByText('Recipe page')).toBeTruthy();
+  });
+
+  it('says when no recipes are linked to the list', () => {
+    APP_DATA.shoppingList = ITEMS;
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: t('shopping.viewRecipes') }));
+
+    expect(screen.getByText(t('shopping.noSourceRecipes'))).toBeTruthy();
   });
 });
