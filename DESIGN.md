@@ -128,7 +128,7 @@ Nazwa łączy kalendarz i kalorie, ale produkt to planowanie jedzenia, nie kalen
 - Tekst, etykiety i drobne wartości: Inter.
 - Liczby, które stoją obok siebie w kolumnach (kalorie, makro, kcal w kartach), używają cyfr tabelarycznych.
 - Długie wartości zmniejszają się stopniowo zamiast się ucinać (`fitTextClass` w `src/lib/fitText.ts`).
-- Napis „Calendories” to wordmark: „Cal” i „ories” w grubości 800, „end” w 400, w tym samym kolorze (`src/components/Wordmark.tsx`). Używany tylko tam, gdzie nazwa działa jak logo (logowanie, nagłówek listy zakupów), a w zwykłym tekście zostaje zwykłym słowem.
+- Napis „Calendories” to wordmark: „Cal” i „ories” w grubości 800, „end” w 400, w tym samym kolorze (`src/components/Wordmark.tsx`). Używany tylko tam, gdzie nazwa działa jak logo (logowanie), a w zwykłym tekście zostaje zwykłym słowem.
 
 ## Layout
 
@@ -175,6 +175,8 @@ Głębię buduje jasność tła, nie cienie: kolejne poziomy `surface-container-
 **Potwierdzenie z cofnięciem** (`src/components/UndoSnackbar.tsx`). Pastylka `surface-container-highest` nad dolnym paskiem (w ciemnym motywie ciemna). Gdy można cofnąć, ma zielony ptaszek, krótki tekst i strzałkę cofania otoczoną pierścieniem, który znika przez czas wyświetlania. Usunięcie posiłku z planu pokazuje „Usunięto z planu” przez 3 sekundy.
 
 **Lista przepisów** (`src/pages/Recipes.tsx`). Bez tytułu: na górze wyszukiwarka i okrągły „+”. Pod nimi zakres „Moje i zapisane” / „Wszystkie”, przewijany rząd pastylek („Filtry” z licznikiem otwiera arkusz z suwakami, dalej presety na jedno dotknięcie) i linia z licznikiem, sortowaniem i jedną ikoną zmiany widoku. Lista: miniatura 64 px, nazwa w dwóch liniach, B/T/W w kolorach makro, kcal w osobnej kolumnie i serce z polem dotyku 44 px. Kafelki: kwadratowe zdjęcie, na nim jedna ciemna ramka z kcal i czasem oraz serce w rogu. Ładowanie to szkielet w kształcie wierszy albo kafelków. Pusta lista ma jedno zdanie i pole dodawania jak w planie. Brak wyników ma zawsze w tym samym miejscu wyśrodkowany nagłówek, przyczynę, aktywne warunki z krzyżykami i „Wyczyść wszystkie”, a pod spodem przepisy, którym brakuje jednego warunku, jeśli takie są.
+
+**Lista zakupów** (`src/pages/ShoppingList.tsx`). Tytuł „Zakupy” z licznikiem kupionych, ikona czyszczenia listy, pod nim „Utwórz z planu” w zieleni i „Dodaj produkt” na szarym tle. Pastylki „Produkty” / „Przepisy” i ikona półek, która włącza grupowanie w działy (wybór zostaje na urządzeniu). Każdy dział to jedna karta z wierszami rozdzielonymi cienką linią: okrągłe pole zaznaczenia w zieleni, nazwa, ilość na szaro i krzyżyk usuwania z cofnięciem. Arkusze („Utwórz listę z planu”, „Dodaj produkt”) mają krzyżyk w rogu i jeden przycisk akcji na dole, pory dnia z kolorowymi kropkami.
 
 **Dolny pasek nawigacji.** Pływająca, zaokrąglona pastylka z rozmytym tłem. Nie jest częścią redesignu planu.
 
