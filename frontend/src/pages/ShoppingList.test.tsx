@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SHOPPING_GROUPED_STORAGE_KEY, ShoppingList } from './ShoppingList';
+import { DEPARTMENT_DELETE_DELAY_MS } from '../lib/useShoppingDepartments';
 import { t } from '../i18n';
 import { api } from '../lib/apiClient';
 import { measure, withMeasures } from '../lib/measureFixtures';
@@ -77,6 +78,7 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   mocks.addPlanMeals.mockReset().mockResolvedValue('added');
   mocks.refreshShoppingList.mockReset().mockResolvedValue(undefined);
+  vi.spyOn(api.shoppingList, 'getDepartments').mockResolvedValue({ custom: [], assignments: [] });
 });
 
 afterEach(() => {
@@ -215,6 +217,28 @@ const ITEMS = [
   { id: 's2', ingredient_name: 'Quinoa', quantity: 500.4, unit: 'g', is_checked: false },
   { id: 's3', ingredient_name: 'Banana', quantity: 1.255, unit: 'pcs', is_checked: true },
 ];
+
+describe('ShoppingList without device storage', () => {
+  it('still groups by department and switches grouping when storage is blocked', () => {
+    const getItem = Storage.prototype.getItem;
+    const setItem = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, key: string) {
+      if (key === SHOPPING_GROUPED_STORAGE_KEY) throw new Error('blocked');
+      return getItem.call(this, key);
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+      if (key === SHOPPING_GROUPED_STORAGE_KEY) throw new Error('blocked');
+      setItem.call(this, key, value);
+    });
+    APP_DATA.shoppingList = ITEMS;
+    renderPage();
+    const toggle = () => screen.getByRole('button', { name: t('shopping.groupByCategory') });
+
+    expect(toggle().getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(toggle());
+    expect(toggle().getAttribute('aria-pressed')).toBe('false');
+  });
+});
 
 describe('ShoppingList products', () => {
   beforeEach(() => {
@@ -377,5 +401,257 @@ describe('ShoppingList recipes view', () => {
     fireEvent.click(screen.getByRole('button', { name: t('shopping.viewRecipes') }));
 
     expect(screen.getByText(t('shopping.noSourceRecipes'))).toBeTruthy();
+  });
+});
+
+describe('ShoppingList departments', () => {
+  const PET = { id: 'd1', name: 'Pet food' };
+  const groupNames = () => screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent);
+  const openMove = (name: string) => fireEvent.click(screen.getByRole('button', { name: t('shopping.moveItem', { name }) }));
+  const sheet = () => within(screen.getByRole('dialog'));
+
+  beforeEach(() => {
+    APP_DATA.shoppingList = ITEMS;
+  });
+
+  it('groups products by the remembered departments, including own ones', async () => {
+    vi.mocked(api.shoppingList.getDepartments).mockResolvedValue({
+      custom: [PET],
+      assignments: [{ product_name: 'paper towels', department: 'd1' }, { product_name: 'banana', department: 'gone' }],
+    });
+    renderPage();
+
+    await waitFor(() => expect(groupNames()).toEqual([t('shopping.category.produce'), t('shopping.category.grains'), 'Pet food']));
+  });
+
+  it('moves a product to another department and remembers it', async () => {
+    const assign = vi.spyOn(api.shoppingList, 'assignDepartment').mockResolvedValue({
+      custom: [],
+      assignments: [{ product_name: 'paper towels', department: 'bakery' }],
+    });
+    renderPage();
+
+    openMove('Paper towels');
+    expect(sheet().getByRole('button', { name: t('shopping.category.other') }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.category.bakery') }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(groupNames()).toEqual([t('shopping.category.produce'), t('shopping.category.bakery'), t('shopping.category.grains')]);
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain(t('shopping.moved', { department: t('shopping.category.bakery') })));
+    expect(assign).toHaveBeenCalledWith({ product_name: 'Paper towels', department: 'bakery' });
+  });
+
+  it('only closes the sheet when the current department is picked', () => {
+    const assign = vi.spyOn(api.shoppingList, 'assignDepartment');
+    renderPage();
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.category.other') }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it('creates an own department or reuses one with the same name', async () => {
+    const assign = vi.spyOn(api.shoppingList, 'assignDepartment').mockResolvedValue({
+      custom: [PET],
+      assignments: [{ product_name: 'paper towels', department: 'd1' }],
+    });
+    renderPage();
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.newDepartment') }));
+    fireEvent.change(sheet().getByLabelText(t('shopping.newDepartmentName')), { target: { value: 'Pet food' } });
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.newDepartmentAdd') }));
+
+    await waitFor(() => expect(groupNames()).toContain('Pet food'));
+    expect(assign).toHaveBeenCalledWith({ product_name: 'Paper towels', new_department_name: 'Pet food' });
+
+    openMove('Quinoa');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.newDepartment') }));
+    fireEvent.change(sheet().getByLabelText(t('shopping.newDepartmentName')), { target: { value: ' pet FOOD ' } });
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.newDepartmentAdd') }));
+
+    await waitFor(() => expect(assign).toHaveBeenLastCalledWith({ product_name: 'Quinoa', department: 'd1' }));
+  });
+
+  it('puts the product back when moving fails', async () => {
+    vi.spyOn(api.shoppingList, 'assignDepartment').mockRejectedValue(new Error('offline'));
+    renderPage();
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.category.dairy') }));
+
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain(t('shopping.moveFailed')));
+    expect(groupNames()).toEqual([t('shopping.category.produce'), t('shopping.category.grains'), t('shopping.category.other')]);
+  });
+
+  it('keeps the guessed departments when loading the remembered ones fails', async () => {
+    vi.mocked(api.shoppingList.getDepartments).mockRejectedValue(new Error('offline'));
+    renderPage();
+
+    await waitFor(() => expect(console.error).toHaveBeenCalledWith('Error loading shopping departments:', expect.any(Error)));
+    expect(groupNames()).toEqual([t('shopping.category.produce'), t('shopping.category.grains'), t('shopping.category.other')]);
+  });
+
+  it('does not let the first load undo a move made before it answered', async () => {
+    let answerLoad!: (value: { custom: never[]; assignments: never[] }) => void;
+    vi.mocked(api.shoppingList.getDepartments).mockImplementation(() => new Promise(resolve => { answerLoad = resolve; }));
+    vi.spyOn(api.shoppingList, 'assignDepartment').mockResolvedValue({
+      custom: [],
+      assignments: [{ product_name: 'paper towels', department: 'dairy' }],
+    });
+    renderPage();
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.category.dairy') }));
+    await act(async () => answerLoad({ custom: [], assignments: [] }));
+
+    expect(groupNames()).toEqual([t('shopping.category.produce'), t('shopping.category.dairy'), t('shopping.category.grains')]);
+  });
+
+  it('puts back only the product whose move failed and keeps the newer move', async () => {
+    let failFirst!: (reason?: unknown) => void;
+    let answerSecond!: (value: { custom: never[]; assignments: { product_name: string; department: string }[] }) => void;
+    vi.spyOn(api.shoppingList, 'assignDepartment')
+      .mockImplementationOnce(() => new Promise((_, reject) => { failFirst = reject; }))
+      .mockImplementationOnce(() => new Promise(resolve => { answerSecond = resolve; }));
+    renderPage();
+    await act(async () => {});
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.category.dairy') }));
+    openMove('Quinoa');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.category.bakery') }));
+
+    await act(async () => failFirst(new Error('offline')));
+    expect(groupNames()).toEqual([t('shopping.category.produce'), t('shopping.category.bakery'), t('shopping.category.other')]);
+
+    await act(async () => answerSecond({
+      custom: [],
+      assignments: [{ product_name: 'quinoa', department: 'bakery' }],
+    }));
+    expect(groupNames()).toEqual([t('shopping.category.produce'), t('shopping.category.bakery'), t('shopping.category.other')]);
+  });
+
+  it('only closes the sheet when a new department is named like the current one', () => {
+    const assign = vi.spyOn(api.shoppingList, 'assignDepartment');
+    renderPage();
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.newDepartment') }));
+    fireEvent.change(sheet().getByLabelText(t('shopping.newDepartmentName')), { target: { value: t('shopping.category.other') } });
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.newDepartmentAdd') }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it('deletes an own department after the undo time and puts its products back where they were guessed', async () => {
+    vi.mocked(api.shoppingList.getDepartments).mockResolvedValue({
+      custom: [PET],
+      assignments: [{ product_name: 'paper towels', department: 'd1' }],
+    });
+    const remove = vi.spyOn(api.shoppingList, 'deleteDepartment').mockResolvedValue({ custom: [], assignments: [] });
+    renderPage();
+    await waitFor(() => expect(groupNames()).toContain('Pet food'));
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.deleteDepartment', { name: 'Pet food' }) }));
+
+    expect(sheet().queryByRole('button', { name: 'Pet food' })).toBeNull();
+    expect(sheet().getByRole('button', { name: t('shopping.category.other') }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('status').textContent).toContain(t('shopping.departmentDeleted'));
+    expect(remove).not.toHaveBeenCalled();
+
+    await act(async () => vi.advanceTimersByTime(DEPARTMENT_DELETE_DELAY_MS));
+
+    expect(remove).toHaveBeenCalledWith('d1');
+    expect(groupNames()).not.toContain('Pet food');
+  });
+
+  it('brings an own department back on undo without deleting it', async () => {
+    vi.mocked(api.shoppingList.getDepartments).mockResolvedValue({
+      custom: [PET],
+      assignments: [{ product_name: 'paper towels', department: 'd1' }],
+    });
+    const remove = vi.spyOn(api.shoppingList, 'deleteDepartment');
+    renderPage();
+    await waitFor(() => expect(groupNames()).toContain('Pet food'));
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.deleteDepartment', { name: 'Pet food' }) }));
+    fireEvent.click(screen.getByRole('button', { name: t('plan.snackbar.undo') }));
+    await act(async () => vi.advanceTimersByTime(DEPARTMENT_DELETE_DELAY_MS));
+
+    expect(remove).not.toHaveBeenCalled();
+    expect(sheet().getByRole('button', { name: 'Pet food' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('keeps the own department when deleting it fails', async () => {
+    vi.mocked(api.shoppingList.getDepartments).mockResolvedValue({
+      custom: [PET],
+      assignments: [{ product_name: 'paper towels', department: 'd1' }],
+    });
+    vi.spyOn(api.shoppingList, 'deleteDepartment').mockRejectedValue(new Error('offline'));
+    renderPage();
+    await waitFor(() => expect(groupNames()).toContain('Pet food'));
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.deleteDepartment', { name: 'Pet food' }) }));
+    await act(async () => vi.advanceTimersByTime(DEPARTMENT_DELETE_DELAY_MS));
+
+    expect(screen.getByRole('status').textContent).toContain(t('shopping.deleteDepartmentFailed'));
+    expect(sheet().getByRole('button', { name: 'Pet food' })).toBeTruthy();
+  });
+
+  it('finishes a pending department delete when leaving the page', async () => {
+    vi.mocked(api.shoppingList.getDepartments).mockResolvedValue({ custom: [PET], assignments: [] });
+    const remove = vi.spyOn(api.shoppingList, 'deleteDepartment').mockRejectedValue(new Error('offline'));
+    const { unmount } = renderPage();
+    await act(async () => {});
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.deleteDepartment', { name: 'Pet food' }) }));
+    unmount();
+
+    expect(remove).toHaveBeenCalledWith('d1');
+    await waitFor(() => expect(console.error).toHaveBeenCalledWith('Error deleting department:', expect.any(Error)));
+  });
+
+  it('reloads the departments when an older answer comes after a newer one', async () => {
+    let answerFirst!: (value: { custom: never[]; assignments: { product_name: string; department: string }[] }) => void;
+    vi.spyOn(api.shoppingList, 'assignDepartment')
+      .mockImplementationOnce(() => new Promise(resolve => { answerFirst = resolve; }))
+      .mockResolvedValueOnce({ custom: [], assignments: [{ product_name: 'quinoa', department: 'bakery' }] });
+    renderPage();
+    await act(async () => {});
+    vi.mocked(api.shoppingList.getDepartments).mockResolvedValue({
+      custom: [],
+      assignments: [{ product_name: 'paper towels', department: 'dairy' }, { product_name: 'quinoa', department: 'bakery' }],
+    });
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.category.dairy') }));
+    openMove('Quinoa');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.category.bakery') }));
+    await act(async () => {});
+    await act(async () => answerFirst({ custom: [], assignments: [{ product_name: 'paper towels', department: 'dairy' }] }));
+
+    await waitFor(() => expect(groupNames()).toEqual([
+      t('shopping.category.produce'),
+      t('shopping.category.bakery'),
+      t('shopping.category.dairy'),
+    ]));
+    expect(api.shoppingList.getDepartments).toHaveBeenCalledTimes(2);
+  });
+
+  it('closes the sheet from the close button', () => {
+    renderPage();
+
+    openMove('Paper towels');
+    fireEvent.click(sheet().getByRole('button', { name: t('shopping.close') }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

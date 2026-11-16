@@ -1,6 +1,7 @@
 import type { RecipeImageInput } from './recipeImage';
 import type { MeasureKind, ProductMeasure } from './measures';
 import { getLanguage, t } from '../i18n';
+import type { ShoppingDepartments } from './shoppingCategories';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (
   import.meta.env.MODE === 'development'
@@ -372,6 +373,15 @@ export const api = {
     },
     async deleteItem(id: string): Promise<void> {
       return request<void>('DELETE', `/api/shopping-list/${id}`);
+    },
+    async getDepartments(): Promise<ShoppingDepartments> {
+      return request<ShoppingDepartments>('GET', '/api/shopping-list/departments');
+    },
+    async assignDepartment(data: { product_name: string; department?: string; new_department_name?: string }): Promise<ShoppingDepartments> {
+      return request<ShoppingDepartments>('PUT', '/api/shopping-list/departments/assignments', data);
+    },
+    async deleteDepartment(id: string): Promise<ShoppingDepartments> {
+      return request<ShoppingDepartments>('DELETE', `/api/shopping-list/departments/${encodeURIComponent(id)}`);
     },
     async clearAll(): Promise<void> {
       return request<void>('DELETE', '/api/shopping-list/clear');
