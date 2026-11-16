@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { t } from '../i18n';
 import { RecipeCoverImage } from './RecipeCoverImage';
+import { FoodPlaceholder } from './FoodPlaceholder';
 import type { RecipeImage } from '../lib/recipeImage';
 import { useBottomSheet } from '../lib/bottomSheet';
 import { useDialogFocus } from '../lib/dialog';
@@ -100,11 +101,7 @@ export function PlanSheetThumb({ kind, recipeImage = null, imageUrl, alt }: Plan
       </div>
     );
   }
-  return (
-    <div className={`${frame} flex items-center justify-center text-primary`}>
-      <span aria-hidden="true" className="material-symbols-outlined text-[22px]">{kind === 'manual' ? 'bolt' : 'nutrition'}</span>
-    </div>
-  );
+  return <FoodPlaceholder kind={kind === 'manual' ? 'manual' : 'product'} className={frame} iconClassName="text-[28px]" />;
 }
 
 export function PlanSheetDayBadge({ day, weekday, isToday }: { day: number; weekday: string; isToday: boolean }) {

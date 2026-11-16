@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { t } from '../i18n';
 import { RecipeCoverImage } from './RecipeCoverImage';
+import { FoodPlaceholder } from './FoodPlaceholder';
 import { recipeCoverImage, type RecipeImageInput } from '../lib/recipeImage';
 import { SelectionCheckbox } from './PlanSelectionControls';
 
@@ -83,9 +84,7 @@ function FoodRow({ name, kcal, amount, own, unverified, calendories, selected, o
 export function ProductRow(props: FoodRowProps) {
   return (
     <FoodRow {...props}>
-      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-        <span className="material-symbols-outlined text-[24px]">nutrition</span>
-      </div>
+      <FoodPlaceholder kind="product" className="w-12 h-12 rounded-2xl shrink-0" iconClassName="text-[28px]" />
     </FoodRow>
   );
 }
