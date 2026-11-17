@@ -115,6 +115,14 @@ describe('RecipeDetails loading', () => {
     expect(mocks.getRecipe).toHaveBeenCalledTimes(1);
   });
 
+  it('shows no status message when the recipe opens', async () => {
+    const { container } = renderDetails();
+
+    expect(await screen.findByRole('heading', { name: 'Owsianka bananowa' })).toBeTruthy();
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(container.textContent).not.toContain('check_circle');
+  });
+
   it('shows step names above their text and wraps long links', async () => {
     const link = 'https://example.com/' + 'a'.repeat(120);
     mocks.getRecipe.mockResolvedValue({
@@ -549,7 +557,7 @@ describe('RecipeDetails adding to the plan', () => {
       measure_code: 'portion',
       measure_amount: null,
     }));
-    expect(await screen.findByText(t('recipeDetails.addedToPlan'))).toBeTruthy();
+    expect((await screen.findByRole('status')).textContent).toContain(t('recipeDetails.addedToPlan'));
   });
 
   it('offers only meal times that are visible in the profile', async () => {

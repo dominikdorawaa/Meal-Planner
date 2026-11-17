@@ -85,7 +85,6 @@ export function RecipeDetails() {
   const [savedGrams, setSavedGrams] = useState<number | null>(null);
   const [savedInputType, setSavedInputType] = useState<AmountInputType | null>(null);
   const [quickMealType, setQuickMealType] = useState('');
-  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const [activeDate, setActiveDate] = useState(selectDate || '');
   const [activeMealType, setActiveMealType] = useState(selectType || '');
@@ -221,8 +220,7 @@ export function RecipeDetails() {
     await refreshMeals();
     if (overrideDate) {
       setShowAddToPlan(false);
-      setSuccessToast(t('recipeDetails.addedToPlan'));
-      setTimeout(() => setSuccessToast(null), 3000);
+      setNotice(t('recipeDetails.addedToPlan'));
     } else {
       navigate('/');
     }
@@ -309,13 +307,6 @@ export function RecipeDetails() {
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
-
-      <div className={`fixed top-[calc(1.25rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 z-[200] transition-all duration-500 ${successToast ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
-        <div className="flex items-center gap-3 bg-primary/10 backdrop-blur-md border border-primary/20 text-primary px-5 py-3 rounded-full shadow-lg whitespace-nowrap">
-          <span className="material-symbols-outlined text-[18px] font-bold">check_circle</span>
-          <span className="font-headline font-bold text-sm tracking-wide">{successToast}</span>
-        </div>
-      </div>
       <header className={`sticky top-0 w-full z-40 bg-surface/90 backdrop-blur-xl px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10`}>
         <button
           onClick={() => navigate(-1)}
