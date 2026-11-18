@@ -346,6 +346,18 @@ describe('RecipeDetails loading', () => {
     expect(screen.getByRole('button', { name: '134 kcal, 150 g' }).getAttribute('aria-pressed')).toBe('false');
   });
 
+  it('keeps a small weight above zero when switching back to portions', async () => {
+    renderDetails();
+    await screen.findByRole('heading', { name: 'Owsianka bananowa' });
+
+    chooseUnit('g');
+    fireEvent.change(amountInput('recipeDetails.gramsInput'), { target: { value: '3' } });
+    chooseUnit('portion');
+
+    expect(amountInput('recipeDetails.portionsInput').value).toBe('0.03');
+    expect(screen.getByTestId('amount-kcal').textContent).toBe('3');
+  });
+
   it('uses the plural form of portions in the calculator', async () => {
     renderDetails();
     await screen.findByRole('heading', { name: 'Owsianka bananowa' });
@@ -735,8 +747,13 @@ describe('RecipeDetails adding from the plan', () => {
     fireEvent.click(screen.getByRole('button', { name: t('dayBalance.title') }));
     expect(balanceValue('kcal')).toBe('1000');
 
+    expect(screen.getByTestId('balance-kcal-change').textContent).toBe('');
+
+    fireEvent.change(amountInput('recipeDetails.gramsInput'), { target: { value: '300' } });
+    expect(balanceValue('kcal')).toBe('1089');
+    expect(screen.getByTestId('balance-kcal-change').textContent).toBe('+89');
     fireEvent.click(screen.getByRole('button', { name: t('dayBalance.before') }));
-    expect(balanceValue('kcal')).toBe('822');
+    expect(balanceValue('kcal')).toBe('1000');
   });
 
   it('uses the saved portions of an unchanged plan entry when its grams were rounded', async () => {

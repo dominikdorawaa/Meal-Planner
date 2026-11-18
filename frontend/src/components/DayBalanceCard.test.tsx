@@ -19,10 +19,21 @@ describe('DayBalanceCard', () => {
     expect(screen.queryByTestId('balance-kcal')).toBeNull();
   });
 
-  it('explains a change instead of adding when editing', () => {
-    render(<DayBalanceCard dayWithoutItem={DAY} item={ITEM} targets={TARGETS} editing />);
+  it('compares an edited entry with its saved amount', () => {
+    render(<DayBalanceCard dayWithoutItem={{ kcal: 1000, protein: 50, fat: 30, carbs: 100 }} item={{ kcal: 600, protein: 30, fat: 10, carbs: 60 }} targets={TARGETS} previousItem={{ kcal: 500, protein: 40, fat: 10, carbs: 50 }} />);
 
     expect(screen.getByText(t('dayBalance.editSubtitle'))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.title') }));
+    expect(screen.getByTestId('balance-kcal').textContent).toBe('1600');
+    expect(screen.getByTestId('balance-kcal-change').textContent).toBe('+100');
+    expect(screen.getByTestId('balance-protein').textContent).toBe('80');
+    expect(screen.getByTestId('balance-protein-change').textContent).toBe('−10');
+    expect(screen.getByTestId('balance-protein-added').style.width).toBe('0%');
+    expect(screen.getByTestId('balance-fat-change').textContent).toBe('');
+
+    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.before') }));
+    expect(screen.getByTestId('balance-kcal').textContent).toBe('1500');
+    expect(screen.getByTestId('balance-protein').textContent).toBe('90');
   });
 
   it('shows the day after adding with the added part and the day before on request', () => {
@@ -45,11 +56,5 @@ describe('DayBalanceCard', () => {
     expect(screen.getByTestId('balance-kcal').textContent).toBe('1500');
     expect(screen.getByTestId('balance-protein').className).not.toContain('text-error');
     expect(screen.getByTestId('balance-kcal-added').style.width).toBe('0%');
-  });
-
-  it('can start unfolded', () => {
-    render(<DayBalanceCard dayWithoutItem={DAY} item={ITEM} targets={TARGETS} defaultOpen />);
-
-    expect(screen.getByTestId('balance-carbs').textContent).toBe('247');
   });
 });

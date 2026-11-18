@@ -111,6 +111,7 @@ describe('ProductDetails package amount', () => {
 
     await screen.findByDisplayValue('100');
     expect(unitOptions()).toEqual(['g', t('amount.measureOf', { name: 'opakowanie', amount: '450 g' })]);
+    fireEvent.change(screen.getByLabelText(t('amount.grams')), { target: { value: '450' } });
     chooseUnit('package');
     const packages = screen.getByLabelText(PACKAGES) as HTMLInputElement;
     expect(packages.value).toBe('1');
@@ -160,14 +161,15 @@ describe('ProductDetails kitchen measures', () => {
     await screen.findByDisplayValue('100');
     expect(unitOptions()).toEqual(['ml', 'szklanka (250 ml)', 'łyżka (15 ml)', 'łyżeczka (5 ml)', 'szczypta (0.5 ml)']);
     chooseUnit('tbsp');
-    expect(screen.getByTestId('amount-kcal').textContent).toBe('9');
+    expect(screen.getByLabelText(t('amount.countOf', { name: 'łyżki' }))).toHaveProperty('value', '6.7');
+    expect(screen.getByTestId('amount-kcal').textContent).toBe('60');
 
     fireEvent.change(screen.getByLabelText(t('amount.countOf', { name: 'łyżki' })), { target: { value: '2' } });
     expect(screen.getByTestId('kcal-value').textContent).toBe('18');
     expect(screen.getByText('2 łyżki (30 ml)')).toBeTruthy();
 
     chooseUnit('tsp');
-    expect(screen.getByLabelText(t('amount.countOf', { name: 'łyżeczki' }))).toHaveProperty('value', '1');
+    expect(screen.getByLabelText(t('amount.countOf', { name: 'łyżeczki' }))).toHaveProperty('value', '6');
     fireEvent.change(screen.getByLabelText(t('amount.countOf', { name: 'łyżeczki' })), { target: { value: '2' } });
     expect(screen.getByTestId('kcal-value').textContent).toBe('6');
     fireEvent.click(screen.getByRole('button', { name: ADD }));
@@ -196,13 +198,15 @@ describe('ProductDetails kitchen measures', () => {
     await screen.findByDisplayValue('100');
     chooseUnit('cup');
     const cups = () => screen.getByLabelText(t('amount.countOf', { name: 'szklanki' })) as HTMLInputElement;
+    expect(cups().value).toBe('0.4');
     fireEvent.change(cups(), { target: { value: '80' } });
-    expect(cups().value).toBe('1');
-    fireEvent.change(cups(), { target: { value: '50' } });
+    expect(cups().value).toBe('0.4');
+    fireEvent.change(cups(), { target: { value: '20' } });
     chooseUnit('tbsp');
+    expect(screen.getByLabelText(t('amount.countOf', { name: 'łyżki' }))).toHaveProperty('value', '100');
     chooseUnit('cup');
 
-    expect(cups().value).toBe('50');
+    expect(cups().value).toBe('6');
     expect((screen.getByRole('button', { name: ADD }) as HTMLButtonElement).disabled).toBe(false);
   });
 
@@ -278,7 +282,7 @@ describe('ProductDetails measures', () => {
     await waitFor(() => expect((screen.getByLabelText(t('amount.grams')) as HTMLInputElement).value).toBe('240'));
     expect((screen.getByRole('button', { name: t('recipeDetails.update') }) as HTMLButtonElement).disabled).toBe(true);
     chooseUnit('piece');
-    expect((screen.getByLabelText(PIECES) as HTMLInputElement).value).toBe('1');
+    expect((screen.getByLabelText(PIECES) as HTMLInputElement).value).toBe('1.6');
   });
 
   it('opens a plan item in grams when its measure is no longer offered', async () => {
@@ -585,12 +589,13 @@ describe('ProductDetails amount limits', () => {
     await screen.findByDisplayValue('100');
     chooseUnit('piece');
     const pieces = screen.getByLabelText(PIECES) as HTMLInputElement;
+    expect(pieces.value).toBe('2');
     fireEvent.change(pieces, { target: { value: '101' } });
-    expect(pieces.value).toBe('1');
+    expect(pieces.value).toBe('2');
     chooseUnit('cup');
     const cups = screen.getByLabelText(t('amount.countOf', { name: 'szklanki' })) as HTMLInputElement;
     fireEvent.change(cups, { target: { value: '51' } });
-    expect(cups.value).toBe('1');
+    expect(cups.value).toBe('0.4');
     chooseUnit('package');
     const packages = screen.getByLabelText(PACKAGES) as HTMLInputElement;
     fireEvent.change(packages, { target: { value: '100' } });
@@ -650,8 +655,13 @@ describe('ProductDetails day balance preview', () => {
     fireEvent.click(screen.getByRole('button', { name: t('dayBalance.title') }));
     expect(screen.getByTestId('balance-kcal').textContent).toBe('1000');
 
+    expect(screen.getByTestId('balance-kcal-change').textContent).toBe('');
+
+    fireEvent.change(screen.getByLabelText(t('amount.grams')), { target: { value: '300' } });
+    expect(screen.getByTestId('balance-kcal').textContent).toBe('1060');
+    expect(screen.getByTestId('balance-kcal-change').textContent).toBe('+60');
     fireEvent.click(screen.getByRole('button', { name: t('dayBalance.before') }));
-    expect(screen.getByTestId('balance-kcal').textContent).toBe('880');
+    expect(screen.getByTestId('balance-kcal').textContent).toBe('1000');
     expect(screen.getByTestId('balance-kcal-added').style.width).toBe('0%');
   });
 });

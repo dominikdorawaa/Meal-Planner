@@ -37,7 +37,7 @@ import { AmountField } from '../components/AmountField';
 import { DayBalanceCard } from '../components/DayBalanceCard';
 import { DetailsTopBar } from '../components/DetailsTopBar';
 import { PlanTargetSheet } from '../components/PlanTargetSheet';
-import { addToMealLabel } from '../lib/planTarget';
+import { addToMealLabel, planTargetMeals } from '../lib/planTarget';
 
 export function ProductDetails() {
   const { id } = useParams();
@@ -69,12 +69,7 @@ export function ProductDetails() {
   useCloseOnBack(showMenu, () => setShowMenu(false));
 
   const mealTypes = useMemo(() => profileMealTypes(profile), [profile]);
-  const sheetMeals = useMemo(
-    () => mealTypes
-      .map((meal, index) => ({ id: meal.id, name: meal.name, color: mealColor(index), visible: meal.visible !== false }))
-      .filter(meal => meal.visible),
-    [mealTypes],
-  );
+  const sheetMeals = useMemo(() => planTargetMeals(mealTypes), [mealTypes]);
 
   useEffect(() => {
     async function loadProduct() {
@@ -207,10 +202,10 @@ export function ProductDetails() {
   const changeUnit = (code: string) => {
     const next = findMeasure(product, code);
     if (!next) return;
-    setValues(previous => {
-      const value = previous[next.code];
-      return value === '' || value === undefined ? previous : { ...previous, [next.code]: Math.min(Number(value), next.max_amount) };
-    });
+    if (currentWeight > 0) {
+      const carried = Math.min(next.max_amount, Math.max(0.1, Math.round((currentWeight / next.base_amount) * 10) / 10));
+      setValues(previous => ({ ...previous, [next.code]: carried }));
+    }
     setActiveCode(next.code);
   };
 
@@ -320,7 +315,7 @@ export function ProductDetails() {
               dayWithoutItem={getConsumedForDay(activeDate, mealId)}
               item={currentMacros}
               targets={profile}
-              editing={Boolean(mealId)}
+              previousItem={mealId && savedAmount ? scaleMacros(product, ingredientFactor({ amount: savedAmount.weight, unit: baseMeasureCode(product), product }) ?? 0) : null}
             />
           </div>
         )}

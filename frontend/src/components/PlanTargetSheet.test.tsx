@@ -122,4 +122,11 @@ describe('PlanTargetSheet', () => {
 
     expect(onClose).toHaveBeenCalledTimes(2);
   });
+
+  it('asks for a meal when the current one is not offered', () => {
+    renderSheet({ mealType: 'hidden-meal' });
+
+    const button = screen.getByRole('button', { name: t('planTarget.chooseMeal') }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+  });
 });

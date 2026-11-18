@@ -23,7 +23,7 @@ import { DayBalanceCard } from '../components/DayBalanceCard';
 import { DetailsTopBar } from '../components/DetailsTopBar';
 import { PlanTargetSheet } from '../components/PlanTargetSheet';
 import { PlanAction, PlanActionGroup, PlanActionSheet, PlanSheetThumb } from '../components/PlanActionSheet';
-import { addToMealLabel } from '../lib/planTarget';
+import { addToMealLabel, planTargetMeals } from '../lib/planTarget';
 
 const DEFAULT_RECIPE_WEIGHT = 300;
 const GRAMS_MEASURE = 'g';
@@ -91,12 +91,7 @@ export function RecipeDetails() {
   const [activeMealType, setActiveMealType] = useState(selectType || '');
 
   const mealTypes = useMemo(() => profileMealTypes(profile), [profile]);
-  const sheetMeals = useMemo(
-    () => mealTypes
-      .map((meal, index) => ({ id: meal.id, name: meal.name, color: mealColor(index), visible: meal.visible !== false }))
-      .filter(meal => meal.visible),
-    [mealTypes],
-  );
+  const sheetMeals = useMemo(() => planTargetMeals(mealTypes), [mealTypes]);
 
   const basePortions = recipe?.portions || 1;
   const safeWeight = (totalWeight && totalWeight > 0) ? totalWeight : DEFAULT_RECIPE_WEIGHT;
@@ -325,7 +320,7 @@ export function RecipeDetails() {
       setInputType('grams');
       return;
     }
-    if (inputType !== 'portions') setPortionInput(Math.min(AMOUNT_LIMITS.portion, Math.round(consumedPortions * 10) / 10));
+    if (inputType !== 'portions') setPortionInput(consumedPortions > 0 ? Math.min(AMOUNT_LIMITS.portion, Math.max(0.01, Math.round(consumedPortions * 100) / 100)) : 0);
     setInputType('portions');
   };
 
@@ -518,7 +513,7 @@ export function RecipeDetails() {
               dayWithoutItem={getConsumedForDay(activeDate, mealId)}
               item={currentMacros}
               targets={profile}
-              editing={Boolean(mealId)}
+              previousItem={mealId && savedPortions !== null ? scaleMacros(recipe, savedPortions) : null}
             />
           </div>
         )}

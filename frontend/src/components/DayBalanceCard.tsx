@@ -7,8 +7,7 @@ interface DayBalanceCardProps {
   dayWithoutItem: DayConsumed;
   item: DayConsumed;
   targets: SummaryTargets;
-  editing?: boolean;
-  defaultOpen?: boolean;
+  previousItem?: DayConsumed | null;
 }
 
 const LABELS: Record<SummaryMetricKey, MessageKey> = {
@@ -29,13 +28,20 @@ function share(value: number, max: number): number {
   return max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
 }
 
-export function DayBalanceCard({ dayWithoutItem, item, targets, editing = false, defaultOpen = false }: DayBalanceCardProps) {
-  const [open, setOpen] = useState(defaultOpen);
+function signedChange(change: number): string {
+  if (change > 0) return `+${formatCompactNumber(change)}`;
+  if (change < 0) return `−${formatCompactNumber(-change)}`;
+  return '';
+}
+
+export function DayBalanceCard({ dayWithoutItem, item, targets, previousItem = null }: DayBalanceCardProps) {
+  const [open, setOpen] = useState(false);
+  const editing = previousItem !== null;
   const [after, setAfter] = useState(true);
   const panelId = useId();
   const titleId = useId();
   const subtitleId = useId();
-  const before = buildDaySummary(dayWithoutItem, targets);
+  const before = buildDaySummary(previousItem ? addConsumed(dayWithoutItem, previousItem) : dayWithoutItem, targets);
   const withItem = buildDaySummary(addConsumed(dayWithoutItem, item), targets);
 
   return (
@@ -75,11 +81,11 @@ export function DayBalanceCard({ dayWithoutItem, item, targets, editing = false,
           <div className="flex flex-col">
             {withItem.map((metric, index) => {
               const previous = before[index];
-              const added = Math.round(metric.key === 'kcal' ? item.kcal : item[metric.key]);
+              const change = metric.value - previous.value;
               const shown = after ? metric : previous;
               const color = COLORS[metric.key];
-              const baseWidth = share(previous.value, metric.max);
-              const addedWidth = after ? Math.max(share(metric.value, metric.max) - baseWidth, added > 0 ? 1.5 : 0) : 0;
+              const baseWidth = share(after ? Math.min(previous.value, metric.value) : previous.value, metric.max);
+              const addedWidth = after && change > 0 ? Math.max(share(metric.value, metric.max) - baseWidth, 1.5) : 0;
               return (
                 <div key={metric.key} className="mt-3">
                   <div className="flex items-baseline gap-2 text-[13.5px]">
@@ -90,8 +96,8 @@ export function DayBalanceCard({ dayWithoutItem, item, targets, editing = false,
                       <span data-testid={`balance-${metric.key}`} className={`font-bold ${shown.status === 'over' ? 'text-error' : 'text-on-surface'}`}>{formatCompactNumber(shown.value)}</span>
                       <span className="text-on-surface-variant"> / {metric.target} {metric.unit}</span>
                     </span>
-                    <span className={`w-11 text-right text-[12.5px] font-bold tabular-nums transition-opacity ${color.text} ${after && added > 0 ? 'opacity-100' : 'opacity-0'}`}>
-                      {added > 0 ? `+${formatCompactNumber(added)}` : ''}
+                    <span data-testid={`balance-${metric.key}-change`} className={`w-11 text-right text-[12.5px] font-bold tabular-nums transition-opacity ${color.text} ${after && change !== 0 ? 'opacity-100' : 'opacity-0'}`}>
+                      {signedChange(change)}
                     </span>
                   </div>
                   <div className="relative h-1.5 mt-1.5 rounded-full bg-surface-container-highest overflow-hidden">

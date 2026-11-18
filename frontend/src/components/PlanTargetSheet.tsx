@@ -53,9 +53,11 @@ export function PlanTargetSheet({ mode, title, meta, leading, date, mealType, me
   const today = todayIsoDate();
   const days = Array.from({ length: 7 }, (_, index) => addDaysToIsoDate(weekStart, index));
   const meal = meals.find(option => option.id === selectedMeal) ?? null;
-  const confirmLabel = mode === 'set'
-    ? t('planTarget.set', { meal: meal?.name ?? '', day: shortDayLabel(selectedDate, today) })
-    : meal ? `${addToMealLabel(meal.id, meals)}, ${shortDayLabel(selectedDate, today)}` : t('planTarget.chooseMeal');
+  const confirmLabel = !meal
+    ? t('planTarget.chooseMeal')
+    : mode === 'set'
+      ? t('planTarget.set', { meal: meal.name, day: shortDayLabel(selectedDate, today) })
+      : `${addToMealLabel(meal.id, meals)}, ${shortDayLabel(selectedDate, today)}`;
 
   return (
     <div data-scroll-lock className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 animate-fade-in" onClick={onClose}>

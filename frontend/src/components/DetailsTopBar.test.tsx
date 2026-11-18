@@ -117,4 +117,16 @@ describe('DetailsTopBar', () => {
     cleanup();
     expect(observers.at(-1)!.disconnect).toHaveBeenCalled();
   });
+
+  it('measures without ResizeObserver and again when the window is resized', () => {
+    vi.stubGlobal('ResizeObserver', undefined);
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { callback(0); return 0; });
+    setWidths(300, 150);
+    render(<DetailsTopBar overPhoto backLabel="Wróć" onBack={vi.fn()} target={target()} />);
+    expect(screen.queryByTestId('target-stacked')).toBeNull();
+
+    setWidths(160, 150);
+    act(() => { window.dispatchEvent(new Event('resize')); });
+    expect(screen.getByTestId('target-stacked')).toBeTruthy();
+  });
 });

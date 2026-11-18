@@ -35,11 +35,11 @@ interface DetailsTopBarProps {
   children?: ReactNode;
 }
 
-function SingleLine({ target, tone, nameRef }: { target: DetailsTarget; tone: string; nameRef?: (node: HTMLSpanElement | null) => void }) {
+function SingleLine({ target, tone }: { target: DetailsTarget; tone: string }) {
   return (
     <span className="min-w-0 flex items-center gap-2">
       <MealDot color={target.mealColor} />
-      <span ref={nameRef} className="min-w-0 truncate font-bold text-[14.5px]">{target.mealName}</span>
+      <span className="min-w-0 truncate font-bold text-[14.5px]">{target.mealName}</span>
       <span className={`shrink-0 text-[14.5px] whitespace-nowrap ${tone}`}>· {shortDayLabel(target.date)}</span>
     </span>
   );
@@ -86,15 +86,23 @@ function useStackedTarget(target: DetailsTarget | null | undefined) {
   useEffect(() => {
     const capsule = capsuleRef.current;
     const probe = probeRef.current;
-    if (!capsule || !probe || typeof ResizeObserver === 'undefined') return;
+    if (!capsule || !probe) return;
+    let active = true;
     const measure = () => {
+      if (!active || capsule.clientWidth === 0) return;
       const actions = Array.from(capsule.querySelectorAll<HTMLElement>('[data-capsule-action]')).reduce((sum, action) => sum + action.offsetWidth, 0);
       setStacked(probe.scrollWidth > capsule.clientWidth - actions - PILL_GAP);
     };
-    const observer = new ResizeObserver(measure);
-    observer.observe(capsule);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    if (observer) observer.observe(capsule);
+    else window.requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
     document.fonts?.ready.then(measure);
-    return () => observer.disconnect();
+    return () => {
+      active = false;
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, [mealName, date]);
 
   return { capsuleRef, probeRef, stacked };

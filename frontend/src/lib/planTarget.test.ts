@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { addToMealLabel, fullDayLabel, shortDayLabel, weekdayShort, weekStartOf } from './planTarget';
+import { addToMealLabel, fullDayLabel, planTargetMeals, shortDayLabel, weekdayShort, weekStartOf } from './planTarget';
+import { mealColor } from './mealTypes';
 
 const TODAY = '2026-11-17';
 
@@ -31,5 +32,16 @@ describe('planTarget', () => {
     expect(addToMealLabel('lunch', [])).toBe('Dodaj do II śniadania');
     expect(addToMealLabel('dinner', [{ id: 'dinner', name: 'Lunch w pracy' }])).toBe('Dodaj: Lunch w pracy');
     expect(addToMealLabel('gym', [{ id: 'gym', name: 'Po treningu' }])).toBe('Dodaj: Po treningu');
+  });
+
+  it('offers visible meals with the color of their place in the profile', () => {
+    expect(planTargetMeals([
+      { id: 'breakfast', name: 'Śniadanie', visible: true },
+      { id: 'lunch', name: 'II śniadanie', visible: false },
+      { id: 'dinner', name: 'Obiad' },
+    ])).toEqual([
+      { id: 'breakfast', name: 'Śniadanie', color: mealColor(0) },
+      { id: 'dinner', name: 'Obiad', color: mealColor(2) },
+    ]);
   });
 });

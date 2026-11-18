@@ -1,6 +1,6 @@
 import { t, type MessageKey } from '../i18n';
 import { addDaysToIsoDate, formatDayMonth, formatLongWeekday, parseIsoDate, toIsoDate } from './planDates';
-import { mealTypeName } from './mealTypes';
+import { mealColor, mealTypeName } from './mealTypes';
 
 const ADD_TO_MEAL: Record<string, MessageKey> = {
   breakfast: 'planTarget.addTo.breakfast',
@@ -51,4 +51,8 @@ export function addToMealLabel(mealId: string, meals: { id: string; name?: strin
   const key = ADD_TO_MEAL[mealId];
   const usesDefaultName = key && mealTypeName(mealId, meals) === mealTypeName(mealId);
   return usesDefaultName ? t(key) : t('planTarget.addToNamed', { meal: mealTypeName(mealId, meals) });
+}
+
+export function planTargetMeals(meals: { id: string; name: string; visible?: boolean }[]): { id: string; name: string; color: string }[] {
+  return meals.flatMap((meal, index) => meal.visible === false ? [] : [{ id: meal.id, name: meal.name, color: mealColor(index) }]);
 }
