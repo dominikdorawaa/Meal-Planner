@@ -2,27 +2,28 @@ import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
-import { addDaysToIsoDate, formatDayMonth, formatShortDayLabel, todayIsoDate } from '../lib/planDates';
+import { todayIsoDate } from '../lib/planDates';
 import { RecipeGallery } from '../components/RecipeGallery';
 import { recipeImages } from '../lib/recipeImage';
-import { DayBalancePreview } from '../components/DayBalancePreview';
 import { NutritionSummary } from '../components/NutritionSummary';
 import { recipeExtraNutrients, type ExtraNutrient } from '../lib/nutrients';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
-import { useBottomSheet } from '../lib/bottomSheet';
 import { ingredientBaseAmountLabel, ingredientGrams, ingredientNutrition, ingredientsWithoutProduct, ingredientUnitLabel } from '../lib/recipeIngredient';
-import { profileMealTypes } from '../lib/mealTypes';
+import { mealColor, mealTypeName, profileMealTypes } from '../lib/mealTypes';
 import { announceDeletedRecipe } from '../lib/deletedRecipe';
 import { ConfirmSheet } from '../components/ConfirmSheet';
 import { UndoSnackbar } from '../components/UndoSnackbar';
 import { pluralForm, t, type MessageKey } from '../i18n';
 import { AMOUNT_LIMITS } from '../lib/inputLimits';
-import { AmountRow } from '../components/AmountRow';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { scaleMacros } from '../lib/macros';
-import { MonthCalendar } from '../components/MonthCalendar';
-import { PlanTargetPicker } from '../components/PlanTargetPicker';
 import { stepsOfRecipe } from '../lib/recipeSteps';
+import { AmountField } from '../components/AmountField';
+import { DayBalanceCard } from '../components/DayBalanceCard';
+import { DetailsTopBar } from '../components/DetailsTopBar';
+import { PlanTargetSheet } from '../components/PlanTargetSheet';
+import { PlanAction, PlanActionGroup, PlanActionSheet, PlanSheetThumb } from '../components/PlanActionSheet';
+import { addToMealLabel } from '../lib/planTarget';
 
 const DEFAULT_RECIPE_WEIGHT = 300;
 const GRAMS_MEASURE = 'g';
@@ -47,6 +48,10 @@ function portionsAccusative(count: number): string {
   return t(`recipeDetails.portionsAccusative.${portionForm(count)}` as MessageKey, { count: Math.round(count * 100) / 100 });
 }
 
+function toNumber(value: number | string | null | undefined): number {
+  return Number(String(value ?? '').replace(',', '.')) || 0;
+}
+
 export function RecipeDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -69,7 +74,6 @@ export function RecipeDetails() {
   const [gramInput, setGramInput] = useState<number | ''>(100);
   const [quickPickPortions, setQuickPickPortions] = useState<number | null>(null);
   const [ingredientPortions, setIngredientPortions] = useState<number | null>(null);
-  const [daysToAdd, setDaysToAdd] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -78,22 +82,21 @@ export function RecipeDetails() {
   const [notice, setNotice] = useState<string | null>(null);
   const closeNotice = useCallback(() => setNotice(null), []);
   const [showAddToPlan, setShowAddToPlan] = useState(false);
-  const [quickDate, setQuickDate] = useState('');
-  const [quickDateInput, setQuickDateInput] = useState('');
-  const [showSheetCalendar, setShowSheetCalendar] = useState(false);
+  const [showTarget, setShowTarget] = useState(false);
   const [savedPortions, setSavedPortions] = useState<number | null>(null);
   const [savedGrams, setSavedGrams] = useState<number | null>(null);
   const [savedInputType, setSavedInputType] = useState<AmountInputType | null>(null);
-  const [quickMealType, setQuickMealType] = useState('');
 
   const [activeDate, setActiveDate] = useState(selectDate || '');
   const [activeMealType, setActiveMealType] = useState(selectType || '');
 
-  const addToPlanSheetRef = useBottomSheet(showAddToPlan, () => setShowAddToPlan(false));
-  const menuSheetRef = useBottomSheet(showMenu, () => setShowMenu(false));
-
   const mealTypes = useMemo(() => profileMealTypes(profile), [profile]);
-  const visibleMealTypes = useMemo(() => mealTypes.filter(meal => meal.visible !== false), [mealTypes]);
+  const sheetMeals = useMemo(
+    () => mealTypes
+      .map((meal, index) => ({ id: meal.id, name: meal.name, color: mealColor(index), visible: meal.visible !== false }))
+      .filter(meal => meal.visible),
+    [mealTypes],
+  );
 
   const basePortions = recipe?.portions || 1;
   const safeWeight = (totalWeight && totalWeight > 0) ? totalWeight : DEFAULT_RECIPE_WEIGHT;
@@ -161,23 +164,22 @@ export function RecipeDetails() {
     };
   }, [id, mealId]);
 
+  const gramsPerPortion = safeWeight / basePortions;
   const consumedPortions =
-    inputType === 'portions' ? (Number(String(portionInput).replace(',', '.')) || 0) :
-    inputType === 'grams' ? (Number(String(gramInput).replace(',', '.')) ? (Number(String(gramInput).replace(',', '.')) / (safeWeight / basePortions)) : 0) :
+    inputType === 'portions' ? toNumber(portionInput) :
+    inputType === 'grams' ? toNumber(gramInput) / gramsPerPortion :
     (quickPickPortions || 0);
 
-  const gramsPerPortion = safeWeight / basePortions;
   const unchangedPlanItem = Boolean(mealId) && (savedPortions === null || (
     inputType === savedInputType
     && (inputType === 'grams' ? gramInput === savedGrams : Math.abs(consumedPortions - savedPortions) < 1e-9)
   ));
 
   const nutritionPortions = unchangedPlanItem && savedPortions !== null ? savedPortions : consumedPortions;
-
   const activeIngredientPortions = ingredientPortions !== null ? ingredientPortions : basePortions;
 
   const amountMeasure = inputType === 'grams'
-    ? { measure_code: GRAMS_MEASURE, measure_amount: Number(String(gramInput).replace(',', '.')) }
+    ? { measure_code: GRAMS_MEASURE, measure_amount: toNumber(gramInput) }
     : { measure_code: inputType === 'quick-pick' ? QUICK_PICK_MEASURE : PORTIONS_MEASURE, measure_amount: null };
 
   const handleAddMeal = async (overrideDate?: string, overrideMealType?: string) => {
@@ -199,18 +201,16 @@ export function RecipeDetails() {
       return;
     }
 
-    for (let i = 0; i < daysToAdd; i++) {
-      try {
-        await api.meals.add({
-          recipe: { id: recipe.id },
-          meal_date: addDaysToIsoDate(targetDate, i),
-          meal_type: targetType,
-          portions_consumed: consumedPortions,
-          ...amountMeasure
-        });
-      } catch (err) {
-        console.error("Error adding meal:", err);
-      }
+    try {
+      await api.meals.add({
+        recipe: { id: recipe.id },
+        meal_date: targetDate,
+        meal_type: targetType,
+        portions_consumed: consumedPortions,
+        ...amountMeasure
+      });
+    } catch (err) {
+      console.error("Error adding meal:", err);
     }
 
     if (!overrideDate) {
@@ -220,6 +220,7 @@ export function RecipeDetails() {
     await refreshMeals();
     if (overrideDate) {
       setShowAddToPlan(false);
+      setIsAdding(false);
       setNotice(t('recipeDetails.addedToPlan'));
     } else {
       navigate('/');
@@ -284,19 +285,13 @@ export function RecipeDetails() {
       <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-6 text-center">
         <span className="material-symbols-outlined text-6xl text-on-surface-variant/30 mb-4">error</span>
         <h2 className="font-headline text-xl font-bold text-on-surface mb-2">{t('recipeDetails.notFound')}</h2>
-        <button onClick={leaveDetails} className="px-6 py-3 bg-primary text-on-primary font-bold rounded-xl active:scale-95 transition-transform mt-6">{t('recipeDetails.back')}</button>
+        <button onClick={leaveDetails} className="px-6 py-3 bg-primary text-on-primary font-bold rounded-2xl active:scale-95 transition-transform mt-6">{t('recipeDetails.back')}</button>
       </div>
     );
   }
 
-  const displaySuffix =
-    inputType === 'portions' ? t('recipeDetails.nutritionForPortions', { count: Number(portionInput) || 0, portions: portionWord(Number(portionInput) || 0) }) :
-    inputType === 'grams' ? t('recipeDetails.nutritionForGrams', { grams: gramInput === '' ? 0 : Math.round(Number(gramInput)) }) :
-    '';
   const currentMacros = scaleMacros(recipe, nutritionPortions);
-
-  const activeDateDisplay = formatShortDayLabel(activeDate || selectDate || '');
-
+  const planMode = Boolean(selectDate && selectType);
   const isOwn = recipe.own !== false;
   const steps = stepsOfRecipe(recipe);
   const withoutProduct = ingredientsWithoutProduct(ingredients);
@@ -304,186 +299,180 @@ export function RecipeDetails() {
   const extraNutrientNotes = Object.fromEntries(
     Object.entries(extraNutrients.missing).map(([nutrient, names]) => [nutrient as ExtraNutrient, t('nutrients.incomplete', { names: names.join(', ') })]),
   );
+  const images = recipeImages(recipe);
+  const prepTime = Number(recipe.prep_time) || 0;
+  const consumedGrams = consumedPortions * gramsPerPortion;
+  const fieldPortions = inputType === 'quick-pick' ? (quickPickPortions ?? '') : portionInput;
+  const amountLabel = inputType === 'grams'
+    ? `${formatCompactNumber(consumedGrams)} g`
+    : `${formatCompactNumber(consumedPortions, 2)} ${portionWord(consumedPortions)} · ${formatCompactNumber(consumedGrams)} g`;
+  const mealIndex = mealTypes.findIndex(meal => meal.id === activeMealType);
+  const consumedForDay = (date: string) => getConsumedForDay(date, mealId);
+  const thumb = <PlanSheetThumb kind="recipe" recipeImage={images[0] ?? null} alt={recipe.name} />;
+
+  const onAmountChange = (next: number | '') => {
+    if (inputType === 'grams') {
+      setGramInput(next);
+      return;
+    }
+    setPortionInput(next);
+    setInputType('portions');
+  };
+
+  const onUnitChange = (unit: string) => {
+    if (unit === GRAMS_MEASURE) {
+      if (inputType !== 'grams') setGramInput(Math.min(AMOUNT_LIMITS.g, Math.round(consumedGrams)));
+      setInputType('grams');
+      return;
+    }
+    if (inputType !== 'portions') setPortionInput(Math.min(AMOUNT_LIMITS.portion, Math.round(consumedPortions * 10) / 10));
+    setInputType('portions');
+  };
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
-      <header className={`sticky top-0 w-full z-40 bg-surface/90 backdrop-blur-xl px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10`}>
-        <button
-          onClick={() => navigate(-1)}
-          aria-label={t('recipeDetails.back')}
-          className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform hover:text-on-surface shrink-0"
-        >
-          <span className="material-symbols-outlined">arrow_back</span>
-        </button>
-        {selectType && selectDate ? (
-          <PlanTargetPicker
-            meals={visibleMealTypes}
-            mealType={activeMealType}
-            date={activeDate}
-            editing={Boolean(mealId)}
-            onMealTypeChange={setActiveMealType}
-            onDateChange={setActiveDate}
+      <div className="fixed top-0 inset-x-0 z-40 pt-safe">
+        <div className="max-w-xl mx-auto">
+          <DetailsTopBar
+            overPhoto
+            backLabel={t('recipeDetails.back')}
+            onBack={() => navigate(-1)}
+            target={planMode ? {
+              mealName: mealTypeName(activeMealType, mealTypes),
+              mealColor: mealColor(mealIndex),
+              date: activeDate,
+              editing: Boolean(mealId),
+              onOpen: () => setShowTarget(true),
+            } : null}
+            saved={{ value: saved, busy: isTogglingSaved, label: t(saved ? 'recipeDetails.unsave' : 'recipeDetails.save'), onToggle: toggleSaved }}
+            menu={isOwn ? { label: t('recipeDetails.menu'), onOpen: () => setShowMenu(true) } : null}
           />
-        ) : (
-          <h1 className="font-headline font-bold text-[15px] sm:text-base/6 text-on-surface leading-tight flex-1">{t('recipeDetails.title')}</h1>
-        )}
-        {isOwn && (
-          <button
-            onClick={() => setShowMenu(true)}
-            aria-label={t('recipeDetails.menu')}
-            className="w-10 h-10 ml-auto rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform hover:bg-surface-container-highest shrink-0"
-          >
-            <span className="material-symbols-outlined">more_vert</span>
-          </button>
-        )}
-      </header>
-
-      <RecipeGallery images={recipeImages(recipe)} alt={recipe.name}>
-        <button
-          onClick={toggleSaved}
-          disabled={isTogglingSaved}
-          aria-pressed={saved}
-          aria-label={t(saved ? 'recipeDetails.unsave' : 'recipeDetails.save')}
-          className={`absolute top-3 right-3 w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center active:scale-90 transition-transform ${saved ? 'text-rose-400' : 'text-white'}`}
-        >
-          <span className="material-symbols-outlined text-[22px]" style={saved ? { fontVariationSettings: "'FILL' 1" } : undefined}>favorite</span>
-        </button>
-      </RecipeGallery>
-
-      <div className="max-w-xl mx-auto w-full px-4 pt-3">
-        <h1 className="font-headline font-bold text-xl text-on-surface tracking-tight leading-tight shrink-0">{recipe.name}</h1>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-2 w-full max-w-xl mx-auto px-4 pt-2">
-            <AmountRow
-              label={t('recipeDetails.portionsInput')}
-              max={AMOUNT_LIMITS.portion}
-              unit={
-                <div className="flex items-baseline gap-1">
-                  <span className="font-bold text-on-surface-variant text-sm shrink-0 whitespace-nowrap">
-                    {portionWord(Number(portionInput) || 0)}
-                  </span>
-                  <span className="text-xs font-medium text-on-surface-variant/60 ml-0.5 whitespace-nowrap">({formatCompactNumber(Number(portionInput || 0) * gramsPerPortion)}g)</span>
-                </div>
-              }
-              value={portionInput}
-              kcal={recipe.kcal * (Number(portionInput) || 0)}
-              kcalTestId="portions-kcal"
-              active={inputType === 'portions'}
-              onActivate={() => setInputType('portions')}
-              onChange={setPortionInput}
-            />
-            <AmountRow
-              label={t('recipeDetails.gramsInput')}
-              max={AMOUNT_LIMITS.g}
-              unit="g"
-              value={gramInput}
-              kcal={recipe.kcal * (Number(gramInput) ? (Number(gramInput) / gramsPerPortion) : 0)}
-              kcalTestId="grams-kcal"
-              active={inputType === 'grams'}
-              onActivate={() => setInputType('grams')}
-              onChange={setGramInput}
-            />
-      </div>
+      <RecipeGallery images={images} alt={recipe.name} />
 
-      <main className="w-full max-w-xl mx-auto px-4 py-8 flex flex-col gap-10">
+      <main className="relative -mt-7 w-full max-w-xl mx-auto rounded-t-[28px] bg-surface pt-5 flex flex-col">
+        <div className="px-4">
+          <h1 className="font-headline font-extrabold text-2xl text-on-surface tracking-tight leading-tight">{recipe.name}</h1>
+          <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13.5px] text-on-surface-variant">
+            {prepTime > 0 && (
+              <>
+                <span aria-hidden="true" className="material-symbols-outlined text-[17px]">timer</span>
+                <span>{t('recipes.minutes', { count: prepTime })}</span>
+                <span aria-hidden="true">·</span>
+              </>
+            )}
+            <span>{t('recipeDetails.recipeFor', { portions: portionsAccusative(basePortions) })}</span>
+          </p>
+        </div>
 
-        <section className="flex flex-col gap-3">
-          <div>
-            <h2 className="font-headline font-bold text-lg text-on-surface">{t('recipeDetails.kcalTitle')} <span className="text-on-surface-variant font-medium text-sm">{t('recipeDetails.kcalPortion', { grams: formatCompactNumber(consumedPortions * gramsPerPortion) })}</span></h2>
-            <p className="text-xs text-on-surface-variant mt-1">{t('recipeDetails.kcalHint')}</p>
+        <div className="px-4 mt-5">
+          <AmountField
+            label={t(inputType === 'grams' ? 'recipeDetails.gramsInput' : 'recipeDetails.portionsInput')}
+            value={inputType === 'grams' ? gramInput : fieldPortions}
+            max={inputType === 'grams' ? AMOUNT_LIMITS.g : AMOUNT_LIMITS.portion}
+            unit={inputType === 'grams' ? GRAMS_MEASURE : PORTIONS_MEASURE}
+            unitLabel={inputType === 'grams' ? 'g' : portionWord(toNumber(fieldPortions))}
+            units={[
+              { value: PORTIONS_MEASURE, label: t('recipeDetails.portionsInput') },
+              { value: GRAMS_MEASURE, label: t('recipeDetails.gramsInput') },
+            ]}
+            note={inputType === 'grams' ? undefined : `${formatCompactNumber(consumedGrams)} g`}
+            kcal={recipe.kcal * consumedPortions}
+            onChange={onAmountChange}
+            onUnitChange={onUnitChange}
+          />
+          <p className="mt-3.5 text-[13px] text-on-surface-variant">{t('recipeDetails.kcalPicks')}</p>
+          <div className="mt-2 -mx-4 px-4 flex gap-2 overflow-x-auto scrollbar-hide">
+            {QUICK_PICK_MULTIPLIERS.map(multiplier => {
+              const selected = inputType === 'quick-pick' && quickPickPortions !== null && Math.abs(quickPickPortions - multiplier) < 0.01;
+              return (
+                <button
+                  key={multiplier}
+                  type="button"
+                  aria-pressed={selected}
+                  aria-label={`${formatCompactNumber(recipe.kcal * multiplier)} kcal, ${formatCompactNumber(gramsPerPortion * multiplier)} g`}
+                  onClick={() => {
+                    setInputType('quick-pick');
+                    setQuickPickPortions(multiplier);
+                  }}
+                  className={`shrink-0 h-10 px-3.5 rounded-full inline-flex items-baseline gap-1.5 leading-10 whitespace-nowrap active:scale-95 transition-transform ${selected ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface'}`}
+                >
+                  <span className="font-headline font-extrabold text-[15px] tabular-nums">{formatCompactNumber(recipe.kcal * multiplier)} kcal</span>
+                  <span className={`text-[12.5px] tabular-nums ${selected ? 'text-on-primary/80' : 'text-on-surface-variant'}`}>{formatCompactNumber(gramsPerPortion * multiplier)} g</span>
+                </button>
+              );
+            })}
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-4 -mx-1 px-1 scrollbar-hide snap-x">
-            {(() => {
-              const baseKcal = Math.round(recipe.kcal);
-              return QUICK_PICK_MULTIPLIERS.map((m) => {
-                const kcalOption = Math.round(baseKcal * m);
-                const isSelected = inputType === 'quick-pick' && quickPickPortions !== null && Math.abs(quickPickPortions - m) < 0.01;
-                return (
+        </div>
+
+        <div className="px-4 mt-7">
+          <NutritionSummary
+            title={t('recipeDetails.nutritionTitle')}
+            subtitle={amountLabel}
+            values={currentMacros}
+            macroSplit={recipe}
+            tableColumns={[{
+              label: t('nutrients.recipePortion'),
+              values: { kcal: recipe.kcal, protein: recipe.protein, fat: recipe.fat, carbs: recipe.carbs, ...extraNutrients.values },
+            }]}
+            tableNotes={extraNutrientNotes}
+            notice={withoutProduct.length > 0 && (
+              <div role="status" className="flex flex-col gap-3 rounded-2xl px-4 py-3 bg-error/10 text-on-surface">
+                <p className="flex items-start gap-2 text-sm font-medium">
+                  <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-error">info</span>
+                  <span>{t('recipeDetails.incompleteNutrition', { names: withoutProduct.map(ingredient => ingredient.name).join(', ') })}</span>
+                </p>
+                {isOwn && (
                   <button
-                    key={m}
-                    onClick={() => {
-                      setInputType('quick-pick');
-                      setQuickPickPortions(m);
-                    }}
-                    className={`shrink-0 w-[78px] py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 flex flex-col items-center justify-center snap-center ${
-                      isSelected
-                        ? 'bg-[#e2f0d9] text-[#2d4d1e] border-[#b5ccaa] shadow-xs dark:bg-primary/20 dark:text-primary dark:border-primary/40'
-                        : 'bg-surface-container-lowest text-on-surface border-outline-variant/20 hover:border-on-surface/30'
-                    }`}
+                    type="button"
+                    onClick={handleEdit}
+                    className="self-start px-4 py-2 rounded-xl bg-primary text-on-primary text-sm font-bold active:scale-95 transition-transform"
                   >
-                    {formatCompactNumber(kcalOption)} kcal
+                    {t('recipeDetails.completeProducts')}
                   </button>
-                );
-              });
-            })()}
-          </div>
-        </section>
+                )}
+              </div>
+            )}
+          />
+        </div>
 
-        <NutritionSummary
-          title={`${t('recipeDetails.nutritionTitle')} ${displaySuffix}`}
-          values={currentMacros}
-          macroSplit={recipe}
-          tableColumns={[{
-            label: t('nutrients.recipePortion'),
-            values: { kcal: recipe.kcal, protein: recipe.protein, fat: recipe.fat, carbs: recipe.carbs, ...extraNutrients.values },
-          }]}
-          tableNotes={extraNutrientNotes}
-          notice={withoutProduct.length > 0 && (
-            <div role="status" className="flex flex-col gap-3 rounded-2xl px-4 py-3 bg-error/10 text-on-surface">
-              <p className="flex items-start gap-2 text-sm font-medium">
-                <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-error">info</span>
-                <span>{t('recipeDetails.incompleteNutrition', { names: withoutProduct.map(ingredient => ingredient.name).join(', ') })}</span>
-              </p>
-              {isOwn && (
+        {ingredients.length > 0 && (
+          <section className="px-4 mt-8 flex flex-col">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-headline font-extrabold text-lg tracking-tight text-on-surface">{t('recipeDetails.ingredients')}</h2>
+              <div className="flex items-center h-9 rounded-full bg-surface-container-low">
                 <button
                   type="button"
-                  onClick={handleEdit}
-                  className="self-start px-4 py-2 rounded-xl bg-primary text-on-primary text-sm font-bold active:scale-95 transition-transform"
-                >
-                  {t('recipeDetails.completeProducts')}
-                </button>
-              )}
-            </div>
-          )}
-        />
-
-        {ingredients && ingredients.length > 0 && (
-          <section className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[11px] sm:text-xs/4 font-bold uppercase tracking-wide text-on-surface-variant flex items-center gap-1 flex-wrap leading-tight">
-                <span>{t('recipeDetails.ingredientsFor', { portions: portionsAccusative(activeIngredientPortions) })}</span>
-                <span className="normal-case opacity-70">({formatCompactNumber(activeIngredientPortions * gramsPerPortion)}g)</span>
-              </h2>
-
-              <div className="flex items-center bg-surface-container-low rounded-xl p-1 shadow-xs border border-outline-variant/10">
-                <button
                   onClick={() => setIngredientPortions(Math.max(PORTION_STEP, activeIngredientPortions - PORTION_STEP))}
                   aria-label={t('recipeDetails.fewerPortions')}
-                  className="w-8 h-8 flex items-center justify-center text-on-surface hover:bg-surface-container-highest rounded-lg transition-colors font-bold active:scale-95"
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-on-surface active:scale-90 transition-transform"
                 >
-                  <span className="material-symbols-outlined text-[18px]">remove</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">remove</span>
                 </button>
-                <div className="min-w-8 px-1 text-center font-bold text-sm text-on-surface select-none whitespace-nowrap">
-                  {Math.round(activeIngredientPortions * 100) / 100}
-                </div>
+                <span className="min-w-16 px-1 text-center text-[13.5px] font-bold tabular-nums text-on-surface whitespace-nowrap">
+                  {formatCompactNumber(activeIngredientPortions, 2)} {portionWord(activeIngredientPortions)}
+                </span>
                 <button
+                  type="button"
                   onClick={() => setIngredientPortions(activeIngredientPortions + PORTION_STEP)}
                   aria-label={t('recipeDetails.morePortions')}
-                  className="w-8 h-8 flex items-center justify-center text-on-surface hover:bg-surface-container-highest rounded-lg transition-colors font-bold active:scale-95"
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-on-surface active:scale-90 transition-transform"
                 >
-                  <span className="material-symbols-outlined text-[18px]">add</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">add</span>
                 </button>
               </div>
             </div>
-
-            <div className="flex items-center justify-between gap-2 -mt-2 min-h-8">
-              <span className="text-xs text-on-surface-variant">{t('recipeDetails.recipeFor', { portions: portionsAccusative(basePortions) })}</span>
+            <div className="flex items-center justify-between gap-2 mt-1 min-h-8">
+              <span className="text-[13px] text-on-surface-variant">
+                {t('recipeDetails.ingredientsFor', { portions: portionsAccusative(activeIngredientPortions) })} · {formatCompactNumber(activeIngredientPortions * gramsPerPortion)} g
+              </span>
               {Math.abs(activeIngredientPortions - basePortions) > 1e-9 && (
                 <button
                   type="button"
                   onClick={() => setIngredientPortions(null)}
-                  className="flex items-center gap-1 text-xs font-bold text-primary px-2 py-1.5 rounded-lg hover:bg-primary/10 active:scale-95 transition-all"
+                  className="flex items-center gap-1 text-[13px] font-bold text-primary px-2 py-1.5 rounded-lg active:scale-95 transition-transform"
                 >
                   <span aria-hidden="true" className="material-symbols-outlined text-[16px]">restart_alt</span>
                   {t('recipeDetails.wholeRecipe')}
@@ -491,28 +480,28 @@ export function RecipeDetails() {
               )}
             </div>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col divide-y divide-outline-variant/10">
               {ingredients.map((ing, idx) => {
                 const exactAmount = (Number(ing.amount) || 0) * (activeIngredientPortions / basePortions);
                 const scaledAmount = exactAmount.toFixed(1).replace(/\.0$/, '');
                 const nutrition = ingredientNutrition({ ...ing, amount: exactAmount });
                 const baseAmount = ingredientBaseAmountLabel({ ...ing, amount: exactAmount });
                 return (
-                  <div key={idx} data-testid="recipe-ingredient" className="flex items-center justify-between p-3 rounded-2xl bg-surface-container-lowest border border-outline-variant/10">
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="font-bold text-sm text-on-surface capitalize break-words">{ing.name}</span>
+                  <div key={idx} data-testid="recipe-ingredient" className="flex items-start justify-between gap-3 py-3">
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <span className="font-semibold text-[15px] text-on-surface capitalize break-words leading-snug">{ing.name}</span>
                       {nutrition ? (
-                        <span className="flex flex-wrap items-baseline gap-x-2 leading-tight">
-                          <span className="text-xs font-bold text-primary tabular-nums whitespace-nowrap">{formatCompactNumber(nutrition.kcal)} kcal</span>
-                          <span className="text-[10px] font-medium text-on-surface-variant tabular-nums whitespace-nowrap">
-                            {t('plan.summary.proteinShort')} {formatCompactNumber(nutrition.protein, 1)} g · {t('plan.summary.fatShort')} {formatCompactNumber(nutrition.fat, 1)} g · {t('plan.summary.carbsShort')} {formatCompactNumber(nutrition.carbs, 1)} g
-                          </span>
+                        <span className="flex flex-wrap items-baseline gap-x-2 text-[12.5px] tabular-nums leading-tight">
+                          <span data-testid="ingredient-kcal" className="text-primary"><b className="font-bold">{formatCompactNumber(nutrition.kcal)}</b> kcal</span>
+                          <span className="text-macro-protein">{t('plan.summary.proteinShort')} <b className="font-bold">{formatCompactNumber(nutrition.protein, 1)}</b></span>
+                          <span className="text-macro-fat">{t('plan.summary.fatShort')} <b className="font-bold">{formatCompactNumber(nutrition.fat, 1)}</b></span>
+                          <span className="text-macro-carbs">{t('plan.summary.carbsShort')} <b className="font-bold">{formatCompactNumber(nutrition.carbs, 1)}</b></span>
                         </span>
                       ) : (
-                        <span className="text-[11px] italic text-on-surface-variant/70">{t('nutrients.noData')}</span>
+                        <span className="text-[12.5px] italic text-on-surface-variant">{t('nutrients.noData')}</span>
                       )}
                     </div>
-                    <span className="text-xs font-bold text-on-surface-variant bg-surface-container-highest px-3 py-1 rounded-lg whitespace-nowrap shrink-0 ml-2">
+                    <span className="text-sm font-semibold text-on-surface-variant whitespace-nowrap shrink-0 text-right">
                       {scaledAmount} {ingredientUnitLabel(ing.unit, Number(scaledAmount), ing.product)}
                       {baseAmount && ` (${baseAmount})`}
                     </span>
@@ -523,28 +512,29 @@ export function RecipeDetails() {
           </section>
         )}
 
-        {selectDate && profile && (
-          <DayBalancePreview
-            dayLabel={activeDateDisplay}
-            dayWithoutItem={getConsumedForDay(activeDate || selectDate, mealId)}
-            item={currentMacros}
-            targets={profile}
-            editing={Boolean(mealId)}
-          />
+        {planMode && profile && (
+          <div className="px-4 mt-6">
+            <DayBalanceCard
+              dayWithoutItem={getConsumedForDay(activeDate, mealId)}
+              item={currentMacros}
+              targets={profile}
+              editing={Boolean(mealId)}
+            />
+          </div>
         )}
 
         {steps.length > 0 && (
-          <section className="flex flex-col gap-4">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-2">{t('recipeDetails.steps')}</h2>
+          <section className="px-4 mt-8 flex flex-col">
+            <h2 className="font-headline font-extrabold text-lg tracking-tight text-on-surface mb-4">{t('recipeDetails.steps')}</h2>
             <div className="flex flex-col gap-5">
               {steps.map((step, idx) => (
-                <div key={idx} className="flex gap-4 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-black flex items-center justify-center shrink-0 text-sm border border-primary/20">
+                <div key={idx} className="flex gap-3.5 min-w-0">
+                  <div className="w-7 h-7 rounded-full bg-surface-container-high text-on-surface font-headline font-extrabold flex items-center justify-center shrink-0 text-[13.5px]">
                     {idx + 1}
                   </div>
                   {step.name ? (
-                    <div className="flex-1 min-w-0 flex flex-col gap-1 pt-1">
-                      <h3 className="text-[15px] font-bold text-on-surface [overflow-wrap:anywhere]">{step.name}</h3>
+                    <div className="flex-1 min-w-0 flex flex-col gap-0.5 pt-0.5">
+                      <h3 className="text-[15px] font-semibold text-on-surface [overflow-wrap:anywhere]">{step.name}</h3>
                       {step.text && (
                         <p className="text-[15px] text-on-surface-variant leading-relaxed [overflow-wrap:anywhere]">{step.text}</p>
                       )}
@@ -557,190 +547,87 @@ export function RecipeDetails() {
             </div>
           </section>
         )}
-
       </main>
 
-      {selectDate && selectType && (
-        <div className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl border-t border-outline-variant/10 p-4 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-          <div className="max-w-xl mx-auto w-full flex gap-3 items-center">
-
-            {!mealId && (
-              <div className="flex items-center bg-surface-container-low border border-outline-variant/20 rounded-2xl p-1 h-[56px] shadow-xs">
-                <button
-                  onClick={() => setDaysToAdd(prev => Math.max(1, prev - 1))}
-                  aria-label={t('recipeDetails.fewerDays')}
-                  className="w-10 h-full flex items-center justify-center text-on-surface hover:bg-surface-container-highest rounded-xl transition-all font-bold active:scale-95"
-                >
-                  <span className="material-symbols-outlined text-[20px]">remove</span>
-                </button>
-
-                <div className="px-2 min-w-[60px] flex flex-col items-center justify-center -space-y-1">
-                  <span className="font-black text-lg text-on-surface leading-none">{daysToAdd}</span>
-                  <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">{t('recipeDetails.days')}</span>
-                </div>
-
-                <button
-                  onClick={() => setDaysToAdd(prev => Math.min(30, prev + 1))}
-                  aria-label={t('recipeDetails.moreDays')}
-                  className="w-10 h-full flex items-center justify-center text-on-surface hover:bg-surface-container-highest rounded-xl transition-all font-bold active:scale-95"
-                >
-                  <span className="material-symbols-outlined text-[20px]">add</span>
-                </button>
-              </div>
-            )}
-
+      <div className="fixed bottom-0 inset-x-0 z-50 px-4 pt-3.5 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-surface from-70% to-transparent">
+        <div className="max-w-xl mx-auto">
+          {planMode ? (
             <button
               onClick={() => handleAddMeal()}
               disabled={isAdding || !(consumedPortions > 0) || unchangedPlanItem}
-              className="flex-1 h-[56px] bg-[#6B8E23] hover:bg-[#5a781d] text-white font-black text-base rounded-[20px] transition-all active:scale-[0.98] disabled:opacity-50 shadow-[0_4px_12px_rgba(107,142,35,0.3)] flex items-center justify-center gap-3"
+              className="w-full h-[52px] rounded-2xl bg-primary text-on-primary font-headline font-extrabold text-base flex items-center justify-center active:scale-[0.98] transition-transform disabled:bg-surface-container-high disabled:text-on-surface-variant"
             >
               {isAdding ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <span className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin"></span>
               ) : (
-                <span>{t(mealId ? 'recipeDetails.update' : 'recipeDetails.add')}</span>
+                <span>{mealId ? t('recipeDetails.update') : addToMealLabel(activeMealType, mealTypes)}</span>
               )}
             </button>
-
-          </div>
-        </div>
-      )}
-
-      {!selectDate && !selectType && (
-        <div className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl border-t border-outline-variant/10 p-4 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-          <div className="max-w-xl mx-auto w-full">
+          ) : (
             <button
               onClick={() => setShowAddToPlan(true)}
-              className="w-full h-[56px] bg-[#6B8E23] hover:bg-[#5a781d] text-white font-black text-base rounded-[20px] transition-all active:scale-[0.98] shadow-[0_4px_12px_rgba(107,142,35,0.3)] flex items-center justify-center gap-3"
+              disabled={!(consumedPortions > 0)}
+              className="w-full h-[52px] rounded-2xl bg-primary text-on-primary font-headline font-extrabold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:bg-surface-container-high disabled:text-on-surface-variant"
             >
-              <span className="material-symbols-outlined text-[22px]">add_circle</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[22px]">add</span>
               {t('recipeDetails.addToPlan')}
             </button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {showAddToPlan && (
-        <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-xs animate-fade-in" onClick={() => setShowAddToPlan(false)}>
-          <div ref={addToPlanSheetRef} className="w-full sm:max-w-xl max-h-[92dvh] overflow-y-auto overscroll-contain bg-surface rounded-t-[32px] p-6 pb-8 animate-slide-up shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
-            <h2 className="font-headline font-bold text-xl text-on-surface mb-5">{t('recipeDetails.planSheetTitle')}</h2>
+        <PlanTargetSheet
+          mode="add"
+          title={recipe.name}
+          meta={`${amountLabel} · ${formatCompactNumber(currentMacros.kcal)} kcal`}
+          leading={thumb}
+          date={todayIsoDate()}
+          mealType={null}
+          meals={sheetMeals}
+          item={currentMacros}
+          targets={profile}
+          consumedForDay={consumedForDay}
+          busy={isAdding}
+          onConfirm={(date, meal) => handleAddMeal(date, meal)}
+          onClose={() => setShowAddToPlan(false)}
+        />
+      )}
 
-            <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">{t('recipeDetails.day')}</p>
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              {(() => {
-                const today = todayIsoDate();
-                return [
-                  { label: t('recipeDetails.today'), val: today },
-                  { label: t('recipeDetails.tomorrow'), val: addDaysToIsoDate(today, 1) },
-                  { label: t('recipeDetails.dayAfterTomorrow'), val: addDaysToIsoDate(today, 2) },
-                ].map(opt => (
-                  <button
-                    key={opt.val}
-                    onClick={() => { setQuickDate(opt.val); setQuickDateInput(opt.val); }}
-                    className={`py-3 rounded-2xl font-bold text-sm border-2 transition-all active:scale-95 ${
-                      quickDate === opt.val
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-outline-variant/20 bg-surface-container-low text-on-surface-variant'
-                    }`}
-                  >
-                    <div>{opt.label}</div>
-                    <div className="text-[10px] font-medium opacity-60">{formatDayMonth(opt.val)}</div>
-                  </button>
-                ));
-              })()}
-            </div>
-            <div className="mb-5">
-              <button
-                type="button"
-                aria-expanded={showSheetCalendar}
-                onClick={() => setShowSheetCalendar(open => !open)}
-                className={`w-full flex items-center gap-3 py-3 px-4 rounded-2xl border-2 transition-all active:scale-[0.98] ${
-                  quickDateInput
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-outline-variant/20 bg-surface-container-low text-on-surface-variant'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[22px]">calendar_month</span>
-                <span className="font-bold text-sm flex-1 text-left">
-                  {quickDateInput ? new Date(quickDateInput + 'T00:00:00').toLocaleDateString(t('recipeDetails.locale'), { weekday: 'long', day: 'numeric', month: 'long' }) : t('recipeDetails.otherDate')}
-                </span>
-                <span className={`material-symbols-outlined text-[18px] opacity-40 transition-transform ${showSheetCalendar ? 'rotate-90' : ''}`}>chevron_right</span>
-              </button>
-              {showSheetCalendar && (
-                <div className="mt-2 rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-3">
-                  <MonthCalendar
-                    selected={quickDate}
-                    onSelect={iso => {
-                      setQuickDate(iso);
-                      setQuickDateInput(iso);
-                      setShowSheetCalendar(false);
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-
-            <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">{t('recipeDetails.mealTime')}</p>
-            <div className="grid grid-cols-2 gap-2 mb-6">
-              {visibleMealTypes.map(meal => (
-                <button
-                  key={meal.id}
-                  onClick={() => setQuickMealType(meal.id)}
-                  className={`py-3 px-4 rounded-2xl font-bold text-sm border-2 text-left transition-all active:scale-95 ${
-                    quickMealType === meal.id
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-outline-variant/20 bg-surface-container-low text-on-surface-variant'
-                  }`}
-                >
-                  {meal.name}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => {
-                if (quickDate && quickMealType) handleAddMeal(quickDate, quickMealType);
-              }}
-              disabled={isAdding || !quickDate || !quickMealType}
-              className="w-full h-[56px] bg-[#6B8E23] text-white font-black text-base rounded-[20px] transition-all active:scale-[0.98] disabled:opacity-40 shadow-[0_4px_12px_rgba(107,142,35,0.3)] flex items-center justify-center gap-3"
-            >
-              {isAdding ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : t('recipeDetails.addToPlan')}
-            </button>
-          </div>
-        </div>
+      {showTarget && (
+        <PlanTargetSheet
+          mode="set"
+          title={recipe.name}
+          date={activeDate}
+          mealType={activeMealType}
+          meals={sheetMeals}
+          item={currentMacros}
+          targets={profile}
+          consumedForDay={consumedForDay}
+          onConfirm={(date, meal) => {
+            setActiveDate(date);
+            setActiveMealType(meal);
+            setShowTarget(false);
+          }}
+          onClose={() => setShowTarget(false)}
+        />
       )}
 
       {showMenu && (
-        <div data-scroll-lock className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-xs animate-fade-in" onClick={() => setShowMenu(false)}>
-          <div
-            ref={menuSheetRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="recipe-menu-title"
-            className="w-full sm:max-w-md bg-surface rounded-t-3xl sm:rounded-3xl px-6 pt-4 pb-safe-6 flex flex-col gap-2 animate-slide-up sm:animate-fade-in relative shadow-ambient"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-2 sm:hidden" />
-            <h3 id="recipe-menu-title" className="font-headline font-bold text-xl text-on-surface mb-3">{t('recipeDetails.menuTitle')}</h3>
-
-            <button onClick={handleEdit} className="flex items-center gap-4 p-4 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors text-left">
-              <span className="material-symbols-outlined text-primary">edit</span>
-              <span className="flex flex-col">
-                <span className="font-bold text-on-surface">{t('recipeDetails.edit')}</span>
-                <span className="text-xs text-on-surface-variant">{t('recipeDetails.editHint')}</span>
-              </span>
-            </button>
-
-            <button onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }} className="flex items-center gap-4 p-4 rounded-xl bg-error/5 hover:bg-error/10 transition-colors text-left border border-error/10">
-              <span className="material-symbols-outlined text-error">delete</span>
-              <span className="font-bold text-error">{t('recipeDelete.confirm')}</span>
-            </button>
-
-            <button onClick={() => setShowMenu(false)} className="w-full py-4 mt-1 font-bold text-on-surface-variant rounded-2xl active:scale-[0.98] transition-all">
-              {t('common.cancel')}
-            </button>
-          </div>
-        </div>
+        <PlanActionSheet
+          label={t('recipeDetails.menuTitle')}
+          title={recipe.name}
+          meta={<span className="truncate">{`${formatCompactNumber(recipe.kcal)} kcal · ${t('recipeDetails.recipeFor', { portions: portionsAccusative(basePortions) })}`}</span>}
+          leading={thumb}
+          onClose={() => setShowMenu(false)}
+        >
+          <PlanActionGroup>
+            <PlanAction icon="edit" label={t('recipeDetails.edit')} onClick={handleEdit} />
+          </PlanActionGroup>
+          <PlanActionGroup>
+            <PlanAction icon="delete" label={t('recipeDelete.confirm')} danger onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }} />
+          </PlanActionGroup>
+        </PlanActionSheet>
       )}
 
       {showDeleteConfirm && (
@@ -756,7 +643,6 @@ export function RecipeDetails() {
       )}
 
       {notice && <UndoSnackbar message={notice} onClose={closeNotice} />}
-
     </div>
   );
 }

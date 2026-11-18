@@ -2,26 +2,42 @@ import { useEffect, useState, useMemo } from 'react';
 import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type Product } from '../lib/apiClient';
 import { useAppData } from '../lib/AppDataContext';
-import { addDaysToIsoDate, formatShortDayLabel } from '../lib/planDates';
 import { productDisplayName } from '../lib/productName';
 import { canEditProduct, isCalendoriesProduct, isOwnItem, isUnverified } from '../lib/productPermissions';
 import { NutritionSummary } from '../components/NutritionSummary';
 import { ItemBadges } from '../components/FoodRows';
 import { OPEN_HEADER_CLASS, OutsidePressLayer } from '../components/OutsidePressLayer';
-import { PlanTargetPicker } from '../components/PlanTargetPicker';
 import { NewProductSheet, type ProductFormMode } from '../components/NewProductSheet';
 import { ConfirmSheet } from '../components/ConfirmSheet';
 import { draftFromProduct } from '../lib/productDraft';
-import { MeasureAmountRows } from '../components/MeasureAmountRows';
-import { DayBalancePreview } from '../components/DayBalancePreview';
 import { measureUnit } from '../lib/nutrients';
 import { ingredientAmountLabel, ingredientFactor } from '../lib/recipeIngredient';
-import { baseMeasureCode, defaultMeasure, findMeasure, initialMeasureValues, isBaseMeasure, measureBaseAmount, type MeasureValues } from '../lib/measures';
+import {
+  baseMeasureCode,
+  defaultMeasure,
+  findMeasure,
+  genericMeasures,
+  initialMeasureValues,
+  isBaseMeasure,
+  isPerPiece,
+  measureBaseAmount,
+  measureLabel,
+  measureRowLabel,
+  measureRowUnit,
+  productMeasures,
+  type MeasureValues,
+} from '../lib/measures';
 import { t } from '../i18n';
 import { useCloseOnBack } from '../lib/backNavigation';
 import { addSelectionAfterItem, readPlanSelection } from '../lib/planSelection';
 import { scaleMacros } from '../lib/macros';
-import { profileMealTypes } from '../lib/mealTypes';
+import { mealColor, mealTypeName, profileMealTypes } from '../lib/mealTypes';
+import { formatCompactNumber } from '../lib/compactNumber';
+import { AmountField } from '../components/AmountField';
+import { DayBalanceCard } from '../components/DayBalanceCard';
+import { DetailsTopBar } from '../components/DetailsTopBar';
+import { PlanTargetSheet } from '../components/PlanTargetSheet';
+import { addToMealLabel } from '../lib/planTarget';
 
 export function ProductDetails() {
   const { id } = useParams();
@@ -29,11 +45,10 @@ export function ProductDetails() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user, refreshMeals, getConsumedForDay, profile } = useAppData();
-  
+
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
-  const [daysToAdd, setDaysToAdd] = useState(1);
 
   const selectDate = searchParams.get('selectDate');
   const selectType = searchParams.get('selectType');
@@ -46,13 +61,20 @@ export function ProductDetails() {
   const [activeDate, setActiveDate] = useState(selectDate || '');
   const [activeMealType, setActiveMealType] = useState(selectType || '');
   const [showMenu, setShowMenu] = useState(false);
+  const [showTarget, setShowTarget] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [saved, setSaved] = useState(false);
   const [formMode, setFormMode] = useState<ProductFormMode | null>(null);
 
   useCloseOnBack(showMenu, () => setShowMenu(false));
 
-  const availableMealTypes = useMemo(() => profileMealTypes(profile), [profile]);
+  const mealTypes = useMemo(() => profileMealTypes(profile), [profile]);
+  const sheetMeals = useMemo(
+    () => mealTypes
+      .map((meal, index) => ({ id: meal.id, name: meal.name, color: mealColor(index), visible: meal.visible !== false }))
+      .filter(meal => meal.visible),
+    [mealTypes],
+  );
 
   useEffect(() => {
     async function loadProduct() {
@@ -86,10 +108,10 @@ export function ProductDetails() {
         const weight = data.portions_consumed || 0;
         const found = data.measure_code && data.measure_amount != null ? findMeasure(product, data.measure_code) : null;
         const measure = found && Math.abs(data.measure_amount * found.base_amount - weight) < 0.001 ? found : null;
-        const saved = measure ? { amount: data.measure_amount, unit: measure.code } : { amount: weight, unit: baseMeasureCode(product) };
-        setValues(initialMeasureValues(product, saved));
-        setActiveCode(saved.unit);
-        setSavedAmount({ weight, code: saved.unit });
+        const savedValue = measure ? { amount: data.measure_amount, unit: measure.code } : { amount: weight, unit: baseMeasureCode(product) };
+        setValues(initialMeasureValues(product, savedValue));
+        setActiveCode(savedValue.unit);
+        setSavedAmount({ weight, code: savedValue.unit });
       }
     }
     loadMeal();
@@ -120,23 +142,12 @@ export function ProductDetails() {
       measure_code: baseChosen ? null : activeCode,
       measure_amount: baseChosen ? null : activeAmount,
     };
-    const mealInserts = [];
-    for (let i = 0; i < daysToAdd; i++) {
-      mealInserts.push({
-        product: { id: product.id },
-        meal_date: addDaysToIsoDate(targetDate, i),
-        meal_type: targetType,
-        ...chosenAmount
-      });
-    }
 
     try {
       if (mealId) {
         await api.meals.update(mealId, chosenAmount);
       } else {
-        for (const insert of mealInserts) {
-          await api.meals.add(insert);
-        }
+        await api.meals.add({ product: { id: product.id }, meal_date: targetDate, meal_type: targetType, ...chosenAmount });
         await addSelectionAfterItem(readPlanSelection(location.state), { kind: 'product', id: String(product.id) }, targetDate, targetType);
       }
       await refreshMeals();
@@ -184,84 +195,72 @@ export function ProductDetails() {
 
   const own = isOwnItem(product, user);
   const editable = canEditProduct(product, user);
-  const activeDateDisplay = formatShortDayLabel(activeDate || selectDate || '');
+  const planMode = Boolean(selectDate && selectType);
+  const measures = [...productMeasures(product), ...genericMeasures(product)];
+  const measure = activeMeasure ?? measures[0];
+  const mealIndex = mealTypes.findIndex(meal => meal.id === activeMealType);
+  const per100 = isPerPiece(product)
+    ? t('product.kcalPerPiece', { kcal: formatCompactNumber(product.kcal) })
+    : t('product.kcalPer100', { kcal: formatCompactNumber(product.kcal), unit: measureUnit(product.unit) });
+  const menuItemClass = 'w-full h-12 flex items-center gap-3.5 px-4 text-left text-[15px] font-medium text-on-surface hover:bg-surface-container-highest transition-colors';
+
+  const changeUnit = (code: string) => {
+    const next = findMeasure(product, code);
+    if (!next) return;
+    setValues(previous => {
+      const value = previous[next.code];
+      return value === '' || value === undefined ? previous : { ...previous, [next.code]: Math.min(Number(value), next.max_amount) };
+    });
+    setActiveCode(next.code);
+  };
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col animate-fade-in relative">
-      
-      {/* Top Header - Zgodny ze screenem */}
-      <header className={`sticky top-0 w-full ${showMenu ? OPEN_HEADER_CLASS : 'z-40'} bg-surface-container-lowest px-4 py-3 pt-safe-3 flex items-center gap-4 border-b border-outline-variant/10`}>
-        <button onClick={() => navigate(-1)} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 shrink-0">
-          <span className="material-symbols-outlined">arrow_back</span>
-        </button>
-        <PlanTargetPicker
-          meals={availableMealTypes}
-          mealType={activeMealType}
-          date={activeDate}
-          editing={Boolean(mealId)}
-          onMealTypeChange={setActiveMealType}
-          onDateChange={setActiveDate}
-        />
-
-        {user && !product.deleted && (
-        <div className="relative ml-auto flex items-center shrink-0">
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            aria-label={t('product.menu')}
-            aria-expanded={showMenu}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 shrink-0"
+      <header className={`sticky top-0 w-full ${showMenu ? OPEN_HEADER_CLASS : 'z-40'} bg-surface pt-safe`}>
+        <div className="max-w-xl mx-auto">
+          <DetailsTopBar
+            overPhoto={false}
+            backLabel={t('recipeDetails.back')}
+            onBack={() => navigate(-1)}
+            target={planMode ? {
+              mealName: mealTypeName(activeMealType, mealTypes),
+              mealColor: mealColor(mealIndex),
+              date: activeDate,
+              editing: Boolean(mealId),
+              onOpen: () => setShowTarget(true),
+            } : null}
+            menu={user && !product.deleted ? { label: t('product.menu'), expanded: showMenu, onOpen: () => setShowMenu(!showMenu) } : null}
           >
-            <span className="material-symbols-outlined">more_vert</span>
-          </button>
-
-          {showMenu && (
-            <>
-              <OutsidePressLayer onClose={() => setShowMenu(false)} />
-              <div role="menu" className="absolute right-0 top-12 pointer-events-auto w-56 bg-surface-container border border-outline-variant/10 rounded-xl shadow-lg z-50 overflow-hidden text-sm py-1 animate-fade-in">
-                <button
-                  role="menuitem"
-                  onClick={() => { setShowMenu(false); toggleSaved(); }}
-                  className="w-full flex items-center px-4 py-3 text-left font-medium text-on-surface hover:bg-surface-container-highest transition-colors font-body"
-                >
-                  <span className="material-symbols-outlined mr-3 text-[18px]">{saved ? 'heart_minus' : 'favorite'}</span>
-                  {t(saved ? 'product.unsave' : 'product.save')}
-                </button>
-                {editable ? (
-                  <>
-                    <button
-                      role="menuitem"
-                      onClick={() => { setShowMenu(false); setFormMode('edit'); }}
-                      className="w-full flex items-center px-4 py-3 text-left font-medium text-on-surface hover:bg-surface-container-highest transition-colors font-body"
-                    >
-                      <span className="material-symbols-outlined mr-3 text-[18px]">edit</span>
-                      {t('product.edit')}
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }}
-                      className="w-full flex items-center px-4 py-3 text-left font-medium text-error hover:bg-surface-container-highest transition-colors font-body"
-                    >
-                      <span className="material-symbols-outlined mr-3 text-[18px]">delete</span>
-                      {t('product.delete')}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      role="menuitem"
-                      onClick={() => { setShowMenu(false); setFormMode('ownVersion'); }}
-                      className="w-full flex items-center px-4 py-3 text-left font-medium text-on-surface hover:bg-surface-container-highest transition-colors font-body"
-                    >
-                      <span className="material-symbols-outlined mr-3 text-[18px]">content_copy</span>
+            {showMenu && (
+              <>
+                <OutsidePressLayer onClose={() => setShowMenu(false)} />
+                <div role="menu" className="absolute right-4 top-[58px] pointer-events-auto w-60 bg-surface-container-high rounded-2xl shadow-ambient z-50 overflow-hidden py-1.5 animate-fade-in">
+                  <button role="menuitem" onClick={() => { setShowMenu(false); toggleSaved(); }} className={menuItemClass}>
+                    <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-on-surface-variant">{saved ? 'heart_minus' : 'favorite'}</span>
+                    {t(saved ? 'product.unsave' : 'product.save')}
+                  </button>
+                  {editable ? (
+                    <>
+                      <button role="menuitem" onClick={() => { setShowMenu(false); setFormMode('edit'); }} className={menuItemClass}>
+                        <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-on-surface-variant">edit</span>
+                        {t('product.edit')}
+                      </button>
+                      <button role="menuitem" onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }} className={`${menuItemClass} !text-error`}>
+                        <span aria-hidden="true" className="material-symbols-outlined text-[20px]">delete</span>
+                        {t('product.delete')}
+                      </button>
+                    </>
+                  ) : (
+                    <button role="menuitem" onClick={() => { setShowMenu(false); setFormMode('ownVersion'); }} className={menuItemClass}>
+                      <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-on-surface-variant">content_copy</span>
                       {t('product.makeOwnVersion')}
                     </button>
-                  </>
-                )}
-              </div>
-            </>
-          )}
+                  )}
+                </div>
+              </>
+            )}
+          </DetailsTopBar>
         </div>
-        )}
       </header>
 
       {showDeleteConfirm && (
@@ -276,43 +275,54 @@ export function ProductDetails() {
         />
       )}
 
-      {/* Produkt Title - Zgodny ze screenem (pod nagłówkiem, bez zdjęcia) */}
-      <div className="max-w-xl mx-auto w-full px-4 pt-6">
-        <h1 className="font-headline font-bold text-2xl text-on-surface tracking-tight leading-tight">{productDisplayName(product)}</h1>
-        <div className="mt-2 empty:hidden">
-          <ItemBadges own={own} unverified={isUnverified(product)} calendories={isCalendoriesProduct(product)} />
+      <main className="w-full max-w-xl mx-auto flex flex-col">
+        <div className="px-4 pt-3">
+          <h1 className="font-headline font-extrabold text-[26px] text-on-surface tracking-tight leading-tight">{productDisplayName(product)}</h1>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[13.5px] text-on-surface-variant">
+            <span>{per100}</span>
+            <span className="empty:hidden">
+              <ItemBadges own={own} unverified={isUnverified(product)} calendories={isCalendoriesProduct(product)} />
+            </span>
+          </div>
         </div>
-      </div>
 
-      {/* Kalkulator - Zgodny ze stylem "pigułek" ze screena */}
-      <div className="flex flex-col gap-2 w-full max-w-xl mx-auto px-4 pt-4">
-        <MeasureAmountRows
-          product={product}
-          values={values}
-          activeCode={activeCode}
-          onActivate={setActiveCode}
-          onChange={(code, next) => setValues(previous => ({ ...previous, [code]: next }))}
-        />
-      </div>
-
-      <main className="w-full max-w-xl mx-auto px-4 py-8 flex flex-col gap-10">
-        
-
-        <NutritionSummary
-          title={t('product.nutritionFor', { amount: chosenLabel })}
-          values={currentMacros}
-          macroSplit={product}
-          tableColumns={[{ label: t('nutrients.per100', { unit: measureUnit(product.unit) }), values: product }]}
-        />
-
-        {selectDate && profile && (
-          <DayBalancePreview
-            dayLabel={activeDateDisplay}
-            dayWithoutItem={getConsumedForDay(activeDate || selectDate, mealId)}
-            item={currentMacros}
-            targets={profile}
-            editing={Boolean(mealId)}
+        <div className="px-4 mt-5">
+          <AmountField
+            label={measureRowLabel(product, measure)}
+            value={values[measure.code] ?? ''}
+            max={measure.max_amount}
+            unit={measure.code}
+            unitLabel={isBaseMeasure(product, measure.code) ? measureRowUnit(product, measure, activeAmount) : measureLabel(measure, activeAmount)}
+            units={measures.map(option => ({
+              value: option.code,
+              label: measureRowUnit(product, option, 1),
+            }))}
+            note={isBaseMeasure(product, measure.code) ? undefined : `${formatCompactNumber(currentWeight, 1)} ${baseMeasureCode(product)}`}
+            kcal={currentMacros.kcal}
+            onChange={next => setValues(previous => ({ ...previous, [measure.code]: next }))}
+            onUnitChange={changeUnit}
           />
+        </div>
+
+        <div className="px-4 mt-7">
+          <NutritionSummary
+            title={t('recipeDetails.nutritionTitle')}
+            subtitle={chosenLabel}
+            values={currentMacros}
+            macroSplit={product}
+            tableColumns={[{ label: t('nutrients.per100', { unit: measureUnit(product.unit) }), values: product }]}
+          />
+        </div>
+
+        {planMode && profile && (
+          <div className="px-4 mt-6">
+            <DayBalanceCard
+              dayWithoutItem={getConsumedForDay(activeDate, mealId)}
+              item={currentMacros}
+              targets={profile}
+              editing={Boolean(mealId)}
+            />
+          </div>
         )}
       </main>
 
@@ -327,39 +337,38 @@ export function ProductDetails() {
         />
       )}
 
-      {/* Floating Add to Plan Bar - Zgodnie ze screenem */}
-      {selectDate && selectType && (
-        <div className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl border-t border-outline-variant/10 p-4 pb-safe z-50 shadow-ambient">
-          <div className="max-w-xl mx-auto w-full flex gap-3 items-center">
-            
-            {/* Stepper Dni */}
-            {!mealId && (
-              <div className="flex items-center bg-surface-container-low border border-outline-variant/20 rounded-2xl p-1 h-[56px]">
-                <button 
-                  onClick={() => setDaysToAdd(prev => Math.max(1, prev - 1))}
-                  className="w-10 h-full flex items-center justify-center text-on-surface rounded-xl hover:bg-surface-container-highest transition-all font-bold"
-                >
-                  <span className="material-symbols-outlined text-[20px]">remove</span>
-                </button>
-                <div className="px-2 min-w-[60px] flex flex-col items-center justify-center -space-y-1">
-                  <span className="font-black text-lg text-on-surface">{daysToAdd}</span>
-                  <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">dni</span>
-                </div>
-                <button 
-                  onClick={() => setDaysToAdd(prev => Math.min(30, prev + 1))}
-                  className="w-10 h-full flex items-center justify-center text-on-surface rounded-xl hover:bg-surface-container-highest transition-all font-bold"
-                >
-                  <span className="material-symbols-outlined text-[20px]">add</span>
-                </button>
-              </div>
-            )}
+      {showTarget && (
+        <PlanTargetSheet
+          mode="set"
+          title={productDisplayName(product)}
+          date={activeDate}
+          mealType={activeMealType}
+          meals={sheetMeals}
+          item={currentMacros}
+          targets={profile}
+          consumedForDay={date => getConsumedForDay(date, mealId)}
+          onConfirm={(date, meal) => {
+            setActiveDate(date);
+            setActiveMealType(meal);
+            setShowTarget(false);
+          }}
+          onClose={() => setShowTarget(false)}
+        />
+      )}
 
-            <button 
+      {planMode && (
+        <div className="fixed bottom-0 inset-x-0 z-50 px-4 pt-3.5 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-surface from-70% to-transparent">
+          <div className="max-w-xl mx-auto">
+            <button
               onClick={handleAddProduct}
               disabled={isAdding || !(currentWeight > 0) || !withinLimit || unchangedPlanItem}
-              className="flex-1 h-[56px] bg-[#6B8E23] text-white font-black text-base rounded-[20px] shadow-lg shadow-[#6B8E23]/20 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center"
+              className="w-full h-[52px] rounded-2xl bg-primary text-on-primary font-headline font-extrabold text-base flex items-center justify-center active:scale-[0.98] transition-transform disabled:bg-surface-container-high disabled:text-on-surface-variant"
             >
-              {isAdding ? 'Czekaj...' : (mealId ? 'Zaktualizuj' : 'Dodaj')}
+              {isAdding ? (
+                <span className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin"></span>
+              ) : (
+                mealId ? t('recipeDetails.update') : addToMealLabel(activeMealType, mealTypes)
+              )}
             </button>
           </div>
         </div>

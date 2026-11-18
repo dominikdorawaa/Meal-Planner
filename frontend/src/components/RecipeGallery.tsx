@@ -14,7 +14,7 @@ export function RecipeGallery({ images, alt, children }: { images: RecipeImage[]
   };
 
   return (
-    <div className="relative w-full max-w-xl mx-auto aspect-[4/3] bg-surface-container-highest shrink-0 overflow-hidden sm:rounded-b-[32px]">
+    <div className="relative w-full max-w-xl mx-auto aspect-[4/3] bg-surface-container-highest shrink-0 overflow-hidden">
       {count === 0 ? (
         <RecipeCoverImage image={null} alt={alt} className="absolute inset-0 w-full h-full" imgClassName="w-full h-full object-cover" />
       ) : (
@@ -37,10 +37,10 @@ export function RecipeGallery({ images, alt, children }: { images: RecipeImage[]
       )}
       {count > 1 && (
         <>
-          <span className="absolute top-3 left-3 bg-black/50 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-full" aria-hidden="true">
+          <span className="absolute bottom-10 left-4 bg-black/55 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-full" aria-hidden="true">
             {shown + 1}/{count}
           </span>
-          <div className="absolute bottom-3 inset-x-0 flex justify-center gap-1.5 pointer-events-none" aria-hidden="true">
+          <div className="absolute bottom-11 inset-x-0 flex justify-center gap-1.5 pointer-events-none" aria-hidden="true">
             {images.map((image, index) => (
               <span
                 key={image.url}
