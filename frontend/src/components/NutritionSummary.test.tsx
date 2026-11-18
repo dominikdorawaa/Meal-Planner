@@ -11,7 +11,8 @@ const values = { kcal: 250, protein: 10, fat: 10, carbs: 10.25 };
 function renderSummary() {
   render(
     <NutritionSummary
-      title="Wartości odżywcze: 100 g"
+      title="Wartości odżywcze"
+      subtitle="100 g"
       values={values}
       macroSplit={values}
       tableColumns={[{ label: '100 g', values: { ...values, sugars: 4 } }]}
@@ -23,11 +24,14 @@ describe('NutritionSummary', () => {
   it('shows calories and macro rings filled by the share of calories', () => {
     renderSummary();
 
-    expect(screen.getByRole('heading', { name: 'Wartości odżywcze: 100 g' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Wartości odżywcze' })).toBeTruthy();
+    expect(screen.getByText('100 g')).toBeTruthy();
+    expect(screen.getByText('Białko').className).toContain('text-macro-protein');
+    expect(screen.getByText('kcal').className).toContain('text-primary');
     expect(screen.getByTestId('kcal-value').textContent).toBe('250');
     expect(screen.getByTestId('protein-value').textContent).toBe('10g');
     expect(screen.getByTestId('carbs-value').textContent).toBe('10.3g');
-    for (const label of ['kcal', 'Białko', 'Tłuszcz', 'Węgle']) expect(screen.getByText(label)).toBeTruthy();
+    for (const label of ['Tłuszcz', 'Węgle']) expect(screen.getByText(label)).toBeTruthy();
     expect(screen.getByTestId('fat-ring').style.background).toBe(macroRingBackground('fat', 53));
     expect(screen.getByTestId('protein-ring').style.background).toBe(macroRingBackground('protein', 23));
   });
@@ -46,11 +50,11 @@ describe('NutritionSummary', () => {
     expect(screen.getByTestId('fat-ring').style.background).toBe(macroRingBackground('fat', 31));
   });
 
-  it('opens and closes the full table under the carbs ring', () => {
+  it('opens and closes the full table from the arrow next to the rings', () => {
     renderSummary();
     expect(screen.queryByRole('table')).toBeNull();
 
-    const toggle = screen.getByRole('button', { name: t('nutrients.showTable', { value: '10.3g' }) });
+    const toggle = screen.getByRole('button', { name: t('nutrients.showTable') });
     fireEvent.click(toggle);
 
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
@@ -58,7 +62,24 @@ describe('NutritionSummary', () => {
     expect(screen.getByRole('columnheader', { name: '100 g' })).toBeTruthy();
     expect(screen.getByRole('rowheader', { name: 'Cukry' })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: t('nutrients.hideTable', { value: '10.3g' }) }));
+    fireEvent.click(screen.getByRole('button', { name: t('nutrients.hideTable') }));
     expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('can put the arrow in the header instead', () => {
+    render(
+      <NutritionSummary
+        title="Wartości odżywcze"
+        values={values}
+        macroSplit={values}
+        tableColumns={[{ label: '100 g', values }]}
+        toggle="header"
+      />
+    );
+
+    const toggle = screen.getByRole('button', { name: t('nutrients.showTable') });
+    expect(toggle.parentElement?.querySelector('h2')).toBeTruthy();
+    fireEvent.click(toggle);
+    expect(screen.getByRole('table')).toBeTruthy();
   });
 });

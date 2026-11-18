@@ -94,23 +94,37 @@ afterEach(() => {
 
 const PACKAGES = t('amount.countOf', { name: 'opakowania' });
 const PIECES = t('amount.countOf', { name: 'sztuki' });
+const ADD = t('planTarget.addTo.lunch');
+
+function chooseUnit(code: string) {
+  fireEvent.change(screen.getByLabelText(t('amount.unit')), { target: { value: code } });
+}
+
+function unitOptions() {
+  return Array.from((screen.getByLabelText(t('amount.unit')) as HTMLSelectElement).options).map(option => option.textContent);
+}
 
 describe('ProductDetails package amount', () => {
   it('offers a whole package with its weight and calories when the package weight is known', async () => {
     mocks.getProduct.mockResolvedValue(withMeasures(SKYR, measure('package', 450)));
     renderDetails();
 
-    const packages = await screen.findByLabelText(PACKAGES);
-    const packageRow = packages.closest('[data-amount-row]') as HTMLElement;
-    expect(within(packageRow).getByText(t('amount.measureOf', { name: 'opakowanie', amount: '450 g' }))).toBeTruthy();
-    expect(within(packageRow).getByText('270')).toBeTruthy();
+    await screen.findByDisplayValue('100');
+    expect(unitOptions()).toEqual(['g', t('amount.measureOf', { name: 'opakowanie', amount: '450 g' })]);
+    fireEvent.change(screen.getByLabelText(t('amount.grams')), { target: { value: '450' } });
+    chooseUnit('package');
+    const packages = screen.getByLabelText(PACKAGES) as HTMLInputElement;
+    expect(packages.value).toBe('1');
+    expect(screen.getByTestId('amount-kcal').textContent).toBe('270');
+    expect(screen.getByText('450 g')).toBeTruthy();
 
     fireEvent.change(packages, { target: { value: '2' } });
-    expect(within(packageRow).getByText('540')).toBeTruthy();
-    expect(within(packageRow).getByText(t('amount.measureOf', { name: 'opakowania', amount: '900 g' }))).toBeTruthy();
-    expect(screen.getByText(t('product.nutritionFor', { amount: '2 opakowania (900 g)' }))).toBeTruthy();
+    expect(screen.getByTestId('amount-kcal').textContent).toBe('540');
+    expect(screen.getByText('opakowania')).toBeTruthy();
+    expect(screen.getByText('900 g')).toBeTruthy();
+    expect(screen.getByText('2 opakowania (900 g)')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+    fireEvent.click(screen.getByRole('button', { name: ADD }));
     await screen.findByText('plan screen');
     expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({
       portions_consumed: 900, measure_code: 'package', measure_amount: 2,
@@ -121,7 +135,9 @@ describe('ProductDetails package amount', () => {
     mocks.getProduct.mockResolvedValue(withMeasures({ ...SKYR, unit: '100ml' }, measure('package', 330)));
     renderDetails();
 
-    expect(await screen.findByText(t('amount.measureOf', { name: 'opakowanie', amount: '330 ml' }))).toBeTruthy();
+    await screen.findByDisplayValue('100');
+    expect(unitOptions()).toContain(t('amount.measureOf', { name: 'opakowanie', amount: '330 ml' }));
+    expect(screen.getByText(t('product.kcalPer100', { kcal: 60, unit: 'ml' }))).toBeTruthy();
   });
 
   it('does not offer packages when the package weight is unknown', async () => {
@@ -129,7 +145,9 @@ describe('ProductDetails package amount', () => {
     renderDetails();
 
     await screen.findByDisplayValue('100');
+    expect(screen.queryByLabelText(t('amount.unit'))).toBeNull();
     expect(screen.queryByLabelText(PACKAGES)).toBeNull();
+    expect(screen.getByText(t('product.kcalPer100', { kcal: 60, unit: 'g' }))).toBeTruthy();
   });
 });
 
@@ -140,21 +158,21 @@ describe('ProductDetails kitchen measures', () => {
     mocks.getProduct.mockResolvedValue(MILK);
     renderDetails();
 
-    const kind = await screen.findByLabelText(t('amount.kitchenMeasure')) as HTMLSelectElement;
-    expect(Array.from(kind.options).map(option => option.textContent)).toEqual(['łyżka', 'łyżeczka', 'szczypta']);
-    const row = kind.closest('[data-amount-row]') as HTMLElement;
-    expect(within(row).queryByText(/ml/)).toBeNull();
-    expect(within(row).getByText('9')).toBeTruthy();
+    await screen.findByDisplayValue('100');
+    expect(unitOptions()).toEqual(['ml', 'szklanka (250 ml)', 'łyżka (15 ml)', 'łyżeczka (5 ml)', 'szczypta (0.5 ml)']);
+    chooseUnit('tbsp');
+    expect(screen.getByLabelText(t('amount.countOf', { name: 'łyżki' }))).toHaveProperty('value', '6.7');
+    expect(screen.getByTestId('amount-kcal').textContent).toBe('60');
 
     fireEvent.change(screen.getByLabelText(t('amount.countOf', { name: 'łyżki' })), { target: { value: '2' } });
-    expect(row.className).toContain('bg-primary/5');
     expect(screen.getByTestId('kcal-value').textContent).toBe('18');
-    expect(screen.getByText(t('product.nutritionFor', { amount: '2 łyżki (30 ml)' }))).toBeTruthy();
+    expect(screen.getByText('2 łyżki (30 ml)')).toBeTruthy();
 
-    fireEvent.change(kind, { target: { value: 'tsp' } });
-    expect(screen.getByLabelText(t('amount.countOf', { name: 'łyżeczki' }))).toHaveProperty('value', '2');
+    chooseUnit('tsp');
+    expect(screen.getByLabelText(t('amount.countOf', { name: 'łyżeczki' }))).toHaveProperty('value', '6');
+    fireEvent.change(screen.getByLabelText(t('amount.countOf', { name: 'łyżeczki' })), { target: { value: '2' } });
     expect(screen.getByTestId('kcal-value').textContent).toBe('6');
-    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+    fireEvent.click(screen.getByRole('button', { name: ADD }));
 
     await screen.findByText('plan screen');
     expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({
@@ -162,90 +180,60 @@ describe('ProductDetails kitchen measures', () => {
     }));
   });
 
-  it('picks a kitchen measure with a single tap on its row and saves it', async () => {
-    mocks.getProduct.mockResolvedValue(MILK);
-    renderDetails();
-
-    const choose = await screen.findByRole('button', { name: t('amount.chooseRow', { label: t('amount.countOf', { name: 'łyżki' }) }) });
-    const row = choose.closest('[data-amount-row]') as HTMLElement;
-    expect(choose.getAttribute('aria-pressed')).toBe('false');
-    fireEvent.click(choose);
-    expect(choose.getAttribute('aria-pressed')).toBe('true');
-    expect(row.className).toContain('bg-primary/5');
-    expect(screen.getByLabelText(t('amount.countOf', { name: 'łyżki' }))).toHaveProperty('value', '1');
-    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
-
-    await screen.findByText('plan screen');
-    expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({
-      portions_consumed: 15, measure_code: 'tbsp', measure_amount: 1,
-    }));
-  });
-
-  it('activates the kitchen measure row when its list is opened', async () => {
-    mocks.getProduct.mockResolvedValue(MILK);
-    renderDetails();
-
-    const kind = await screen.findByLabelText(t('amount.kitchenMeasure'));
-    const row = kind.closest('[data-amount-row]') as HTMLElement;
-    expect(row.className).not.toContain('bg-primary/5');
-    fireEvent.focus(kind);
-    expect(row.className).toContain('bg-primary/5');
-    expect(screen.getByTestId('kcal-value').textContent).toBe('9');
-  });
-
   it('opens a plan item saved in a kitchen measure in that measure', async () => {
     mocks.getProduct.mockResolvedValue(MILK);
     mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 1.5, measure_code: 'pinch', measure_amount: 3 }]);
     renderDetails('?selectDate=2026-10-17&selectType=lunch&mealId=m1');
 
-    const kind = await screen.findByLabelText(t('amount.kitchenMeasure')) as HTMLSelectElement;
-    await waitFor(() => expect(kind.value).toBe('pinch'));
-    const amount = screen.getByLabelText(t('amount.countOf', { name: 'szczypty' })) as HTMLInputElement;
-    expect(amount.value).toBe('3');
-    expect(amount.closest('[data-amount-row]')?.className).toContain('bg-primary/5');
-    expect((screen.getByRole('button', { name: 'Zaktualizuj' }) as HTMLButtonElement).disabled).toBe(true);
-
-    fireEvent.focus(screen.getByLabelText(t('amount.grams')));
-    expect(kind.value).toBe('pinch');
-    fireEvent.focus(kind);
-    expect(amount.closest('[data-amount-row]')?.className).toContain('bg-primary/5');
-    expect(screen.getByText(t('product.nutritionFor', { amount: '3 szczypty (1.5 ml)' }))).toBeTruthy();
+    await waitFor(() => expect((screen.getByLabelText(t('amount.unit')) as HTMLSelectElement).value).toBe('pinch'));
+    expect(screen.getByLabelText(t('amount.countOf', { name: 'szczypty' }))).toHaveProperty('value', '3');
+    expect((screen.getByRole('button', { name: t('recipeDetails.update') }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('3 szczypty (1.5 ml)')).toBeTruthy();
   });
 
   it('keeps the amount within the limit of the newly chosen kitchen measure', async () => {
     mocks.getProduct.mockResolvedValue(withGenericMeasures(withMeasures({ ...SKYR, unit: '100ml' })));
     renderDetails();
 
-    fireEvent.change(await screen.findByLabelText(t('amount.countOf', { name: 'łyżki' })), { target: { value: '100' } });
-    fireEvent.change(screen.getByLabelText(t('amount.kitchenMeasure')), { target: { value: 'cup' } });
+    await screen.findByDisplayValue('100');
+    chooseUnit('cup');
+    const cups = () => screen.getByLabelText(t('amount.countOf', { name: 'szklanki' })) as HTMLInputElement;
+    expect(cups().value).toBe('0.4');
+    fireEvent.change(cups(), { target: { value: '80' } });
+    expect(cups().value).toBe('0.4');
+    fireEvent.change(cups(), { target: { value: '20' } });
+    chooseUnit('tbsp');
+    expect(screen.getByLabelText(t('amount.countOf', { name: 'łyżki' }))).toHaveProperty('value', '100');
+    chooseUnit('cup');
 
-    expect(screen.getByLabelText(t('amount.countOf', { name: 'szklanki' }))).toHaveProperty('value', '50');
-    expect((screen.getByRole('button', { name: 'Dodaj' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(cups().value).toBe('6');
+    expect((screen.getByRole('button', { name: ADD }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('offers no kitchen measures for products counted in pieces', async () => {
     mocks.getProduct.mockResolvedValue({ ...SKYR, unit: 'pc', generic_measures: [measure('tbsp', 15)] });
     renderDetails();
     await screen.findByLabelText(t('amount.pieces'));
-    expect(screen.queryByLabelText(t('amount.kitchenMeasure'))).toBeNull();
+    expect(screen.queryByLabelText(t('amount.unit'))).toBeNull();
+    expect(screen.getByText(t('product.kcalPerPiece', { kcal: 60 }))).toBeTruthy();
   });
 });
 
 describe('ProductDetails measures', () => {
   const BANANA = withMeasures({ ...SKYR, name: 'Banan', kcal: 90 }, measure('piece', 120, true), measure('slice', 10));
 
-  it('starts with one default measure and adds it to the plan with its weight', async () => {
+  it('starts with the default measure and adds another one to the plan with its weight', async () => {
     mocks.getProduct.mockResolvedValue(BANANA);
     renderDetails();
 
     const pieces = await screen.findByLabelText(PIECES) as HTMLInputElement;
     expect(pieces.value).toBe('1');
-    expect(pieces.closest('[data-amount-row]')?.className).toContain('bg-primary/5');
     expect(screen.getByTestId('kcal-value').textContent).toBe('108');
 
+    chooseUnit('slice');
     fireEvent.change(screen.getByLabelText(t('amount.countOf', { name: 'plasterki' })), { target: { value: '3' } });
     expect(screen.getByTestId('kcal-value').textContent).toBe('27');
-    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+    fireEvent.click(screen.getByRole('button', { name: ADD }));
 
     await screen.findByText('plan screen');
     expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({
@@ -257,8 +245,10 @@ describe('ProductDetails measures', () => {
     mocks.getProduct.mockResolvedValue(BANANA);
     renderDetails();
 
-    fireEvent.change(await screen.findByLabelText(t('amount.grams')), { target: { value: '150' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+    await screen.findByLabelText(PIECES);
+    chooseUnit('g');
+    fireEvent.change(screen.getByLabelText(t('amount.grams')), { target: { value: '150' } });
+    fireEvent.click(screen.getByRole('button', { name: ADD }));
 
     await screen.findByText('plan screen');
     expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({
@@ -271,11 +261,11 @@ describe('ProductDetails measures', () => {
     mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 240, measure_code: 'piece', measure_amount: 2 }]);
     renderDetails('?selectDate=2026-10-17&selectType=lunch&mealId=m1');
 
-    const pieces = await screen.findByLabelText(PIECES) as HTMLInputElement;
-    await waitFor(() => expect(pieces.value).toBe('2'));
-    const update = screen.getByRole('button', { name: 'Zaktualizuj' }) as HTMLButtonElement;
+    await waitFor(() => expect((screen.getByLabelText(PIECES) as HTMLInputElement).value).toBe('2'));
+    const update = screen.getByRole('button', { name: t('recipeDetails.update') }) as HTMLButtonElement;
     expect(update.disabled).toBe(true);
 
+    chooseUnit('g');
     fireEvent.change(screen.getByLabelText(t('amount.grams')), { target: { value: '240' } });
     expect(update.disabled).toBe(false);
     fireEvent.click(update);
@@ -289,10 +279,10 @@ describe('ProductDetails measures', () => {
     mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 240, measure_code: 'piece', measure_amount: 2 }]);
     renderDetails('?selectDate=2026-10-17&selectType=lunch&mealId=m1');
 
-    const grams = await screen.findByLabelText(t('amount.grams')) as HTMLInputElement;
-    await waitFor(() => expect(grams.value).toBe('240'));
-    expect((screen.getByLabelText(PIECES) as HTMLInputElement).value).toBe('1');
-    expect((screen.getByRole('button', { name: 'Zaktualizuj' }) as HTMLButtonElement).disabled).toBe(true);
+    await waitFor(() => expect((screen.getByLabelText(t('amount.grams')) as HTMLInputElement).value).toBe('240'));
+    expect((screen.getByRole('button', { name: t('recipeDetails.update') }) as HTMLButtonElement).disabled).toBe(true);
+    chooseUnit('piece');
+    expect((screen.getByLabelText(PIECES) as HTMLInputElement).value).toBe('1.6');
   });
 
   it('opens a plan item in grams when its measure is no longer offered', async () => {
@@ -300,8 +290,7 @@ describe('ProductDetails measures', () => {
     mocks.getAllMeals.mockResolvedValue([{ id: 'm1', portions_consumed: 60, measure_code: 'tbsp', measure_amount: 4 }]);
     renderDetails('?selectDate=2026-10-17&selectType=lunch&mealId=m1');
 
-    const grams = await screen.findByLabelText(t('amount.grams')) as HTMLInputElement;
-    await waitFor(() => expect(grams.value).toBe('60'));
+    await waitFor(() => expect((screen.getByLabelText(t('amount.grams')) as HTMLInputElement).value).toBe('60'));
     expect(screen.getByTestId('kcal-value').textContent).toBe('54');
   });
 
@@ -313,7 +302,7 @@ describe('ProductDetails measures', () => {
     expect(pieces.value).toBe('1');
     expect(screen.getByTestId('kcal-value').textContent).toBe('75');
     fireEvent.change(pieces, { target: { value: '2' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+    fireEvent.click(screen.getByRole('button', { name: ADD }));
 
     await screen.findByText('plan screen');
     expect(mocks.addMeal).toHaveBeenCalledWith(expect.objectContaining({
@@ -323,17 +312,17 @@ describe('ProductDetails measures', () => {
 });
 
 describe('ProductDetails nutrition table', () => {
-  it('opens one table per 100 g from the carbs ring', async () => {
+  it('opens one table per 100 g from the arrow next to the rings', async () => {
     mocks.getProduct.mockResolvedValue({ ...SKYR, saturated_fat: 0.1, sugars: 2.5, fiber: 0, salt: 0.12 });
     renderDetails();
 
-    const toggle = await screen.findByRole('button', { name: t('nutrients.showTable', { value: '3g' }) });
+    const toggle = await screen.findByRole('button', { name: t('nutrients.showTable') });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByRole('table')).toBeNull();
 
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(toggle.getAttribute('aria-label')).toBe(t('nutrients.hideTable', { value: '3g' }));
+    expect(toggle.getAttribute('aria-label')).toBe(t('nutrients.hideTable'));
     expect(screen.getAllByRole('table')).toHaveLength(1);
     expect(screen.getAllByRole('columnheader').map(header => header.textContent)).toEqual([t('nutrients.name'), '100 g']);
     expect(screen.getAllByRole('rowheader').map(header => header.textContent)).toEqual([
@@ -350,7 +339,7 @@ describe('ProductDetails nutrition table', () => {
     mocks.getProduct.mockResolvedValue({ ...SKYR, unit: '100ml', fat: null });
     renderDetails();
 
-    fireEvent.click(await screen.findByRole('button', { name: t('nutrients.showTable', { value: '3g' }) }));
+    fireEvent.click(await screen.findByRole('button', { name: t('nutrients.showTable') }));
     expect(screen.getByRole('columnheader', { name: '100 ml' })).toBeTruthy();
     expect(within(screen.getByRole('row', { name: /^Tłuszcz/ })).getByRole('cell').textContent).toBe('-');
     expect(screen.getAllByText('-')).toHaveLength(5);
@@ -371,7 +360,7 @@ describe('ProductDetails saving and ownership', () => {
     tapOutside();
     expect(screen.queryByRole('menu')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /Dodajesz do: II śniadanie/ }));
+    fireEvent.click(screen.getByRole('button', { name: /II śniadanie, Sobota, 17\.10\. Zmień porę lub dzień/ }));
     expect(screen.getByRole('button', { name: 'Kolacja' })).toBeTruthy();
     fireEvent.click(screen.getByRole('dialog').parentElement!);
     expect(screen.queryByRole('button', { name: 'Kolacja' })).toBeNull();
@@ -543,7 +532,7 @@ describe('ProductDetails plan item editing', () => {
   const EDIT_QUERY = '?selectDate=2026-10-17&selectType=lunch&mealId=m1';
 
   function updateButton() {
-    return screen.getByRole('button', { name: 'Zaktualizuj' }) as HTMLButtonElement;
+    return screen.getByRole('button', { name: t('recipeDetails.update') }) as HTMLButtonElement;
   }
 
   it('keeps the update button disabled until the amount changes', async () => {
@@ -597,12 +586,17 @@ describe('ProductDetails amount limits', () => {
     mocks.getProduct.mockResolvedValue(withMeasures(SKYR, measure('piece', 50), measure('package', 450), measure('cup', 250)));
     renderDetails();
 
-    const pieces = await screen.findByLabelText(PIECES) as HTMLInputElement;
+    await screen.findByDisplayValue('100');
+    chooseUnit('piece');
+    const pieces = screen.getByLabelText(PIECES) as HTMLInputElement;
+    expect(pieces.value).toBe('2');
     fireEvent.change(pieces, { target: { value: '101' } });
-    expect(pieces.value).toBe('1');
+    expect(pieces.value).toBe('2');
+    chooseUnit('cup');
     const cups = screen.getByLabelText(t('amount.countOf', { name: 'szklanki' })) as HTMLInputElement;
     fireEvent.change(cups, { target: { value: '51' } });
-    expect(cups.value).toBe('1');
+    expect(cups.value).toBe('0.4');
+    chooseUnit('package');
     const packages = screen.getByLabelText(PACKAGES) as HTMLInputElement;
     fireEvent.change(packages, { target: { value: '100' } });
     expect(packages.value).toBe('100');
@@ -621,8 +615,7 @@ describe('ProductDetails amount limits', () => {
     const protein = screen.getByTestId('protein-value');
     expect(protein.textContent).toBe('5000g');
     expect(protein.className).toContain('text-sm');
-    const gramsRow = grams.closest('[data-amount-row]') as HTMLElement;
-    expect(within(gramsRow).getByText('45 tys.')).toBeTruthy();
+    expect(screen.getByTestId('amount-kcal').textContent).toBe('45 tys.');
   });
 });
 
@@ -634,18 +627,21 @@ describe('ProductDetails day balance preview', () => {
     mocks.getProduct.mockResolvedValue(SKYR);
   });
 
-  it('counts the day picked in the header', async () => {
+  it('counts the day picked in the header sheet', async () => {
     mocks.getConsumedForDay.mockImplementation((date: string) =>
       date === '2026-10-18' ? { kcal: 1400, protein: 70, fat: 40, carbs: 150 } : { kcal: 500, protein: 20, fat: 10, carbs: 60 });
     renderDetails();
-    fireEvent.click(await screen.findByRole('button', { name: /17 października/ }));
-    fireEvent.click(screen.getByRole('button', { name: '18 października' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Zmień porę lub dzień/ }));
+    const sheet = within(screen.getByRole('dialog', { name: t('planTarget.whereTitle') }));
+    fireEvent.click(sheet.getByRole('button', { name: 'Niedziela, 18.10' }));
+    fireEvent.click(sheet.getByRole('button', { name: t('dayBalance.title') }));
+    expect(sheet.getByTestId('balance-kcal').textContent).toBe('1460');
+    fireEvent.click(sheet.getByRole('button', { name: t('planTarget.set', { meal: 'II śniadanie', day: 'nd 18.10' }) }));
 
-    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.show') }));
-    expect(screen.getByText(t('dayBalance.afterTitle'))).toBeTruthy();
-    expect(screen.getByRole('button', { name: /18 października/ })).toBeTruthy();
-    expect(screen.getByText('18.10')).toBeTruthy();
-    expect(screen.getByText('1460')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /II śniadanie, Niedziela, 18\.10/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.title') }));
+    expect(screen.getByTestId('balance-kcal').textContent).toBe('1460');
+    expect(screen.getByTestId('balance-kcal-added').style.width).not.toBe('0%');
     expect(mocks.getConsumedForDay).toHaveBeenLastCalledWith('2026-10-18', null);
   });
 
@@ -656,12 +652,16 @@ describe('ProductDetails day balance preview', () => {
     renderDetails('?selectDate=2026-10-17&selectType=lunch&mealId=m1');
     await waitFor(() => expect((screen.getByLabelText(t('amount.grams')) as HTMLInputElement).value).toBe('200'));
 
-    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.show') }));
-    expect(screen.getByText(t('dayBalance.afterEditTitle'))).toBeTruthy();
-    expect(screen.getByText('1000')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('dayBalance.title') }));
+    expect(screen.getByTestId('balance-kcal').textContent).toBe('1000');
 
+    expect(screen.getByTestId('balance-kcal-change').textContent).toBe('');
+
+    fireEvent.change(screen.getByLabelText(t('amount.grams')), { target: { value: '300' } });
+    expect(screen.getByTestId('balance-kcal').textContent).toBe('1060');
+    expect(screen.getByTestId('balance-kcal-change').textContent).toBe('+60');
     fireEvent.click(screen.getByRole('button', { name: t('dayBalance.before') }));
-    expect(screen.getByText(t('dayBalance.beforeEditTitle'))).toBeTruthy();
-    expect(screen.getByText('880')).toBeTruthy();
+    expect(screen.getByTestId('balance-kcal').textContent).toBe('1000');
+    expect(screen.getByTestId('balance-kcal-added').style.width).toBe('0%');
   });
 });

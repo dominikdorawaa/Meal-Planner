@@ -47,10 +47,10 @@ export function NutritionFactsTable({ title, columns, facts = NUTRITION_FACTS, n
       {title && <h2 className="text-[10px] font-black uppercase tracking-widest text-on-surface opacity-40">{title}</h2>}
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+          <tr className="text-xs font-semibold text-on-surface-variant">
             <th scope="col" className="sr-only">{t('nutrients.name')}</th>
             {columns.map(column => (
-              <th key={column.label} scope="col" className="py-2 pl-2 text-right font-black align-bottom">
+              <th key={column.label} scope="col" className="py-2 pl-2 text-right font-semibold align-bottom">
                 <ColumnLabel label={column.label} />
               </th>
             ))}
