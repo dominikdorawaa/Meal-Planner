@@ -258,10 +258,10 @@ describe('AddRecipe ingredient search', () => {
     const sheet = within(screen.getByText('Nowy produkt').closest('[class*="rounded-t-"]') as HTMLElement);
     expect((sheet.getByPlaceholderText('np. Jogurt naturalny') as HTMLInputElement).value).toBe('kasza jaglana');
     fireEvent.change(sheet.getByPlaceholderText('np. Jogurt naturalny'), { target: { value: 'Kasza jaglana' } });
-    for (const [index, value] of ['359', '11', '72', '3'].entries()) {
+    for (const [index, value] of ['359', '11', '3', '72'].entries()) {
       fireEvent.change(sheet.getAllByPlaceholderText('0')[index], { target: { value } });
     }
-    fireEvent.click(sheet.getByRole('button', { name: /Dodaj produkt/ }));
+    fireEvent.click(sheet.getByRole('button', { name: /Utwórz produkt/ }));
 
     await screen.findByRole('button', { name: t('recipeIngredients.add') });
     fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.add') }));

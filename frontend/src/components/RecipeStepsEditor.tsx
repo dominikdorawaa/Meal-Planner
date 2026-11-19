@@ -16,6 +16,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { t } from '../i18n';
 import { limitStepName, reorderSteps, type RecipeStepDraft } from '../lib/recipeSteps';
+import { useAutoGrow } from '../lib/autoGrow';
 
 interface RecipeStepsEditorProps {
   steps: RecipeStepDraft[];
@@ -43,7 +44,7 @@ export function RecipeStepsEditor({ steps, onChange, onRemove }: RecipeStepsEdit
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={steps.map(step => step.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {steps.map((step, index) => (
             <SortableStep
               key={step.id}
@@ -70,6 +71,7 @@ interface SortableStepProps {
 
 function SortableStep({ step, index, onNameChange, onTextChange, onRemove }: SortableStepProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
+  const textRef = useAutoGrow(step.text);
   const number = index + 1;
 
   return (
@@ -77,22 +79,24 @@ function SortableStep({ step, index, onNameChange, onTextChange, onRemove }: Sor
       ref={setNodeRef}
       data-step-index={index}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={`min-w-0 rounded-3xl border p-3 flex flex-col gap-2 transition-colors ${isDragging ? 'relative z-10 opacity-80 border-primary bg-primary/5 shadow-lg' : 'border-outline-variant/20 bg-surface-container-lowest'}`}
+      className={`relative mt-4 min-w-0 rounded-[20px] px-3 pb-3 pt-6 flex flex-col gap-2 transition-colors ${isDragging ? 'z-10 opacity-90 ring-2 ring-primary bg-surface-container shadow-ambient' : 'bg-surface-container-low'}`}
     >
-      <div className="flex items-center gap-2 min-w-0">
-        <button
-          type="button"
-          ref={setActivatorNodeRef}
-          {...attributes}
-          {...listeners}
-          aria-label={t('recipeForm.moveStep', { number })}
-          className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container touch-none [-webkit-touch-callout:none] cursor-grab active:cursor-grabbing"
-        >
-          <span className="material-symbols-outlined text-[20px]">drag_indicator</span>
-        </button>
-        <div className="w-7 h-7 rounded-full bg-surface-container-highest text-on-surface-variant font-black text-xs flex items-center justify-center shrink-0">
-          {number}
-        </div>
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        aria-label={t('recipeForm.moveStep', { number })}
+        className={`absolute -top-4 -left-2 w-10 h-10 rounded-full flex items-center justify-center gap-1 ring-4 ring-surface touch-none [-webkit-touch-callout:none] cursor-grab active:cursor-grabbing transition-colors ${isDragging ? 'bg-primary text-on-primary' : 'bg-surface-container-highest text-on-surface'}`}
+      >
+        <span aria-hidden="true" className="grid grid-cols-2 gap-[2px]">
+          {Array.from({ length: 6 }, (_, dot) => (
+            <span key={dot} className={`w-[2.5px] h-[2.5px] rounded-full ${isDragging ? 'bg-on-primary/70' : 'bg-on-surface-variant'}`} />
+          ))}
+        </span>
+        <span className="text-sm font-bold leading-none tabular-nums">{number}</span>
+      </button>
+      <div className="relative">
         <input
           type="text"
           autoComplete="off"
@@ -100,24 +104,26 @@ function SortableStep({ step, index, onNameChange, onTextChange, onRemove }: Sor
           onChange={e => onNameChange(limitStepName(e.target.value))}
           placeholder={t('recipeForm.step', { number })}
           aria-label={t('recipeForm.stepName', { number })}
-          className="flex-1 min-w-0 bg-surface-container-low rounded-xl px-3 py-2 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/60"
+          className="w-full h-11 bg-surface-container rounded-xl pl-3 pr-11 outline-hidden border-[1.5px] border-transparent focus:border-primary caret-primary text-on-surface font-semibold text-[15px] placeholder:font-medium placeholder:text-on-surface-variant/60"
         />
         <button
           type="button"
           onClick={onRemove}
           aria-label={t('recipeForm.removeStep', { number })}
-          className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-on-surface-variant/60 hover:text-error hover:bg-error/10 transition-colors"
+          className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant/70 hover:text-on-surface hover:bg-surface-container-high transition-colors"
         >
-          <span className="material-symbols-outlined text-[18px]">delete</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-[18px]">close</span>
         </button>
       </div>
       <textarea
+        ref={textRef}
+        rows={2}
         autoComplete="off"
         value={step.text}
         onChange={e => onTextChange(e.target.value)}
         placeholder={t('recipeForm.stepTextPlaceholder')}
         aria-label={t('recipeForm.stepText', { number })}
-        className="w-full bg-surface-container-low rounded-2xl p-3 min-h-[88px] outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-medium text-sm transition-shadow resize-y [overflow-wrap:anywhere]"
+        className="w-full bg-surface-container rounded-2xl p-3 min-h-[76px] outline-hidden border-[1.5px] border-transparent focus:border-primary caret-primary text-on-surface text-[15px] leading-snug transition-colors resize-none overflow-hidden [overflow-wrap:anywhere] placeholder:text-on-surface-variant/60"
       />
     </div>
   );

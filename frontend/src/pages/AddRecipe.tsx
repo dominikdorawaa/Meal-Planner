@@ -34,7 +34,9 @@ import { RecipeStepsEditor } from '../components/RecipeStepsEditor';
 import { newStepDraft, stepTitle, stepsOfRecipe, stepsPayload, type RecipeStepDraft } from '../lib/recipeSteps';
 import { resizeRecipePhoto } from '../lib/recipePhoto';
 import { formatCompactNumber } from '../lib/compactNumber';
-import { AMOUNT_LIMITS, RECIPE_LIMITS, acceptsLimitedNumber, isPositiveWithinLimit, numberFieldProps } from '../lib/inputLimits';
+import { AMOUNT_LIMITS, RECIPE_LIMITS, isPositiveWithinLimit } from '../lib/inputLimits';
+import { UnitInput } from '../components/FormFields';
+import { FIELD_CLASS, LABEL_CLASS, SECTION_LABEL_CLASS } from '../lib/formFields';
 
 interface AmountTarget {
   product: Product;
@@ -281,27 +283,32 @@ export default function AddRecipe() {
     setStepToDelete(null);
   };
 
+  const portionsInvalid = portions.trim() !== '' && !isPositiveWithinLimit(portions, AMOUNT_LIMITS.portion);
+  const saveDisabled = !name.trim() || isSaving || isUploadingPhoto || missingProducts || portionsInvalid;
+  const perPortion = recipeMacrosPerPortion(ingredients, parseFloat(portions.replace(',', '.')) || 1);
+  const addFieldClass = 'w-full h-[52px] rounded-2xl border border-dashed border-outline-variant/20 bg-surface-container-low text-on-surface-variant flex items-center justify-center gap-1.5 text-sm font-semibold active:scale-[0.98] transition-transform disabled:opacity-50';
+
   return (
-    <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col">
-      <header className="sticky top-0 w-full z-40 bg-surface/90 backdrop-blur-xl border-b border-outline-variant/10 px-4 py-3 pt-safe-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={handleClose} aria-label={t('recipe.close')} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform">
-            <span className="material-symbols-outlined">close</span>
+    <div className="bg-surface font-body text-on-surface min-h-screen pb-10 flex flex-col">
+      <header className="sticky top-0 w-full z-40 bg-surface pt-safe">
+        <div className="h-16 max-w-xl mx-auto px-3 flex items-center gap-1.5">
+          <button onClick={handleClose} aria-label={t('recipe.close')} className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container active:bg-surface-container-high transition-colors">
+            <span aria-hidden="true" className="material-symbols-outlined">close</span>
           </button>
-          <h1 className="font-headline font-bold text-lg text-on-surface">{t(isEditMode ? 'recipeForm.editTitle' : 'recipeForm.newTitle')}</h1>
+          <h1 className="flex-1 min-w-0 truncate font-headline font-extrabold text-[22px] tracking-tight text-on-surface">{t(isEditMode ? 'recipeForm.editTitle' : 'recipeForm.newTitle')}</h1>
+          <button
+            onClick={handleSaveRecipe}
+            disabled={saveDisabled}
+            className="h-10 px-5 shrink-0 rounded-full bg-primary text-on-primary font-bold text-sm active:scale-95 transition-transform disabled:bg-surface-container-highest disabled:text-on-surface-variant/60 disabled:active:scale-100"
+          >
+            {isSaving ? t('recipeForm.saving') : t('recipeForm.save')}
+          </button>
         </div>
-        <button
-          onClick={handleSaveRecipe}
-          disabled={!name.trim() || isSaving || isUploadingPhoto || missingProducts || (portions.trim() !== '' && !isPositiveWithinLimit(portions, AMOUNT_LIMITS.portion))}
-          className="px-5 py-2 bg-primary text-on-primary font-bold text-sm rounded-xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-xs"
-        >
-          {isSaving ? t('recipeForm.saving') : t('recipeForm.save')}
-        </button>
       </header>
 
-      <main className="flex-1 w-full max-w-xl mx-auto px-4 py-6 flex flex-col gap-8">
+      <main className="flex-1 w-full max-w-xl mx-auto px-4 pt-1 flex flex-col gap-4">
         {saveError && (
-          <p role="alert" className="text-sm font-bold text-error bg-error/10 rounded-2xl px-4 py-3">{saveError}</p>
+          <p role="alert" className="text-sm font-semibold text-error bg-error/10 rounded-2xl px-4 py-3">{saveError}</p>
         )}
 
         {isLoading && (
@@ -315,19 +322,17 @@ export default function AddRecipe() {
               type="button"
               onClick={() => setShowPhotoSheet(true)}
               aria-label={t('recipeForm.photoAdd')}
-              className="w-full aspect-[8/3] bg-surface-container-low rounded-[28px] border border-outline-variant/20 border-dashed flex flex-col items-center justify-center hover:bg-surface-container-lowest transition-colors active:scale-[0.98] group overflow-hidden relative"
+              className="w-full h-[120px] bg-surface-container-low rounded-[22px] border border-dashed border-outline-variant/20 flex flex-col items-center justify-center gap-1 text-on-surface-variant active:scale-[0.98] transition-transform"
             >
-              <span className="w-11 h-11 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-colors">
-                <span className="material-symbols-outlined text-2xl">add_photo_alternate</span>
-              </span>
-              <span className="font-bold text-sm text-on-surface-variant">{t('recipeForm.photoAdd')}</span>
-              <span className="text-xs text-on-surface-variant/70 mt-1">{t('recipeForm.photoLimitHint', { count: MAX_RECIPE_IMAGES })}</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[26px]">add_a_photo</span>
+              <span className="font-semibold text-sm">{t('recipeForm.photoAdd')}</span>
+              <span className="text-xs text-on-surface-variant/80">{t('recipeForm.photoLimitHint', { count: MAX_RECIPE_IMAGES })}</span>
             </button>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2.5">
                 {images.map((image, index) => (
-                  <div key={image.url} className={`relative aspect-[4/3] overflow-hidden bg-surface-container-highest ${index === 0 ? 'col-span-3 rounded-[32px]' : 'rounded-2xl'}`}>
+                  <div key={image.url} className={`relative aspect-[4/3] overflow-hidden bg-surface-container-low ${index === 0 ? 'col-span-3 rounded-[22px]' : 'rounded-2xl'}`}>
                     <button
                       type="button"
                       onClick={() => setEditedImage(index)}
@@ -337,8 +342,8 @@ export default function AddRecipe() {
                       <img src={image.url} alt="" className="w-full h-full object-cover" style={{ objectPosition: imagePosition(image) }} />
                     </button>
                     {index === 0 ? (
-                      <span className="absolute bottom-1.5 left-1.5 flex items-center gap-0.5 bg-primary text-on-primary text-[10px] font-bold px-2 py-0.5 rounded-full pointer-events-none">
-                        <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                      <span className="dark absolute bottom-2 left-2 h-6 px-2 flex items-center gap-1 rounded-lg bg-black/60 backdrop-blur-md text-white/90 text-[11.5px] font-semibold pointer-events-none">
+                        <span aria-hidden="true" className="material-symbols-outlined text-[13px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
                         {t('recipeForm.photoMain')}
                       </span>
                     ) : (
@@ -346,25 +351,25 @@ export default function AddRecipe() {
                         type="button"
                         onClick={() => setImages(current => makeMainImage(current, index))}
                         aria-label={t('recipeForm.photoMakeMain', { index: index + 1 })}
-                        className="absolute top-1 left-1 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-md text-white active:scale-90 transition-transform"
+                        className="dark absolute top-1 left-1 w-8 h-8 flex items-center justify-center rounded-full bg-black/55 backdrop-blur-md text-white active:scale-90 transition-transform"
                       >
-                        <span className="material-symbols-outlined text-[18px]">star</span>
+                        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">star</span>
                       </button>
                     )}
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
                       aria-label={t('recipeForm.photoRemove', { index: index + 1 })}
-                      className="absolute top-1 right-1 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-md text-white active:scale-90 transition-transform"
+                      className="dark absolute top-1 right-1 w-8 h-8 flex items-center justify-center rounded-full bg-black/55 backdrop-blur-md text-white active:scale-90 transition-transform"
                     >
-                      <span className="material-symbols-outlined text-[18px]">close</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-[18px]">close</span>
                     </button>
                   </div>
                 ))}
                 {Array.from({ length: uploadingCount }, (_, index) => (
-                  <div key={`uploading-${index}`} className={`aspect-[4/3] bg-surface-container-low ${images.length === 0 && index === 0 ? 'col-span-3 rounded-[32px]' : 'rounded-2xl'} flex flex-col items-center justify-center gap-1.5`}>
+                  <div key={`uploading-${index}`} className={`aspect-[4/3] bg-surface-container-low ${images.length === 0 && index === 0 ? 'col-span-3 rounded-[22px]' : 'rounded-2xl'} flex flex-col items-center justify-center gap-1.5`}>
                     <span className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                    <span className="text-[10px] font-bold text-on-surface-variant text-center px-1">{t('recipeForm.photoUploading')}</span>
+                    <span className="text-[11px] font-semibold text-on-surface-variant text-center px-1">{t('recipeForm.photoUploading')}</span>
                   </div>
                 ))}
                 {images.length + uploadingCount < MAX_RECIPE_IMAGES && (
@@ -373,150 +378,146 @@ export default function AddRecipe() {
                     onClick={() => setShowPhotoSheet(true)}
                     disabled={isUploadingPhoto}
                     aria-label={t('recipeForm.photoAdd')}
-                    className="aspect-[4/3] rounded-2xl bg-surface-container-low border border-outline-variant/20 border-dashed flex flex-col items-center justify-center gap-1 text-primary active:scale-[0.97] transition-transform disabled:opacity-50"
+                    className="aspect-[4/3] rounded-2xl bg-surface-container-low border border-dashed border-outline-variant/20 flex flex-col items-center justify-center gap-1 text-on-surface-variant active:scale-[0.97] transition-transform disabled:opacity-50"
                   >
-                    <span className="material-symbols-outlined text-2xl">add_photo_alternate</span>
-                    <span className="text-[10px] font-bold text-on-surface-variant">{images.length + uploadingCount}/{MAX_RECIPE_IMAGES}</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-2xl">add_a_photo</span>
+                    <span className="text-[11px] font-semibold tabular-nums">{images.length + uploadingCount}/{MAX_RECIPE_IMAGES}</span>
                   </button>
                 )}
               </div>
-              {images.length > 0 && <p className="text-xs text-on-surface-variant pl-1">{t('recipeForm.photoHint')}</p>}
+              {images.length > 0 && <p className="text-xs text-on-surface-variant px-1">{t('recipeForm.photoHint')}</p>}
             </>
           )}
-          {photoError && <p role="alert" className="text-sm font-bold text-error pl-1">{photoError}</p>}
+          {photoError && <p role="alert" className="text-sm font-semibold text-error px-1">{photoError}</p>}
         </section>
 
-        <section className="flex flex-col gap-5">
-          <div className="flex flex-col gap-2">
-            <label htmlFor="recipe-name" className="text-xs font-bold uppercase tracking-widest text-on-surface-variant pl-1">{t('recipeForm.name')}</label>
-            <input
-              autoComplete="off"
-              id="recipe-name"
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-2xl py-4 px-5 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-headline font-bold text-xl transition-shadow placeholder:font-medium placeholder:text-on-surface-variant/40"
-              placeholder={t('recipeForm.namePlaceholder')}
+        <div>
+          <label htmlFor="recipe-name" className={LABEL_CLASS}>{t('recipeForm.name')}</label>
+          <input
+            autoComplete="off"
+            id="recipe-name"
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            className={FIELD_CLASS}
+            placeholder={t('recipeForm.namePlaceholder')}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="min-w-0">
+            <label htmlFor="recipe-prep-time" className={LABEL_CLASS}>{t('recipeForm.prepTime')}</label>
+            <UnitInput
+              id="recipe-prep-time"
+              unit="min"
+              value={prepTime}
+              max={RECIPE_LIMITS.prepMinutes}
+              decimals={0}
+              placeholder="0"
+              onValueChange={setPrepTime}
             />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <label htmlFor="recipe-prep-time" className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant pl-1">{t('recipeForm.prepTime')}</label>
-              <div className="relative flex items-center bg-surface-container-lowest border border-outline-variant/20 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-primary/30 transition-shadow">
-                <input
-                  id="recipe-prep-time"
-                  {...numberFieldProps(RECIPE_LIMITS.prepMinutes, 0)}
-                  value={prepTime}
-                  onChange={e => acceptsLimitedNumber(e.target.value, RECIPE_LIMITS.prepMinutes, 0) && setPrepTime(e.target.value)}
-                  className="w-full bg-transparent py-3.5 pl-4 pr-12 outline-hidden text-on-surface font-bold text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  placeholder="0"
-                />
-                <span className="absolute right-4 text-xs font-bold text-on-surface-variant">min</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label htmlFor="recipe-portions" className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant pl-1">{t('recipeForm.portions')}</label>
-              <div className="relative flex items-center bg-surface-container-lowest border border-outline-variant/20 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-primary/30 transition-shadow">
-                <input
-                  id="recipe-portions"
-                  {...numberFieldProps(AMOUNT_LIMITS.portion)}
-                  value={portions}
-                  onChange={e => acceptsLimitedNumber(e.target.value, AMOUNT_LIMITS.portion) && setPortions(e.target.value)}
-                  className="w-full bg-transparent py-3.5 pl-4 pr-16 outline-hidden text-on-surface font-bold text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  placeholder="1"
-                />
-                <span className="absolute right-4 text-xs font-bold text-on-surface-variant whitespace-nowrap">{t('recipeForm.portionsUnit')}</span>
-              </div>
-            </div>
+          <div className="min-w-0">
+            <label htmlFor="recipe-portions" className={LABEL_CLASS}>{t('recipeForm.portions')}</label>
+            <UnitInput
+              id="recipe-portions"
+              unit={t('recipeForm.portionsUnit')}
+              value={portions}
+              max={AMOUNT_LIMITS.portion}
+              placeholder="1"
+              onValueChange={setPortions}
+            />
           </div>
-        </section>
+        </div>
 
-        <hr className="border-t border-outline-variant/10" />
+        <section className="flex flex-col gap-2.5 mt-1">
+          <h2 className={`${SECTION_LABEL_CLASS} px-1`}>{t('recipeForm.ingredients')}</h2>
 
-        <section className="flex flex-col gap-4">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface pl-1 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-[16px]">kitchen</span>
-            {t('recipeForm.ingredients')}
-          </h2>
+          {ingredients.length === 0 && (
+            <p className="text-sm text-on-surface-variant px-1">{t('recipeForm.noIngredients')}</p>
+          )}
 
-          <div className="flex flex-col gap-3">
-            {ingredients.length === 0 && (
-              <p className="text-sm font-medium text-on-surface-variant/70 pl-1">{t('recipeForm.noIngredients')}</p>
-            )}
+          {missingProducts && (
+            <p role="alert" className="text-sm font-semibold text-error bg-error/10 rounded-2xl px-4 py-3">{t('recipeForm.productsMissing')}</p>
+          )}
 
-            {missingProducts && (
-              <p role="alert" className="text-sm font-bold text-error bg-error/10 rounded-2xl px-4 py-3">{t('recipeForm.productsMissing')}</p>
-            )}
-
-            {ingredients.map((ing, idx) => {
-              const kcal = ingredientMacros(ing).kcal;
-              const product = ing.product;
-              return (
-                <div key={ing.id ?? idx} className="flex items-center gap-1 bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/10 shadow-xs">
-                  <button
-                    type="button"
-                    onClick={() => (product ? setAmountTarget({ product, index: idx }) : chooseProductFor(idx))}
-                    aria-label={t(product ? 'recipeIngredients.edit' : 'recipeForm.chooseProduct', { name: ing.name })}
-                    className="flex flex-1 min-w-0 items-center gap-3 text-left"
-                  >
-                    <span className="flex flex-col flex-1 min-w-0 pr-2">
-                      <span className="font-bold text-sm text-on-surface truncate">{ing.name}</span>
-                      {!product && (
-                        <span className="flex items-center gap-1 text-[11px] font-bold text-error mt-0.5">
-                          <span aria-hidden="true" className="material-symbols-outlined text-[14px]">error</span>
-                          <span className="truncate">{t('recipeForm.chooseProduct', { name: ing.name })}</span>
+          {ingredients.length > 0 && (
+            <div className="bg-surface-container-low rounded-[22px] px-4">
+              <ul>
+                {ingredients.map((ing, idx) => {
+                  const kcal = ingredientMacros(ing).kcal;
+                  const product = ing.product;
+                  return (
+                    <li key={ing.id ?? idx} className="flex items-center gap-1 min-h-[56px] border-t border-outline-variant/10 first:border-t-0">
+                      <button
+                        type="button"
+                        onClick={() => (product ? setAmountTarget({ product, index: idx }) : chooseProductFor(idx))}
+                        aria-label={t(product ? 'recipeIngredients.edit' : 'recipeForm.chooseProduct', { name: ing.name })}
+                        className="flex flex-1 min-w-0 items-center gap-3 py-2 text-left"
+                      >
+                        <span className="flex flex-col flex-1 min-w-0">
+                          <span className="text-[15px] font-medium text-on-surface truncate">{ing.name}</span>
+                          {!product && (
+                            <span className="flex items-center gap-1 text-xs font-semibold text-error mt-0.5">
+                              <span aria-hidden="true" className="material-symbols-outlined text-[14px]">error</span>
+                              <span className="truncate">{t('recipeForm.chooseProduct', { name: ing.name })}</span>
+                            </span>
+                          )}
+                          {kcal > 0 && <span className="text-xs text-on-surface-variant tabular-nums mt-0.5 truncate">{formatCompactNumber(kcal)} kcal</span>}
                         </span>
-                      )}
-                      {kcal > 0 && <span className="text-[10px] font-bold text-primary mt-0.5 truncate">{formatCompactNumber(kcal)} kcal</span>}
-                    </span>
-                    <span className="text-xs font-bold text-on-surface-variant bg-surface-container-highest px-3 py-1 rounded-lg shrink-0">
-                      {ingredientAmountLabel(ing)}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIngredientToDelete(idx)}
-                    aria-label={t('recipeForm.removeIngredient', { name: ing.name })}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors shrink-0"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">close</span>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                        <span className="text-sm font-semibold text-on-surface-variant tabular-nums shrink-0">
+                          {ingredientAmountLabel(ing)}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIngredientToDelete(idx)}
+                        aria-label={t('recipeForm.removeIngredient', { name: ing.name })}
+                        className="w-10 h-10 -mr-2.5 rounded-full flex items-center justify-center text-on-surface-variant/70 hover:bg-surface-container-high hover:text-on-surface transition-colors shrink-0"
+                      >
+                        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">close</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="flex items-center justify-between gap-3 h-[52px] border-t border-outline-variant/10">
+                <span className="text-[13px] font-semibold text-on-surface-variant">{t('recipeForm.perPortion')}</span>
+                <span className="flex items-center gap-2 min-w-0 text-xs font-semibold tabular-nums">
+                  <span className="text-primary">{formatCompactNumber(perPortion.kcal)} kcal</span>
+                  <span className="text-macro-protein">{t('plan.summary.proteinShort')} {Math.round(perPortion.protein)}</span>
+                  <span className="text-macro-fat">{t('plan.summary.fatShort')} {Math.round(perPortion.fat)}</span>
+                  <span className="text-macro-carbs">{t('plan.summary.carbsShort')} {Math.round(perPortion.carbs)}</span>
+                </span>
+              </div>
+            </div>
+          )}
 
-          <button
-            type="button"
-            onClick={() => setShowIngredientSearch(true)}
-            className="w-full py-4 bg-surface-container-low text-on-surface font-bold text-sm rounded-2xl hover:bg-surface-container transition-colors active:scale-[0.98] border border-outline-variant/20 flex items-center justify-center gap-2 shadow-xs"
-          >
-            <span className="material-symbols-outlined text-[20px]">add</span>
+          <button type="button" onClick={() => setShowIngredientSearch(true)} className={addFieldClass}>
+            <span aria-hidden="true" className="material-symbols-outlined text-[20px]">add</span>
             {t('recipeForm.addIngredient')}
           </button>
         </section>
 
-        <hr className="border-t border-outline-variant/10" />
-
-        <section className="flex flex-col gap-4">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface pl-1 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-[16px]">format_list_numbered</span>
-            {t('recipeForm.steps')}
-          </h2>
+        <section className="flex flex-col gap-2.5 mt-1">
+          <h2 className={`${SECTION_LABEL_CLASS} px-1`}>{t('recipeForm.steps')}</h2>
 
           <RecipeStepsEditor steps={instructions} onChange={setInstructions} onRemove={setStepToDelete} />
 
-          <button
-            type="button"
-            onClick={handleAddStep}
-            className="w-full py-4 bg-surface-container-low text-on-surface font-bold text-sm rounded-2xl hover:bg-surface-container transition-colors active:scale-[0.98] border border-outline-variant/20 flex items-center justify-center gap-2 shadow-xs"
-          >
-            <span className="material-symbols-outlined text-[20px]">add</span>
+          <button type="button" onClick={handleAddStep} className={addFieldClass}>
+            <span aria-hidden="true" className="material-symbols-outlined text-[20px]">add</span>
             {t('recipeForm.addStep')}
           </button>
         </section>
+
+        <button
+          type="button"
+          onClick={handleSaveRecipe}
+          disabled={saveDisabled}
+          className="mt-2 w-full h-[52px] rounded-full bg-primary text-on-primary font-bold text-[15px] active:scale-[0.98] transition-transform disabled:bg-surface-container-highest disabled:text-on-surface-variant/60 disabled:active:scale-100"
+        >
+          {isSaving ? t('recipeForm.saving') : t('recipeForm.saveRecipe')}
+        </button>
       </main>
 
       {showIngredientSearch && (
