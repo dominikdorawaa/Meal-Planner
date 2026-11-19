@@ -8,7 +8,6 @@ import {
   formatRelativeDayLabel,
   formatLocalizedDayWithDate,
   formatLocalizedDayLabel,
-  formatShortDayLabel,
   parseIsoDate,
   planDays,
   formatShortWeekday,
@@ -86,20 +85,6 @@ describe('formatDayMonth', () => {
 
   it('shows an invalid date as it is', () => {
     expect(formatDayMonth('abc')).toBe('abc')
-  })
-})
-
-describe('formatShortDayLabel', () => {
-  const today = new Date(2026, 11, 31, 18, 0)
-
-  it('names today and shows other days as day and month', () => {
-    expect(formatShortDayLabel('2026-12-31', today)).toBe('Dzisiaj')
-    expect(formatShortDayLabel('2027-01-01', today)).toBe('01.01')
-    expect(formatShortDayLabel('2025-12-31', today)).toBe('31.12')
-  })
-
-  it('compares with the current day by default', () => {
-    expect(formatShortDayLabel(todayIsoDate())).toBe('Dzisiaj')
   })
 })
 

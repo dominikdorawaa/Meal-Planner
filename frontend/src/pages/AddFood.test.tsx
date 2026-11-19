@@ -320,7 +320,7 @@ describe('AddFood selection', () => {
     fireEvent.click(screen.getByText('Jogurt'));
     await screen.findByDisplayValue('100');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+    fireEvent.click(screen.getByRole('button', { name: t('planTarget.addTo.lunch') }));
     await screen.findByText('plan screen');
     expect(mocks.addMeal).toHaveBeenCalledTimes(2);
     fireEvent.click(screen.getByText('history back twice'));

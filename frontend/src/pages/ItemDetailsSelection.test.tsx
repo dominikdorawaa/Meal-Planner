@@ -94,7 +94,7 @@ describe('adding from item details', () => {
     const gramsInput = await screen.findByDisplayValue('100');
 
     fireEvent.change(gramsInput, { target: { value: '250' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+    fireEvent.click(screen.getByRole('button', { name: t('planTarget.addTo.lunch') }));
 
     await screen.findByText('plan screen');
     expect(addedPayloads()).toEqual([
@@ -108,7 +108,7 @@ describe('adding from item details', () => {
     const grams = await screen.findByDisplayValue('150');
 
     fireEvent.change(grams, { target: { value: '180' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Zaktualizuj' }));
+    fireEvent.click(screen.getByRole('button', { name: t('recipeDetails.update') }));
 
     await screen.findByText('plan screen');
     expect(mocks.updateMeal).toHaveBeenCalledWith('m1', { portions_consumed: 180, measure_code: null, measure_amount: null });
@@ -120,7 +120,7 @@ describe('adding from item details', () => {
     const portionsInput = await screen.findByDisplayValue('1');
 
     fireEvent.change(portionsInput, { target: { value: '2' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+    fireEvent.click(screen.getByRole('button', { name: t('planTarget.addTo.lunch') }));
 
     await screen.findByText('plan screen');
     expect(addedPayloads()).toEqual([
@@ -133,7 +133,7 @@ describe('adding from item details', () => {
     renderDetails('/product/p1', SEARCH, [...SELECTION, { kind: 'product', id: 'p1' }]);
     await screen.findByDisplayValue('100');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+    fireEvent.click(screen.getByRole('button', { name: t('planTarget.addTo.lunch') }));
 
     await screen.findByText('plan screen');
     expect(addedPayloads()).toEqual([
@@ -147,7 +147,7 @@ describe('adding from item details', () => {
     renderDetails('/product/p1');
     await screen.findByDisplayValue('100');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+    fireEvent.click(screen.getByRole('button', { name: t('planTarget.addTo.lunch') }));
 
     await screen.findByText('plan screen');
     expect(alertMock).toHaveBeenCalledWith(t('planSelection.notAllSaved'));
@@ -159,7 +159,7 @@ describe('adding from item details', () => {
     renderDetails('/recipe/r1');
     await screen.findByDisplayValue('1');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }));
+    fireEvent.click(screen.getByRole('button', { name: t('planTarget.addTo.lunch') }));
 
     await screen.findByText('plan screen');
     expect(alertMock).toHaveBeenCalledWith(t('planSelection.notAllSaved'));
@@ -170,28 +170,24 @@ describe('adding from item details', () => {
 describe('meal and day in item details', () => {
   it.each(['/product/p1', '/recipe/r1'])('lets the user pick them when adding from %s', async (pathname) => {
     renderDetails(pathname);
-    const mealButton = await screen.findByRole('button', { name: /Dodajesz do: II śniadanie/ }) as HTMLButtonElement;
+    const target = await screen.findByRole('button', { name: /II śniadanie, Sobota, 17\.10\. Zmień porę lub dzień/ }) as HTMLButtonElement;
 
-    expect(mealButton.disabled).toBe(false);
-    fireEvent.click(mealButton);
+    expect(target.disabled).toBe(false);
+    fireEvent.click(target);
 
+    expect(screen.getByRole('dialog', { name: t('planTarget.whereTitle') })).toBeTruthy();
     expect(screen.getByRole('button', { name: /^Śniadanie/ })).toBeTruthy();
   });
 
   it.each(['/product/p1', '/recipe/r1'])('shows them only as information when editing from %s', async (pathname) => {
     renderDetails(pathname, `${SEARCH}&mealId=m1`);
-    const mealButton = await screen.findByRole('button', { name: /Edytujesz w: II śniadanie/ }) as HTMLButtonElement;
-    const dayButton = screen.getByRole('button', { name: /17 października/ }) as HTMLButtonElement;
+    const target = await screen.findByRole('button', { name: /Edytujesz w: II śniadanie, Sobota, 17\.10/ }) as HTMLButtonElement;
 
-    expect(mealButton.disabled).toBe(true);
-    expect(dayButton.disabled).toBe(true);
-    expect(mealButton.textContent).not.toContain('expand_more');
-    expect(dayButton.textContent).not.toContain('expand_more');
+    expect(target.disabled).toBe(true);
+    expect(target.textContent).not.toContain('expand_more');
 
-    fireEvent.click(mealButton);
-    fireEvent.click(dayButton);
+    fireEvent.click(target);
 
-    expect(screen.queryByRole('button', { name: /^Śniadanie/ })).toBeNull();
-    expect(screen.queryByText('chevron_left')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
