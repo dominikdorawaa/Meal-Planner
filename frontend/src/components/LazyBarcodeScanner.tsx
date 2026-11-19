@@ -20,7 +20,7 @@ function ScannerLoadFailed({ onClose, onRetry }: Omit<ScannerLoadBoundaryProps, 
     <div
       role="alertdialog"
       aria-modal="true"
-      data-scroll-lock className="fixed inset-0 z-[150] flex flex-col justify-end bg-black/60 backdrop-blur-xs animate-fade-in"
+      data-scroll-lock className="fixed inset-0 z-[250] flex flex-col justify-end bg-black/60 backdrop-blur-xs animate-fade-in"
       onClick={onClose}
     >
       <div

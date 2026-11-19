@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { t } from '../i18n';
-import { formatLocalizedDayLabel } from '../lib/planDates';
-import { mealTypeName } from '../lib/mealTypes';
+import { formatLocalizedDayWithDate } from '../lib/planDates';
+import { mealColor, mealTypeName } from '../lib/mealTypes';
 import { BottomPanel } from './BottomPanel';
 import { MonthCalendar } from './MonthCalendar';
 
@@ -19,6 +19,24 @@ interface PlanTargetPickerProps {
   onDateChange: (date: string) => void;
 }
 
+function planTargetDayLabel(date: string) {
+  return formatLocalizedDayWithDate(date, t('recipeDetails.locale'), {
+    yesterday: t('planTarget.yesterday'),
+    today: t('planTarget.today'),
+    tomorrow: t('planTarget.tomorrow'),
+  });
+}
+
+export function PlanTargetMeta({ meals, mealType, date }: { meals: PlanTargetMeal[]; mealType: string; date: string }) {
+  const color = mealColor(meals.findIndex(meal => meal.id === mealType));
+  return (
+    <>
+      <span aria-hidden="true" className="w-2 h-2 shrink-0 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}8c` }} />
+      <span className="truncate">{mealTypeName(mealType, meals)} · {planTargetDayLabel(date)}</span>
+    </>
+  );
+}
+
 export function PlanTargetPicker({ meals, mealType, date, editing, onMealTypeChange, onDateChange }: PlanTargetPickerProps) {
   const [open, setOpen] = useState<'meal' | 'date' | null>(null);
   const close = () => setOpen(null);
@@ -31,20 +49,20 @@ export function PlanTargetPicker({ meals, mealType, date, editing, onMealTypeCha
         disabled={editing}
         onClick={() => setOpen('meal')}
         aria-haspopup="dialog"
-        className="flex items-center gap-1 min-w-0 w-fit max-w-full font-headline font-bold text-base text-on-surface leading-tight active:scale-95 transition-transform disabled:active:scale-100"
+        className="flex items-center gap-1 min-w-0 w-fit max-w-full font-headline font-extrabold text-[17px] tracking-tight text-on-surface leading-tight active:scale-95 transition-transform disabled:active:scale-100"
       >
         <span className="truncate">{t(editing ? 'planTarget.editing' : 'planTarget.adding')} <span className="text-primary">{mealName}</span></span>
-        {!editing && <span className="material-symbols-outlined shrink-0 text-[16px] text-primary">expand_more</span>}
+        {!editing && <span aria-hidden="true" className="material-symbols-outlined shrink-0 text-[18px] text-primary">expand_more</span>}
       </button>
       <button
         type="button"
         disabled={editing}
         onClick={() => setOpen('date')}
         aria-haspopup="dialog"
-        className="flex items-center gap-1 min-w-0 w-fit max-w-full mt-0.5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest leading-tight active:scale-95 transition-transform disabled:active:scale-100"
+        className="flex items-center gap-0.5 min-w-0 w-fit max-w-full mt-0.5 text-[12.5px] font-medium text-on-surface-variant leading-tight active:scale-95 transition-transform disabled:active:scale-100"
       >
-        <span className="truncate">{formatLocalizedDayLabel(date, t('recipeDetails.locale'), { yesterday: t('planTarget.yesterday'), today: t('planTarget.today'), tomorrow: t('planTarget.tomorrow') })}</span>
-        {!editing && <span className="material-symbols-outlined shrink-0 text-[14px] text-primary/70">expand_more</span>}
+        <span className="truncate">{planTargetDayLabel(date)}</span>
+        {!editing && <span aria-hidden="true" className="material-symbols-outlined shrink-0 text-[16px]">expand_more</span>}
       </button>
 
       {open === 'meal' && (

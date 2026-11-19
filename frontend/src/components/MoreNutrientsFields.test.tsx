@@ -10,7 +10,7 @@ describe('MoreNutrientsFields', () => {
   it('starts folded and opens on demand', () => {
     const onChange = vi.fn();
     render(<MoreNutrientsFields values={EMPTY} onChange={onChange} />);
-    const toggle = screen.getByRole('button', { name: 'Więcej wartości' });
+    const toggle = screen.getByRole('button', { name: 'Pozostałe wartości odżywcze' });
 
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByLabelText('Sól')).toBeNull();

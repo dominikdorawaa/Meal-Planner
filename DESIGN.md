@@ -182,6 +182,10 @@ Głębię buduje jasność tła, nie cienie: kolejne poziomy `surface-container-
 
 **Wybór dnia i pory** (`src/components/PlanTargetSheet.tsx`). Jeden arkusz dla „Dodaj do planu” i dla pastylki w nagłówku („Gdzie dodać”): tydzień ze strzałkami, dzisiaj w zielonym kółku, wybrany dzień na szarym tle, pod każdym dniem pasek zapełnienia kalorii. Pod tygodniem zwinięta karta „Jak zmieni się Twój dzień?” (`src/components/DayBalanceCard.tsx`) z przełącznikiem Przed / Po, gdzie dodawana część dokleja się do paska jaśniejszym odcinkiem z „+18” obok wartości. Pory dnia jako pastylki z kolorowymi kropkami, przycisk przypięty na dole arkusza. Ta sama karta bilansu jest na ekranie szczegółów, pod składnikami przepisu albo pod wartościami produktu.
 
+**Dodawanie do planu** (`src/pages/AddFood.tsx`). Na górze „Dodajesz do” z porą dnia i dniem, pod tym wyszukiwarka z okrągłymi przyciskami skanera i filtrów, zakładki z ikonami („Ostatnie”, „Zapisane”, „Własne”) i pastylki tworzenia: ikona rzeczy w kółku z osobnym zielonym plusem w obwódce. Wyniki to karty z miniaturą, nazwą, kcal w zieleni i ilością pod nazwą oraz okrągłym zaznaczeniem po prawej.
+
+**Formularze** (`src/components/FormFields.tsx`, `src/components/FormSheet.tsx`). Etykiety zwykłym tekstem nad polem, pola `surface-container` z zieloną obwódką przy edycji, jednostki małymi literami w polu. Makro zawsze w kolejności B, T, W z kropką i etykietą w kolorze makro. Arkusze formularzy mają nagłówek z kafelkiem (placeholder rzeczy), tytułem i porą dnia z kropką, krzyżyk w rogu i jeden przycisk na dole. Formularz przepisu ma „Zapisz” w rogu i „Zapisz przepis” na dole, wiersz „Na porcję” z kcal i B/T/W w karcie składników, pola dodawania z przerywaną ramką i zwykłym plusem. Kroki mają numer w kółku na rogu karty, który jest jednocześnie uchwytem do przeciągania (kropki obok numeru), a opis rośnie razem z tekstem.
+
 **Dolny pasek nawigacji.** Pływająca, zaokrąglona pastylka z rozmytym tłem. Nie jest częścią redesignu planu.
 
 ## Do's and Don'ts

@@ -5,7 +5,8 @@ import { mealColor, type MealType } from '../lib/mealTypes';
 import { formatDayMonth, formatRelativeDayLabel, planDays } from '../lib/planDates';
 import { productDisplayName } from '../lib/productName';
 import { refId, toggleMealIds, type PlanMeal } from '../lib/shoppingFromPlan';
-import { ShoppingSheet, ShoppingSheetSubmit } from './ShoppingSheet';
+import { ShoppingSheet } from './ShoppingSheet';
+import { SheetSubmit } from './FormSheet';
 
 const DAYS_PER_PAGE = 7;
 
@@ -87,7 +88,7 @@ export function ShoppingFromPlanPicker({
       footer={
         <>
           {error && <p role="alert" className="px-1 pb-3 text-error text-sm font-medium">{error}</p>}
-          <ShoppingSheetSubmit
+          <SheetSubmit
             label={t('shopping.addIngredients', { count: selectedIds.length })}
             busy={submitting}
             disabled={selectedIds.length === 0}

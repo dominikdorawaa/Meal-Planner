@@ -5,6 +5,7 @@ import type { Product } from '../lib/apiClient';
 import { normalizeBarCode } from '../lib/barcodeLookup';
 import { productDisplayName } from '../lib/productName';
 import { LazyBarcodeScanner } from './LazyBarcodeScanner';
+import { ERROR_NOTE_CLASS, LABEL_CLASS } from '../lib/formStyles';
 
 export type ExistingProductAction =
   | { href: (product: Product) => string }
@@ -21,31 +22,31 @@ export function BarCodeField({ value, onChange, existingProduct, existingProduct
   const [scanning, setScanning] = useState(false);
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor="product-bar-code" className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">
+    <div className="flex flex-col">
+      <label htmlFor="product-bar-code" className={LABEL_CLASS}>
         {t('product.barCode')}
       </label>
-      <div className="flex gap-2">
+      <div className="relative">
         <input
           id="product-bar-code"
           inputMode="numeric"
           autoComplete="off"
           value={value}
           onChange={event => onChange(normalizeBarCode(event.target.value))}
-          className="flex-1 min-w-0 bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
+          className="w-full h-12 bg-surface-container rounded-2xl pl-4 pr-14 text-on-surface font-medium text-[15px] tabular-nums outline-hidden border-[1.5px] border-transparent focus:border-primary caret-primary placeholder:text-on-surface-variant/60"
           placeholder="5900000000000"
         />
         <button
           type="button"
           onClick={() => setScanning(true)}
           aria-label={t('product.scanBarCode')}
-          className="w-12 shrink-0 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center active:scale-95 transition-transform"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center active:scale-95 transition-transform"
         >
-          <span className="material-symbols-outlined text-xl">photo_camera</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-[20px]">barcode_scanner</span>
         </button>
       </div>
       {existingProduct && (
-        <div role="alert" className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-xs font-medium bg-error/10 text-error">
+        <div role="alert" className={`mt-2 flex items-center justify-between gap-3 ${ERROR_NOTE_CLASS}`}>
           <span>{t('product.alreadyExists')}</span>
           {'onOpen' in existingProductAction ? (
             <button type="button" onClick={() => existingProductAction.onOpen(existingProduct)} className="font-bold underline underline-offset-2 truncate">

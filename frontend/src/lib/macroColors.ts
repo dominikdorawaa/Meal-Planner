@@ -6,5 +6,11 @@ export const macroFillClass: Record<MacroKey, string> = {
   carbs: 'bg-macro-carbs',
 };
 
+export const macroTextClass: Record<MacroKey, string> = {
+  protein: 'text-macro-protein',
+  fat: 'text-macro-fat',
+  carbs: 'text-macro-carbs',
+};
+
 export const macroRingBackground = (macro: MacroKey, percent: number) =>
   `conic-gradient(var(--color-macro-${macro}) ${percent}%, var(--color-surface-container-highest) 0)`;

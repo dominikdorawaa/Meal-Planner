@@ -11,7 +11,7 @@ import { useSavedFood } from '../lib/useSavedFood';
 import { isCalendoriesProduct, isOwnItem, isUnverified } from '../lib/productPermissions';
 import { ProductRow, RecipeRow } from '../components/FoodRows';
 import { BottomPanel } from '../components/BottomPanel';
-import { PlanTargetPicker } from '../components/PlanTargetPicker';
+import { PlanTargetMeta, PlanTargetPicker } from '../components/PlanTargetPicker';
 import type { MessageKey } from '../i18n';
 import { LazyBarcodeScanner } from '../components/LazyBarcodeScanner';
 import { useBarcodeLookup } from '../lib/useBarcodeLookup';
@@ -19,7 +19,6 @@ import { missingProductMessage } from '../lib/barcodeLookup';
 import { BarcodeLookupPending } from '../components/BarcodeLookupPending';
 import { NewProductSheet, type NewProductDraft } from '../components/NewProductSheet';
 import { t } from '../i18n';
-import { useBottomSheet } from '../lib/bottomSheet';
 import { profileMealTypes } from '../lib/mealTypes';
 import {
   DEFAULT_PRODUCT_GRAMS,
@@ -37,6 +36,10 @@ import {
 import type { PlanSelectionKind } from '../lib/planSelection';
 import { AddSelectedBar } from '../components/PlanSelectionControls';
 import { formatCompactNumber } from '../lib/compactNumber';
+import { FIELD_CLASS, LABEL_CLASS, SECTION_LABEL_CLASS, blockNumberSigns } from '../lib/formStyles';
+import { FormSheet, SheetSubmit } from '../components/FormSheet';
+import { FoodPlaceholder } from '../components/FoodPlaceholder';
+import { QuickMealFields } from '../components/QuickMealFields';
 import { MEAL_LIMITS, acceptsLimitedNumber, isPositiveWithinLimit, numberFieldProps } from '../lib/inputLimits';
 
 type FoodTab = 'recent' | 'saved' | 'own';
@@ -71,10 +74,10 @@ function matchesFilters(item: { kcal?: unknown; protein?: unknown; fat?: unknown
 function FoodSection({ title, empty, children }: { title: string; empty: string | null; children: ReactNode[] }) {
   if (children.length === 0 && !empty) return null;
   return (
-    <section className="mb-4">
-      <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/50 mb-3 pl-1">{title}</h2>
+    <section className="mb-5">
+      <h2 className={`${SECTION_LABEL_CLASS} px-1 mb-2`}>{title}</h2>
       {children.length > 0 ? (
-        <div className="flex flex-col gap-3">{children}</div>
+        <div className="flex flex-col gap-2">{children}</div>
       ) : empty && <EmptyBox message={empty} />}
     </section>
   );
@@ -82,10 +85,29 @@ function FoodSection({ title, empty, children }: { title: string; empty: string 
 
 function EmptyBox({ message, children }: { message: string; children?: ReactNode }) {
   return (
-    <div className="py-6 px-4 text-center bg-surface-container-lowest rounded-[24px] border border-outline-variant/10 border-dashed">
-      <p className="text-sm font-medium text-on-surface-variant/60">{message}</p>
+    <div className="py-6 px-4 text-center bg-surface-container-low rounded-2xl border border-dashed border-outline-variant/20">
+      <p className="text-sm font-medium text-on-surface-variant">{message}</p>
       {children}
     </div>
+  );
+}
+
+function CreateChip({ icon, label, ariaLabel, onClick }: { icon: string; label: string; ariaLabel: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className="h-9 pl-1 pr-3 shrink-0 rounded-full bg-surface-container-low flex items-center gap-1.5 text-[13px] font-semibold text-on-surface whitespace-nowrap active:scale-95 transition-transform"
+    >
+      <span aria-hidden="true" className="relative w-7 h-7 rounded-full bg-surface-container-high flex items-center justify-center">
+        <span className="material-symbols-outlined text-[16px] text-on-surface-variant">{icon}</span>
+        <span className="absolute -right-0.5 -bottom-0.5 w-[13px] h-[13px] rounded-full bg-primary text-on-primary flex items-center justify-center ring-2 ring-surface-container-low">
+          <span className="material-symbols-outlined text-[11px] font-bold">add</span>
+        </span>
+      </span>
+      {label}
+    </button>
   );
 }
 
@@ -224,7 +246,6 @@ export function AddFood() {
   const [quickAddInitial, setQuickAddInitial] = useState(quickAddForm);
   const quickAddChanged = (Object.keys(quickAddForm) as (keyof typeof quickAddForm)[]).some(key => quickAddForm[key] !== quickAddInitial[key]);
 
-  const quickAddSheetRef = useBottomSheet(showQuickAdd && !mealId, () => setShowQuickAdd(false));
 
   useEffect(() => {
     async function loadManualMeal() {
@@ -289,7 +310,7 @@ export function AddFood() {
         key={`product-${product.id}`}
         name={name}
         kcal={formatCompactNumber(Number(product.kcal) || 0)}
-        amount={`${DEFAULT_PRODUCT_GRAMS}g`}
+        amount={`${DEFAULT_PRODUCT_GRAMS} g`}
         own={own}
         unverified={isUnverified(product)}
         calendories={isCalendoriesProduct(product)}
@@ -341,10 +362,7 @@ export function AddFood() {
 
   const handleQuickAddSubmit = async () => {
     if (!selectDate || !selectType || isAdding) return;
-    if (!quickAddForm.name || !quickAddForm.kcal) {
-      alert('Podaj przynajmniej nazwę i kalorie!');
-      return;
-    }
+    if (!quickAddForm.name.trim() || !quickAddForm.kcal) return;
 
     setIsAdding(true);
 
@@ -367,9 +385,9 @@ export function AddFood() {
       }
       await refreshMeals();
       navigate('/');
-    } catch (err: any) {
-      console.error("Meal save error:", err);
-      alert(`Wystąpił błąd przy zapisywaniu: ${err.message}`);
+    } catch (err) {
+      console.error('Meal save error:', err);
+      alert(t('quickAdd.saveFailed', { message: err instanceof Error ? err.message : String(err) }));
     } finally {
       setIsAdding(false);
     }
@@ -378,23 +396,33 @@ export function AddFood() {
 
   if (!selectDate || !selectType) {
     return (
-      <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-6 text-center">
-        <span className="material-symbols-outlined text-6xl text-on-surface-variant/30 mb-4">error</span>
-        <h2 className="text-xl font-bold text-on-surface mb-2">Brak kontekstu</h2>
-        <p className="text-sm text-on-surface-variant mb-6">Przejdź tu z kalendarza, wybierając konkretny posiłek.</p>
-        <button onClick={() => navigate('/')} className="px-6 py-3 bg-primary text-on-primary font-bold rounded-2xl active:scale-95 transition-transform">Wróć do planu</button>
+      <div className="min-h-screen bg-surface flex flex-col items-center justify-center px-8 text-center">
+        <FoodPlaceholder kind="manual" className="w-16 h-16 rounded-2xl mb-4" iconClassName="text-[34px]" />
+        <h2 className="font-headline font-extrabold text-xl tracking-tight text-on-surface">{t('addFood.noTargetTitle')}</h2>
+        <p className="text-sm text-on-surface-variant mt-2">{t('addFood.noTargetText')}</p>
+        <button onClick={() => navigate('/')} className="mt-6 h-[52px] px-8 bg-primary text-on-primary font-bold text-[15px] rounded-full active:scale-95 transition-transform">{t('addFood.backToPlan')}</button>
       </div>
     );
   }
 
+  const quickAddValid = Boolean(quickAddForm.name.trim()) && isPositiveWithinLimit(quickAddForm.kcal, MEAL_LIMITS.kcal);
+  const quickAddSubmit = (
+    <SheetSubmit
+      label={t(mealId ? 'quickAdd.update' : 'quickAdd.submit')}
+      busy={isAdding}
+      disabled={!quickAddValid || (Boolean(mealId) && !quickAddChanged)}
+      onClick={handleQuickAddSubmit}
+    />
+  );
+  const activeFilterCount = Object.values(filters).filter(value => value !== '').length;
+
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-32 flex flex-col">
-      <header className={`sticky top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-xs border-b border-outline-variant/10 pt-safe`}>
-        <div className="max-w-xl mx-auto px-4 py-4 space-y-4">
-
+      <header className="sticky top-0 w-full z-50 bg-surface pt-safe">
+        <div className="max-w-xl mx-auto px-4 pt-3 pb-2 flex flex-col gap-2.5">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/')} aria-label={t('recipeDetails.back')} className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform shrink-0">
-              <span className="material-symbols-outlined">arrow_back</span>
+            <button onClick={() => navigate('/')} aria-label={t('recipeDetails.back')} className="w-10 h-10 bg-surface-container-low rounded-full flex items-center justify-center text-on-surface active:scale-95 transition-transform shrink-0">
+              <span aria-hidden="true" className="material-symbols-outlined text-[22px]">arrow_back</span>
             </button>
             <PlanTargetPicker
               meals={availableMealTypes}
@@ -407,67 +435,84 @@ export function AddFood() {
           </div>
 
           {!mealId && (
-            <div className="flex items-center gap-3 w-full">
-              <div className="flex-1 relative group">
-                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                  <span className="material-symbols-outlined text-on-surface-variant/60">search</span>
+            <>
+              <div className="flex items-center gap-2 w-full pt-0.5">
+                <div className="relative flex-1 min-w-0">
+                  <span aria-hidden="true" className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant pointer-events-none">search</span>
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => changeSearch(e.target.value, filters)}
+                    className={`w-full h-[46px] rounded-2xl bg-surface-container-low pl-11 ${searchQuery ? 'pr-10' : 'pr-3'} text-sm font-medium text-on-surface placeholder:text-on-surface-variant/80 outline-hidden focus:ring-2 focus:ring-primary/30 transition-shadow [&::-webkit-search-cancel-button]:hidden`}
+                    placeholder={t('food.searchPlaceholder')}
+                    aria-label={t('food.searchPlaceholder')}
+                    type="search"
+                    inputMode="search"
+                    autoComplete="off"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => changeSearch('', filters)} aria-label={t('food.clearSearch')} className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant active:scale-90">
+                      <span aria-hidden="true" className="material-symbols-outlined text-[18px]">close</span>
+                    </button>
+                  )}
                 </div>
-                <input
-                  value={searchQuery}
-                  onChange={(e) => changeSearch(e.target.value, filters)}
-                  className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 pl-12 pr-4 focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50 text-on-surface text-sm font-medium transition-all shadow-inner"
-                  placeholder={t('food.searchPlaceholder')}
-                  type="search"
-                  inputMode="search"
-                  autoComplete="off"
-                />
-                {searchQuery && (
-                  <button onClick={() => changeSearch('', filters)} aria-label={t('food.clearSearch')} className="absolute inset-y-0 right-4 flex items-center text-on-surface-variant/60 hover:text-on-surface active:scale-90 transition-transform">
-                    <span className="material-symbols-outlined text-[18px]">close</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => setShowScanner(true)}
+                  aria-label={t('addFood.scan')}
+                  className="w-[46px] h-[46px] shrink-0 rounded-full bg-surface-container-low text-on-surface flex items-center justify-center active:scale-95 transition-transform"
+                >
+                  <span aria-hidden="true" className="material-symbols-outlined text-[22px]">barcode_scanner</span>
+                </button>
+                <button
+                  onClick={() => setShowFilters(v => !v)}
+                  aria-label={t('food.filters.open')}
+                  className={`relative w-[46px] h-[46px] shrink-0 rounded-full flex items-center justify-center active:scale-95 transition-colors ${hasActiveFilters ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface'}`}
+                >
+                  <span aria-hidden="true" className="material-symbols-outlined text-[22px]">tune</span>
+                  {hasActiveFilters && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-surface text-primary text-[10.5px] font-extrabold flex items-center justify-center ring-2 ring-primary">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
               </div>
-              <button
-                onClick={() => setShowScanner(true)}
-                className="bg-primary/10 w-12 h-12 rounded-2xl flex items-center justify-center text-primary hover:bg-primary/20 transition-colors active:scale-95 shrink-0 border border-primary/20 shadow-xs"
-                title="Skanuj kod"
-              >
-                <span className="material-symbols-outlined text-xl">barcode_scanner</span>
-              </button>
-              {/* Filter Button */}
-              <button
-                onClick={() => setShowFilters(v => !v)}
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors active:scale-95 shrink-0 shadow-xs relative ${showFilters || hasActiveFilters ? 'bg-primary text-on-primary' : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'}`}
-                title={t('food.filters.open')}
-                aria-label={t('food.filters.open')}
-              >
-                <span className="material-symbols-outlined text-xl">tune</span>
-                {hasActiveFilters && !showFilters && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-error rounded-full text-[9px] text-on-error font-black flex items-center justify-center">
-                    {Object.values(filters).filter(v => v !== '').length}
-                  </span>
-                )}
-              </button>
-            </div>
+
+              <div role="tablist" className="flex bg-surface-container-low rounded-full p-[3px]">
+                {FOOD_TABS.map(tab => (
+                  <button
+                    key={tab.id}
+                    role="tab"
+                    aria-selected={selectedTab === tab.id}
+                    onClick={() => selectTab(tab.id)}
+                    className={`flex-1 min-w-0 h-[34px] rounded-full flex items-center justify-center gap-1.5 text-[12.5px] font-bold transition-colors ${selectedTab === tab.id ? 'bg-surface-container-high text-on-surface' : 'text-on-surface-variant'}`}
+                  >
+                    <span aria-hidden="true" className="material-symbols-outlined shrink-0 text-[16px]">{tab.icon}</span>
+                    <span className="truncate">{t(tab.label)}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex gap-1.5 overflow-x-auto -mx-4 px-4">
+                <CreateChip icon="bolt" label={t('addFood.createQuick')} ariaLabel={t('addFood.createQuickLabel')} onClick={() => setShowQuickAdd(true)} />
+                <CreateChip icon="nutrition" label={t('addFood.createProduct')} ariaLabel={t('addFood.createProductLabel')} onClick={() => setNewProduct({})} />
+                <CreateChip icon="menu_book" label={t('addFood.createRecipe')} ariaLabel={t('addFood.createRecipeLabel')} onClick={() => navigate('/add-recipe')} />
+              </div>
+            </>
           )}
 
           {showFilters && !mealId && (
             <BottomPanel title={t('food.filters.title')} onClose={() => setShowFilters(false)}>
               <div className="grid grid-cols-2 gap-3 mb-5">
                 {FILTER_FIELDS.map(f => (
-                  <div key={f.key} className="flex flex-col gap-1">
-                    <label htmlFor={`filter-${f.key}`} className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[12px]">{f.icon}</span>
-                      {t(f.label)}
-                    </label>
+                  <div key={f.key} className="flex flex-col">
+                    <label htmlFor={`filter-${f.key}`} className={LABEL_CLASS}>{t(f.label)}</label>
                     <input
                       {...numberFieldProps(f.max, 0)}
                       id={`filter-${f.key}`}
                       value={filters[f.key]}
                       onChange={e => acceptsLimitedNumber(e.target.value, f.max, 0) && changeSearch(searchQuery, { ...filters, [f.key]: e.target.value })}
-                      onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
+                      onKeyDown={blockNumberSigns}
                       placeholder={f.placeholder}
-                      className="w-full bg-surface-container-low rounded-xl py-3 px-3 text-sm font-bold text-on-surface outline-hidden focus:ring-2 focus:ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className={`${FIELD_CLASS} tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                     />
                   </div>
                 ))}
@@ -477,97 +522,29 @@ export function AddFood() {
                   type="button"
                   disabled={!hasActiveFilters}
                   onClick={() => changeSearch(searchQuery, EMPTY_FILTERS)}
-                  className="flex-1 py-4 bg-surface-container-low text-on-surface font-bold text-sm rounded-2xl active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 h-[52px] bg-surface-container text-on-surface font-bold text-[15px] rounded-full active:scale-[0.98] transition-transform disabled:opacity-50"
                 >
-                  <span className="material-symbols-outlined text-[18px]">filter_alt_off</span>
                   {t('food.filters.clear')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowFilters(false)}
-                  className="flex-1 py-4 bg-primary text-on-primary font-black text-sm rounded-2xl active:scale-95 transition-transform"
+                  className="flex-1 h-[52px] bg-primary text-on-primary font-bold text-[15px] rounded-full active:scale-[0.98] transition-transform"
                 >
                   {t('food.filters.show')}
                 </button>
               </div>
             </BottomPanel>
           )}
-
-          {/* Segmented Control */}
-          {!mealId && (
-            <div className="w-full pt-2 pb-1">
-              <div role="tablist" className="flex w-full gap-1.5 sm:gap-2">
-                {FOOD_TABS.map(tab => (
-                  <button
-                    key={tab.id}
-                    role="tab"
-                    aria-selected={selectedTab === tab.id}
-                    onClick={() => selectTab(tab.id)}
-                    className={`flex flex-1 items-center justify-center gap-1 sm:gap-1.5 py-2.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all overflow-hidden ${selectedTab === tab.id ? 'bg-on-surface text-surface shadow-md' : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'}`}
-                  >
-                    <span className="material-symbols-outlined shrink-0 text-[14px]">{tab.icon}</span>
-                    <span className="truncate">{t(tab.label)}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Szybkie akcje dodawania (Przeniesione na górę) */}
-          {!mealId && (
-            <div className="flex items-center justify-between gap-2 pt-1">
-              <button
-                onClick={() => setNewProduct({})}
-                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-hidden bg-surface-container-low rounded-xl border border-outline-variant/10"
-              >
-                <div className="relative flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[18px]">grocery</span>
-                  <div className="absolute -bottom-1 -right-1 bg-surface rounded-full flex items-center justify-center">
-                    <span className="material-symbols-outlined text-[10px] font-black text-primary">add_circle</span>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider">Produkt</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/add-recipe')}
-                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-hidden bg-surface-container-low rounded-xl border border-outline-variant/10"
-              >
-                <div className="relative flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[18px]">menu_book</span>
-                  <div className="absolute -bottom-1 -right-1 bg-surface rounded-full flex items-center justify-center">
-                    <span className="material-symbols-outlined text-[10px] font-black text-primary">add_circle</span>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider">Przepis</span>
-              </button>
-
-              <button
-                onClick={() => setShowQuickAdd(true)}
-                className="flex items-center justify-center gap-2 flex-1 py-2 text-on-surface-variant hover:text-primary transition-colors active:scale-95 outline-hidden bg-surface-container-low rounded-xl border border-outline-variant/10"
-              >
-                <div className="relative flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[18px]">bolt</span>
-                  <div className="absolute -bottom-1 -right-1 bg-surface rounded-full flex items-center justify-center">
-                    <span className="material-symbols-outlined text-[10px] font-black text-primary">add_circle</span>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider">Szybkie</span>
-              </button>
-            </div>
-          )}
-
         </div>
       </header>
 
-      {/* Main Content Area */}
       {!mealId && (
-        <main className="flex-1 w-full max-w-xl mx-auto px-4 py-6">
+        <main className="flex-1 w-full max-w-xl mx-auto px-4 pt-3 pb-6">
 
           {contextLoading && (
-            <div className="flex flex-col items-center justify-center py-20 gap-3 opacity-50">
-              <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-              <span className="text-xs font-bold uppercase tracking-widest text-primary/60">{t('food.loading')}</span>
+            <div role="status" aria-label={t('food.loading')} className="flex flex-col gap-2 motion-safe:animate-pulse">
+              {[0, 1, 2].map(index => <div key={index} className="h-16 rounded-2xl bg-surface-container-low" />)}
             </div>
           )}
 
@@ -578,10 +555,10 @@ export function AddFood() {
               </FoodSection>
               {noProductsFound && searchedRecipes.length === 0 && <NoResults />}
               {!noProductsFound && (
-                <section className="mb-4 overflow-hidden">
-                  <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/50 mb-3 pl-1">{t('food.products')}</h2>
+                <section className="mb-5 overflow-hidden">
+                  <h2 className={`${SECTION_LABEL_CLASS} px-1 mb-2`}>{t('food.products')}</h2>
                   {productSearch.items.length > 0 ? (
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-2">
                       {productSearch.items.map(renderProduct)}
                       {productSearch.error && (
                         <p className="pt-3 text-center text-sm font-medium text-error">{t('food.moreProductsFailed')}</p>
@@ -591,13 +568,13 @@ export function AddFood() {
                       )}
                     </div>
                   ) : isSearchingProducts ? (
-                    <p className="py-6 text-center text-sm font-medium text-on-surface-variant/60">{t('food.searching')}</p>
+                    <p className="py-6 text-center text-sm font-medium text-on-surface-variant">{t('food.searching')}</p>
                   ) : (
-                      <EmptyBox message={t('food.productsFailed')}>
+                    <EmptyBox message={t('food.productsFailed')}>
                       <button
                         type="button"
                         onClick={productSearch.reload}
-                        className="mt-3 px-5 py-2 rounded-full text-sm font-bold text-primary bg-primary/10 active:scale-95 transition-all"
+                        className="mt-3 h-10 px-5 rounded-full text-sm font-bold text-on-primary bg-primary active:scale-95 transition-transform"
                       >
                         {t('food.retry')}
                       </button>
@@ -642,152 +619,27 @@ export function AddFood() {
         </main>
       )}
 
-
-      {/* Quick Add Form - Modal for new, Page Content for edit */}
-      {showQuickAdd && (
-        <div data-scroll-lock={mealId ? undefined : true} className={mealId ? "flex-1 w-full max-w-xl mx-auto px-4 py-6" : "fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-xs animate-fade-in"} onClick={!mealId ? () => setShowQuickAdd(false) : undefined}>
-          <div ref={mealId ? undefined : quickAddSheetRef} className={mealId ? "bg-transparent" : "bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[90vh] overflow-y-auto animate-slide-up w-full sm:max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative"} onClick={e => e.stopPropagation()}>
-            {!mealId && <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6"></div>}
-
-            {!mealId && (
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                    <span className="material-symbols-outlined text-xl">bolt</span>
-                  </div>
-                  <div>
-                    <h2 className="font-headline font-bold text-lg text-on-surface leading-tight">
-                      Szybkie dodanie
-                    </h2>
-                    <span className="text-[10px] sm:text-[11px] font-medium text-on-surface-variant">bez dodawania szczegółów i zdjęcia</span>
-                  </div>
-                </div>
-                <button onClick={() => setShowQuickAdd(false)} className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors active:scale-90">
-                  <span className="material-symbols-outlined text-[18px]">close</span>
-                </button>
-              </div>
-            )}
-
-            <div className={`flex flex-col gap-4 ${mealId ? 'mb-8' : 'mb-8'}`}>
-
-              {/* Nazwa */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">Nazwa</label>
-                <input
-                  type="text"
-                  autoComplete="off"
-                  aria-label="Nazwa"
-                  value={quickAddForm.name}
-                  onChange={e => setQuickAddForm({ ...quickAddForm, name: e.target.value })}
-                  className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm transition-shadow placeholder:font-medium placeholder:text-on-surface-variant/40"
-                  placeholder="np. Szybki obiad z zewnątrz"
-                />
-              </div>
-
-              {/* Kcal */}
-              <div className="flex flex-col gap-1.5 mt-2">
-                <div className="flex items-center justify-between pl-1">
-                  <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Wartość energetyczna</label>
-                </div>
-                <div className={`relative flex items-center rounded-2xl overflow-hidden transition-shadow border ${mealId ? 'bg-primary/5 border-primary/30 ring-1 ring-primary/10 shadow-xs' : 'bg-surface-container-low border-none focus-within:ring-2 focus-within:ring-primary/30'}`}>
-                  <input
-                    {...numberFieldProps(MEAL_LIMITS.kcal, 0)}
-                    aria-label="Wartość energetyczna"
-                    onKeyDown={(e) => {
-                      if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-                    }}
-                    value={quickAddForm.kcal}
-                    onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.kcal, 0) && setQuickAddForm({ ...quickAddForm, kcal: e.target.value })}
-                    className="flex-1 bg-transparent py-4 pl-4 pr-16 outline-hidden text-on-surface font-bold text-lg leading-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    placeholder="0"
-                  />
-                  <span className="absolute right-4 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest bg-surface-container-highest/60 px-2 py-1.5 rounded-md">kcal</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                {/* Węglowodany */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest leading-none truncate">Węgle</label>
-                  <div className={`relative flex items-center rounded-xl overflow-hidden transition-shadow border ${mealId ? 'bg-primary/5 border-primary/30' : 'bg-surface-container-low border-none focus-within:ring-2 focus-within:ring-primary/30'}`}>
-                    <input
-                      {...numberFieldProps(MEAL_LIMITS.grams)}
-                      aria-label="Węgle"
-                      onKeyDown={(e) => {
-                        if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-                      }}
-                      value={quickAddForm.carbs}
-                      onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.grams) && setQuickAddForm({ ...quickAddForm, carbs: e.target.value })}
-                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-hidden text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      placeholder="0"
-                    />
-                    <span className="absolute right-3 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest">g</span>
-                  </div>
-                </div>
-
-                {/* Bialko */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest leading-none truncate">Białko</label>
-                  <div className={`relative flex items-center rounded-xl overflow-hidden transition-shadow border ${mealId ? 'bg-primary/5 border-primary/30' : 'bg-surface-container-low border-none focus-within:ring-2 focus-within:ring-primary/30'}`}>
-                    <input
-                      {...numberFieldProps(MEAL_LIMITS.grams)}
-                      aria-label="Białko"
-                      onKeyDown={(e) => {
-                        if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-                      }}
-                      value={quickAddForm.protein}
-                      onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.grams) && setQuickAddForm({ ...quickAddForm, protein: e.target.value })}
-                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-hidden text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      placeholder="0"
-                    />
-                    <span className="absolute right-3 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest">g</span>
-                  </div>
-                </div>
-
-                {/* Tluszcze */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest leading-none truncate">Tłuszcz</label>
-                  <div className={`relative flex items-center rounded-xl overflow-hidden transition-shadow border ${mealId ? 'bg-primary/5 border-primary/30' : 'bg-surface-container-low border-none focus-within:ring-2 focus-within:ring-primary/30'}`}>
-                    <input
-                      {...numberFieldProps(MEAL_LIMITS.grams)}
-                      aria-label="Tłuszcz"
-                      onKeyDown={(e) => {
-                        if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-                      }}
-                      value={quickAddForm.fat}
-                      onChange={e => acceptsLimitedNumber(e.target.value, MEAL_LIMITS.grams) && setQuickAddForm({ ...quickAddForm, fat: e.target.value })}
-                      className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-hidden text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      placeholder="0"
-                    />
-                    <span className="absolute right-3 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest">g</span>
-                  </div>
-                </div>
-              </div>
-
-
-            </div>
-
-            <button
-              onClick={handleQuickAddSubmit}
-              disabled={isAdding || !quickAddForm.name.trim() || !isPositiveWithinLimit(quickAddForm.kcal, MEAL_LIMITS.kcal) || (Boolean(mealId) && !quickAddChanged)}
-              className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
-            >
-              {isAdding ? (
-                <div className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined text-[18px]">
-                    {mealId ? 'save' : 'check_circle'}
-                  </span>
-                  {mealId ? 'Aktualizuj wpis' : 'Zapisz'}
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+      {mealId && (
+        <main className="flex-1 w-full max-w-xl mx-auto px-4 pt-3 pb-6 flex flex-col gap-5">
+          <QuickMealFields form={quickAddForm} onChange={setQuickAddForm} />
+          {quickAddSubmit}
+        </main>
       )}
 
-      {/* Add Product Modal */}
+      {showQuickAdd && !mealId && (
+        <FormSheet
+          title={t('quickAdd.title')}
+          hint={<PlanTargetMeta meals={availableMealTypes} mealType={activeMealType} date={activeDate} />}
+          leading={<FoodPlaceholder kind="manual" className="w-12 h-12 rounded-2xl" iconClassName="text-[26px]" />}
+          closeLabel={t('quickAdd.close')}
+          busy={isAdding}
+          onClose={() => setShowQuickAdd(false)}
+          footer={quickAddSubmit}
+        >
+          <QuickMealFields form={quickAddForm} onChange={setQuickAddForm} />
+        </FormSheet>
+      )}
+
       {newProduct && (
         <NewProductSheet
           key={newProduct.barCode ?? 'manual'}

@@ -258,10 +258,10 @@ describe('AddRecipe ingredient search', () => {
     const sheet = within(screen.getByText('Nowy produkt').closest('[class*="rounded-t-"]') as HTMLElement);
     expect((sheet.getByPlaceholderText('np. Jogurt naturalny') as HTMLInputElement).value).toBe('kasza jaglana');
     fireEvent.change(sheet.getByPlaceholderText('np. Jogurt naturalny'), { target: { value: 'Kasza jaglana' } });
-    for (const [index, value] of ['359', '11', '72', '3'].entries()) {
+    for (const [index, value] of ['359', '11', '3', '72'].entries()) {
       fireEvent.change(sheet.getAllByPlaceholderText('0')[index], { target: { value } });
     }
-    fireEvent.click(sheet.getByRole('button', { name: /Dodaj produkt/ }));
+    fireEvent.click(sheet.getByRole('button', { name: /Utwórz produkt/ }));
 
     await screen.findByRole('button', { name: t('recipeIngredients.add') });
     fireEvent.click(screen.getByRole('button', { name: t('recipeIngredients.add') }));
@@ -337,6 +337,26 @@ describe('AddRecipe saving', () => {
         { name: 'Skyr', amount: 100, unit: 'g', product: { id: 'p1' } },
       ],
     }));
+  });
+
+  it('keeps both save buttons disabled until the edited recipe changes', async () => {
+    mocks.getRecipe.mockResolvedValue({
+      id: 'r1', name: 'Owsianka', kcal: 500, protein: 20, fat: 10, carbs: 80, portions: 1, instructions: [], ingredients: [],
+    });
+    renderAddRecipe('/edit-recipe/r1');
+    const saveButtons = () => [
+      screen.getByRole('button', { name: t('recipeForm.save') }),
+      screen.getByRole('button', { name: t('recipeForm.saveRecipe') }),
+    ] as HTMLButtonElement[];
+
+    await waitFor(() => expect((screen.getByLabelText(t('recipeForm.name')) as HTMLInputElement).value).toBe('Owsianka'));
+    expect(saveButtons().map(button => button.disabled)).toEqual([true, true]);
+
+    fireEvent.change(screen.getByLabelText(t('recipeForm.name')), { target: { value: 'Owsianka z malinami' } });
+    expect(saveButtons().map(button => button.disabled)).toEqual([false, false]);
+
+    fireEvent.change(screen.getByLabelText(t('recipeForm.name')), { target: { value: 'Owsianka' } });
+    expect(saveButtons().map(button => button.disabled)).toEqual([true, true]);
   });
 });
 

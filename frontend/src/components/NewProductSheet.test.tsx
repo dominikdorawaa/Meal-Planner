@@ -45,7 +45,7 @@ function renderSheet(draft: NewProductDraft, props: Partial<Parameters<typeof Ne
 }
 
 function saveButton() {
-  return screen.getByRole('button', { name: /Dodaj produkt/ }) as HTMLButtonElement;
+  return screen.getByRole('button', { name: /Utwórz produkt/ }) as HTMLButtonElement;
 }
 
 beforeEach(() => {
@@ -125,7 +125,7 @@ describe('NewProductSheet', () => {
     const { onClose } = renderSheet({});
 
     fireEvent.click(screen.getByText('close').closest('button')!);
-    fireEvent.click(screen.getByText('Nowy produkt').closest('.fixed')!);
+    fireEvent.click(screen.getByRole('dialog').previousElementSibling!);
 
     expect(onClose).toHaveBeenCalledTimes(2);
   });
@@ -354,6 +354,7 @@ describe('NewProductSheet measures', () => {
 
     const alert = await screen.findByText(t('productForm.measureKindsFailed'));
     expect(screen.queryByText(t('productForm.measureInvalid', { max: 5000, unit: 'g' }))).toBeNull();
+    fireEvent.change(screen.getByLabelText(t('productForm.brand')), { target: { value: 'Piątnica' } });
     expect((screen.getByRole('button', { name: /Zapisz zmiany/ }) as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByRole('button', { name: /Dodaj miarę/ })).toBeNull();
 
@@ -362,6 +363,26 @@ describe('NewProductSheet measures', () => {
     expect(await screen.findByRole('button', { name: /Dodaj miarę/ })).toBeTruthy();
     expect(screen.queryByText(t('productForm.measureKindsFailed'))).toBeNull();
     expect(mocks.listMeasureKinds).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps saving an edited product disabled until something changes', () => {
+    const source = { id: 'p2', ...SKYR, unit: '100g' };
+    renderSheet(draftFromProduct(source as never), { mode: 'edit', source: source as never });
+    const save = () => screen.getByRole('button', { name: /Zapisz zmiany/ }) as HTMLButtonElement;
+
+    expect(save().disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText(t('productForm.kcal')), { target: { value: '70' } });
+    expect(save().disabled).toBe(false);
+    fireEvent.change(screen.getByLabelText(t('productForm.kcal')), { target: { value: String(SKYR.kcal) } });
+    expect(save().disabled).toBe(true);
+  });
+
+  it('marks the name, calories and macros as required', () => {
+    renderSheet({});
+
+    for (const label of [t('productForm.name'), t('productForm.kcal'), t('productForm.protein'), t('productForm.fat'), t('productForm.carbs')]) {
+      expect(screen.getByLabelText(label).getAttribute('aria-required')).toBe('true');
+    }
   });
 
   it('creates a drink counted in millilitres with a cup of 250 ml', async () => {

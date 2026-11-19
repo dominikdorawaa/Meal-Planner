@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { api, type Product } from '../lib/apiClient';
 import type { ProductPrefill } from '../lib/barcodeLookup';
-import { useBottomSheet } from '../lib/bottomSheet';
 import { EXTRA_NUTRIENTS, extraNutrientInputs, measureUnit, type ExtraNutrientValues } from '../lib/nutrients';
 import { checkNutrition, formNutritionHints, nutritionIssueMessageKey, parseNutritionValue } from '../lib/nutritionCheck';
 import { PACKAGE_CODE, isBaseMeasure } from '../lib/measures';
@@ -11,7 +10,11 @@ import { BarCodeField, type ExistingProductAction } from './BarCodeField';
 import { MoreNutrientsFields } from './MoreNutrientsFields';
 import { MeasuresField } from './MeasuresField';
 import { isEmptyMeasure, isValidMeasure, useMeasureKinds, type MeasureInput } from '../lib/measureInputs';
-import { NUTRITION_DECIMALS, NUTRITION_LIMITS, acceptsLimitedNumber, numberFieldProps } from '../lib/inputLimits';
+import { NUTRITION_DECIMALS, NUTRITION_LIMITS } from '../lib/inputLimits';
+import { MacroInputs, UnitInput } from './FormFields';
+import { FIELD_CLASS, LABEL_CLASS } from '../lib/formStyles';
+import { FormSheet, SheetSubmit } from './FormSheet';
+import { FoodPlaceholder } from './FoodPlaceholder';
 
 const PER_PIECE_UNIT = 'pc';
 const SELECTABLE_UNITS = ['100g', '100ml'] as const;
@@ -34,10 +37,10 @@ interface NewProductSheetProps {
   source?: Product | null;
 }
 
-const MODE_TEXTS: Record<ProductFormMode, { title: MessageKey; submit: MessageKey; icon: string }> = {
-  create: { title: 'productForm.newTitle', submit: 'productForm.create', icon: 'add_circle' },
-  edit: { title: 'productForm.editTitle', submit: 'productForm.saveChanges', icon: 'save' },
-  ownVersion: { title: 'productForm.ownVersionTitle', submit: 'productForm.saveOwnVersion', icon: 'content_copy' },
+const MODE_TEXTS: Record<ProductFormMode, { title: MessageKey; submit: MessageKey }> = {
+  create: { title: 'productForm.newTitle', submit: 'productForm.create' },
+  edit: { title: 'productForm.editTitle', submit: 'productForm.saveChanges' },
+  ownVersion: { title: 'productForm.ownVersionTitle', submit: 'productForm.saveOwnVersion' },
 };
 
 function inputValue(value: string | number | null | undefined): string {
@@ -76,6 +79,8 @@ function formFrom({ name, barCode, prefill }: NewProductDraft, unit: string) {
 export function NewProductSheet({ draft, onClose, onCreated, existingProductAction, mode = 'create', source = null }: NewProductSheetProps) {
   const [unit, setUnit] = useState(source?.unit ?? '100g');
   const [form, setForm] = useState(() => formFrom(draft, unit));
+  const [initialSnapshot] = useState(() => JSON.stringify([form, unit]));
+  const unchangedEdit = mode === 'edit' && JSON.stringify([form, unit]) === initialSnapshot;
   const { kinds, failed: kindsFailed, retry: retryKinds } = useMeasureKinds();
   const [scanMessage, setScanMessage] = useState(draft.message ?? null);
   const [creating, setCreating] = useState(false);
@@ -100,12 +105,8 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
   const existingProduct = keepsSourceBarCode || existingBarCode.product?.id === source?.id ? null : existingBarCode.product;
   const barCodeBlocksSaving = !keepsSourceBarCode && (existingBarCode.checking || existingProduct !== null);
   const texts = MODE_TEXTS[mode];
-  const sheetRef = useBottomSheet(true, onClose);
   const per100 = unit !== PER_PIECE_UNIT;
   const nutrientLimit = (nutrient: keyof typeof NUTRITION_LIMITS) => per100 ? NUTRITION_LIMITS[nutrient] : Number.MAX_SAFE_INTEGER;
-  const setLimited = (field: 'kcal' | 'protein' | 'carbs' | 'fat', value: string) => {
-    if (acceptsLimitedNumber(value, nutrientLimit(field), NUTRITION_DECIMALS)) setForm(p => ({ ...p, [field]: value }));
-  };
 
   const handleCreate = async () => {
     if (!check.valid || !measuresValid || barCodeBlocksSaving) return;
@@ -135,171 +136,133 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
   };
 
   return (
-    <div data-scroll-lock className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/40 backdrop-blur-xs animate-fade-in" onClick={() => onClose()}>
-      <div ref={sheetRef} className="bg-surface-container-lowest rounded-t-[32px] p-6 pb-8 max-h-[92vh] overflow-y-auto animate-slide-up w-full sm:max-w-xl mx-auto shadow-[0_-8px_30px_rgb(0,0,0,0.1)] relative" onClick={e => e.stopPropagation()}>
-        <div className="w-12 h-1.5 bg-outline-variant/30 rounded-full mx-auto mb-6" />
+    <FormSheet
+      title={t(texts.title)}
+      hint={per100 ? t('productForm.per100', { unit: measureUnit(unit) }) : t('productForm.perPiece')}
+      leading={<FoodPlaceholder kind="product" className="w-12 h-12 rounded-2xl" iconClassName="text-[26px]" />}
+      closeLabel={t('productForm.close')}
+      busy={creating}
+      onClose={onClose}
+      footer={
+        <SheetSubmit
+          label={t(texts.submit)}
+          busy={creating}
+          disabled={!check.valid || !measuresValid || barCodeBlocksSaving || unchangedEdit}
+          onClick={handleCreate}
+        />
+      }
+    >
+      <div className="flex flex-col gap-3.5 pt-1 pb-2">
+        {scanMessage && (
+          <p className="rounded-2xl px-3.5 py-3 text-[13px] font-medium bg-surface-container text-on-surface">{scanMessage}</p>
+        )}
+        {mode === 'ownVersion' && (
+          <p className="rounded-2xl px-3.5 py-3 text-[13px] font-medium bg-surface-container text-on-surface">{t('productForm.ownVersionHint')}</p>
+        )}
 
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-xl">grocery</span>
-            </div>
-            <div>
-              <h2 className="font-headline font-bold text-lg text-on-surface leading-tight">{t(texts.title)}</h2>
-              <span className="text-[11px] font-medium text-on-surface-variant">{per100 ? t('productForm.per100', { unit: measureUnit(unit) }) : t('productForm.perPiece')}</span>
-            </div>
-          </div>
-          <button onClick={() => onClose()} aria-label={t('productForm.close')} className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors active:scale-90">
-            <span className="material-symbols-outlined text-[18px]">close</span>
-          </button>
+        <div>
+          <label htmlFor="product-form-name" className={LABEL_CLASS}>{t('productForm.name')}</label>
+          <input
+            id="product-form-name"
+            aria-required="true"
+            type="text"
+            autoComplete="off"
+            value={form.name}
+            onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+            className={FIELD_CLASS}
+            placeholder={t('productForm.namePlaceholder')}
+          />
         </div>
-
-        <div className="flex flex-col gap-4 mb-8">
-          {scanMessage && (
-            <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-primary/10 text-on-surface">{scanMessage}</p>
-          )}
-          {mode === 'ownVersion' && (
-            <p className="rounded-xl px-3 py-2.5 text-xs font-medium bg-primary/10 text-on-surface">{t('productForm.ownVersionHint')}</p>
-          )}
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="product-form-name" className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('productForm.name')}</label>
-            <input
-              id="product-form-name"
-              type="text"
-              autoComplete="off"
-              value={form.name}
-              onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-              className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
-              placeholder={t('productForm.namePlaceholder')}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('productForm.brand')}</label>
-            <input
-              type="text"
-              autoComplete="off"
-              aria-label={t('productForm.brand')}
-              value={form.brand}
-              onChange={e => setForm(p => ({ ...p, brand: e.target.value }))}
-              className="w-full bg-surface-container-low border-none rounded-2xl py-3.5 px-4 outline-hidden focus:ring-2 focus:ring-primary/20 text-on-surface font-bold text-sm placeholder:font-medium placeholder:text-on-surface-variant/40"
-              placeholder={t('productForm.brandPlaceholder')}
-            />
-          </div>
-          {mode === 'create' && (
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('productForm.unit')}</span>
-              <div role="group" aria-label={t('productForm.unit')} className="flex shrink-0 bg-surface-container-highest p-1 rounded-2xl border border-outline-variant/5">
-                {SELECTABLE_UNITS.map(option => (
-                  <button
-                    key={option}
-                    type="button"
-                    aria-pressed={unit === option}
-                    onClick={() => setUnit(option)}
-                    className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all ${unit === option ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}`}
-                  >
-                    {t('nutrients.per100', { unit: measureUnit(option) })}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest">{t('productForm.kcal')}</label>
-            <div className="relative flex items-center rounded-2xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
-              <input
-                {...numberFieldProps(nutrientLimit('kcal'), NUTRITION_DECIMALS)}
-                aria-label={t('productForm.kcal')}
-                onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
-                value={form.kcal}
-                onChange={e => setLimited('kcal', e.target.value)}
-                className="flex-1 bg-transparent py-4 pl-4 pr-16 outline-hidden text-on-surface font-bold text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                placeholder="0"
-              />
-              <span className="absolute right-4 text-[10px] font-black text-on-surface-variant/50 uppercase tracking-widest bg-surface-container-highest/60 px-2 py-1.5 rounded-md">kcal</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { key: 'protein', label: t('productForm.protein') },
-              { key: 'carbs', label: t('productForm.carbs') },
-              { key: 'fat', label: t('productForm.fat') },
-            ].map(f => (
-              <div key={f.key} className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-on-surface-variant pl-1 uppercase tracking-widest leading-none truncate">{f.label}</label>
-                <div className="relative flex items-center rounded-xl overflow-hidden bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/30">
-                  <input
-                    {...numberFieldProps(nutrientLimit(f.key as 'protein' | 'carbs' | 'fat'), NUTRITION_DECIMALS)}
-                    aria-label={f.label}
-                    onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
-                    value={form[f.key as 'protein' | 'carbs' | 'fat']}
-                    onChange={e => setLimited(f.key as 'protein' | 'carbs' | 'fat', e.target.value)}
-                    className="flex-1 w-full bg-transparent py-3 pl-3 pr-8 outline-hidden text-on-surface font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    placeholder="0"
-                  />
-                  <span className="absolute right-3 text-[10px] font-black text-on-surface-variant/50 uppercase">g</span>
-                </div>
-              </div>
+        <div>
+          <label htmlFor="product-form-brand" className={LABEL_CLASS}>{t('productForm.brand')}</label>
+          <input
+            id="product-form-brand"
+            type="text"
+            autoComplete="off"
+            value={form.brand}
+            onChange={e => setForm(p => ({ ...p, brand: e.target.value }))}
+            className={FIELD_CLASS}
+            placeholder={t('productForm.brandPlaceholder')}
+          />
+        </div>
+        {mode === 'create' && (
+          <div role="group" aria-label={t('productForm.unit')} className="flex bg-surface-container rounded-full p-[3px]">
+            {SELECTABLE_UNITS.map(option => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={unit === option}
+                onClick={() => setUnit(option)}
+                className={`flex-1 h-[34px] rounded-full text-[13px] font-bold transition-colors ${unit === option ? 'bg-surface-container-highest text-on-surface' : 'text-on-surface-variant'}`}
+              >
+                {t('nutrients.per100', { unit: measureUnit(option) })}
+              </button>
             ))}
           </div>
-
-          {per100 && (
-            <MeasuresField
-              rows={form.measures}
-              baseUnit={measureUnit(unit)}
-              kinds={kinds}
-              kindsFailed={kindsFailed}
-              onRetryKinds={retryKinds}
-              onChange={measures => setForm(p => ({ ...p, measures }))}
-            />
-          )}
-
-          <MoreNutrientsFields
-            values={form.extras}
-            limited={per100}
-            onChange={(nutrient, value) => setForm(p => ({ ...p, extras: { ...p.extras, [nutrient]: value } }))}
+        )}
+        <div>
+          <label htmlFor="product-form-kcal" className={LABEL_CLASS}>{t('productForm.kcal')}</label>
+          <UnitInput
+            id="product-form-kcal"
+            aria-required="true"
+            unit="kcal"
+            size="large"
+            value={form.kcal}
+            max={nutrientLimit('kcal')}
+            decimals={NUTRITION_DECIMALS}
+            placeholder="0"
+            onValueChange={value => setForm(p => ({ ...p, kcal: value }))}
           />
-
-          <BarCodeField
-            value={form.barCode}
-            onChange={barCode => {
-              if (barCode !== form.barCode) setScanMessage(null);
-              setForm(p => ({ ...p, barCode }));
-            }}
-            existingProduct={existingProduct}
-            existingProductAction={existingProductAction}
-          />
-
-          {hints.length > 0 && (
-            <ul className="flex flex-col gap-2" aria-live="polite">
-              {hints.map(issue => (
-                <li
-                  key={issue}
-                  className={`flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs font-medium ${check.errors.includes(issue) ? 'bg-error/10 text-error' : 'bg-primary/10 text-on-surface'}`}
-                >
-                  <span className="material-symbols-outlined text-[16px] shrink-0">{check.errors.includes(issue) ? 'error' : 'info'}</span>
-                  {t(nutritionIssueMessageKey(issue))}
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
+        <MacroInputs
+          required
+          values={{ protein: form.protein, fat: form.fat, carbs: form.carbs }}
+          max={nutrientLimit}
+          decimals={NUTRITION_DECIMALS}
+          onChange={(macro, value) => setForm(p => ({ ...p, [macro]: value }))}
+        />
 
-        <button
-          onClick={handleCreate}
-          disabled={creating || !check.valid || !measuresValid || barCodeBlocksSaving}
-          className="w-full py-4 bg-primary text-on-primary font-black text-sm rounded-2xl hover:bg-primary/90 transition-colors active:scale-95 disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
-        >
-          {creating ? (
-            <div className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
-          ) : (
-            <>
-              <span className="material-symbols-outlined text-[18px]">{texts.icon}</span>
-              {t(texts.submit)}
-            </>
-          )}
-        </button>
+        {per100 && (
+          <MeasuresField
+            rows={form.measures}
+            baseUnit={measureUnit(unit)}
+            kinds={kinds}
+            kindsFailed={kindsFailed}
+            onRetryKinds={retryKinds}
+            onChange={measures => setForm(p => ({ ...p, measures }))}
+          />
+        )}
+
+        <MoreNutrientsFields
+          values={form.extras}
+          limited={per100}
+          onChange={(nutrient, value) => setForm(p => ({ ...p, extras: { ...p.extras, [nutrient]: value } }))}
+        />
+
+        <BarCodeField
+          value={form.barCode}
+          onChange={barCode => {
+            if (barCode !== form.barCode) setScanMessage(null);
+            setForm(p => ({ ...p, barCode }));
+          }}
+          existingProduct={existingProduct}
+          existingProductAction={existingProductAction}
+        />
+
+        {hints.length > 0 && (
+          <ul className="flex flex-col gap-2" aria-live="polite">
+            {hints.map(issue => (
+              <li
+                key={issue}
+                className={`flex items-start gap-2 rounded-2xl px-3.5 py-3 text-[13px] font-medium ${check.errors.includes(issue) ? 'bg-error/10 text-error' : 'bg-surface-container text-on-surface'}`}
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px] shrink-0">{check.errors.includes(issue) ? 'error' : 'info'}</span>
+                {t(nutritionIssueMessageKey(issue))}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-    </div>
+    </FormSheet>
   );
 }
