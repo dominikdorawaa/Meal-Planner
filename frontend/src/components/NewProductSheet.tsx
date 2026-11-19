@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { api, type Product } from '../lib/apiClient';
 import type { ProductPrefill } from '../lib/barcodeLookup';
 import { EXTRA_NUTRIENTS, extraNutrientInputs, measureUnit, type ExtraNutrientValues } from '../lib/nutrients';
@@ -12,7 +12,7 @@ import { MeasuresField } from './MeasuresField';
 import { isEmptyMeasure, isValidMeasure, useMeasureKinds, type MeasureInput } from '../lib/measureInputs';
 import { NUTRITION_DECIMALS, NUTRITION_LIMITS } from '../lib/inputLimits';
 import { MacroInputs, UnitInput } from './FormFields';
-import { FIELD_CLASS, LABEL_CLASS } from '../lib/formFields';
+import { FIELD_CLASS, LABEL_CLASS } from '../lib/formStyles';
 import { FormSheet, SheetSubmit } from './FormSheet';
 import { FoodPlaceholder } from './FoodPlaceholder';
 
@@ -35,7 +35,6 @@ interface NewProductSheetProps {
   existingProductAction: ExistingProductAction;
   mode?: ProductFormMode;
   source?: Product | null;
-  context?: ReactNode;
 }
 
 const MODE_TEXTS: Record<ProductFormMode, { title: MessageKey; submit: MessageKey }> = {
@@ -77,9 +76,11 @@ function formFrom({ name, barCode, prefill }: NewProductDraft, unit: string) {
   };
 }
 
-export function NewProductSheet({ draft, onClose, onCreated, existingProductAction, mode = 'create', source = null, context }: NewProductSheetProps) {
+export function NewProductSheet({ draft, onClose, onCreated, existingProductAction, mode = 'create', source = null }: NewProductSheetProps) {
   const [unit, setUnit] = useState(source?.unit ?? '100g');
   const [form, setForm] = useState(() => formFrom(draft, unit));
+  const [initialSnapshot] = useState(() => JSON.stringify([form, unit]));
+  const unchangedEdit = mode === 'edit' && JSON.stringify([form, unit]) === initialSnapshot;
   const { kinds, failed: kindsFailed, retry: retryKinds } = useMeasureKinds();
   const [scanMessage, setScanMessage] = useState(draft.message ?? null);
   const [creating, setCreating] = useState(false);
@@ -137,7 +138,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
   return (
     <FormSheet
       title={t(texts.title)}
-      hint={context ?? (per100 ? t('productForm.per100', { unit: measureUnit(unit) }) : t('productForm.perPiece'))}
+      hint={per100 ? t('productForm.per100', { unit: measureUnit(unit) }) : t('productForm.perPiece')}
       leading={<FoodPlaceholder kind="product" className="w-12 h-12 rounded-2xl" iconClassName="text-[26px]" />}
       closeLabel={t('productForm.close')}
       busy={creating}
@@ -146,7 +147,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
         <SheetSubmit
           label={t(texts.submit)}
           busy={creating}
-          disabled={!check.valid || !measuresValid || barCodeBlocksSaving}
+          disabled={!check.valid || !measuresValid || barCodeBlocksSaving || unchangedEdit}
           onClick={handleCreate}
         />
       }
@@ -163,6 +164,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
           <label htmlFor="product-form-name" className={LABEL_CLASS}>{t('productForm.name')}</label>
           <input
             id="product-form-name"
+            aria-required="true"
             type="text"
             autoComplete="off"
             value={form.name}
@@ -202,6 +204,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
           <label htmlFor="product-form-kcal" className={LABEL_CLASS}>{t('productForm.kcal')}</label>
           <UnitInput
             id="product-form-kcal"
+            aria-required="true"
             unit="kcal"
             size="large"
             value={form.kcal}
@@ -212,6 +215,7 @@ export function NewProductSheet({ draft, onClose, onCreated, existingProductActi
           />
         </div>
         <MacroInputs
+          required
           values={{ protein: form.protein, fat: form.fat, carbs: form.carbs }}
           max={nutrientLimit}
           decimals={NUTRITION_DECIMALS}

@@ -36,7 +36,7 @@ import {
 import type { PlanSelectionKind } from '../lib/planSelection';
 import { AddSelectedBar } from '../components/PlanSelectionControls';
 import { formatCompactNumber } from '../lib/compactNumber';
-import { FIELD_CLASS, LABEL_CLASS, SECTION_LABEL_CLASS, blockNumberSigns } from '../lib/formFields';
+import { FIELD_CLASS, LABEL_CLASS, SECTION_LABEL_CLASS, blockNumberSigns } from '../lib/formStyles';
 import { FormSheet, SheetSubmit } from '../components/FormSheet';
 import { FoodPlaceholder } from '../components/FoodPlaceholder';
 import { QuickMealFields } from '../components/QuickMealFields';
@@ -362,10 +362,7 @@ export function AddFood() {
 
   const handleQuickAddSubmit = async () => {
     if (!selectDate || !selectType || isAdding) return;
-    if (!quickAddForm.name || !quickAddForm.kcal) {
-      alert('Podaj przynajmniej nazwę i kalorie!');
-      return;
-    }
+    if (!quickAddForm.name.trim() || !quickAddForm.kcal) return;
 
     setIsAdding(true);
 
@@ -388,9 +385,9 @@ export function AddFood() {
       }
       await refreshMeals();
       navigate('/');
-    } catch (err: any) {
-      console.error("Meal save error:", err);
-      alert(`Wystąpił błąd przy zapisywaniu: ${err.message}`);
+    } catch (err) {
+      console.error('Meal save error:', err);
+      alert(t('quickAdd.saveFailed', { message: err instanceof Error ? err.message : String(err) }));
     } finally {
       setIsAdding(false);
     }
@@ -447,6 +444,7 @@ export function AddFood() {
                     onChange={(e) => changeSearch(e.target.value, filters)}
                     className={`w-full h-[46px] rounded-2xl bg-surface-container-low pl-11 ${searchQuery ? 'pr-10' : 'pr-3'} text-sm font-medium text-on-surface placeholder:text-on-surface-variant/80 outline-hidden focus:ring-2 focus:ring-primary/30 transition-shadow [&::-webkit-search-cancel-button]:hidden`}
                     placeholder={t('food.searchPlaceholder')}
+                    aria-label={t('food.searchPlaceholder')}
                     type="search"
                     inputMode="search"
                     autoComplete="off"
@@ -646,7 +644,6 @@ export function AddFood() {
         <NewProductSheet
           key={newProduct.barCode ?? 'manual'}
           draft={newProduct}
-          context={<PlanTargetMeta meals={availableMealTypes} mealType={activeMealType} date={activeDate} />}
           onClose={() => setNewProduct(null)}
           onCreated={() => {
             setNewProduct(null);

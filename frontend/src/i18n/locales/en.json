@@ -79,7 +79,6 @@
   "addFood.noTargetText": "Pick a meal in the plan and tap \"Add\".",
   "addFood.backToPlan": "Back to plan",
   "quickAdd.title": "Quick meal",
-  "quickAdd.editTitle": "Edit quick meal",
   "quickAdd.name": "Name",
   "quickAdd.namePlaceholder": "e.g. Sandwich from the canteen",
   "quickAdd.kcal": "Calories",

@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { t } from '../i18n';
 import { MEAL_LIMITS } from '../lib/inputLimits';
 import { MacroInputs, UnitInput } from './FormFields';
-import { FIELD_CLASS, LABEL_CLASS } from '../lib/formFields';
+import { FIELD_CLASS, LABEL_CLASS } from '../lib/formStyles';
 
 export interface QuickMealForm {
   name: string;

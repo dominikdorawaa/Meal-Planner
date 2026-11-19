@@ -165,7 +165,7 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
       role="dialog"
       aria-modal="true"
       aria-label={t('scanner.title')}
-      data-scroll-lock className="fixed inset-0 z-[150] flex flex-col justify-end bg-black/60 backdrop-blur-xs animate-fade-in"
+      data-scroll-lock className="fixed inset-0 z-[250] flex flex-col justify-end bg-black/60 backdrop-blur-xs animate-fade-in"
       onClick={onClose}
     >
       <div

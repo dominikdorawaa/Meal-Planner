@@ -36,7 +36,8 @@ import { resizeRecipePhoto } from '../lib/recipePhoto';
 import { formatCompactNumber } from '../lib/compactNumber';
 import { AMOUNT_LIMITS, RECIPE_LIMITS, isPositiveWithinLimit } from '../lib/inputLimits';
 import { UnitInput } from '../components/FormFields';
-import { FIELD_CLASS, LABEL_CLASS, SECTION_LABEL_CLASS } from '../lib/formFields';
+import { FIELD_CLASS, LABEL_CLASS, SECTION_LABEL_CLASS } from '../lib/formStyles';
+import { macroTextClass } from '../lib/macroColors';
 
 interface AmountTarget {
   product: Product;
@@ -485,9 +486,9 @@ export default function AddRecipe() {
                 <span className="text-[13px] font-semibold text-on-surface-variant">{t('recipeForm.perPortion')}</span>
                 <span className="flex items-center gap-2 min-w-0 text-xs font-semibold tabular-nums">
                   <span className="text-primary">{formatCompactNumber(perPortion.kcal)} kcal</span>
-                  <span className="text-macro-protein">{t('plan.summary.proteinShort')} {Math.round(perPortion.protein)}</span>
-                  <span className="text-macro-fat">{t('plan.summary.fatShort')} {Math.round(perPortion.fat)}</span>
-                  <span className="text-macro-carbs">{t('plan.summary.carbsShort')} {Math.round(perPortion.carbs)}</span>
+                  <span className={macroTextClass.protein}>{t('plan.summary.proteinShort')} {Math.round(perPortion.protein)}</span>
+                  <span className={macroTextClass.fat}>{t('plan.summary.fatShort')} {Math.round(perPortion.fat)}</span>
+                  <span className={macroTextClass.carbs}>{t('plan.summary.carbsShort')} {Math.round(perPortion.carbs)}</span>
                 </span>
               </div>
             </div>

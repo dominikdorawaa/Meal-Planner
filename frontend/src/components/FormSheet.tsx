@@ -77,10 +77,16 @@ export function SheetSubmit({ label, busy, disabled = false, form, onClick }: Sh
       type={form ? 'submit' : 'button'}
       form={form}
       disabled={busy || disabled}
+      aria-busy={busy || undefined}
       onClick={onClick}
-      className="w-full h-[52px] rounded-full bg-primary text-on-primary font-bold text-[15px] flex items-center justify-center active:scale-[0.98] transition-all disabled:bg-surface-container-highest disabled:text-on-surface-variant/60 disabled:active:scale-100"
+      className={`w-full h-[52px] rounded-full bg-primary text-on-primary font-bold text-[15px] flex items-center justify-center active:scale-[0.98] transition-all disabled:active:scale-100 ${busy ? '' : 'disabled:bg-surface-container-highest disabled:text-on-surface-variant/60'}`}
     >
-      {busy ? <span aria-hidden="true" className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" /> : label}
+      {busy ? (
+        <>
+          <span aria-hidden="true" className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
+          <span className="sr-only">{label}</span>
+        </>
+      ) : label}
     </button>
   );
 }

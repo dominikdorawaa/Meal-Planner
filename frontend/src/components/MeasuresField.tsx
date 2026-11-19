@@ -1,6 +1,6 @@
 import { t } from '../i18n';
 import { acceptsLimitedNumber, numberFieldProps } from '../lib/inputLimits';
-import { LABEL_CLASS, blockNumberSigns } from '../lib/formFields';
+import { ERROR_NOTE_CLASS, LABEL_CLASS, blockNumberSigns } from '../lib/formStyles';
 import { measureName, type MeasureKind, type MeasureNames } from '../lib/measures';
 import { isValidMeasure, maxBaseAmount, type MeasureInput } from '../lib/measureInputs';
 
@@ -93,13 +93,13 @@ export function MeasuresField({ rows, baseUnit, kinds, kindsFailed = false, onRe
               </button>
             </div>
             {!valid && (
-              <p className="rounded-2xl px-3.5 py-3 text-[13px] font-medium bg-error/10 text-error">{t('productForm.measureInvalid', { max, unit: baseUnit })}</p>
+              <p className={ERROR_NOTE_CLASS}>{t('productForm.measureInvalid', { max, unit: baseUnit })}</p>
             )}
           </div>
         );
       })}
       {kindsFailed && (
-        <div role="alert" className="flex items-center justify-between gap-3 rounded-2xl px-3.5 py-3 text-[13px] font-medium bg-error/10 text-error">
+        <div role="alert" className={`flex items-center justify-between gap-3 ${ERROR_NOTE_CLASS}`}>
           <span>{t('productForm.measureKindsFailed')}</span>
           <button type="button" onClick={onRetryKinds} className="shrink-0 font-bold underline active:scale-95">
             {t('productForm.measureKindsRetry')}

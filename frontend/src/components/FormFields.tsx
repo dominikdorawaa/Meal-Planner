@@ -1,8 +1,8 @@
 import { useId, type InputHTMLAttributes } from 'react';
 import { t } from '../i18n';
 import { acceptsLimitedNumber, numberFieldProps } from '../lib/inputLimits';
-import type { MacroKey } from '../lib/macroColors';
-import { blockNumberSigns } from '../lib/formFields';
+import { macroTextClass, type MacroKey } from '../lib/macroColors';
+import { blockNumberSigns } from '../lib/formStyles';
 
 const NUMBER_INPUT_CLASS =
   'flex-1 min-w-0 w-full bg-transparent outline-hidden text-on-surface tabular-nums caret-primary placeholder:text-on-surface-variant/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
@@ -46,26 +46,21 @@ const MACRO_LABELS = {
   carbs: 'productForm.carbs',
 } as const;
 
-const MACRO_TEXT_CLASS: Record<MacroKey, string> = {
-  protein: 'text-macro-protein',
-  fat: 'text-macro-fat',
-  carbs: 'text-macro-carbs',
-};
-
 interface MacroInputsProps {
   values: MacroValues;
   max: (macro: MacroKey) => number;
   decimals?: number;
+  required?: boolean;
   onChange: (macro: MacroKey, value: string) => void;
 }
 
-export function MacroInputs({ values, max, decimals, onChange }: MacroInputsProps) {
+export function MacroInputs({ values, max, decimals, required = false, onChange }: MacroInputsProps) {
   const id = useId();
   return (
     <div className="grid grid-cols-3 gap-2.5">
       {MACRO_ORDER.map(macro => (
         <div key={macro} className="min-w-0">
-          <label htmlFor={`${id}-${macro}`} className={`mb-1.5 px-1 flex items-center gap-1.5 text-[13px] font-semibold ${MACRO_TEXT_CLASS[macro]}`}>
+          <label htmlFor={`${id}-${macro}`} className={`mb-1.5 px-1 flex items-center gap-1.5 text-[13px] font-semibold ${macroTextClass[macro]}`}>
             <span aria-hidden="true" className="w-2 h-2 shrink-0 rounded-full bg-current" />
             <span className="truncate">{t(MACRO_LABELS[macro])}</span>
           </label>
@@ -76,6 +71,7 @@ export function MacroInputs({ values, max, decimals, onChange }: MacroInputsProp
             max={max(macro)}
             decimals={decimals}
             placeholder="0"
+            aria-required={required || undefined}
             size="compact"
             onValueChange={value => onChange(macro, value)}
           />

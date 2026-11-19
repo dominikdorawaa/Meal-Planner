@@ -2,7 +2,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { t } from '../i18n';
 import { api } from '../lib/apiClient';
 import { AMOUNT_LIMITS, acceptsLimitedNumber } from '../lib/inputLimits';
-import { ShoppingSheet, ShoppingSheetSubmit } from './ShoppingSheet';
+import { ShoppingSheet } from './ShoppingSheet';
+import { SheetSubmit } from './FormSheet';
 
 interface ShoppingAddProductSheetProps {
   onAdded: () => Promise<void> | void;
@@ -59,7 +60,7 @@ export function ShoppingAddProductSheet({ onAdded, onClose }: ShoppingAddProduct
       title={t('shopping.addProduct')}
       busy={submitting}
       onClose={onClose}
-      footer={<ShoppingSheetSubmit label={t('shopping.addToList')} busy={submitting} form={formId} />}
+      footer={<SheetSubmit label={t('shopping.addToList')} busy={submitting} form={formId} />}
     >
       <form
         id={formId}

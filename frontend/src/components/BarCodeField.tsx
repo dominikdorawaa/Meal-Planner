@@ -5,7 +5,7 @@ import type { Product } from '../lib/apiClient';
 import { normalizeBarCode } from '../lib/barcodeLookup';
 import { productDisplayName } from '../lib/productName';
 import { LazyBarcodeScanner } from './LazyBarcodeScanner';
-import { LABEL_CLASS } from '../lib/formFields';
+import { ERROR_NOTE_CLASS, LABEL_CLASS } from '../lib/formStyles';
 
 export type ExistingProductAction =
   | { href: (product: Product) => string }
@@ -46,7 +46,7 @@ export function BarCodeField({ value, onChange, existingProduct, existingProduct
         </button>
       </div>
       {existingProduct && (
-        <div role="alert" className="mt-2 flex items-center justify-between gap-3 rounded-2xl px-3.5 py-3 text-[13px] font-medium bg-error/10 text-error">
+        <div role="alert" className={`mt-2 flex items-center justify-between gap-3 ${ERROR_NOTE_CLASS}`}>
           <span>{t('product.alreadyExists')}</span>
           {'onOpen' in existingProductAction ? (
             <button type="button" onClick={() => existingProductAction.onOpen(existingProduct)} className="font-bold underline underline-offset-2 truncate">
