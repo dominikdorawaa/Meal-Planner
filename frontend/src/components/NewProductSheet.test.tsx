@@ -45,7 +45,7 @@ function renderSheet(draft: NewProductDraft, props: Partial<Parameters<typeof Ne
 }
 
 function saveButton() {
-  return screen.getByRole('button', { name: /Dodaj produkt/ }) as HTMLButtonElement;
+  return screen.getByRole('button', { name: /Utwórz produkt/ }) as HTMLButtonElement;
 }
 
 beforeEach(() => {
@@ -125,7 +125,7 @@ describe('NewProductSheet', () => {
     const { onClose } = renderSheet({});
 
     fireEvent.click(screen.getByText('close').closest('button')!);
-    fireEvent.click(screen.getByText('Nowy produkt').closest('.fixed')!);
+    fireEvent.click(screen.getByRole('dialog').previousElementSibling!);
 
     expect(onClose).toHaveBeenCalledTimes(2);
   });

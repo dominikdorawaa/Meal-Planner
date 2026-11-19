@@ -155,7 +155,7 @@ async function openSavedTab() {
 }
 
 function search(value: string) {
-  fireEvent.change(screen.getByPlaceholderText('Szukaj przepisów, produktów...'), { target: { value } });
+  fireEvent.change(screen.getByPlaceholderText(t('food.searchPlaceholder')), { target: { value } });
 }
 
 function addSelectedButton(count: number) {
@@ -336,11 +336,11 @@ describe('AddFood selection', () => {
     renderAddFood();
     fireEvent.click(checkbox('Owsianka'));
 
-    fireEvent.click(screen.getByText('Szybkie'));
+    fireEvent.click(screen.getByRole('button', { name: t('addFood.createQuickLabel') }));
     expect(addSelectedButton(1)).toBeNull();
-    fireEvent.change(screen.getByPlaceholderText('np. Szybki obiad z zewnątrz'), { target: { value: 'Pizza' } });
+    fireEvent.change(screen.getByPlaceholderText(t('quickAdd.namePlaceholder')), { target: { value: 'Pizza' } });
     fireEvent.change(screen.getAllByPlaceholderText('0')[0], { target: { value: '800' } });
-    fireEvent.click(screen.getByRole('button', { name: /Zapisz/ }));
+    fireEvent.click(screen.getByRole('button', { name: t('quickAdd.submit') }));
 
     await screen.findByText('plan screen');
     expect(mocks.addMeal.mock.calls.map(call => call[0])).toEqual([
@@ -355,7 +355,7 @@ describe('AddFood selection', () => {
 
     await waitFor(() => expect(screen.getByDisplayValue('Pizza')).toBeTruthy());
     fireEvent.change(screen.getByLabelText('Nazwa'), { target: { value: 'Pizza z pieca' } });
-    fireEvent.click(screen.getByRole('button', { name: /Aktualizuj wpis/ }));
+    fireEvent.click(screen.getByRole('button', { name: t('quickAdd.update') }));
 
     await screen.findByText('plan screen');
     expect(mocks.updateMeal).toHaveBeenCalledWith('m1', expect.objectContaining({ manual_name: 'Pizza z pieca' }));
@@ -365,7 +365,7 @@ describe('AddFood selection', () => {
 
 describe('AddFood quick entry editing', () => {
   function updateButton() {
-    return screen.getByRole('button', { name: /Aktualizuj wpis/ }) as HTMLButtonElement;
+    return screen.getByRole('button', { name: t('quickAdd.update') }) as HTMLButtonElement;
   }
 
   it('keeps the update button disabled until something changes', async () => {
@@ -387,9 +387,9 @@ describe('AddFood quick entry editing', () => {
     renderAddFood(`${ADD_FOOD_URL}&mealId=m1`);
     await waitFor(() => expect(screen.getByDisplayValue('Pizza')).toBeTruthy());
 
-    fireEvent.change(screen.getByLabelText('Wartość energetyczna'), { target: { value: '0' } });
+    fireEvent.change(screen.getByLabelText(t('quickAdd.kcal')), { target: { value: '0' } });
     expect(updateButton().disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText('Wartość energetyczna'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText(t('quickAdd.kcal')), { target: { value: '' } });
     expect(updateButton().disabled).toBe(true);
   });
 
@@ -398,7 +398,7 @@ describe('AddFood quick entry editing', () => {
     renderAddFood(`${ADD_FOOD_URL}&mealId=m1`);
     await waitFor(() => expect(screen.getByDisplayValue('Pizza')).toBeTruthy());
 
-    const kcal = screen.getByLabelText('Wartość energetyczna') as HTMLInputElement;
+    const kcal = screen.getByLabelText(t('quickAdd.kcal')) as HTMLInputElement;
     fireEvent.change(kcal, { target: { value: '10000' } });
     expect(kcal.value).toBe('10000');
     fireEvent.change(kcal, { target: { value: '10001' } });
@@ -414,10 +414,10 @@ describe('AddFood quick entry editing', () => {
     renderAddFood(`${ADD_FOOD_URL}&mealId=m1`);
     await waitFor(() => expect(screen.getByDisplayValue('Pizza')).toBeTruthy());
 
-    for (const label of ['Nazwa', 'Wartość energetyczna', 'Węgle', 'Białko', 'Tłuszcz']) {
+    for (const label of [t('quickAdd.name'), t('quickAdd.kcal'), 'Węgle', 'Białko', 'Tłuszcz']) {
       expect(screen.getByLabelText(label).getAttribute('autocomplete')).toBe('off');
     }
-    expect(screen.getByLabelText('Wartość energetyczna').getAttribute('inputmode')).toBe('numeric');
+    expect(screen.getByLabelText(t('quickAdd.kcal')).getAttribute('inputmode')).toBe('numeric');
     expect(screen.getByLabelText('Białko').getAttribute('inputmode')).toBe('decimal');
   });
 });
@@ -443,7 +443,7 @@ describe('AddFood item cards', () => {
     expect(await screen.findByText(/^details \/recipe\/r1/)).toBeTruthy();
   });
 
-  it('gives every checked checkbox the same grey colour', () => {
+  it('gives every checked checkbox the same green colour', () => {
     renderAddFood();
 
     fireEvent.click(checkbox('Owsianka'));
@@ -451,7 +451,7 @@ describe('AddFood item cards', () => {
 
     const boxes = [checkbox('Owsianka'), checkbox('Omlet')].map(item => item.firstElementChild!.className);
     expect(boxes[0]).toBe(boxes[1]);
-    expect(boxes[0]).toContain('bg-on-surface-variant');
+    expect(boxes[0]).toContain('bg-primary');
   });
 
   it('shortens very large calorie values on the card', () => {
@@ -496,7 +496,7 @@ describe('AddFood item cards', () => {
 
   it('does not accept filter values above the limit', () => {
     renderAddFood();
-    fireEvent.click(screen.getByTitle('Filtruj wyniki'));
+    fireEvent.click(screen.getByRole('button', { name: t('food.filters.open') }));
 
     const maxKcal = screen.getByPlaceholderText('np. 500') as HTMLInputElement;
     fireEvent.change(maxKcal, { target: { value: '10001' } });
@@ -598,7 +598,7 @@ describe('AddFood tabs', () => {
   it('searches the whole product base and visible recipes whatever tab is open', () => {
     renderAddFood();
     fireEvent.click(tab('Własne'));
-    fireEvent.change(screen.getByPlaceholderText('Szukaj przepisów, produktów...'), { target: { value: 'om' } });
+    fireEvent.change(screen.getByPlaceholderText(t('food.searchPlaceholder')), { target: { value: 'om' } });
 
     expect(mocks.searchArgs.at(-1)).toEqual(expect.objectContaining({ query: 'om', enabled: true }));
     expect(screen.getByText('Omlet')).toBeTruthy();
@@ -642,7 +642,7 @@ describe('AddFood tabs', () => {
     ]);
 
     search('o');
-    fireEvent.click(screen.getByTitle('Filtruj wyniki'));
+    fireEvent.click(screen.getByRole('button', { name: t('food.filters.open') }));
     fireEvent.change(screen.getByPlaceholderText('np. 500'), { target: { value: '100' } });
     expect(screen.getAllByRole('checkbox').map(item => item.getAttribute('aria-label'))).toEqual([
       t('addFood.selectItem', { name: 'Jogurt' }),
@@ -694,7 +694,7 @@ describe('AddFood tabs', () => {
 
     expect(tab('Własne').getAttribute('aria-selected')).toBe('true');
     expect(await screen.findByText('Mój baton')).toBeTruthy();
-    expect((screen.getByPlaceholderText('Szukaj przepisów, produktów...') as HTMLInputElement).value).toBe('');
+    expect((screen.getByPlaceholderText(t('food.searchPlaceholder')) as HTMLInputElement).value).toBe('');
   });
 
   it('marks Calendories base products in search results', () => {
@@ -703,7 +703,7 @@ describe('AddFood tabs', () => {
       { id: 'p6', name: 'Czosnek', brand: 'Example Farm', kcal: 140, status: 'VERIFIED', source: 'OPEN_FOOD_FACTS' },
     ];
     renderAddFood();
-    fireEvent.change(screen.getByPlaceholderText('Szukaj przepisów, produktów...'), { target: { value: 'czosnek' } });
+    fireEvent.change(screen.getByPlaceholderText(t('food.searchPlaceholder')), { target: { value: 'czosnek' } });
 
     expect(screen.getByText('Czosnek (Example Farm)')).toBeTruthy();
     expect(screen.getAllByText('Calendories')).toHaveLength(1);
@@ -711,7 +711,7 @@ describe('AddFood tabs', () => {
 
   it('filters recipes by nutrition in search results', () => {
     renderAddFood();
-    fireEvent.click(screen.getByTitle('Filtruj wyniki'));
+    fireEvent.click(screen.getByRole('button', { name: t('food.filters.open') }));
     fireEvent.change(screen.getByPlaceholderText('np. 500'), { target: { value: '400' } });
 
     expect(screen.getByText('Owsianka')).toBeTruthy();
@@ -720,7 +720,7 @@ describe('AddFood tabs', () => {
 
   it('applies every nutrition filter to recipes', () => {
     renderAddFood();
-    fireEvent.click(screen.getByTitle('Filtruj wyniki'));
+    fireEvent.click(screen.getByRole('button', { name: t('food.filters.open') }));
     const field = (placeholder: string) => screen.getByPlaceholderText(placeholder);
 
     fireEvent.change(field('np. 20'), { target: { value: '10' } });
@@ -814,13 +814,13 @@ describe('AddFood search field', () => {
   it('does not focus the search field when the screen opens', () => {
     renderAddFood();
 
-    expect(document.activeElement).not.toBe(screen.getByPlaceholderText('Szukaj przepisów, produktów...'));
+    expect(document.activeElement).not.toBe(screen.getByPlaceholderText(t('food.searchPlaceholder')));
   });
 
   it('keeps the search phrase and filters after coming back from product details', async () => {
     renderAddFood();
     search('om');
-    fireEvent.click(screen.getByTitle('Filtruj wyniki'));
+    fireEvent.click(screen.getByRole('button', { name: t('food.filters.open') }));
     fireEvent.change(screen.getByPlaceholderText('np. 500'), { target: { value: '400' } });
     fireEvent.click(screen.getByRole('button', { name: t('food.filters.show') }));
 
@@ -870,7 +870,7 @@ describe('AddFood search field', () => {
   it('starts with an empty search when opened again from the plan', () => {
     renderAddFood(`${ADD_FOOD_URL}&tab=saved`);
 
-    expect((screen.getByPlaceholderText('Szukaj przepisów, produktów...') as HTMLInputElement).value).toBe('');
+    expect((screen.getByPlaceholderText(t('food.searchPlaceholder')) as HTMLInputElement).value).toBe('');
     expect(mocks.searchArgs.at(-1)?.enabled).toBe(false);
   });
 });
@@ -883,7 +883,7 @@ describe('AddFood new product form', () => {
   }
 
   function addProductButton() {
-    return screen.getByRole('button', { name: /Dodaj produkt/ });
+    return screen.getByRole('button', { name: /Utwórz produkt/ });
   }
 
   beforeEach(() => {
@@ -897,7 +897,7 @@ describe('AddFood new product form', () => {
     await openSavedTab();
     fireEvent.click(checkbox('Owsianka'));
 
-    fireEvent.click(screen.getByTitle('Skanuj kod'));
+    fireEvent.click(screen.getByRole('button', { name: t('addFood.scan') }));
     fireEvent.click(screen.getByText('detect code'));
     fireEvent.click(await screen.findByRole('button', { name: 'Jogurt' }));
     await screen.findByDisplayValue('100');
@@ -911,7 +911,7 @@ describe('AddFood new product form', () => {
     mocks.findProductByBarCode.mockResolvedValue({ product: null, prefill: { ...SKYR_PREFILL, package_weight: 450 } });
     renderAddFood();
 
-    fireEvent.click(screen.getByTitle('Skanuj kod'));
+    fireEvent.click(screen.getByRole('button', { name: t('addFood.scan') }));
     fireEvent.click(screen.getByText('detect code'));
 
     expect((await packageField()).value).toBe('450');
@@ -926,7 +926,7 @@ describe('AddFood new product form', () => {
     mocks.findProductByBarCode.mockResolvedValue({ product: null, prefill: SKYR_PREFILL });
     renderAddFood();
 
-    fireEvent.click(screen.getByTitle('Skanuj kod'));
+    fireEvent.click(screen.getByRole('button', { name: t('addFood.scan') }));
     fireEvent.click(screen.getByText('detect code'));
 
     await waitFor(() => expect(screen.getByText(t('productForm.measures'))).toBeTruthy());
@@ -939,7 +939,7 @@ describe('AddFood new product form', () => {
     mocks.findProductByBarCode.mockResolvedValue({ product: null, prefill: { ...SKYR_PREFILL, package_weight: 450 } });
     renderAddFood();
 
-    fireEvent.click(screen.getByTitle('Skanuj kod'));
+    fireEvent.click(screen.getByRole('button', { name: t('addFood.scan') }));
     fireEvent.click(screen.getByText('detect code'));
 
     fireEvent.change(await packageField(), { target: { value: '0' } });

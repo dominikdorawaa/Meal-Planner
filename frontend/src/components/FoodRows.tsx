@@ -50,16 +50,31 @@ interface FoodRowProps {
   onToggleSelected: () => void;
 }
 
+function rowDetails({ own, unverified, calendories }: Pick<FoodRowProps, 'own' | 'unverified' | 'calendories'>) {
+  return [
+    calendories && t('food.calendoriesBadge'),
+    own && t('food.ownBadge'),
+    unverified && t('food.unverifiedBadge'),
+  ].filter(Boolean) as string[];
+}
+
 function FoodRow({ name, kcal, amount, own, unverified, calendories, selected, onOpen, onToggleSelected, children }: FoodRowProps & { children: ReactNode }) {
+  const details = rowDetails({ own, unverified, calendories });
   return (
     <div
       onClick={onOpen}
-      className="flex items-center bg-surface-container-lowest p-2.5 rounded-[20px] shadow-xs border border-outline-variant/10 active:scale-[0.98] transition-all cursor-pointer"
+      className="flex items-center gap-3 bg-surface-container-low rounded-2xl p-2 pr-0 active:scale-[0.98] transition-transform cursor-pointer"
     >
       {children}
-      <div className="flex flex-col justify-center gap-0.5 px-3 flex-1 min-w-0">
-        <h3 className="font-headline font-bold text-[13px] text-on-surface line-clamp-2 leading-relaxed">{name}</h3>
-        <ItemBadges own={own} unverified={unverified} calendories={calendories} singleLine />
+      <div className="flex flex-col justify-center gap-1 flex-1 min-w-0">
+        <h3 className="font-headline font-extrabold text-[14px] leading-tight tracking-tight text-on-surface line-clamp-2">{name}</h3>
+        <p className="flex flex-nowrap items-center gap-2 min-w-0 text-[11.5px] font-semibold text-on-surface-variant">
+          <span className="shrink-0 text-primary tabular-nums">{kcal} kcal</span>
+          <span className="shrink-0 tabular-nums">{amount}</span>
+          {details.map(detail => (
+            <span key={detail} className="min-w-0 truncate before:content-['·'] before:mr-2">{detail}</span>
+          ))}
+        </p>
       </div>
       <div
         data-testid="food-row-select-area"
@@ -67,15 +82,9 @@ function FoodRow({ name, kcal, amount, own, unverified, calendories, selected, o
           event.stopPropagation();
           onToggleSelected();
         }}
-        className="flex items-center self-stretch shrink-0 -my-2.5 -mr-2.5 py-2.5 pr-2.5"
+        className="flex items-center self-stretch shrink-0 pr-1"
       >
-        <div className="flex flex-col items-end justify-center pl-1 pr-1 max-w-[5.5rem]">
-          <span className="text-xs font-black whitespace-nowrap max-w-full truncate">{kcal} kcal</span>
-          <span className="text-[9px] font-bold text-on-surface-variant uppercase whitespace-nowrap max-w-full truncate">{amount}</span>
-        </div>
-        <div className="flex items-center justify-center pl-1 border-l border-outline-variant/10 ml-1 shrink-0">
-          <SelectionCheckbox checked={selected} label={name} onToggle={onToggleSelected} />
-        </div>
+        <SelectionCheckbox checked={selected} label={name} onToggle={onToggleSelected} />
       </div>
     </div>
   );
@@ -84,7 +93,7 @@ function FoodRow({ name, kcal, amount, own, unverified, calendories, selected, o
 export function ProductRow(props: FoodRowProps) {
   return (
     <FoodRow {...props}>
-      <FoodPlaceholder kind="product" className="w-12 h-12 rounded-2xl shrink-0" iconClassName="text-[28px]" />
+      <FoodPlaceholder kind="product" className="w-12 h-12 rounded-xl shrink-0" iconClassName="text-[26px]" />
     </FoodRow>
   );
 }
@@ -92,7 +101,7 @@ export function ProductRow(props: FoodRowProps) {
 export function RecipeRow({ recipe, ...props }: FoodRowProps & { recipe: { name: string; images?: RecipeImageInput[] | null } }) {
   return (
     <FoodRow {...props}>
-      <div className="w-12 h-12 rounded-2xl overflow-hidden shrink-0 relative bg-surface-container-highest">
+      <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 relative bg-surface-container-lowest">
         <RecipeCoverImage
           image={recipeCoverImage(recipe)}
           alt={recipe.name}
