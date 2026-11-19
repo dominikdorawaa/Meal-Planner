@@ -338,6 +338,26 @@ describe('AddRecipe saving', () => {
       ],
     }));
   });
+
+  it('keeps both save buttons disabled until the edited recipe changes', async () => {
+    mocks.getRecipe.mockResolvedValue({
+      id: 'r1', name: 'Owsianka', kcal: 500, protein: 20, fat: 10, carbs: 80, portions: 1, instructions: [], ingredients: [],
+    });
+    renderAddRecipe('/edit-recipe/r1');
+    const saveButtons = () => [
+      screen.getByRole('button', { name: t('recipeForm.save') }),
+      screen.getByRole('button', { name: t('recipeForm.saveRecipe') }),
+    ] as HTMLButtonElement[];
+
+    await waitFor(() => expect((screen.getByLabelText(t('recipeForm.name')) as HTMLInputElement).value).toBe('Owsianka'));
+    expect(saveButtons().map(button => button.disabled)).toEqual([true, true]);
+
+    fireEvent.change(screen.getByLabelText(t('recipeForm.name')), { target: { value: 'Owsianka z malinami' } });
+    expect(saveButtons().map(button => button.disabled)).toEqual([false, false]);
+
+    fireEvent.change(screen.getByLabelText(t('recipeForm.name')), { target: { value: 'Owsianka' } });
+    expect(saveButtons().map(button => button.disabled)).toEqual([true, true]);
+  });
 });
 
 describe('AddRecipe ingredients without a product', () => {

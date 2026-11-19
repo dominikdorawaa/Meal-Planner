@@ -284,7 +284,7 @@ export default function AddRecipe() {
   };
 
   const portionsInvalid = portions.trim() !== '' && !isPositiveWithinLimit(portions, AMOUNT_LIMITS.portion);
-  const saveDisabled = !name.trim() || isSaving || isUploadingPhoto || missingProducts || portionsInvalid;
+  const saveDisabled = !name.trim() || !hasUnsavedChanges || isSaving || isUploadingPhoto || missingProducts || portionsInvalid;
   const perPortion = recipeMacrosPerPortion(ingredients, parseFloat(portions.replace(',', '.')) || 1);
   const addFieldClass = 'w-full h-[52px] rounded-2xl border border-dashed border-outline-variant/20 bg-surface-container-low text-on-surface-variant flex items-center justify-center gap-1.5 text-sm font-semibold active:scale-[0.98] transition-transform disabled:opacity-50';
 
