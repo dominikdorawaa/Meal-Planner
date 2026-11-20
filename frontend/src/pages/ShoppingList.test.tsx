@@ -155,18 +155,12 @@ describe('ShoppingList create from plan', () => {
 });
 
 describe('ShoppingList add product form', () => {
-  it('turns off autofill suggestions and limits the amount', () => {
+  it('asks only for the product name', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: new RegExp(t('shopping.addProduct')) }));
 
-    expect(screen.getByLabelText(t('shopping.name')).getAttribute('autocomplete')).toBe('off');
-    expect(screen.getByLabelText(t('shopping.unit')).getAttribute('autocomplete')).toBe('off');
-    const amount = screen.getByLabelText(t('shopping.quantity')) as HTMLInputElement;
-    expect(amount.getAttribute('autocomplete')).toBe('off');
-    fireEvent.change(amount, { target: { value: '2,5' } });
-    expect(amount.value).toBe('2,5');
-    fireEvent.change(amount, { target: { value: '5001' } });
-    expect(amount.value).toBe('2,5');
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getAllByRole('textbox')).toEqual([dialog.getByLabelText(t('shopping.name'))]);
     expect(document.querySelector('[data-scroll-lock]')).not.toBeNull();
   });
 });
@@ -255,6 +249,21 @@ describe('ShoppingList products', () => {
     expect(screen.getByText('500 g')).toBeTruthy();
     expect(screen.getByText('1.25 pcs')).toBeTruthy();
     expect((screen.getByRole('checkbox', { name: /Banana/ }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('shows a product added by name alone without an amount', () => {
+    APP_DATA.shoppingList = [{ id: 's4', ingredient_name: '2 kg potatoes', quantity: null, unit: null, is_checked: false }];
+    renderPage();
+
+    const row = screen.getByRole('button', { name: t('shopping.moveItem', { name: '2 kg potatoes' }) });
+    expect(row.textContent).toBe('2 kg potatoes');
+  });
+
+  it('shows an amount without a unit', () => {
+    APP_DATA.shoppingList = [{ id: 's5', ingredient_name: 'Lemons', quantity: 3, unit: null, is_checked: false }];
+    renderPage();
+
+    expect(screen.getByRole('button', { name: t('shopping.moveItem', { name: 'Lemons' }) }).textContent).toBe('Lemons3');
   });
 
   it('turns the departments off to keep server order and remembers the choice', () => {

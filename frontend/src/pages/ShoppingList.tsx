@@ -35,9 +35,14 @@ const FROM_PLAN_MESSAGES: Record<Exclude<ShoppingFromPlanResult, 'added'>, Param
 interface ShoppingItem {
   id: string;
   ingredient_name: string;
-  quantity: number;
-  unit: string;
+  quantity: number | null;
+  unit: string | null;
   is_checked?: boolean;
+}
+
+function shoppingItemAmount({ quantity, unit }: ShoppingItem): string | undefined {
+  if (quantity == null) return undefined;
+  return `${formatShoppingAmount(quantity, unit)} ${unit ?? ''}`.trim();
 }
 
 type IngredientAmount = Parameters<typeof ingredientBaseAmountLabel>[0];
@@ -268,7 +273,7 @@ export function ShoppingList() {
     <ShoppingItemRow
       key={item.id}
       name={item.ingredient_name}
-      amount={`${formatShoppingAmount(item.quantity, item.unit)} ${item.unit}`}
+      amount={shoppingItemAmount(item)}
       checked={!!item.is_checked}
       onToggle={() => toggleCheck(item.id, !!item.is_checked)}
       onOpen={() => setMovingItem(item)}
