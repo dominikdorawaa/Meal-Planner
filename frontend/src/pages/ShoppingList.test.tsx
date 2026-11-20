@@ -263,7 +263,9 @@ describe('ShoppingList products', () => {
     APP_DATA.shoppingList = [{ id: 's5', ingredient_name: 'Lemons', quantity: 3, unit: null, is_checked: false }];
     renderPage();
 
-    expect(screen.getByRole('button', { name: t('shopping.moveItem', { name: 'Lemons' }) }).textContent).toBe('Lemons3');
+    const row = within(screen.getByRole('button', { name: t('shopping.moveItem', { name: 'Lemons' }) }));
+    expect(row.getByText('Lemons')).toBeTruthy();
+    expect(row.getByText('3')).toBeTruthy();
   });
 
   it('turns the departments off to keep server order and remembers the choice', () => {
