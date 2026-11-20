@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { t } from '../i18n';
 import { api } from '../lib/apiClient';
-import { AMOUNT_LIMITS, acceptsLimitedNumber } from '../lib/inputLimits';
 import { ShoppingSheet } from './ShoppingSheet';
 import { SheetSubmit } from './FormSheet';
 
@@ -18,8 +17,6 @@ export function ShoppingAddProductSheet({ onAdded, onClose }: ShoppingAddProduct
   const formId = `${ids}-form`;
   const nameRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState('');
-  const [quantity, setQuantity] = useState('1');
-  const [unit, setUnit] = useState(() => t('shopping.unitPlaceholder'));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,18 +30,13 @@ export function ShoppingAddProductSheet({ onAdded, onClose }: ShoppingAddProduct
       setError(t('shopping.nameRequired'));
       return;
     }
-    const amount = parseFloat(quantity.replace(',', '.'));
-    if (Number.isNaN(amount) || amount <= 0) {
-      setError(t('shopping.quantityInvalid'));
-      return;
-    }
     setError(null);
     setSubmitting(true);
     try {
       await api.shoppingList.addItem({
         ingredient_name: trimmedName,
-        quantity: amount,
-        unit: unit.trim() || t('shopping.unitPlaceholder'),
+        quantity: null,
+        unit: null,
         is_checked: false,
       });
       await onAdded();
@@ -77,37 +69,12 @@ export function ShoppingAddProductSheet({ onAdded, onClose }: ShoppingAddProduct
             id={`${ids}-name`}
             autoComplete="off"
             type="text"
+            enterKeyHint="done"
             value={name}
             onChange={event => setName(event.target.value)}
             placeholder={t('shopping.namePlaceholder')}
             className={FIELD}
           />
-        </div>
-        <div className="flex gap-3">
-          <div className="flex-1 min-w-0">
-            <label htmlFor={`${ids}-quantity`} className={LABEL}>{t('shopping.quantity')}</label>
-            <input
-              id={`${ids}-quantity`}
-              autoComplete="off"
-              type="text"
-              inputMode="decimal"
-              value={quantity}
-              onChange={event => acceptsLimitedNumber(event.target.value, AMOUNT_LIMITS.g) && setQuantity(event.target.value)}
-              className={`${FIELD} tabular-nums`}
-            />
-          </div>
-          <div className="w-32 shrink-0">
-            <label htmlFor={`${ids}-unit`} className={LABEL}>{t('shopping.unit')}</label>
-            <input
-              id={`${ids}-unit`}
-              autoComplete="off"
-              type="text"
-              value={unit}
-              onChange={event => setUnit(event.target.value)}
-              placeholder={t('shopping.unitPlaceholder')}
-              className={FIELD}
-            />
-          </div>
         </div>
         {error && <p role="alert" className="px-1 text-error text-sm font-medium">{error}</p>}
       </form>

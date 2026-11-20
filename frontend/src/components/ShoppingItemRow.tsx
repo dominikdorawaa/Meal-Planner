@@ -2,7 +2,7 @@ import { t } from '../i18n';
 
 interface ShoppingItemRowProps {
   name: string;
-  amount: string;
+  amount?: string;
   checked: boolean;
   disabled?: boolean;
   onToggle: () => void;
@@ -25,7 +25,9 @@ export function ShoppingItemRow({ name, amount, checked, disabled = false, onTog
   const text = (
     <>
       <span className={`flex-1 min-w-0 truncate text-[15px] transition-colors ${checked ? 'text-on-surface-variant/70 line-through' : 'text-on-surface'}`}>{name}</span>
-      <span className={`shrink-0 text-sm font-semibold tabular-nums transition-colors ${checked ? 'text-on-surface-variant/70 line-through' : 'text-on-surface-variant'}`}>{amount}</span>
+      {amount && (
+        <span className={`shrink-0 text-sm font-semibold tabular-nums transition-colors ${checked ? 'text-on-surface-variant/70 line-through' : 'text-on-surface-variant'}`}>{amount}</span>
+      )}
     </>
   );
 
